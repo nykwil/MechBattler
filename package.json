@@ -1,0 +1,15 @@
+{
+  "name": "mechbattler",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "sim:test": "npm run test --workspace=@mechbattler/sim",
+    "sim:build": "npm run build --workspace=@mechbattler/sim",
+    "web:dev": "npm run dev --workspace=@mechbattler/web",
+    "web:build": "npm run build --workspace=@mechbattler/web"
+  }
+}

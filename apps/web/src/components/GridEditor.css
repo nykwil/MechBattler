@@ -1,0 +1,49 @@
+.grid-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.grid-frame {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  padding: 18px;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.4) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
+}
+
+.grid-svg { display: block; }
+.grid-svg .cell-bg { fill: var(--bg-inset); stroke: var(--line-hairline); stroke-width: 1; }
+.grid-svg .cell-core { fill: var(--bg-panel-raised); stroke: var(--signal-amber-dim); stroke-width: 1.5; }
+.grid-svg .cell-part { stroke: rgba(0,0,0,0.35); stroke-width: 1; cursor: pointer; }
+.grid-svg .cell-preview-ok { fill: var(--signal-green); opacity: 0.45; pointer-events: none; }
+.grid-svg .cell-preview-bad { fill: var(--signal-red); opacity: 0.45; pointer-events: none; }
+.grid-svg .cell-hit { fill: transparent; cursor: pointer; }
+
+.grid-caption {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.legend {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-secondary);
+}
+.legend-swatch {
+  width: 10px; height: 10px; border-radius: 2px;
+}

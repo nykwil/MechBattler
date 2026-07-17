@@ -1,0 +1,144 @@
+import { useCallback, useMemo, useReducer } from 'react';
+import {
+  CHASSIS,
+  CORE_INSTANCE_ID,
+  checkPlacement,
+  getChassis,
+  getOccupiedCells,
+  getPart,
+  type Build,
+  type PlacedPart,
+  type PlacementError,
+  type Rotation,
+} from '@mechbattler/sim';
+
+export type OverlayMode = 'parts' | 'power' | 'thermal';
+
+interface EditorState {
+  chassisId: string;
+  parts: PlacedPart[];
+  powerPriority: string[];
+  selectedPartId: string | null;
+  rotation: Rotation;
+  overlay: OverlayMode;
+  nextSeq: number;
+}
+
+type Action =
+  | { type: 'SET_CHASSIS'; chassisId: string }
+  | { type: 'SELECT_PART'; partId: string | null }
+  | { type: 'ROTATE' }
+  | { type: 'PLACE'; x: number; y: number }
+  | { type: 'REMOVE'; instanceId: string }
+  | { type: 'MOVE_PRIORITY'; instanceId: string; direction: -1 | 1 }
+  | { type: 'SET_OVERLAY'; overlay: OverlayMode };
+
+function drawsFromReactorPriority(partId: string): boolean {
+  const def = getPart(partId);
+  return Boolean(def.draw?.continuousKw || def.draw?.chargedEnergyPerShotKj);
+}
+
+function nextRotation(r: Rotation): Rotation {
+  return ((r + 90) % 360) as Rotation;
+}
+
+function initialState(chassisId: string): EditorState {
+  return {
+    chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
+    selectedPartId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+  };
+}
+
+function reducer(state: EditorState, action: Action): EditorState {
+  switch (action.type) {
+    case 'SET_CHASSIS':
+      return initialState(action.chassisId);
+    case 'SELECT_PART':
+      return { ...state, selectedPartId: action.partId, rotation: 0 };
+    case 'ROTATE':
+      return { ...state, rotation: nextRotation(state.rotation) };
+    case 'SET_OVERLAY':
+      return { ...state, overlay: action.overlay };
+    case 'PLACE': {
+      if (!state.selectedPartId) return state;
+      const chassis = getChassis(state.chassisId);
+      const partDef = getPart(state.selectedPartId);
+      const instanceId = `${state.selectedPartId}-${state.nextSeq}`;
+      const candidate: PlacedPart = {
+        instanceId, partId: state.selectedPartId,
+        origin: { x: action.x, y: action.y }, rotation: state.rotation, integrity: 1,
+      };
+      const error = checkPlacement(chassis, state.parts, candidate, partDef);
+      if (error) return state;
+      const powerPriority = drawsFromReactorPriority(state.selectedPartId)
+        ? [...state.powerPriority, instanceId]
+        : state.powerPriority;
+      return { ...state, parts: [...state.parts, candidate], powerPriority, nextSeq: state.nextSeq + 1 };
+    }
+    case 'REMOVE':
+      return {
+        ...state,
+        parts: state.parts.filter((p) => p.instanceId !== action.instanceId),
+        powerPriority: state.powerPriority.filter((id) => id !== action.instanceId),
+      };
+    case 'MOVE_PRIORITY': {
+      const idx = state.powerPriority.indexOf(action.instanceId);
+      const target = idx + action.direction;
+      if (idx < 0 || target < 0 || target >= state.powerPriority.length) return state;
+      const next = [...state.powerPriority];
+      [next[idx], next[target]] = [next[target]!, next[idx]!];
+      return { ...state, powerPriority: next };
+    }
+    default:
+      return state;
+  }
+}
+
+export function useBuild(defaultChassisId: string) {
+  const [state, dispatch] = useReducer(reducer, defaultChassisId, initialState);
+
+  const chassis = useMemo(() => getChassis(state.chassisId), [state.chassisId]);
+  const build: Build = useMemo(
+    () => ({ chassisId: state.chassisId, parts: state.parts, powerPriority: state.powerPriority }),
+    [state.chassisId, state.parts, state.powerPriority],
+  );
+
+  const checkCandidate = useCallback(
+    (x: number, y: number): PlacementError | null => {
+      if (!state.selectedPartId) return null;
+      const partDef = getPart(state.selectedPartId);
+      const candidate: PlacedPart = {
+        instanceId: '__preview__', partId: state.selectedPartId,
+        origin: { x, y }, rotation: state.rotation, integrity: 1,
+      };
+      return checkPlacement(chassis, state.parts, candidate, partDef);
+    },
+    [chassis, state.parts, state.selectedPartId, state.rotation],
+  );
+
+  const previewCells = useCallback(
+    (x: number, y: number): { x: number; y: number }[] => {
+      if (!state.selectedPartId) return [];
+      const partDef = getPart(state.selectedPartId);
+      return getOccupiedCells(
+        { instanceId: '__preview__', partId: state.selectedPartId, origin: { x, y }, rotation: state.rotation, integrity: 1 },
+        partDef,
+      );
+    },
+    [state.selectedPartId, state.rotation],
+  );
+
+  return {
+    state, chassis, build,
+    chassisOptions: Object.values(CHASSIS),
+    setChassis: (id: string) => dispatch({ type: 'SET_CHASSIS', chassisId: id }),
+    selectPart: (id: string | null) => dispatch({ type: 'SELECT_PART', partId: id }),
+    rotate: () => dispatch({ type: 'ROTATE' }),
+    place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
+    remove: (instanceId: string) => dispatch({ type: 'REMOVE', instanceId }),
+    movePriority: (instanceId: string, direction: -1 | 1) => dispatch({ type: 'MOVE_PRIORITY', instanceId, direction }),
+    setOverlay: (overlay: OverlayMode) => dispatch({ type: 'SET_OVERLAY', overlay }),
+    checkCandidate,
+    previewCells,
+  };
+}

@@ -1,0 +1,31 @@
+:root {
+  /* Base */
+  --bg-floor: #12141a;
+  --bg-panel: #1a1d24;
+  --bg-panel-raised: #21252d;
+  --bg-inset: #0d0f13;
+  --line-hairline: #2c313b;
+  --line-bright: #3a4150;
+
+  /* Text */
+  --ink-primary: #e9e7e1;
+  --ink-secondary: #9a9fab;
+  --ink-faint: #616774;
+
+  /* Signal colors -- each one means one thing, everywhere in the app */
+  --signal-amber: #e8a23d;     /* hazard / selection / heat warning */
+  --signal-amber-dim: #7a5a26;
+  --signal-blue: #5aa9c7;      /* power / schematic / conduit */
+  --signal-blue-dim: #2f5666;
+  --signal-green: #6fa85a;     /* connected / nominal */
+  --signal-red: #d64545;       /* overheat / brownout / illegal */
+  --signal-red-dim: #5c2626;
+
+  /* Type */
+  --font-display: 'Oswald', 'IBM Plex Sans', sans-serif;
+  --font-body: 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+
+  --radius-sm: 3px;
+  --radius-md: 5px;
+}
