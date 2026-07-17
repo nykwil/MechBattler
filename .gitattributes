@@ -1,0 +1,2 @@
+# Keep LF line endings everywhere; the repo is edited from WSL and Windows.
+* text=auto eol=lf
