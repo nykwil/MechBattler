@@ -93,11 +93,28 @@ mount arc ×1.25, stagger ×1.5. **Mount arc is a tunable trade**: wider arc = a
 but (a) the arc-edge penalty bites more often and (b) wide-arc variants of a weapon carry
 +20% base dispersion (salvage variants vary).
 
-**Dead reckoning**: aim point = target position + tracked velocity × time-of-flight (two
-iterations for convergence). Tracked velocity is an exponential moving average of the
-target's true velocity with time constant **τ = 2.0 s × (1 − q) + 0.2 s**, where q is
-prediction quality: **0.40** base, **0.75** with a powered U-TC1 targeting computer. Low-q
-shooters lag behind course changes; a targeting computer is literally a counter-juke part.
+**Hit model (decided Jul 2026, implemented in `packages/sim/src/combat.ts` — supersedes
+simulated projectile flight and dead reckoning)**: shooting is **purely stat-based**. Every
+shot's hit probability is computed from physical modifiers, rolled against the seeded RNG,
+and — on a hit — resolved to an entry cell by sampling where across the target's silhouette
+it lands (then the normal penetration walk of §6 runs). The lateral aim error at the
+target combines, in quadrature:
+
+- **Dispersion**: σ(rad) × range, with all shooter-state multipliers (speed setting,
+  turning, arc edge, stagger).
+- **Aim staleness × target crossing speed**: staleness = **tracking lag + time-of-flight**,
+  where lag = 0.3 s (0.1 s with a powered U-TC1) and time-of-flight = range ÷ muzzle
+  velocity (0 for hitscan). Lateral target speed × staleness is the miss distance.
+
+P(hit) = erf(projected target half-width ÷ (σ_m √2)). Consequences, all measured in
+battle: sustained crossing speed is a defensive stat; **slow projectiles are statistically
+dodgeable** (a 250 m/s rocket gives a strafing target ~5× the escape time of a railgun
+slug) with zero flight simulation; approaching head-on costs nothing (zero crossing
+speed); the targeting computer is the purchasable counter (autocannon 64% → 87% vs an
+orbiting spider at 40 m). Muzzle velocity stays a first-class balance stat. Drawn
+projectiles/tracers are **pure presentation** over the event log. The EMA dead-reckoning
+model that previously occupied this section is retired — the staleness term subsumes lead
+error statistically.
 
 ## 6. Hit resolution → locational damage
 
@@ -138,7 +155,13 @@ Shown in the workshop stats bar and drawn as a ring in the arena (rule R5).
 The autopilot never uses information a player couldn't see. It is deliberately simple; its
 quality is a product of the build (envelopes, priorities, chassis) — which is the game.
 
-## 8. The wiggle-war question — resolved for v1
+## 8. The wiggle-war question — moot under the stat-based hit model
+
+**Superseded (Jul 2026)**: with hit resolution purely statistical (§5), there are no
+simulated projectiles to juke and no per-shot lead prediction to exploit — evasion value
+comes only from *sustained* crossing speed, which is bounded by chassis stats and already
+costs range control. The analysis below is kept for the record in case simulated flight
+ever returns.
 
 Concern: dead reckoning implies course changes dodge shots; does combat degenerate into
 wiggling? **Decision: no explicit anti-wiggle rule in v1.** Four systemic costs already bound
@@ -182,3 +205,7 @@ Combat must be legible enough that the workshop fix is obvious:
 - Autopilot at 4 Hz: reactive enough without machine-gun order spam?
 - Judges' decision on timeout: does % functional mass incentivize enough aggression?
 - Arc-edge penalty (outer 25%, ×1.25): perceptible or noise?
+- Core HP: the core is not a catalog part; the combat slice uses 50 HP (`CORE_HP` in
+  `combat.ts`) — validate against fight-length targets.
+- Tracking lag 0.3 s / 0.1 s (§5): measured effect at 40 m is AC 74% → 94% hit rate with a
+  TC vs an orbiting spider — confirm this reads as a fair trade at other ranges/speeds.

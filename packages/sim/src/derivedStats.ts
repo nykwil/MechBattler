@@ -87,7 +87,8 @@ export interface RangeEnvelope {
   rangeEnd: number;
 }
 
-function falloffAt(def: PartDef, r: number): number {
+/** Damage multiplier at range r from a weapon's falloff curve (docs/03 §5). Shared with the arena. */
+export function falloffAt(def: PartDef, r: number): number {
   const { rangeStart, rangeEnd, multAtEnd } = def.weapon!.falloff;
   if (r <= rangeStart) return 1.0;
   if (r >= rangeEnd) return multAtEnd;

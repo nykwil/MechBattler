@@ -74,6 +74,8 @@ export interface InstanceRuntime {
   isShutdown: boolean;
   cumulativeDamageHp: number;
   cookedOff: boolean;
+  /** Set by the arena when the part's HP reaches 0 (docs/01 §5). Wreck cells keep conducting heat but the part does nothing. */
+  destroyed: boolean;
   cycleTimer: number;
   chargeKj: number;
   capDrawnKj: number;
@@ -86,7 +88,7 @@ const HYSTERESIS_HEADROOM_FRAC = 0.10;
 function freshRuntime(): InstanceRuntime {
   return {
     isShed: false, shedSinceT: null, isShutdown: false, cumulativeDamageHp: 0,
-    cookedOff: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0,
+    cookedOff: false, destroyed: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0,
   };
 }
 
@@ -129,9 +131,45 @@ export class Simulation {
       const def = getPart(p.partId);
       if (def.category === 'reactor') this.reactorAvailableKw.set(p.instanceId, 0);
       if (def.category === 'capacitor') this.capacitorStoredKj.set(p.instanceId, def.capacitor!.storedKj);
-      this.runtime.set(p.instanceId, freshRuntime());
+      const rt = freshRuntime();
+      // Cycle-fed weapons enter battle loaded: the first shot doesn't wait a
+      // full cycle (matters for long-cycle weapons like the rocket pod).
+      if (def.category === 'weapon' && def.draw?.continuousKw && def.weapon) rt.cycleTimer = def.weapon.cycleS;
+      this.runtime.set(p.instanceId, rt);
     }
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
+  }
+
+  isDestroyed(instanceId: string): boolean {
+    return this.runtime.get(instanceId)?.destroyed === true;
+  }
+
+  /**
+   * Marks a part destroyed (docs/01 §5): its cells become wreck cells (still
+   * conduct heat at 1.0 kJ/degC thermal mass, no function), and the power
+   * networks are recomputed without it -- destroying a conduit mid-fight
+   * splits the network and orphans downstream parts immediately.
+   */
+  destroyPart(instanceId: string): void {
+    const rt = this.runtime.get(instanceId);
+    if (!rt || rt.destroyed) return;
+    rt.destroyed = true;
+    if (this.reactorAvailableKw.has(instanceId)) this.reactorAvailableKw.set(instanceId, 0);
+    if (this.capacitorStoredKj.has(instanceId)) this.capacitorStoredKj.set(instanceId, 0);
+    for (const key of this.thermal.cellKeysByInstance.get(instanceId) ?? []) {
+      this.thermal.cells.get(key)!.thermalMassKjPerC = 1.0;
+    }
+
+    const active = this.parts.filter((p) => !this.isDestroyed(p.instanceId));
+    const { networks } = computePowerNetworks(active);
+    this.networks = networks;
+    this.networkIdByInstance = new Map();
+    for (const net of networks) {
+      for (const id of [...net.reactorInstanceIds, ...net.memberInstanceIds]) {
+        this.networkIdByInstance.set(id, net.networkId);
+      }
+    }
+    this.coreNetworkId = computeCoreNetwork(this.chassis, active);
   }
 
   private reactorsInNetwork(networkId: string): PlacedPart[] {
@@ -172,7 +210,7 @@ export class Simulation {
     // --- 1. Reactor spin-up toward rated output ---
     for (const p of this.parts) {
       const def = getPart(p.partId);
-      if (def.category !== 'reactor') continue;
+      if (def.category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
       const target = def.reactor!.outputKw;
       const rate = def.reactor!.throttleLagS > 0 ? target / def.reactor!.throttleLagS : Infinity;
       const cur = this.reactorAvailableKw.get(p.instanceId) ?? 0;
@@ -185,7 +223,7 @@ export class Simulation {
       if (def.category !== 'weapon' || !def.draw?.capFedEnergyPerShotKj) continue;
       const rt = this.runtime.get(p.instanceId)!;
       const enabled = command.weaponsEnabled[p.instanceId] === true;
-      if (rt.cookedOff) continue;
+      if (rt.cookedOff || rt.destroyed) continue;
       rt.isShutdown = this.hottestCellC(p.instanceId) >= 130 ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= 110;
       if (rt.cooldownRemainingS > 0) rt.cooldownRemainingS -= dtSec;
       if (!enabled || rt.isShutdown || rt.cooldownRemainingS > 0) continue;
@@ -234,7 +272,7 @@ export class Simulation {
       if (!networkId) continue; // not connected -- draws nothing, does nothing (docs/01 §3)
       const rt = this.runtime.get(p.instanceId)!;
       rt.isShutdown = this.hottestCellC(p.instanceId) >= 130 ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= 110;
-      if (rt.cookedOff || rt.isShutdown) continue;
+      if (rt.cookedOff || rt.isShutdown || rt.destroyed) continue;
 
       let kw = 0;
       if (def.category === 'weapon') {
@@ -359,7 +397,7 @@ export class Simulation {
     // --- 7. Reactor waste heat ---
     for (const p of this.parts) {
       const def = getPart(p.partId);
-      if (def.category !== 'reactor') continue;
+      if (def.category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
       const delivered = this.reactorsUsedKw(p.instanceId, deliveredKw);
       const output = def.reactor!.outputKw;
       const utilization = output > 0 ? delivered / output : 0;
@@ -393,7 +431,7 @@ export class Simulation {
     // --- 10. Radiators ---
     for (const p of this.parts) {
       const def = getPart(p.partId);
-      if (def.id !== 'U-RAD') continue;
+      if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
       const keys = this.thermal.cellKeysByInstance.get(p.instanceId)!;
       const raws = keys.map((k) => {
         const cell = this.thermal.cells.get(k)!;
@@ -411,8 +449,9 @@ export class Simulation {
     const shutdownInstanceIds: string[] = [];
     const cookedOffInstanceIds: string[] = [];
     for (const p of this.parts) {
-      const hottest = this.hottestCellC(p.instanceId);
       const rt = this.runtime.get(p.instanceId)!;
+      if (rt.destroyed) continue;
+      const hottest = this.hottestCellC(p.instanceId);
       if (!rt.isShutdown && hottest >= 130) rt.isShutdown = true;
       if (rt.isShutdown && hottest < 110) rt.isShutdown = false;
       if (rt.isShutdown) shutdownInstanceIds.push(p.instanceId);

@@ -1,7 +1,22 @@
 # 07 — Project Status & Handoff Notes
 
-Snapshot at the close of the design + first-prototype thread (Jul 2026). Read this first
-when resuming work.
+Snapshot as of mid-Jul 2026 (design + workshop prototype + headless combat skeleton).
+Read this first when resuming work.
+
+## Direction decisions (Jul 2026 thread)
+
+- **Watching combat is presentation, not a pillar.** The game should work even if combat
+  were text and resolved instantly; the payoff beat is the *diagnosis* (battle report),
+  which makes risk-05 R2 mostly a presentation concern. We still want to draw battles —
+  the renderer is a playback layer over the sim's event log.
+- **Shot resolution is purely stat-based (final)**: P(hit) computed from dispersion,
+  range, target projected width, and lateral speed × (tracking lag + time-of-flight);
+  rolled on the seeded RNG; hits sample an impact point and run the normal entry-cell /
+  penetration walk (03 §5). Muzzle velocity matters statistically — slow projectiles are
+  dodgeable by crossing targets with **zero flight simulation**. Dead reckoning and the
+  wiggle-war machinery (03 §8, 05 R3) are retired/moot. Drawn bullets are presentation.
+- The four-verb order system survives as the autopilot's internal vocabulary; the *manual
+  order UI* is not a near-term priority.
 
 ## What exists and works
 
@@ -20,7 +35,34 @@ prototype's acceptance tests; 06 catalogs the emergent synergy space.
   (click-to-place, R to rotate, hover legality preview), parts/power/thermal overlays,
   live stats panel, brownout priority reorder list, test bench with charts.
   Verified end-to-end in the browser; `npm run web:build` clean.
+- **Headless combat skeleton** (`packages/sim/src/combat.ts`, this thread): seeded PCG32
+  (`rng.ts`), `Battle`/`Combatant` — 2D kinematics (directional speed ellipse, accel, turn
+  rate, load/CoG derating, recoil, stagger), four-verb autopilot at 4 Hz (band-seeking
+  destination, speed setting, face-target, arc/range/temp-gated weapons), sampled-bearing
+  hitscan shot resolution (all dispersion multipliers), ray → entry cell → locational
+  damage with 50% overkill penetration and 25% wreck absorption, core HP, mid-fight
+  network splits (`Simulation.destroyPart`), cook-off splash, heat-damage part loss, and
+  victory by core-kill / mission-kill surrender / 120 s judges' decision. Emits a full
+  `BattleReport` event log (shots, sheds, shutdowns, part losses, victory) — the renderer
+  and post-battle report both read this. Sanity fights land at 13–30 s. **40/40 tests.**
+- **Stat-based hit model + orbiting** (03 §5): `computeHitModel` is pure and exported (the
+  workshop can chart hit% curves); strafe-capable chassis (spiders) orbit inside their
+  band. Measured at 40 m vs an orbiting Widow: AC 64% hits (87% with TC, ~100% vs head-on
+  targets); rocket pod ~83% at its closer band but pays 5× the railgun's escape time at
+  range. Speed is a defensive stat, muzzle velocity a real balance dial, and the targeting
+  computer their purchasable counter — all live today. Cycle weapons enter battle loaded
+  (first volley immediate).
 - Run: `npm install`, then `npm run web:dev` (port 5174) and `npm run sim:test`.
+
+### Combat-skeleton simplifications (extend, don't silently inherit)
+
+- Mount arcs always centered on chassis forward; muzzle-perimeter placement not enforced.
+- Autopilot weapon-enable skips the one-tick brownout preview (03 §7 item 4).
+- Locomotion power draw uses the straight-line derated speed, not instantaneous arena
+  velocity; a shed locomotion halts the mech instead of throttling it.
+- No obstacles/arena walls; spawn distance is the only geometry.
+- Only spiders orbit, in a fixed direction; bipeds/quads still move purely radially, so
+  armor skinning / radiator-side placement is exercised mainly by orbit matchups so far.
 
 ## Spec-vs-prototype gap (specced this thread, not yet implemented)
 
@@ -52,10 +94,9 @@ Ordered roughly by how much they'd improve the existing workshop:
 
 ## Not started (the other pillars)
 
-- **Combat arena** (spec 03): PixiJS 2D arena, projectiles/dispersion/dead-reckoning,
-  four-verb autopilot, locational damage vs. moving mechs, readability effects,
-  post-battle report. **This is the recommended next milestone** — it unlocks the risk-R2
-  ("watching is boring") and R3/R4 (balance) kill-criterion tests in 05.
+- **Combat presentation** (spec 03): PixiJS playback of the battle event log, readability
+  effects (03 §9), post-battle report UI. The sim side now exists (see above) — this became
+  a rendering task, not a systems task.
 - **Salvage/economy/run structure** (spec 04): wreck screen, scrap, repair, variants,
   quirks, 12-node ladder, intel cards (now incl. arena preview), starter kits.
 - **Batch-sim balance harness** (05 R4): headless round-robin of template builds — cheap
@@ -79,9 +120,13 @@ Ordered roughly by how much they'd improve the existing workshop:
 
 ## Suggested next-thread order
 
-1. Combat arena walking skeleton: two autopilot mechs, projectiles, locational damage,
-   battle report (no player orders yet) — validates fight length + readability.
-2. Four-verb order UI + auto-flag/trigger system on top.
-3. Batch-sim harness + the 05 kill-criterion tests (weave-vs-straight, round-robin).
-4. Salvage screen + economy loop (variants, quirks, ladder).
+1. ~~Combat walking skeleton~~ — **done this thread** (headless; see above).
+2. Batch-sim balance harness on top of `runBattle` + the 05 R4 round-robin kill-criterion
+   test (weave-vs-straight is deferred with projectile travel time).
+3. Battle playback renderer (PixiJS or simple SVG/canvas first) + post-battle report UI —
+   reads the `BattleReport` event log.
+4. Salvage screen + economy loop (variants, quirks, ladder). Consider the per-instance
+   part-state refactor first (integrity already exists; quirks/variants/affinities all
+   need per-instance stat modifiers in the sim).
 5. Workshop polish pass from the gap list above (items 1–4 can be slotted anytime).
+6. Four-verb manual order UI (demoted — see direction decisions).

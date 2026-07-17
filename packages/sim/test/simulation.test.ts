@@ -44,8 +44,9 @@ describe('continuous weapon fire (docs/02 §2-3, docs/03 §5)', () => {
 
     const expectedDps = computeBurstDps(build).totalDps;
     expect(expectedDps).toBeCloseTo(15, 5); // 1.5 damage / 0.1s cycle
-    expect(totalDamage).toBeCloseTo(expectedDps * 5, 0);
-    expect(shotCount).toBe(50);
+    // Cycle-fed weapons enter battle loaded, so 5s of fire is 50 cycles + the loaded round.
+    expect(shotCount).toBe(51);
+    expect(totalDamage).toBeCloseTo(shotCount * 1.5, 5);
   });
 });
 
