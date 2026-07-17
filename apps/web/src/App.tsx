@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { runBattle, runTestBench, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -7,6 +7,7 @@ import { StatsPanel } from './components/StatsPanel.js';
 import { PowerPriorityList } from './components/PowerPriorityList.js';
 import { TestBenchPanel } from './components/TestBenchPanel.js';
 import { PartInspector } from './components/PartInspector.js';
+import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
@@ -41,6 +42,12 @@ export default function App() {
     if (state.parts.length === 0) return null;
     return runTestBench({ chassis, build, speedSetting: 'cruise', durationS: 60 }).cellTempsFinalC;
   }, [chassis, build, state.parts.length]);
+
+  const issues = useMemo(() => validateBuild(chassis, build), [chassis, build]);
+  const faultInstanceIds = useMemo(
+    () => new Set(issues.filter((i) => i.severity === 'error').flatMap((i) => i.instanceIds)),
+    [issues],
+  );
 
   const fight = useCallback(
     (opponent: OpponentDef) => {
@@ -116,10 +123,16 @@ export default function App() {
             onPlace={place}
             onSelectInstance={selectInstance}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
+            faultInstanceIds={faultInstanceIds}
           />
         </div>
 
         <div className="panel">
+          {issues.length > 0 && (
+            <div className="section">
+              <BuildWarnings issues={issues} />
+            </div>
+          )}
           {state.selectedInstanceId && (
             <div className="section">
               <PartInspector

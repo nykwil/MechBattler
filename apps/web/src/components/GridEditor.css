@@ -23,6 +23,29 @@
   stroke-width: 2;
   pointer-events: none;
 }
+.grid-svg .cell-fault {
+  fill: none;
+  stroke: var(--signal-red);
+  stroke-width: 2;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+  animation: fault-pulse 1.2s ease-in-out infinite;
+}
+@keyframes fault-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+.grid-svg .cell-rejected {
+  fill: var(--signal-red);
+  pointer-events: none;
+  animation: reject-flash 0.9s ease-out forwards;
+}
+@keyframes reject-flash {
+  0% { opacity: 0.75; }
+  20% { opacity: 0.3; }
+  40% { opacity: 0.7; }
+  100% { opacity: 0; }
+}
 .grid-svg .cell-preview-ok { fill: var(--signal-green); opacity: 0.45; pointer-events: none; }
 .grid-svg .cell-preview-bad { fill: var(--signal-red); opacity: 0.45; pointer-events: none; }
 .grid-svg .cell-hit { fill: transparent; cursor: pointer; }
@@ -34,6 +57,13 @@
   font-family: var(--font-mono);
   font-size: 11px;
   color: var(--ink-faint);
+}
+
+.grid-rejection {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--signal-red);
+  letter-spacing: 0.04em;
 }
 
 .legend {

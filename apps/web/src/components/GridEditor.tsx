@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   computeConnectivity,
   getOccupiedCells,
@@ -13,9 +13,16 @@ import './GridEditor.css';
 
 const CELL = 30;
 
+const REJECTION_TEXT: Record<string, string> = {
+  'out-of-mask': 'off the chassis — parts never hang off the mask',
+  overlap: 'cell already occupied',
+  'perimeter-required': 'radiators need perimeter cells (exposure)',
+  'core-occupied': 'the core cell is reserved',
+};
+
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
-  onPlace, onSelectInstance, thermalSnapshot,
+  onPlace, onSelectInstance, thermalSnapshot, faultInstanceIds,
 }: {
   chassis: ChassisSpec;
   parts: PlacedPart[];
@@ -27,8 +34,18 @@ export function GridEditor({
   onPlace: (x: number, y: number) => void;
   onSelectInstance: (instanceId: string | null) => void;
   thermalSnapshot: Record<string, number> | null;
+  faultInstanceIds: Set<string>;
 }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  // Illegal-placement feedback (docs/07 gap #1): a rejected click flashes the
+  // attempted cells red and names the reason, instead of failing silently.
+  const [rejection, setRejection] = useState<{ cells: { x: number; y: number }[]; reason: string; at: number } | null>(null);
+
+  useEffect(() => {
+    if (!rejection) return;
+    const t = setTimeout(() => setRejection(null), 900);
+    return () => clearTimeout(t);
+  }, [rejection]);
 
   const occupancy = useMemo(() => {
     const map = new Map<string, { instanceId: string; partId: string }>();
@@ -49,6 +66,15 @@ export function GridEditor({
     const placed = parts.find((p) => p.instanceId === selectedInstanceId);
     return placed ? getOccupiedCells(placed, getPart(placed.partId)) : [];
   }, [parts, selectedInstanceId]);
+
+  const faultCells = useMemo(() => {
+    const cells: { x: number; y: number }[] = [];
+    for (const p of parts) {
+      if (!faultInstanceIds.has(p.instanceId)) continue;
+      cells.push(...getOccupiedCells(p, getPart(p.partId)));
+    }
+    return cells;
+  }, [parts, faultInstanceIds]);
 
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < chassis.height; y++) {
@@ -105,10 +131,26 @@ export function GridEditor({
             );
           })}
 
+          {faultCells.map(({ x, y }) => (
+            <rect
+              key={`fault-${x},${y}`}
+              className="cell-fault"
+              x={x * CELL + 1.5} y={y * CELL + 1.5} width={CELL - 3} height={CELL - 3}
+            />
+          ))}
+
           {selectedCells.map(({ x, y }) => (
             <rect
               key={`sel-${x},${y}`}
               className="cell-selected"
+              x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
+            />
+          ))}
+
+          {rejection && rejection.cells.map(({ x, y }) => (
+            <rect
+              key={`rej-${rejection.at}-${x},${y}`}
+              className="cell-rejected"
               x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
             />
           ))}
@@ -129,8 +171,16 @@ export function GridEditor({
               onMouseEnter={() => setHover({ x, y })}
               onClick={() => {
                 const occ = occupancy.get(`${x},${y}`);
-                if (selectedPartId) onPlace(x, y);
-                else onSelectInstance(occ ? occ.instanceId : null);
+                if (selectedPartId) {
+                  const error = checkCandidate(x, y);
+                  if (error) {
+                    setRejection({ cells: previewCells(x, y), reason: REJECTION_TEXT[error.reason] ?? error.reason, at: Date.now() });
+                  } else {
+                    onPlace(x, y);
+                  }
+                } else {
+                  onSelectInstance(occ ? occ.instanceId : null);
+                }
               }}
             />
           ))}
@@ -141,6 +191,7 @@ export function GridEditor({
         <span>{cells.length} cells</span>
         <span>{parts.length} parts placed</span>
       </div>
+      {rejection && <div className="grid-rejection">✕ {rejection.reason}</div>}
       <Legend overlay={overlay} />
     </div>
   );

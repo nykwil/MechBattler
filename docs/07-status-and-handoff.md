@@ -148,9 +148,12 @@ efficiency-table lever (dps per kW-heat, per kW-draw, per cell) is the next harn
 
 Ordered roughly by how much they'd improve the existing workshop:
 
-1. **Illegal-placement feedback** — clicks on illegal cells are rejected *silently* (hover
-   preview shows red, but a click gives no toast/shake). Violates rule R5 spirit; observed
-   directly during browser verification. Cheapest, highest-value fix.
+1. ~~Illegal-placement feedback~~ — **done**: rejected clicks flash the attempted cells red
+   and name the reason under the grid. Alongside it, **build validation** (`sim/src/
+   validation.ts` + `BuildWarnings` panel): errors for physical impossibilities (unpowered
+   parts with red pulsing grid outlines, dead core, cap-fed weapon without capacitors) and
+   the 02 §2 warn set (CANNOT SUSTAIN FIRE with time-to-empty, heat over cooling capacity,
+   overload, no weapons, disjoint envelopes).
 2. **Balance bars** (01 §9) — energy net-flow (negative = draining caps + time-to-empty)
    and heat net-flow gauges, always visible.
 3. **Inventory hover preview** (01 §9) — hovering a palette part previews its stat deltas
