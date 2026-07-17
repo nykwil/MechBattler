@@ -133,6 +133,35 @@ export const PARTS: Record<string, PartDef> = {
       recoilKnS: 8,
     },
   },
+  // Light precision carbine: the fast-scout sniper enabler. Long band, tight
+  // dispersion, low mass -- a Vulture can kite with it -- but modest DPS and a
+  // real power draw, so it is a positioning weapon, not an alpha strike.
+  'W-CB': {
+    id: 'W-CB', name: 'Needle (carbine)', category: 'weapon',
+    shape: line(2), massKg: 180, hp: 20, tier: 2,
+    draw: { continuousKw: 4 },
+    heat: { heatPerShotKj: 0.8 },
+    weapon: {
+      damage: 8, cycleS: 0.6, projectileSpeed: 900, dispersionMrad: 2.0,
+      falloff: { rangeStart: 60, rangeEnd: 180, multAtEnd: 0.6 }, mountArcDeg: 50,
+      recoilKnS: 0.2,
+    },
+  },
+  // Heavy short-range brute: the tank's payoff weapon. Enormous close damage
+  // that falls off a cliff past 45 m, heavy, slow projectile, big power/heat
+  // bill and recoil -- useless at sniper range, deletes things once the tank
+  // survives the crossing. A slow chassis's reason to wade in.
+  'W-BR': {
+    id: 'W-BR', name: 'Maul (siege gun)', category: 'weapon',
+    shape: rect(2, 3), massKg: 650, hp: 50, tier: 3,
+    draw: { continuousKw: 8 },
+    heat: { heatPerShotKj: 6 },
+    weapon: {
+      damage: 40, cycleS: 2.0, projectileSpeed: 400, dispersionMrad: 6.0,
+      falloff: { rangeStart: 15, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 45,
+      recoilKnS: 2,
+    },
+  },
 };
 
 export function getPart(id: string): PartDef {

@@ -38,6 +38,16 @@ export const SPEED_SETTING_FRACTIONS: Record<SpeedSetting, number> = {
   stationary: 0, creep: 0.3, cruise: 0.65, flank: 1.0,
 };
 
+/**
+ * Ram-air cooling (docs/02 §3): airflow over the radiator scales dissipation
+ * with speed. Radiator output is multiplied by (1 + RAM_AIR_MAX_BONUS × speed
+ * fraction), so a flanking mech cools 50% harder than a stationary one. This
+ * makes speed a cooling stat -- a fast, hot-running build stays alive by never
+ * stopping, a synergy a slow tank cannot use. Same code on bench and arena, so
+ * the workshop's flank-speed thermal prediction reflects it.
+ */
+export const RAM_AIR_MAX_BONUS = 0.5;
+
 export interface SimCommand {
   weaponsEnabled: Record<string, boolean>;
   speedSetting: SpeedSetting;
@@ -428,7 +438,8 @@ export class Simulation {
       cell.tempC += kj / cell.thermalMassKjPerC;
     }
 
-    // --- 10. Radiators ---
+    // --- 10. Radiators (with ram-air speed bonus) ---
+    const ramAir = 1 + RAM_AIR_MAX_BONUS * SPEED_SETTING_FRACTIONS[command.speedSetting];
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
@@ -438,10 +449,10 @@ export class Simulation {
         return { key: k, raw: Math.max(0, RADIATOR_K * (cell.tempC - AMBIENT_C)) };
       });
       const rawTotal = raws.reduce((s, r) => s + r.raw, 0);
-      const factor = rawTotal > 0 ? Math.min(1, RADIATOR_CAP_KW / rawTotal) : 0;
+      const factor = rawTotal > 0 ? Math.min(1, (RADIATOR_CAP_KW * ramAir) / rawTotal) : 0;
       for (const { key, raw } of raws) {
         const cell = this.thermal.cells.get(key)!;
-        cell.tempC -= (raw * factor * dtSec) / cell.thermalMassKjPerC;
+        cell.tempC -= (raw * factor * ramAir * dtSec) / cell.thermalMassKjPerC;
       }
     }
 

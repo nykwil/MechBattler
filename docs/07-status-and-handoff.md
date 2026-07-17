@@ -52,6 +52,13 @@ prototype's acceptance tests; 06 catalogs the emergent synergy space.
   range. Speed is a defensive stat, muzzle velocity a real balance dial, and the targeting
   computer their purchasable counter — all live today. Cycle weapons enter battle loaded
   (first volley immediate).
+- **The core loop is playable**: the workshop's Arena panel (`ArenaPanel.tsx`) offers a
+  3-opponent intel-card roster (`lib/opponents.ts`, per docs/04 §5), runs `runBattle`
+  against the editor's current build, and shows a post-battle report screen
+  (`BattleReportScreen.tsx`): victory banner + reason, per-mech stats, damage-by-part
+  both directions with destroyed markers, and the event timeline (sheds, shutdowns,
+  part losses, heavy hits). Rematch reruns with a new seed. Build → fight → diagnose →
+  refit works end-to-end in the browser (verified via headless Chromium).
 - Run: `npm install`, then `npm run web:dev` (port 5174) and `npm run sim:test`.
 
 ### Combat-skeleton simplifications (extend, don't silently inherit)
@@ -63,6 +70,79 @@ prototype's acceptance tests; 06 catalogs the emergent synergy space.
 - No obstacles/arena walls; spawn distance is the only geometry.
 - Only spiders orbit, in a fixed direction; bipeds/quads still move purely radially, so
   armor skinning / radiator-side placement is exercised mainly by orbit matchups so far.
+
+## Archetype-balancing mechanics + the RPS triangle (Jul 2026)
+
+Added to widen the viable-archetype space (docs/06 §8 target: ≥3 per tier), all R1-physical:
+- **Ram-air cooling** (02 §3): radiator output scales with speed → speed is a cooling stat,
+  enabling fast hot-running builds. Slow tanks can't use it.
+- **Mass-scaled stagger** (03 §5): stagger = damage ÷ mass ≥ 3.3 → heavy mechs are stable
+  gun platforms; light mechs stagger easily. The tank-identity lever.
+- **Arena walls** (03 §1): bound movement, cap runaway kiting (safety rail; the chassis grid
+  already blocks the worst runaway build, so not yet binding — see 03 §5).
+- **Two weapons**: W-CB Needle (light long-range carbine, scout-sniper enabler) and W-BR Maul
+  (heavy short-range siege gun, cliff falloff past 45 m — the tank's payoff weapon).
+- **Two templates**: `vulture-sniper` (fast carbine kiter) and `bastion-tank` (armored siege).
+
+**Result — no dominant archetype** (`npm run sim:demo`, 60 seeds each): fast-sniper beats
+gunline **65%**, gunline beats tank **73%**, tank beats sniper **73%** — three viable
+playstyles. **Design direction (decided): this must be fighting-game-flat, not RPS-sharp** —
+see 05 R10. One persistent mech per run means matchups must sit in a 35–65% band and bad
+ones must be fixable by refitting, never rebuilding.
+
+## Keystone/fitting split + adaptation search (05 R10, Jul 2026)
+
+`sim/src/adaptation.ts`: keystones (chassis + weapons + reactors) vs fitting (everything
+else); a fitting-only op catalog (armor plating front-first, strip armor, TC, heat sinks,
+radiator, capacitor, priority reorder); `npm run sim:adapt` sweeps every sub-35% matchup and
+labels it SOFT (fitting recovers it) or HARD. First sweep (20 seeds/eval): **8 SOFT, 19 HARD**.
+
+What the sweep taught us (all legible, all physical):
+
+- **SOFT wins are dramatic and readable**: skirmisher vs gunline 0%→50% by adding two heat
+  sinks (its MGs were thermal-shutting down mid-fight — no radiator in the build); tank vs
+  railgun 0%→95% by plating the two free center-lane cells (the railgun was coring it down
+  one penetration lane). "Read the loss, plate the lane" is the core loop working.
+- **The two kernel-level failures are correctly isolated**: mule-laser-boat is HARD vs
+  everything (part mispricing — no fitting saves a bad keystone) and vulture-skirmisher is
+  HARD vs nearly everything (an MG-band fast chassis must cross 60+ m of fire with 16 cells;
+  the kernel, not the fitting, is wrong).
+- **Kiting is bounded by reverse speed, not forward** — a biped that retreats while facing
+  (to keep its gun arc) moves at rev speed (Vulture 2.5 m/s < Bastion fwd 4.0), which is why
+  the tank catches the "faster" sniper. Orbit-kiting at strafe speed is the spider's
+  privilege. Real depth, but the autopilot never chooses turn-tail flight; worth a verb-3
+  behavior when we want true runaway.
+- **Matchups are knife-edge deterministic**: 0%→85-100% swings from two plates mean the
+  autopilot takes identical approach lanes every battle (only dispersion varies). Add spawn
+  position/bearing jitter to decorrelate before trusting exact percentages.
+
+Next tuning pass, in order: (1) spawn jitter, (2) reprice the laser (energy-lever first:
+maxChargeKw 30→45), (3) fix the vulture-skirmisher kernel (its identity likely wants the
+carbine, making stock MGs the brawler's sidearm), (4) re-run balance + adapt sweeps.
+
+## Balance harness (docs/05 R4) — built, first results (Jul 2026)
+
+`npm run sim:balance [seeds]` runs the template round-robin headless
+(`src/templates.ts` — eight archetype builds validated for placement + connectivity;
+`src/harness.ts`), reports win rates **with each build's tier-point budget** (docs/04 §5),
+and exits non-zero if any template breaches the 70% win-rate kill criterion. Current
+(20 seeds/pair, 560 battles, ~8 s):
+
+| Template | Win rate | Budget | Note |
+|---|---|---|---|
+| railgun-mule | **96% ⚠** | 21 | Outspends the field 2–3× — the flag is mostly budget, not brokenness |
+| mule-gunline | **78% ⚠** | 8 | The best value in the roster; anchors the RPS triangle |
+| vulture-sniper | 65% | 8 | The new fast archetype — successful, not degenerate |
+| mule-skirmisher | 59% | 7 | Mission-kills the orbiter (shoots its MGs off) |
+| bastion-tank | 54% | 29 | Specialist counter, over-costed for a generalist score |
+| widow-orbiter | 34% | 6 | Evasion works vs precision, loses the DPS race |
+| vulture-skirmisher | 14% | 9 | Short MG band; dies crossing to anything |
+| mule-laser-boat | **0%** | 11 | Laser is mispriced: 4.8 kW heat for 7.2 DPS |
+
+**Still to do before trusting the R4 flags**: budget-match the roster into brackets (the
+railgun/tank flags are partly budget artifacts — a 21-budget build *should* beat 6–8 budget
+starters). The laser's 0% at budget 11 is a genuine part-mispricing signal regardless — the
+efficiency-table lever (dps per kW-heat, per kW-draw, per cell) is the next harness addition.
 
 ## Spec-vs-prototype gap (specced this thread, not yet implemented)
 

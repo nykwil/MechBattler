@@ -34,10 +34,24 @@ export const TICK_S = 1 / 20;
 export const AUTOPILOT_PERIOD_TICKS = 5; // 4 Hz (docs/03 §7)
 export const DEFAULT_TIMEOUT_S = 120;
 export const DEFAULT_SPAWN_DISTANCE_M = 160;
+/** Arena rectangle (docs/03 §1): 200 m × 140 m. Walls bound movement -- a
+ *  kiter has only (arenaLength − spawnDistance)/2 of runway before its back
+ *  wall, so infinite runaway is impossible. This is the counter to the
+ *  runaway-sniper degeneracy: at some point the sniper must stand and fight. */
+export const DEFAULT_ARENA_LENGTH_M = 200;
+export const DEFAULT_ARENA_WIDTH_M = 140;
 /** The core is not a catalog part; its HP needs prototype validation (add to docs/03 §10). */
 export const CORE_HP = 50;
 export const SURRENDER_DELAY_S = 3;
-export const STAGGER_DAMAGE_THRESHOLD = 15;
+/**
+ * Stagger (docs/03 §3): a hit knocks a mech off balance when its momentum
+ * transfer overcomes the mech's inertia -- so stagger scales with damage but
+ * resists with mass. A hit staggers when damage / mass(t) ≥ this threshold.
+ * At 3.3, a 15-damage hit staggers a ~4.5 t mech (matching the old flat 15
+ * threshold), a 3 t Vulture staggers at 10 damage, and a 12 t Bastion needs
+ * ~40 -- only railgun-class hits. Heavy = stable gun platform, by physics.
+ */
+export const STAGGER_DAMAGE_PER_T = 3.3;
 /**
  * Tracking lag (docs/03 §5): aim trails the target's bearing by the fire
  * control's latency, so aim error grows with the target's angular velocity
@@ -127,7 +141,7 @@ export interface ShotResolution {
 }
 
 export type BattleEvent =
-  | { tSec: number; type: 'shot'; mech: 0 | 1; instanceId: string; partId: string; hit: boolean; totalDamageDealt: number; entryCell?: { x: number; y: number } }
+  | { tSec: number; type: 'shot'; mech: 0 | 1; instanceId: string; partId: string; hit: boolean; totalDamageDealt: number; entryCell?: { x: number; y: number }; damaged?: { instanceId: string; partId: string; damage: number }[] }
   | { tSec: number; type: 'part-destroyed'; mech: 0 | 1; instanceId: string; partId: string; cause: 'damage' | 'heat' | 'cookoff' }
   | { tSec: number; type: 'shed'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'shutdown'; mech: 0 | 1; instanceId: string }
@@ -543,6 +557,8 @@ export interface BattleOptions {
   seed: number;
   timeoutS?: number;
   spawnDistanceM?: number;
+  arenaLengthM?: number;
+  arenaWidthM?: number;
 }
 
 export class Battle {
@@ -551,6 +567,8 @@ export class Battle {
   readonly seed: number;
   private readonly rng: Pcg32;
   private readonly timeoutS: number;
+  private readonly arenaHalfLengthM: number;
+  private readonly arenaHalfWidthM: number;
   private tSec = 0;
   private tick = 0;
   private surrenderTimers: [number | null, number | null] = [null, null];
@@ -567,7 +585,9 @@ export class Battle {
     this.seed = options.seed;
     this.rng = new Pcg32(options.seed);
     this.timeoutS = options.timeoutS ?? DEFAULT_TIMEOUT_S;
-    const half = (options.spawnDistanceM ?? DEFAULT_SPAWN_DISTANCE_M) / 2;
+    this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
+    this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
+    const half = Math.min((options.spawnDistanceM ?? DEFAULT_SPAWN_DISTANCE_M) / 2, this.arenaHalfLengthM - 2);
     this.combatants = [
       new Combatant(options.builds[0], { x: -half, y: 0 }, 0),
       new Combatant(options.builds[1], { x: half, y: 0 }, Math.PI),
@@ -624,10 +644,16 @@ export class Battle {
       }
     }
 
-    // Movement.
+    // Movement, then clamp to the arena walls (a mech pinned against a wall
+    // loses the velocity component driving it into the wall -- no sticking).
     for (const i of [0, 1] as const) {
       const locomotionShed = this.lastSnapshots[i]?.shedInstanceIds.includes(CORE_INSTANCE_ID) ?? false;
-      integrateMovement(this.combatants[i], this.combatants[1 - i], locomotionShed, this.tSec, dt);
+      const c = this.combatants[i];
+      integrateMovement(c, this.combatants[1 - i], locomotionShed, this.tSec, dt);
+      if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
+      else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
+      if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
+      else if (c.pos.y > this.arenaHalfWidthM) { c.pos.y = this.arenaHalfWidthM; c.vel.y = Math.min(0, c.vel.y); }
     }
 
     this.checkVictory();
@@ -696,7 +722,7 @@ export class Battle {
             }
           }
         }
-        if (dealt >= STAGGER_DAMAGE_THRESHOLD) {
+        if (dealt / enemy.massT >= STAGGER_DAMAGE_PER_T) {
           enemy.staggerUntilS = this.tSec + 0.3;
           enemy.staggerDispersionUntilS = this.tSec + 1.0;
         }
@@ -704,6 +730,7 @@ export class Battle {
       this.events.push({
         tSec: this.tSec, type: 'shot', mech: i, instanceId, partId,
         hit: result.hit, totalDamageDealt: dealt, entryCell: result.entryCell,
+        damaged: result.damaged.length > 0 ? result.damaged : undefined,
       });
     }
 

@@ -96,6 +96,11 @@ Heat lives **per cell** on the chassis grid.
   conduct — a deliberate air gap is a valid insulation strategy.
 - U-RAD Gill radiator (perimeter only): dissipates q = **0.06 kW/°C above ambient** from its
   own cells, capped at 6 kW. (Backlog hook: terrain multiplies this — water ×3.)
+- **Ram-air cooling** (implemented): radiator output × (1 + 0.5 × speed fraction), so a
+  flanking mech cools 50% harder than a stationary one. Airflow, not a tag. This makes
+  *speed a cooling stat* — a fast, hot-running build survives by never stopping, a synergy a
+  slow tank cannot use. Applies on the bench too, so the flank-speed thermal prediction
+  reflects it.
 
 ### Heat sources
 

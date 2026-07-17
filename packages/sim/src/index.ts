@@ -7,3 +7,6 @@ export * from './simulation.js';
 export * from './derivedStats.js';
 export * from './rng.js';
 export * from './combat.js';
+export * from './templates.js';
+export * from './harness.js';
+export * from './adaptation.js';

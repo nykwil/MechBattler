@@ -8,9 +8,13 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "tsc -p tsconfig.json"
+    "build": "tsc -p tsconfig.json",
+    "balance": "tsx scripts/balance.ts",
+    "demo": "tsx scripts/tank-vs-sniper.ts",
+    "adapt": "tsx scripts/adaptation.ts"
   },
   "devDependencies": {
+    "tsx": "^4.23.1",
     "typescript": "^5.6.0",
     "vitest": "^2.1.0"
   }

@@ -128,6 +128,37 @@ engineering feels like superstition.
 - Kill criterion: the day a rendering concern needs to live in `sim/` to work, stop and
   refactor before proceeding.
 
+## R10 — Hard counters vs. one persistent mech (added Jul 2026)
+
+*The fear*: rock-paper-scissors balance. A fighting-game player who is hard-countered picks
+a different character next match — our player has **one persistent mech for the whole run**,
+so a hard counter at a mandatory boss node is a run-ender, not a character-select moment.
+
+**Definitions** (implemented in `sim/src/adaptation.ts`):
+
+- A build's **keystones** are its chassis, weapons, and reactors — the identity kernel a
+  player commits to across a run (the expensive, slow-changing pieces).
+- Everything else — armor, cooling, conduits, capacitors, utility — is the **fitting**: the
+  cheap tier-1/2 layer adjusted between fights off the intel card.
+- **Viability is a property of keystone kernels, not full builds**: a kernel is viable when
+  some fitting keeps its matchups in the band. "The laser is broken" is testable as "no
+  fitting around (Mule + laser) reaches the band."
+
+**The two-part policy** (both measured by the harness):
+
+1. **Matchup band**: stock vs stock, same budget bracket, every matchup lands in **35–65%**
+   (fighting-game 6-4, tolerating 7-3). Outside the band = ⚑ flag in `sim:balance`.
+2. **Adaptation rule**: any matchup below 35% must be recoverable to ≥35% by **≤ a few
+   fitting-only changes** — never a rebuild. `npm run sim:adapt` searches the fitting-op
+   catalog automatically and labels each bad matchup SOFT (path found) or HARD (design flag).
+
+- Kill criterion: any HARD matchup between two viable kernels in the same bracket. (HARD
+  matchups *caused by* an unviable kernel — e.g. everything vs. the mispriced laser — are
+  part-pricing bugs, not matchup bugs; fix the part.)
+- Escalation levers: soften falloff cliffs (binary range profiles create sweeps), overlap
+  range bands, partial outcomes (mission-kill, judges), and the planned comeback/runaway
+  rule for residual bad matchups.
+
 ## Priority order for the prototype
 
 R1 and R2 are existential (they attack the two pillars the whole game stands on) — the

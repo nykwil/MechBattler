@@ -10,6 +10,8 @@
     "sim:test": "npm run test --workspace=@mechbattler/sim",
     "sim:build": "npm run build --workspace=@mechbattler/sim",
     "web:dev": "npm run dev --workspace=@mechbattler/web",
-    "web:build": "npm run build --workspace=@mechbattler/web"
+    "web:build": "npm run build --workspace=@mechbattler/web",
+    "sim:balance": "npm run balance --workspace=@mechbattler/sim",
+    "sim:adapt": "npm run adapt --workspace=@mechbattler/sim"
   }
 }

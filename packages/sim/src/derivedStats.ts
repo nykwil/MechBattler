@@ -16,6 +16,7 @@ import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
+import { RADIATOR_CAP_KW } from './thermal.js';
 
 export interface SpeedProfile {
   massT: number;
@@ -76,6 +77,59 @@ export function computeEnergyMargin(chassis: ChassisSpec, build: Build): EnergyM
 
   const demandKw = locomotionKw + weaponsKw + utilityKw;
   return { supplyKw, demandKw, marginKw: supplyKw - demandKw };
+}
+
+export interface HeatBalance {
+  /** Heat generated with all weapons at max cadence + reactor waste at that load, kW. */
+  heatInKw: number;
+  /** Maximum radiator dissipation (RADIATOR_CAP_KW per radiator), kW. */
+  coolingKw: number;
+  marginKw: number;
+  perSource: { partId: string; kw: number }[];
+}
+
+/**
+ * docs/01 §9 heat balance bar: heat into the build vs. cooling capacity, at
+ * "all weapons max cadence". Cooling uses the radiator hard cap (actual
+ * dissipation scales with cell temperature, so this is the ceiling the build
+ * approaches as it heats up — an honest capacity number for a gauge).
+ */
+export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBalance {
+  const perSource: { partId: string; kw: number }[] = [];
+  const margin = computeEnergyMargin(chassis, build);
+  const utilization = margin.supplyKw > 0 ? clamp(margin.demandKw / margin.supplyKw, 0, 1) : 0;
+
+  let heatInKw = 0;
+  let coolingKw = 0;
+  for (const p of build.parts) {
+    const def = getPart(p.partId);
+    let kw = 0;
+    if (def.weapon && def.heat?.heatPerShotKj) kw = def.heat.heatPerShotKj / def.weapon.cycleS;
+    else if (def.reactor) {
+      kw = Array.isArray(def.reactor.wasteHeatKw)
+        ? (utilization > 0.5 ? def.reactor.wasteHeatKw[1] : def.reactor.wasteHeatKw[0])
+        : def.reactor.wasteHeatKw;
+    }
+    if (kw > 0) { heatInKw += kw; perSource.push({ partId: def.id, kw }); }
+    if (def.id === 'U-RAD') coolingKw += RADIATOR_CAP_KW;
+  }
+  return { heatInKw, coolingKw, marginKw: coolingKw - heatInKw, perSource };
+}
+
+export interface CapacitorBank {
+  storedKj: number;
+  count: number;
+}
+
+/** Total capacitor storage on the build (full-charge assumption, for time-to-empty labels). */
+export function computeCapacitorBank(build: Build): CapacitorBank {
+  let storedKj = 0;
+  let count = 0;
+  for (const p of build.parts) {
+    const def = getPart(p.partId);
+    if (def.capacitor) { storedKj += def.capacitor.storedKj; count++; }
+  }
+  return { storedKj, count };
 }
 
 /** docs/03 §7: expected-DPS-weighted envelope per weapon, folded into one ideal range band. */

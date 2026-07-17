@@ -53,8 +53,19 @@ Modifiers (multiplicative, applied to all three maxima and turn rate):
 Acceleration per chassis: CH-2 4.0, CH-5 3.0, CH-7 3.0, CH-9 1.5 m/s², × m_load.
 
 **Recoil**: firing applies impulse to the shooter: Δv = impulse / mass (W-RG 8 kN·s pushes a
-4 t mech 2 m/s backward; W-AC 0.4 kN·s is a twitch). **Stagger**: any single hit dealing ≥ 15
-damage interrupts turning for 0.3 s and applies ×1.5 dispersion to the victim's fire for 1 s.
+4 t mech 2 m/s backward; W-AC 0.4 kN·s is a twitch). **Stagger** (implemented mass-scaled):
+a hit staggers when **damage ÷ mass(t) ≥ 3.3** — momentum transfer vs. inertia — interrupting
+turning for 0.3 s and applying ×1.5 dispersion to the victim's fire for 1 s. So a 15-damage
+hit staggers a ~4.5 t mech, a 3 t Vulture staggers at 10 damage, and a 12 t Bastion needs
+~40 (railgun-class only). **Heavy = stable gun platform, by physics** — this is a core lever
+of the tank archetype (a sniper's autocannon backup cannot stagger-lock an approaching tank).
+
+**Arena walls** (implemented): the 200×140 m rectangle (§1) bounds movement — a mech pinned
+to a wall loses the velocity driving it into the wall. This caps runaway kiting: a kiter has
+only (arena length − spawn distance)/2 of runway. In practice the chassis grid already
+prevents the worst runaway build (a fast chassis can't fit a long-range heavy weapon — the
+railgun is 10 cells), so walls are a safety rail that isn't yet the binding constraint; they
+matter once turrets/bigger fast chassis/terrain arrive.
 
 ## 4. Speed settings
 
