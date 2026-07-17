@@ -74,6 +74,25 @@
   background: var(--ink-primary);
   opacity: 0.75;
 }
+.meter-tick.preview {
+  background: var(--signal-green);
+  opacity: 0.9;
+}
+.meter-fill.preview {
+  opacity: 0.35;
+}
+.meter-preview-value {
+  font-size: 12px;
+  opacity: 0.9;
+}
+.meter-preview-value.good { color: var(--signal-green); }
+.meter-preview-value.bad { color: var(--signal-red); }
+
+.stat-preview {
+  font-size: 12px;
+  color: var(--ink-secondary);
+}
+.stat-preview.warn { color: var(--signal-amber); }
 
 .range-band {
   position: relative;

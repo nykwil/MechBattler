@@ -28,6 +28,7 @@ export default function App() {
 
   const [benchResult, setBenchResult] = useState<TestBenchResult | null>(null);
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef } | null>(null);
+  const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
 
   useEffect(() => {
     setBenchResult(null);
@@ -108,7 +109,7 @@ export default function App() {
 
       <div className="layout">
         <div className="panel">
-          <PartPalette selectedPartId={state.selectedPartId} onSelect={selectPart} />
+          <PartPalette selectedPartId={state.selectedPartId} onSelect={selectPart} onHover={setHoveredPartId} />
         </div>
 
         <div className="centerpane">
@@ -144,7 +145,7 @@ export default function App() {
             </div>
           )}
           <div className="section">
-            <StatsPanel chassis={chassis} build={build} />
+            <StatsPanel chassis={chassis} build={build} hoveredPartId={hoveredPartId} />
           </div>
           <div className="section">
             <PowerPriorityList priority={state.powerPriority} parts={state.parts} onMove={movePriority} />

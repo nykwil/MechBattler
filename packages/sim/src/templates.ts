@@ -19,19 +19,25 @@ function part(instanceId: string, partId: string, x: number, y: number, rotation
   return { instanceId, partId, origin: { x, y }, rotation, integrity: 1 };
 }
 
-/** CH-2 Vulture starter (docs/04 §6 "Vulture skirmisher"): fast, cool, shallow. */
+/**
+ * CH-2 Vulture starter, kernel retuned Jul 2026 (docs/07): the original
+ * twin-MG loadout forced a 16-cell scout to cross 60+ m of fire to reach its
+ * 30-90 m band — HARD vs nearly everything in the adaptation sweep. Its
+ * identity weapon is now the carbine (60-180 m: fight at range, speed as
+ * defense) with one MG as close-in teeth; the bands overlap at 60-90 m.
+ */
 function vultureSkirmisher(): Build {
   const parts: PlacedPart[] = [
     part('reactor', 'R-E25', 3, 1),
     part('con1', 'U-CON', 2, 2),
     part('con2', 'U-CON', 1, 2),
-    part('mg1', 'W-MG', 0, 1, 90), // (0,1),(0,2)
-    part('mg2', 'W-MG', 2, 0), // (2,0),(3,0)
+    part('cb', 'W-CB', 0, 1, 90), // (0,1),(0,2)
+    part('mg', 'W-MG', 2, 0), // (2,0),(3,0)
     part('rad', 'U-RAD', 1, 3), // (1,3),(2,3),(3,3)
     part('arm1', 'U-ARM', 1, 0),
     part('arm2', 'U-ARM', 1, 1),
   ];
-  return { chassisId: 'CH-2', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
+  return { chassisId: 'CH-2', parts, powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg'] };
 }
 
 /** CH-5 Mule starter (docs/04 §6 "Mule gunline"): the tutorial-shaped build. */
@@ -61,19 +67,31 @@ function muleSkirmisher(): Build {
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
 }
 
-/** CH-5 laser platform (docs/04 §6 "Mule tinkerer" grown up): hybrid reactors, pipe-to-radiator highway. */
+/**
+ * CH-5 laser platform (docs/04 §6 "Mule tinkerer" grown up): hybrid reactors,
+ * pipe-to-radiator highway. Second laser added Jul 2026 — one 9-dps gun on an
+ * 11-budget hull could not carry a build (0% in every harness run); the
+ * kernel is twin lasers time-sharing the hybrid supply.
+ */
 function muleLaserBoat(): Build {
   const parts: PlacedPart[] = [
     part('reactorE', 'R-E25', 0, 1), // (0,1),(1,1),(0,2),(1,2)
     part('reactorC', 'R-C40', 3, 1), // (3,1),(4,1),(3,2),(4,2)
-    part('las', 'W-LAS', 1, 3), // (1,3),(2,3),(3,3)
+    // Bridge conduit: without it the two reactors are independent networks
+    // (docs/01 §3) and one laser starves on the 25 kW Whisper alone -- found
+    // the hard way when the harness showed las1 permanently browned out.
+    part('bridge', 'U-CON', 2, 1),
+    part('las1', 'W-LAS', 1, 3), // (1,3),(2,3),(3,3)
+    part('las2', 'W-LAS', 2, 0), // (2,0),(3,0),(4,0) -> (3,0) touches reactorC
     part('pipe', 'U-PIPE', 2, 4),
     part('rad', 'U-RAD', 1, 5), // (1,5),(2,5),(3,5)
     part('cap', 'P-CAP', 4, 3, 90), // (4,3),(4,4)
-    part('arm1', 'U-ARM', 2, 0),
-    part('arm2', 'U-ARM', 3, 0),
+    part('arm1', 'U-ARM', 0, 3),
+    part('arm2', 'U-ARM', 5, 3),
   ];
-  return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'las'] };
+  // Stop-and-pop doctrine (docs/02 §2): guns above locomotion, so the boat
+  // plants itself to keep both lasers charged instead of browning one out.
+  return { chassisId: 'CH-5', parts, powerPriority: ['las1', 'las2', CORE_INSTANCE_ID] };
 }
 
 /** CH-5 railgun sniper — the docs/02 §4 worked example, filling the whole grid. */
@@ -158,7 +176,7 @@ function bastionTank(): Build {
 }
 
 export const TEMPLATES: TemplateDef[] = [
-  { id: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast scout, twin MGs, electric and cool.', build: vultureSkirmisher() },
+  { id: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast scout: carbine at range, MG up close.', build: vultureSkirmisher() },
   { id: 'mule-gunline', name: 'Mule Gunline', blurb: 'Autocannon on a combustion plant; wants a firing line.', build: muleGunline() },
   { id: 'mule-skirmisher', name: 'Mule Skirmisher', blurb: 'Twin-MG brawler, cheap sustained fire.', build: muleSkirmisher() },
   { id: 'mule-laser-boat', name: 'Mule Laser Boat', blurb: 'Hybrid reactors, heat-pipe highway to one radiator.', build: muleLaserBoat() },

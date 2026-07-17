@@ -41,7 +41,7 @@ bookkeeping without adding a decision. (Backlog: could return as a run modifier.
 | Locomotion | P = 1.2 kW × mass(t) × speed(m/s); flank mode ×1.25 (see 03 §4) |
 | W-MG Stitcher | 2 kW while firing |
 | W-AC Judge | 6 kW while cycling |
-| W-LAS Ember | 45 kJ/shot charged at ≤30 kW (min charge 1.5 s) |
+| W-LAS Ember | 30 kJ/shot charged at ≤30 kW (min charge 1.0 s) — retuned Jul 2026, see 07 |
 | W-RKT Pepperbox | 1 kW |
 | W-RG Longshot | 220 kJ/shot, capacitor-fed only, dump ≤220 kW over 1.0 s |
 | U-TC1 Abacus | 3 kW while powered |
@@ -108,7 +108,7 @@ Heat lives **per cell** on the chassis grid.
 |---|---|
 | W-MG | 0.4 kJ/shot (4 kW at full rate) |
 | W-AC | 3 kJ/shot (4 kW at full rate) |
-| W-LAS | 12 kJ/shot into its own cells (avg 4.8 kW at max cadence) |
+| W-LAS | 9 kJ/shot into its own cells (avg 4.5 kW at max cadence) |
 | W-RKT | 2 kJ/salvo |
 | W-RG | 25 kJ/shot |
 | Reactors | waste heat per table above, continuous |
@@ -141,8 +141,9 @@ structure + 2.69 t parts ≈ **4.5 t**.
 
 ## 5. Worked example B — laser boat thermal timeline
 
-W-LAS fires every 2.5 s (1.5 s charge + 1 s cycle): 4.8 kW average heat into 3 kJ/°C of
-part thermal mass = +4°C per shot locally, bleeding into neighbors at 0.03 kW/°C.
+W-LAS fires every 2.0 s (1.0 s charge + 1 s cycle): 4.5 kW average heat into 3 kJ/°C of
+part thermal mass = +3°C per shot locally, bleeding into neighbors at 0.03 kW/°C.
+(Equilibrium figures below predate the Jul 2026 retune; qualitative claims hold.)
 
 - No radiator: laser cells pass 130°C shutdown after ~40 s of continuous fire. A brawler can
   skip cooling if fights end fast — a legal, risky build.

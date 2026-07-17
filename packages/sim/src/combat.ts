@@ -588,9 +588,17 @@ export class Battle {
     this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
     this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
     const half = Math.min((options.spawnDistanceM ?? DEFAULT_SPAWN_DISTANCE_M) / 2, this.arenaHalfLengthM - 2);
+    // Seeded lateral spawn jitter: without it the autopilots take identical
+    // approach lanes every battle and matchup outcomes are nearly binary
+    // (docs/07 "knife-edge deterministic" finding). ±20 m across the width
+    // varies the geometry battle to battle while staying replayable.
+    const jitterMax = Math.min(20, this.arenaHalfWidthM - 5);
+    const jitter = () => (this.rng.nextFloat() * 2 - 1) * jitterMax;
+    const posA: Vec2 = { x: -half, y: jitter() };
+    const posB: Vec2 = { x: half, y: jitter() };
     this.combatants = [
-      new Combatant(options.builds[0], { x: -half, y: 0 }, 0),
-      new Combatant(options.builds[1], { x: half, y: 0 }, Math.PI),
+      new Combatant(options.builds[0], posA, Math.atan2(posB.y - posA.y, posB.x - posA.x)),
+      new Combatant(options.builds[1], posB, Math.atan2(posA.y - posB.y, posA.x - posB.x)),
     ];
   }
 

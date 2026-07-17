@@ -84,7 +84,7 @@ something else. The only RNG in the sim is dispersion (seeded — battles are re
 |---|---|---|---|---|---|---|
 | W-MG Stitcher | 1.5 | 0.1 s | 800 m/s | 8.0 mrad | 30 m ×1.0 → 90 m ×0.4 | — |
 | W-AC Judge | 12 | 0.75 s | 600 m/s | 4.0 mrad | 50 ×1.0 → 150 ×0.5 | 0.4 kN·s |
-| W-LAS Ember | 18 | 2.5 s (energy-gated) | hitscan | 1.5 mrad | 60 ×1.0 → 140 ×0.5 | — |
+| W-LAS Ember | 24 | 2.0 s (energy-gated) | hitscan | 1.5 mrad | 60 ×1.0 → 140 ×0.5 | — |
 | W-RKT Pepperbox | 6 × 6 rockets | 15 s | 250 m/s | 20 mrad/rocket | 40 ×1.0 → 120 ×0.6 | — |
 | W-RG Longshot | 85 | 5 s + recharge (02 §4) | 2,000 m/s | 1.2 mrad | 80 ×1.0 → 240 ×0.85 | 8 kN·s |
 

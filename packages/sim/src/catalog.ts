@@ -102,13 +102,22 @@ export const PARTS: Record<string, PartDef> = {
       recoilKnS: 0.4,
     },
   },
+  // Retuned Jul 2026 (docs/07): the original laser was the worst
+  // energy-per-dps and heat-per-dps in the catalog (45 kJ + 12 kJ heat per
+  // 18 damage) and lost every harness matchup. The efficiency lever: 30 kJ
+  // per shot at the same 30 kW charge rate -> 2.0 s cycle, 9.0 dps, heat
+  // trimmed to 9 kJ, damage 18->24 (12 dps: the hitscan+precision premium
+  // priced at a ~25% dps discount vs the autocannon, not 60%). (An earlier
+  // attempt raised the charge RATE instead; that
+  // raised instantaneous demand past small reactors and the brownout rule
+  // shed the gun entirely -- an energy buff that was a power-system nerf.)
   'W-LAS': {
     id: 'W-LAS', name: 'Ember (laser)', category: 'weapon',
     shape: line(3), massKg: 220, hp: 30, tier: 2,
-    draw: { chargedEnergyPerShotKj: 45, minChargeS: 1.5, maxChargeKw: 30 },
-    heat: { heatPerShotKj: 12 },
+    draw: { chargedEnergyPerShotKj: 30, minChargeS: 1.0, maxChargeKw: 30 },
+    heat: { heatPerShotKj: 9 },
     weapon: {
-      damage: 18, cycleS: 2.5, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
+      damage: 24, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
       falloff: { rangeStart: 60, rangeEnd: 140, multAtEnd: 0.5 }, mountArcDeg: 70,
     },
   },

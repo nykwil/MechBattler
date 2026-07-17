@@ -11,10 +11,12 @@ function metaLine(def: PartDef): string {
 }
 
 export function PartPalette({
-  selectedPartId, onSelect,
+  selectedPartId, onSelect, onHover,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
+  /** Inventory hover preview (docs/01 §9): browsing is reading trade-offs. */
+  onHover: (id: string | null) => void;
 }) {
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat, parts: Object.values(PARTS).filter((p) => p.category === cat),
@@ -35,6 +37,8 @@ export function PartPalette({
               type="button"
               className={`part-row${selectedPartId === def.id ? ' selected' : ''}`}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
+              onMouseEnter={() => onHover(def.id)}
+              onMouseLeave={() => onHover(null)}
             >
               <ShapePreview def={def} />
               <div className="part-info">

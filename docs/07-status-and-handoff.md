@@ -116,9 +116,29 @@ What the sweep taught us (all legible, all physical):
   autopilot takes identical approach lanes every battle (only dispersion varies). Add spawn
   position/bearing jitter to decorrelate before trusting exact percentages.
 
-Next tuning pass, in order: (1) spawn jitter, (2) reprice the laser (energy-lever first:
-maxChargeKw 30→45), (3) fix the vulture-skirmisher kernel (its identity likely wants the
-carbine, making stock MGs the brawler's sidearm), (4) re-run balance + adapt sweeps.
+## Tuning pass 1 — executed (Jul 2026)
+
+1. **Spawn jitter**: seeded ±20 m lateral offsets + true initial facings; approach lanes now
+   vary per battle. All prior tests still pass.
+2. **Laser reprice** — a lesson in levers: the first attempt raised the charge *rate*
+   (30→45 kW), which raised instantaneous demand past small reactors and the brownout rule
+   shed the gun entirely — an energy "buff" that was a power-system nerf. The correct lever
+   was **efficiency**: 30 kJ/shot at the same 30 kW (2.0 s cycle), heat 12→9 kJ, damage
+   18→24. Now 12 dps at 30 kW — the hitscan+precision premium priced at ~25% below the AC.
+3. **Vulture-skirmisher kernel**: carbine (60–180 m) + one MG instead of twin 30–90 m MGs.
+   **14% → 60%** — the biggest single swing of the pass; kernel identity was the problem.
+4. **Laser boat resurrection** (0% → 29%): three stacked causes, each found by reading
+   battle logs — one gun can't carry a build (added a second laser); the *hybrid reactors
+   were disconnected networks* (docs/01 §3) so one laser starved on the 25 kW Whisper alone
+   (added a bridge conduit — the workshop would show this as two power networks); and
+   default priority browned the guns out while closing (stop-and-pop: guns above
+   locomotion). All three fixes are player-visible workshop moves, not engine changes.
+
+Current standings (railgun 96%/budget 21, gunline 71%, vulture-skirmisher 60%, sniper 59%,
+mule-skirmisher 44%, tank 33%, laser-boat 29%, orbiter 7%). Weakest kernels now:
+**widow-orbiter** (7% — hitscan lasers and carbines ignore its evasion; likely wants more
+guns or its own carbine) and the tank's generalist score (fine — it's a specialist).
+Per-network CANNOT-SUSTAIN warnings (the laser-boat trap) are a good validation follow-up.
 
 ## Balance harness (docs/05 R4) — built, first results (Jul 2026)
 

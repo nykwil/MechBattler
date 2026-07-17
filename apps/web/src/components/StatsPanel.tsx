@@ -19,7 +19,7 @@ import './StatsPanel.css';
  * amber = heat, everywhere in the app).
  */
 function BalanceMeter({
-  label, usedKw, capacityKw, theme, headline, headlineCls, sub,
+  label, usedKw, capacityKw, theme, headline, headlineCls, sub, preview,
 }: {
   label: string;
   usedKw: number;
@@ -28,17 +28,30 @@ function BalanceMeter({
   headline: string;
   headlineCls: 'good' | 'bad' | 'warn' | '';
   sub: string;
+  /** Hover preview (docs/01 §9): the bar's state with the hovered part added. */
+  preview: { usedKw: number; capacityKw: number } | null;
 }) {
-  const scaleKw = Math.max(usedKw, capacityKw, 0.001) * 1.02;
+  const scaleKw = Math.max(usedKw, capacityKw, preview?.usedKw ?? 0, preview?.capacityKw ?? 0, 0.001) * 1.02;
   const okKw = Math.min(usedKw, capacityKw);
   const overKw = Math.max(0, usedKw - capacityKw);
+  const previewMargin = preview ? preview.capacityKw - preview.usedKw : 0;
   return (
     <div className="stat-card wide">
       <div className="meter-head">
         <div className="stat-label" style={{ marginBottom: 0 }}>{label}</div>
-        <div className={`meter-value ${headlineCls}`}>{headline}</div>
+        <div className={`meter-value ${headlineCls}`}>
+          {preview && (
+            <span className={`meter-preview-value ${previewMargin < 0 ? 'bad' : 'good'}`}>
+              → {previewMargin >= 0 ? '+' : ''}{previewMargin.toFixed(1)}{' '}
+            </span>
+          )}
+          {headline}
+        </div>
       </div>
       <div className="meter-track">
+        {preview && preview.usedKw > usedKw && (
+          <div className={`meter-fill preview ${theme}`} style={{ width: `${(preview.usedKw / scaleKw) * 100}%` }} />
+        )}
         <div className={`meter-fill ${theme}`} style={{ width: `${(okKw / scaleKw) * 100}%` }} />
         {overKw > 0 && (
           <div
@@ -47,19 +60,46 @@ function BalanceMeter({
           />
         )}
         {capacityKw > 0 && <div className="meter-tick" style={{ left: `${(capacityKw / scaleKw) * 100}%` }} />}
+        {preview && preview.capacityKw !== capacityKw && (
+          <div className="meter-tick preview" style={{ left: `${(preview.capacityKw / scaleKw) * 100}%` }} />
+        )}
       </div>
       <div className="stat-sub">{sub}</div>
     </div>
   );
 }
 
-export function StatsPanel({ chassis, build }: { chassis: ChassisSpec; build: Build }) {
+export function StatsPanel({
+  chassis, build, hoveredPartId,
+}: {
+  chassis: ChassisSpec;
+  build: Build;
+  /** Palette part under the cursor; meters preview its delta (docs/01 §9). */
+  hoveredPartId: string | null;
+}) {
   const profile = useMemo(() => computeSpeedProfile(chassis, build), [chassis, build]);
   const margin = useMemo(() => computeEnergyMargin(chassis, build), [chassis, build]);
   const heat = useMemo(() => computeHeatBalance(chassis, build), [chassis, build]);
   const caps = useMemo(() => computeCapacitorBank(build), [build]);
   const burst = useMemo(() => computeBurstDps(build), [build]);
   const band = useMemo(() => computeIdealRangeBand(build), [build]);
+
+  // Energy/heat/mass deltas are placement-independent, so the preview build
+  // just appends a phantom copy of the hovered part (position irrelevant).
+  const previewStats = useMemo(() => {
+    if (!hoveredPartId) return null;
+    const phantom: Build = {
+      ...build,
+      parts: [...build.parts, {
+        instanceId: '__hover__', partId: hoveredPartId, origin: { x: 0, y: 0 }, rotation: 0, integrity: 1,
+      }],
+    };
+    return {
+      margin: computeEnergyMargin(chassis, phantom),
+      heat: computeHeatBalance(chassis, phantom),
+      profile: computeSpeedProfile(chassis, phantom),
+    };
+  }, [chassis, build, hoveredPartId]);
 
   const maxRange = Math.max(band.bandEnd, ...band.perWeapon.map((w) => w.rangeEnd), 50) * 1.15;
 
@@ -82,6 +122,11 @@ export function StatsPanel({ chassis, build }: { chassis: ChassisSpec; build: Bu
           <div className="stat-label">Mass</div>
           <div className={`stat-value ${profile.massT > chassis.ratedMassT ? 'warn' : ''}`}>
             {profile.massT.toFixed(2)}t
+            {previewStats && (
+              <span className={`stat-preview ${previewStats.profile.massT > chassis.ratedMassT ? 'warn' : ''}`}>
+                {' '}→ {previewStats.profile.massT.toFixed(2)}t
+              </span>
+            )}
           </div>
           <div className="stat-sub">rated {chassis.ratedMassT.toFixed(1)}t · load {profile.loadFactor.toFixed(2)}x</div>
         </div>
@@ -99,6 +144,7 @@ export function StatsPanel({ chassis, build }: { chassis: ChassisSpec; build: Bu
           headline={`${margin.marginKw >= 0 ? '+' : ''}${margin.marginKw.toFixed(1)} kW`}
           headlineCls={margin.marginKw < 0 ? 'bad' : 'good'}
           sub={energySub}
+          preview={previewStats ? { usedKw: previewStats.margin.demandKw, capacityKw: previewStats.margin.supplyKw } : null}
         />
 
         <BalanceMeter
@@ -109,6 +155,7 @@ export function StatsPanel({ chassis, build }: { chassis: ChassisSpec; build: Bu
           headline={heat.heatInKw <= 0 ? '—' : `${heat.marginKw >= 0 ? '+' : ''}${heat.marginKw.toFixed(1)} kW`}
           headlineCls={heat.heatInKw <= 0 ? '' : heat.marginKw < 0 ? 'bad' : 'good'}
           sub={heatSub}
+          preview={previewStats ? { usedKw: previewStats.heat.heatInKw, capacityKw: previewStats.heat.coolingKw } : null}
         />
 
         <div className="stat-card wide">

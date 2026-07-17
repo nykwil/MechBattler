@@ -14,10 +14,11 @@ describe('heat balance bar math (docs/01 §9, docs/02 §3)', () => {
     const build: Build = { chassisId: 'CH-5', parts, powerPriority: [] };
     const balance = computeHeatBalance(getChassis('CH-5'), build);
 
-    // Laser: 12 kJ / 2.5 s = 4.8 kW (docs/02 §3 table). Electric reactor: 1 kW waste.
-    expect(balance.heatInKw).toBeCloseTo(5.8, 5);
+    // Laser: 9 kJ / 2.0 s = 4.5 kW (docs/02 §3 table, Jul 2026 retune).
+    // Electric reactor: 1 kW waste.
+    expect(balance.heatInKw).toBeCloseTo(5.5, 5);
     expect(balance.coolingKw).toBe(6);
-    expect(balance.marginKw).toBeCloseTo(0.2, 5);
+    expect(balance.marginKw).toBeCloseTo(0.5, 5);
     expect(computeCapacitorBank(build).storedKj).toBe(60);
   });
 
