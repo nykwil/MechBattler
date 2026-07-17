@@ -18,7 +18,10 @@ interface EditorState {
   chassisId: string;
   parts: PlacedPart[];
   powerPriority: string[];
+  /** Palette part armed for placement. Mutually exclusive with selectedInstanceId. */
   selectedPartId: string | null;
+  /** Placed part selected for inspection/removal. */
+  selectedInstanceId: string | null;
   rotation: Rotation;
   overlay: OverlayMode;
   nextSeq: number;
@@ -27,6 +30,7 @@ interface EditorState {
 type Action =
   | { type: 'SET_CHASSIS'; chassisId: string }
   | { type: 'SELECT_PART'; partId: string | null }
+  | { type: 'SELECT_INSTANCE'; instanceId: string | null }
   | { type: 'ROTATE' }
   | { type: 'PLACE'; x: number; y: number }
   | { type: 'REMOVE'; instanceId: string }
@@ -45,7 +49,7 @@ function nextRotation(r: Rotation): Rotation {
 function initialState(chassisId: string): EditorState {
   return {
     chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
-    selectedPartId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+    selectedPartId: null, selectedInstanceId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
   };
 }
 
@@ -54,7 +58,13 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'SET_CHASSIS':
       return initialState(action.chassisId);
     case 'SELECT_PART':
-      return { ...state, selectedPartId: action.partId, rotation: 0 };
+      return { ...state, selectedPartId: action.partId, selectedInstanceId: null, rotation: 0 };
+    case 'SELECT_INSTANCE':
+      return {
+        ...state,
+        selectedInstanceId: state.selectedInstanceId === action.instanceId ? null : action.instanceId,
+        selectedPartId: null,
+      };
     case 'ROTATE':
       return { ...state, rotation: nextRotation(state.rotation) };
     case 'SET_OVERLAY':
@@ -80,6 +90,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         ...state,
         parts: state.parts.filter((p) => p.instanceId !== action.instanceId),
         powerPriority: state.powerPriority.filter((id) => id !== action.instanceId),
+        selectedInstanceId: state.selectedInstanceId === action.instanceId ? null : state.selectedInstanceId,
       };
     case 'MOVE_PRIORITY': {
       const idx = state.powerPriority.indexOf(action.instanceId);
@@ -133,6 +144,7 @@ export function useBuild(defaultChassisId: string) {
     chassisOptions: Object.values(CHASSIS),
     setChassis: (id: string) => dispatch({ type: 'SET_CHASSIS', chassisId: id }),
     selectPart: (id: string | null) => dispatch({ type: 'SELECT_PART', partId: id }),
+    selectInstance: (id: string | null) => dispatch({ type: 'SELECT_INSTANCE', instanceId: id }),
     rotate: () => dispatch({ type: 'ROTATE' }),
     place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
     remove: (instanceId: string) => dispatch({ type: 'REMOVE', instanceId }),

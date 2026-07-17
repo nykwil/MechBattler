@@ -14,17 +14,18 @@ import './GridEditor.css';
 const CELL = 30;
 
 export function GridEditor({
-  chassis, parts, overlay, selectedPartId, previewCells, checkCandidate,
-  onPlace, onRemove, thermalSnapshot,
+  chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
+  onPlace, onSelectInstance, thermalSnapshot,
 }: {
   chassis: ChassisSpec;
   parts: PlacedPart[];
   overlay: OverlayMode;
   selectedPartId: string | null;
+  selectedInstanceId: string | null;
   previewCells: (x: number, y: number) => { x: number; y: number }[];
   checkCandidate: (x: number, y: number) => { reason: string } | null;
   onPlace: (x: number, y: number) => void;
-  onRemove: (instanceId: string) => void;
+  onSelectInstance: (instanceId: string | null) => void;
   thermalSnapshot: Record<string, number> | null;
 }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
@@ -43,6 +44,11 @@ export function GridEditor({
 
   const hoverPreview = hover && selectedPartId ? previewCells(hover.x, hover.y) : [];
   const hoverLegal = hover && selectedPartId ? checkCandidate(hover.x, hover.y) === null : false;
+
+  const selectedCells = useMemo(() => {
+    const placed = parts.find((p) => p.instanceId === selectedInstanceId);
+    return placed ? getOccupiedCells(placed, getPart(placed.partId)) : [];
+  }, [parts, selectedInstanceId]);
 
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < chassis.height; y++) {
@@ -99,6 +105,14 @@ export function GridEditor({
             );
           })}
 
+          {selectedCells.map(({ x, y }) => (
+            <rect
+              key={`sel-${x},${y}`}
+              className="cell-selected"
+              x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
+            />
+          ))}
+
           {hoverPreview.map(({ x, y }) => (
             <rect
               key={`preview-${x},${y}`}
@@ -116,7 +130,7 @@ export function GridEditor({
               onClick={() => {
                 const occ = occupancy.get(`${x},${y}`);
                 if (selectedPartId) onPlace(x, y);
-                else if (occ) onRemove(occ.instanceId);
+                else onSelectInstance(occ ? occ.instanceId : null);
               }}
             />
           ))}

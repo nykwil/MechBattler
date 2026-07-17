@@ -18,7 +18,7 @@
 .part-row {
   width: 100%;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 9px;
   padding: 7px 8px;
   background: var(--bg-inset);
@@ -35,16 +35,24 @@
   background: rgba(232, 162, 61, 0.08);
 }
 
-.part-shape {
+/* True-scale shapes: --shape-cell is the one knob; every part uses it. */
+.part-shape-box {
+  --shape-cell: 6px;
   flex: none;
-  width: 30px;
-  height: 22px;
+  width: 22px; /* fits the widest part (3 cells) plus gaps */
+  min-height: 20px;
+  display: flex;
+  justify-content: center;
+  padding-top: 2px;
+}
+.part-shape {
   display: grid;
   gap: 1px;
+  align-content: start;
 }
 .part-shape-cell {
   border-radius: 1px;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
 .part-info {
@@ -58,6 +66,25 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+.part-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  margin: 2px 0;
+}
+.part-chip {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.part-chip.energy { color: var(--signal-blue); }
+.part-chip.heat { color: var(--signal-amber); }
+.part-chip.cool { color: var(--signal-green); }
+.part-chip.dmg { color: var(--signal-red); }
+.part-chip.note { color: var(--ink-secondary); }
+
 .part-meta {
   font-family: var(--font-mono);
   font-size: 10px;

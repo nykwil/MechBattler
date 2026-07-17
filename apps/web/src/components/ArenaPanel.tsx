@@ -1,0 +1,52 @@
+import { useState } from 'react';
+import type { Build } from '@mechbattler/sim';
+import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
+import './ArenaPanel.css';
+
+export function ArenaPanel({
+  build, onFight,
+}: {
+  build: Build;
+  onFight: (opponent: OpponentDef) => void;
+}) {
+  const [opponentId, setOpponentId] = useState(OPPONENTS[0]!.id);
+  const opponent = OPPONENTS.find((o) => o.id === opponentId)!;
+  const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
+  const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
+
+  return (
+    <div>
+      <div className="eyebrow" style={{ marginBottom: 10 }}>Arena — pick a fight</div>
+
+      <div className="arena-opponents">
+        {OPPONENTS.map((o) => (
+          <button
+            key={o.id}
+            type="button"
+            className={`arena-card${o.id === opponentId ? ' active' : ''}`}
+            onClick={() => setOpponentId(o.id)}
+          >
+            <div className="arena-card-head">
+              <span className="arena-card-name">{o.name}</span>
+              <span className="arena-threat">{'▲'.repeat(o.threat)}</span>
+            </div>
+            <div className="arena-card-blurb">{o.blurb}</div>
+            <div className="arena-card-intel">confirmed: {o.confirmed.join(' · ')}</div>
+          </button>
+        ))}
+      </div>
+
+      {(!hasWeapons || !hasReactor) && (
+        <div className="arena-warning">
+          {!hasReactor
+            ? 'No reactor mounted — nothing on this mech will power up.'
+            : 'No weapons mounted — you will surrender by mission-kill in 3 seconds.'}
+        </div>
+      )}
+
+      <button type="button" className="fight-btn" onClick={() => onFight(opponent)}>
+        Fight
+      </button>
+    </div>
+  );
+}

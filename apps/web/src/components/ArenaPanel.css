@@ -1,0 +1,78 @@
+.arena-opponents {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.arena-card {
+  text-align: left;
+  padding: 8px 10px;
+  background: var(--bg-inset);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  color: var(--ink-secondary);
+  transition: border-color 0.12s, background 0.12s;
+}
+.arena-card:hover { border-color: var(--line-bright); }
+.arena-card.active {
+  border-color: var(--signal-amber);
+  background: var(--bg-panel-raised);
+  color: var(--ink-primary);
+}
+
+.arena-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.arena-card-name {
+  font-family: var(--font-display);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.arena-threat {
+  font-size: 9px;
+  color: var(--signal-red);
+  letter-spacing: 2px;
+}
+.arena-card-blurb {
+  font-size: 11px;
+  margin-top: 2px;
+}
+.arena-card-intel {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.arena-warning {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--signal-amber);
+  border: 1px dashed var(--signal-amber-dim);
+  border-radius: var(--radius-md);
+  padding: 6px 8px;
+  margin-bottom: 10px;
+}
+
+.fight-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--signal-red-dim);
+  border: 1px solid var(--signal-red);
+  color: var(--ink-primary);
+  font-family: var(--font-display);
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  font-size: 14px;
+  border-radius: var(--radius-md);
+  transition: filter 0.12s;
+}
+.fight-btn:hover { filter: brightness(1.25); }
+.fight-btn:active { filter: brightness(0.9); }

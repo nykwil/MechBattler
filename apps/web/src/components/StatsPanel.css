@@ -34,6 +34,47 @@
   margin-top: 2px;
 }
 
+.meter-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+.meter-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-primary);
+}
+.meter-value.good { color: var(--signal-green); }
+.meter-value.bad { color: var(--signal-red); }
+.meter-value.warn { color: var(--signal-amber); }
+
+.meter-track {
+  position: relative;
+  height: 12px;
+  background: var(--bg-floor);
+  border: 1px solid var(--line-hairline);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+.meter-fill {
+  position: absolute;
+  top: 2px; bottom: 2px; left: 0;
+  border-radius: 2px;
+}
+.meter-fill.energy { background: linear-gradient(90deg, var(--signal-blue-dim), var(--signal-blue)); }
+.meter-fill.heat { background: linear-gradient(90deg, var(--signal-amber-dim), var(--signal-amber)); }
+.meter-fill.over { background: var(--signal-red); border-radius: 0 2px 2px 0; }
+.meter-tick {
+  position: absolute;
+  top: -1px; bottom: -1px;
+  width: 2px;
+  background: var(--ink-primary);
+  opacity: 0.75;
+}
+
 .range-band {
   position: relative;
   height: 26px;

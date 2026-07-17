@@ -1,42 +1,10 @@
-import type { ReactNode } from 'react';
 import { PARTS, type PartDef } from '@mechbattler/sim';
 import { CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER } from '../lib/partVisuals.js';
+import { ChipRow, ShapePreview } from './PartVisual.js';
 import './PartPalette.css';
 
-function ShapePreview({ def }: { def: PartDef }) {
-  const minDx = Math.min(...def.shape.map((c) => c.dx));
-  const minDy = Math.min(...def.shape.map((c) => c.dy));
-  const maxDx = Math.max(...def.shape.map((c) => c.dx));
-  const maxDy = Math.max(...def.shape.map((c) => c.dy));
-  const w = maxDx - minDx + 1;
-  const h = maxDy - minDy + 1;
-  const occupied = new Set(def.shape.map((c) => `${c.dx - minDx},${c.dy - minDy}`));
-  const color = CATEGORY_COLOR[def.category];
-
-  const cells: ReactNode[] = [];
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const on = occupied.has(`${x},${y}`);
-      cells.push(
-        <div
-          key={`${x},${y}`}
-          className="part-shape-cell"
-          style={{ background: on ? color : 'transparent' }}
-        />,
-      );
-    }
-  }
-  return (
-    <div className="part-shape" style={{ gridTemplateColumns: `repeat(${w}, 1fr)`, gridTemplateRows: `repeat(${h}, 1fr)` }}>
-      {cells}
-    </div>
-  );
-}
-
-function summarize(def: PartDef): string {
+function metaLine(def: PartDef): string {
   const bits: string[] = [`${def.massKg}kg`, `${def.hp}hp`];
-  if (def.reactor) bits.push(`${def.reactor.outputKw}kW out`);
-  if (def.capacitor) bits.push(`${def.capacitor.storedKj}kJ`);
   if (def.weapon) bits.push(`${def.weapon.damage}dmg/${def.weapon.cycleS}s`);
   if (def.perimeterOnly) bits.push('perimeter only');
   return bits.join(' · ');
@@ -71,7 +39,8 @@ export function PartPalette({
               <ShapePreview def={def} />
               <div className="part-info">
                 <div className="part-name">{def.name}</div>
-                <div className="part-meta">{summarize(def)}</div>
+                <ChipRow def={def} />
+                <div className="part-meta">{metaLine(def)}</div>
               </div>
             </button>
           ))}
