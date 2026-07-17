@@ -56,6 +56,9 @@ One persistent mech per run. Permadeath when the core is destroyed. A run is a l
 5. **Run structure** — 12-fight ladder, scouted opponent choice, boss frames gate chassis
    upgrades. Spec: `04-salvage-economy-spec.md`.
 
+Cross-cutting: `06-synergy-design.md` catalogs the emergent synergy space (all physical
+couplings per rule R1 — no tags) and the design levers that widen it.
+
 ## Design rules (constitution)
 
 These resolve arguments. When two ideas conflict, the one that satisfies these wins.
@@ -85,6 +88,7 @@ in the combination, not the pieces.
 | Game | What it proves | Where we diverge |
 |---|---|---|
 | Mech Engineer | Engineering-as-the-game carries a title | We add the salvage roguelike loop, a single frankenstein mech, and a spatial chassis |
+| RogueTech (BattleTech mod) | Harsh-sim refitting + punishing heat + granular salvage has a devoted audience | Their building is tonnage/slots/hardpoints (no spatial placement, no power sim, scalar heat pool); combat is manual turn-based lance tactics; loop is a sandbox campaign. Their refit screen famously "LIES" about stats — our sim-backed test bench is the direct answer |
 | Cats in the Shell (2026) | Mech roguelike auto-battler loop sells | Their building is abstract slot synergies; ours is a physical sim. Their combat is proc-driven; ours is projectile/movement |
 | Cogmind | Salvage-frankenstein with power/heat budgets is compelling | Their combat is manual; ours is watched. Building is ~90% of our play |
 | Crossout | Mass/CoG affecting handling + locational damage works | Theirs is manually driven MMO PvP |

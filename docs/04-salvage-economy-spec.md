@@ -41,11 +41,20 @@ that healthy parts shrug off.
   fight purse. You cannot afford to keep everything topped up; triage is the game.
 - Between fights there is no time pressure (v1). The pressure is purely scrap.
 
-## 4. Quirks
+## 4. Variants and quirks — two layers of salvage randomness
 
-30% of looted parts carry one permanent quirk (assigned at drop, never removable — quirks
-are the memoir of where your mech has been). Quirks are mostly flaws, some gifts, all legible
-one-liners surfaced in every tooltip:
+Salvaged parts vary on two independent axes, both assigned at drop and permanent:
+
+**Stat variants (common, small, numeric).** Every looted part rolls its headline stats within
+a band (±10% on one or two stats: mass, HP, draw, damage, cycle, dispersion, arc width —
+weighted so most rolls are near-baseline). A "Judge 12.8/0.7s" vs the stock "12/0.75s" is the
+same part, slightly different metal. Shape can vary too (01 §1 — compact L-variants). The
+part card always shows the delta vs. stock in green/red. This makes every wreck worth
+reading without adding rules text.
+
+**Quirks (uncommon, named, behavioral).** 30% of looted parts carry one permanent quirk
+(never removable — quirks are the memoir of where your mech has been). Quirks are mostly
+flaws, some gifts, all legible one-liners surfaced in every tooltip:
 
 | Quirk | Effect |
 |---|---|
@@ -57,6 +66,14 @@ one-liners surfaced in every tooltip:
 | Cold-soaked | Thermal mass ×2 (heats and cools slowly) |
 | Lucky | Dispersion ×0.9 (weapons) / incoming overkill penetration ×0.8 (others) |
 | Frankensteined | Counts as 2 bench-pool slots, −10% mass |
+| Heat-loose | Weapon cycle ×0.8 while its cells are > 100°C (worn tolerances free up when hot) — but 150°C damage threshold drops to 140°C |
+| Cold-blooded | Part output/damage ×0.85 while its cells are < 60°C, ×1.0 above (wants a warm-up) |
+
+The last two are **temperature-conditioned** quirks: legal under rule R1 because temperature
+is a simulated physical quantity, visible on the thermal overlay — the condition is read off
+the same gauge everything else uses. They create the "run hot on purpose" build space
+(deliberately under-cool a Heat-loose gun and ride the 100–140°C window); see
+`06-synergy-design.md` §6f.
 
 Distribution: 70% no quirk; of quirked drops, weighted 2:1 flaws:gifts. Enemy elites are
 *built with* quirked parts, so intel (below) telegraphs what you'll inherit.
@@ -69,6 +86,10 @@ A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents (bosses 
 - **Intel is the draft**: each opponent card shows chassis silhouette (type + cell count),
   2 confirmed parts, purse, and a threat rating. Picking a fight *is* picking the parts
   you're hunting — the salvage economy's version of a card shop.
+- **Arena preview on the card**: map silhouette, both spawn positions, and terrain features
+  (once terrain ships). A long-range build reads spawn distance and sightlines; a
+  water-cooled build (backlog) hunts pond maps. Picking the fight is picking the
+  battlefield *and* the loot — build-vs-terrain matchups become part of the draft.
 - Node flavors: standard; **elite** (+1 quirked high-tier part guaranteed, harder);
   **scrapyard** (no fight: convert scrap ↔ parts at poor rates, one reroll); bosses.
 - Enemy scaling: opponents are built with the same part catalog and rules as the player

@@ -15,6 +15,10 @@ in `03-combat-spec.md`, keyed by the same part IDs.
   immovable, and is the run's life: core destroyed = run over.
 - Parts are **polyominoes** (1×1 up to 2×5 in v1). They may be rotated in 90° steps, not
   mirrored. One part per cell; no stacking, no overlap.
+- **Irregular shapes are a design goal, not an accident** (the tetris element): the catalog
+  should grow L/T/S-shaped parts, and salvage variants of a part may differ in shape (a
+  "compact" L-shaped variant is worth more on a crowded chassis). Combined with masked
+  grids, a part's outline becomes a per-chassis valuation — see `06-synergy-design.md` §6a.
 - Parts never hang off the mask. If it doesn't fit, it doesn't go.
 
 ## 2. Chassis catalog (v0 starters)
@@ -120,6 +124,29 @@ Stats in other columns live in their pillar's spec. Tier drives salvage/repair c
 
 Weapons must be placed with their muzzle row on a perimeter cell facing the arc they fire
 into (forward by default; side/rear mounts are legal and change the arc's center bearing).
+**A weapon can only fire while the target bearing is inside its mount arc** (03 §5) — arc
+placement is a build decision the doctrine must live with.
+
+### Location affinity (bonus/penalty by placement)
+
+Where a part sits modifies how it performs — always shown on the placement preview before
+the part is dropped (rule R5):
+
+| Placement | Effect | Rationale |
+|---|---|---|
+| Weapon mounted rear-facing | Dispersion ×1.3 | Fire-control runs backward; awkward feed geometry |
+| Weapon mounted side-facing | Dispersion ×1.15 | Milder version of the above |
+| U-TC1 edge-adjacent to a weapon | That weapon ignores its facing dispersion penalty | Local fire-control shortens the signal path |
+| U-AMMO edge-adjacent to its weapon | Weapon cycle ×0.9 | Direct feed, no belt run |
+| Reactor on a perimeter cell | Takes +25% damage from hits | Exposed pressure vessel |
+| U-HS edge-adjacent to reactor | Its thermal soak works at ×1.25 | Purpose-built engine cooling jacket |
+
+Affinities are physical rationalizations, not tags (rule R1): each is a fixed consequence of
+geometry the player can read off the grid, and each interacts with the systems that already
+exist (a rear turret-less gun is worse — a rear gun *with* an adjacent targeting computer is
+fine, which is itself a synergy; see `06-synergy-design.md` §3). v1 ships the table above
+small and legible; grow it only where an affinity creates a *placement dilemma*, never as
+flavor noise.
 
 ## 8. Mass and center of gravity
 
@@ -137,10 +164,33 @@ into (forward by default; side/rear mounts are legal and change the arc's center
 - Every placement instantly updates the derived stats bar (rule R5): mass/rated,
   speed profile, burst DPS, sustained DPS, energy margin, time-to-overheat, brownout point,
   ideal range band.
+- **Balance bars**: two always-visible net-flow gauges — energy balance (supply − demand;
+  negative = draining capacitors, annotated with time-to-empty) and heat balance (net kW
+  into vs. out of the build at predicted equilibrium). What the player is balancing must be
+  on screen at all times, not derivable.
+- **Inventory hover preview**: hovering any part in the palette/bench pool previews its
+  delta on both balance bars and the stats bar *before* placement — browsing inventory is
+  reading trade-offs, not reading flavor text.
 - **Test bench**: run the real sim against a stationary/moving target dummy without leaving
   the workshop. Same code path as the arena (rule R6).
 
-## 10. Numbers that need prototype validation
+## 10. Turret mounts (post-v1 design sketch)
+
+Captured from design discussion — not in v1, but the grid rules should not preclude it.
+
+- A **turret ring** is a base part (e.g. 2×2 or 3×3) whose cells are a sub-grid that hosts
+  exactly one weapon of limited size (ring size caps hosted cells: 2×2 ring hosts ≤2-cell
+  weapons, 3×3 hosts ≤4). This is the one sanctioned exception to "no stacking".
+- The hosted weapon's mount arc **decouples from chassis facing**: 360° traverse (or a wide
+  arc for cheaper rings), letting a kiting mech shoot behind itself — the verb set is
+  unchanged (facing still steers the *chassis*; the turret tracks the target itself).
+- Costs that keep it honest: ring mass + hosted weapon mass, a continuous traverse power
+  draw, traverse rate limit (fast targets can out-turn a heavy turret), and a single point
+  of failure — destroying the ring silences the hosted weapon even if the weapon is intact.
+- Hit resolution: the turret sits "above" the deck; hits on its cells damage ring or hosted
+  weapon (split TBD), so a turret is inherently more exposed than a hull mount.
+
+## 11. Numbers that need prototype validation
 
 - 16 cells (CH-2) enough for meaningful layout choices? 55 cells (CH-9) tedious?
 - Adjacency-connection vs. conduit-trunk ratio: are conduits ~10–20% of cells on large

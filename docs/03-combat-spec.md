@@ -80,6 +80,12 @@ something else. The only RNG in the sim is dispersion (seeded — battles are re
 Projectiles despawn at 1.3 × falloff end. Damage below falloff start uses ×1.0 (no
 point-blank bonus in v1).
 
+**Mount arc gates fire**: a weapon holds fire while the target bearing is outside its mount
+arc (relative to chassis facing) — no penalty shots, simply no trigger. The autopilot's
+facing verb keeps arcs on target; a manual "face fixed bearing" order can deliberately mask
+weapons (e.g. showing armor while cooling). Turreted weapons (backlog, 01 §10) decouple
+their arc from chassis facing.
+
 **Dispersion**: shot bearing = aim bearing + gaussian(σ = mrad), so lateral spread in meters
 grows linearly with range (W-AC at 100 m: σ ≈ 0.4 m against a 2–4 m wide mech). Multipliers:
 shooter speed setting (§4), shooter turning > 45°/s ×1.3, aim bearing in the outer 25% of the

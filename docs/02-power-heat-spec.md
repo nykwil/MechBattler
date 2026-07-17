@@ -54,6 +54,20 @@ P-CAP Jolt: stores 60 kJ, charges at ≤20 kW (from reactor headroom only), disc
 from capacitors — a railgun with insufficient capacitor bank simply cannot fire (workshop
 flags this at build time).
 
+Capacitors are what let **demand legally exceed generation**: a weapon whose firing draw
+exceeds network supply still works if the capacitor bank covers the difference — the energy
+balance bar goes negative (draining stored kJ) and the workshop shows time-to-empty
+(01 §9 balance bars).
+
+### Mount minimums — open question
+
+Should weapons carry a hard build-time supply requirement ("needs ≥10 kW network supply to
+mount; draws 12 kW firing, caps cover the gap")? Current stance: **warn-only** — knowingly
+underpowered builds stay legal (they brown out per priority), and only physical
+impossibilities are hard-blocked (cap-fed weapon with zero capacitors). The warning must be
+loud: red part outline + named consequence on the stats bar ("CANNOT SUSTAIN FIRE").
+Revisit after playtests; see `06-synergy-design.md` §6c.
+
 ### Brownout — the signature rule
 
 Each tick, per network:
