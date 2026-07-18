@@ -83,9 +83,12 @@ flow: run headless, open the replay) and **Command** (live). Both end at the sam
    `BattleReport` and a running `Battle` satisfy); the Fight button became
    **Fight · Live** / **Watch**; a finished live battle opens the normal report screen
    with full replay scrubbing (the M4 parity piece came for free).
-2. **M2 — Move + throttle.** Arena click → move order; hold button; throttle buttons;
-   per-verb auto flags + FULL AUTO. The PlayerController merge lands here. First moment
-   the game is *played*.
+2. **M2 — Move + throttle.** ✅ *shipped Jul 18 2026.* Arena click → point order (new
+   move intent `direct`, logged as "MOVE: TO WAYPOINT"); right-click reverts to auto;
+   hold + throttle chips + FULL AUTO in a live orders bar. The merge landed sim-side as
+   `withManualOrders(base, () => ManualOrders)` so scripted tests drive the exact same
+   path as the UI (rule R6); pinned tests: a held mech never moves, a waypoint order
+   marches within 8 m of the point while weapons stay on fire control.
 3. **M3 — Weapons + face.** Gun-slot 3-state cycling (force-fire bypasses controller
    gates), face cycling with bearing mode, the on-arrival revert trigger.
 4. **M4 — Report parity + polish.** Played battles open the normal report with full

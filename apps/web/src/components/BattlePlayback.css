@@ -243,6 +243,7 @@
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
 }
+.playback-arena.commandable { cursor: crosshair; }
 .playback-walls {
   fill: none;
   stroke: var(--line-hairline);

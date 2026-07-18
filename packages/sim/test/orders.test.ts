@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Build, PlacedPart } from '../src/types.js';
 import {
-  Battle, runBattle, computeHitModel, MOVE_JITTER_MRAD_PER_MPS,
-  TRACKING_LAG_BASE_S, type Controller, type MechOrder,
+  Battle, runBattle, computeHitModel, withManualOrders, autopilotController,
+  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, type Controller, type MechOrder,
 } from '../src/combat.js';
 import { TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
@@ -90,6 +90,46 @@ describe('the order channel (RTS verbs, docs/03 §7)', () => {
     expect(report.frames).toBe(battle.frames);
     expect(battle.latestFrame()).toBe(report.frames[report.frames.length - 1]);
     expect(report.durationS).toBeCloseTo(battle.timeS, 9);
+  });
+});
+
+describe('manual order overrides (docs/08 §3): the player merge over the autopilot', () => {
+  it('a standing hold pins the mech in place and logs MOVE: HOLD', () => {
+    const player = withManualOrders(autopilotController, () => ({ move: 'hold' }));
+    const battle = new Battle({
+      builds: [muleGunline(), muleGunline()], seed: 5,
+      controllers: [player, autopilotController], timeoutS: 15,
+    });
+    while (battle.step()) { /* run out */ }
+    const start = battle.frames[0]!.mechs[0];
+    const end = battle.latestFrame()!.mechs[0];
+    expect(Math.hypot(end.x - start.x, end.y - start.y)).toBeLessThan(1);
+    expect(battle.events.some(
+      (e) => e.type === 'order' && e.mech === 0 && e.order.verb === 'move' && e.order.intent === 'hold',
+    )).toBe(true);
+    // The autopilot-driven enemy moved normally.
+    const foeStart = battle.frames[0]!.mechs[1];
+    const foeEnd = battle.latestFrame()!.mechs[1];
+    expect(Math.hypot(foeEnd.x - foeStart.x, foeEnd.y - foeStart.y)).toBeGreaterThan(10);
+  });
+
+  it('a waypoint order marches the mech to the point (intent `direct`), leaving other verbs on auto', () => {
+    const player = withManualOrders(autopilotController, () => ({ move: { dest: { x: 0, y: 0 } } }));
+    const battle = new Battle({
+      builds: [muleGunline(), muleGunline()], seed: 5,
+      controllers: [player, autopilotController], timeoutS: 40,
+    });
+    let closest = Infinity;
+    while (battle.step()) {
+      const m = battle.latestFrame()!.mechs[0];
+      closest = Math.min(closest, Math.hypot(m.x, m.y));
+    }
+    expect(closest).toBeLessThan(8);
+    expect(battle.events.some(
+      (e) => e.type === 'order' && e.mech === 0 && e.order.verb === 'move' && e.order.intent === 'direct',
+    )).toBe(true);
+    // Weapons stayed under fire control: the held-back player still shot.
+    expect(battle.events.some((e) => e.type === 'shot' && e.mech === 0)).toBe(true);
   });
 });
 

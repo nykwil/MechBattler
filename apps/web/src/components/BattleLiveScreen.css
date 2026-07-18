@@ -24,6 +24,40 @@
   50% { opacity: 0.35; }
 }
 
+.live-orders {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.live-orders-label {
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+  margin-left: 6px;
+}
+.live-orders-label:first-child { margin-left: 0; }
+.live-orders-spacer { flex: 1; }
+.hud-chip.btn {
+  cursor: pointer;
+  background: none;
+  transition: border-color 0.12s, color 0.12s;
+}
+.hud-chip.btn:hover { border-color: var(--line-bright); color: var(--ink-secondary); }
+.hud-chip.btn.active {
+  border-color: var(--signal-amber);
+  color: var(--signal-amber);
+}
+.hud-chip.btn.full-auto.active {
+  border-color: var(--signal-green);
+  color: var(--signal-green);
+}
+
 .live-endbanner {
   margin-top: 10px;
   padding: 8px;

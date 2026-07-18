@@ -149,7 +149,8 @@ function wrapAngle(a: number): number {
 // the Battle manually and call issueOrders between ticks); the sim never knows
 // who is giving the orders.
 
-export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold' | 'flee';
+/** `direct` is an explicit point order (manual control); the rest are autopilot labels. */
+export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold' | 'flee' | 'direct';
 
 export type MechOrder =
   /** Verb 1 — fire control: which weapons are cleared to fire. */
@@ -767,6 +768,41 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     face,
   ];
 };
+
+/**
+ * Standing manual overrides held over a base controller (docs/08 §3): fields
+ * left undefined stay on auto. The merge doesn't know who supplies the manual
+ * state (rule R6) — the web UI's click handlers and scripted tests use the
+ * same path.
+ */
+export interface ManualOrders {
+  /** A point order (logged as intent `direct`), or hold in place. */
+  move?: { dest: Vec2 } | 'hold';
+  throttle?: SpeedSetting;
+}
+
+/** Wraps a controller so manual verb overrides replace its orders. */
+export function withManualOrders(base: Controller, manual: () => ManualOrders): Controller {
+  return (ctx) => {
+    const m = manual();
+    return base(ctx).map((o): MechOrder => {
+      if (o.verb === 'move' && m.move) {
+        return m.move === 'hold'
+          ? { verb: 'move', intent: 'hold', dest: null }
+          : { verb: 'move', intent: 'direct', dest: m.move.dest };
+      }
+      if (o.verb === 'throttle') {
+        if (m.throttle) return { verb: 'throttle', setting: m.throttle };
+        // With move manual but throttle on auto, the autopilot's setting was
+        // priced for its own destination: march to a waypoint at cruise, and
+        // stand fully still on a hold.
+        if (m.move === 'hold') return { verb: 'throttle', setting: 'stationary' };
+        if (m.move) return { verb: 'throttle', setting: 'cruise' };
+      }
+      return o;
+    });
+  };
+}
 
 /** Applies one order to a combatant's control state. The single write path for all verbs. */
 export function applyOrder(self: Combatant, order: MechOrder): void {

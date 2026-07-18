@@ -24,7 +24,7 @@ function orderText(order: MechOrder): string {
       return n === 0 ? 'HOLD FIRE' : `WEAPONS FREE (${n})`;
     }
     case 'move':
-      return `MOVE: ${order.intent.toUpperCase()}`;
+      return order.intent === 'direct' ? 'MOVE: TO WAYPOINT' : `MOVE: ${order.intent.toUpperCase()}`;
     case 'throttle':
       return `THROTTLE: ${order.setting.toUpperCase()}`;
     case 'face':

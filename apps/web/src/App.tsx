@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Battle, computeHeatAdvice, runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { computeHeatAdvice, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -30,7 +30,7 @@ export default function App() {
 
   const [benchResult, setBenchResult] = useState<TestBenchResult | null>(null);
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
-  const [live, setLive] = useState<{ battle: Battle; opponent: OpponentDef } | null>(null);
+  const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -68,7 +68,7 @@ export default function App() {
       } else {
         // Command mode steps the same Battle live (docs/08); the finished
         // battle's report opens in the normal report screen.
-        setLive({ battle: new Battle({ builds: [build, opponent.build], seed }), opponent });
+        setLive({ build, opponent, seed });
       }
     },
     [build],
@@ -176,8 +176,10 @@ export default function App() {
 
       {live && (
         <BattleLiveScreen
-          battle={live.battle}
+          key={live.seed}
+          build={live.build}
           opponent={live.opponent}
+          seed={live.seed}
           onFinished={(report) => {
             setBattle({ report, opponent: live.opponent, mode: 'command' });
             setLive(null);

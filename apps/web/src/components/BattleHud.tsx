@@ -120,7 +120,15 @@ function Gauge({
   );
 }
 
-export function BattleScene({ view, tSec, names }: { view: BattleView; tSec: number; names: [string, string] }) {
+export function BattleScene({
+  view, tSec, names, onArenaOrder,
+}: {
+  view: BattleView;
+  tSec: number;
+  names: [string, string];
+  /** Command mode: left-click = point order at arena coords, right-click = revert to auto. */
+  onArenaOrder?: (x: number, y: number, kind: 'move' | 'auto') => void;
+}) {
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const frame = frameAt(view, tSec);
 
@@ -181,8 +189,13 @@ export function BattleScene({ view, tSec, names }: { view: BattleView; tSec: num
       </div>
 
       <svg
-        className="playback-arena"
+        className={`playback-arena${onArenaOrder ? ' commandable' : ''}`}
         viewBox={`${-halfL - margin} ${-halfW - margin} ${2 * (halfL + margin)} ${2 * (halfW + margin)}`}
+        onPointerDown={onArenaOrder ? (e) => {
+          const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(e.currentTarget.getScreenCTM()!.inverse());
+          onArenaOrder(pt.x, pt.y, e.button === 2 ? 'auto' : 'move');
+        } : undefined}
+        onContextMenu={onArenaOrder ? (e) => e.preventDefault() : undefined}
       >
         {/* Terrain tiles (docs/03 §2): forest = cover, hill = range, water = cooling. */}
         {view.terrain.cells.flatMap((row, ry) =>
