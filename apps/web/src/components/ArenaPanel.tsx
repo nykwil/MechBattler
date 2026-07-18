@@ -3,11 +3,14 @@ import type { Build } from '@mechbattler/sim';
 import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
 import './ArenaPanel.css';
 
+/** Watch = run headless, open the replay; Command = step the battle live (docs/08). */
+export type FightMode = 'watch' | 'command';
+
 export function ArenaPanel({
   build, onFight,
 }: {
   build: Build;
-  onFight: (opponent: OpponentDef) => void;
+  onFight: (opponent: OpponentDef, mode: FightMode) => void;
 }) {
   const [opponentId, setOpponentId] = useState(OPPONENTS[0]!.id);
   const opponent = OPPONENTS.find((o) => o.id === opponentId)!;
@@ -44,9 +47,14 @@ export function ArenaPanel({
         </div>
       )}
 
-      <button type="button" className="fight-btn" onClick={() => onFight(opponent)}>
-        Fight
-      </button>
+      <div className="fight-row">
+        <button type="button" className="fight-btn" onClick={() => onFight(opponent, 'command')} title="Step the battle live on screen">
+          Fight · Live
+        </button>
+        <button type="button" className="fight-btn watch" onClick={() => onFight(opponent, 'watch')} title="Resolve instantly, then replay">
+          Watch
+        </button>
+      </div>
     </div>
   );
 }

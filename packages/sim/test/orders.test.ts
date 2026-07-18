@@ -69,6 +69,28 @@ describe('the order channel (RTS verbs, docs/03 §7)', () => {
     const bare = runBattle({ builds: [muleGunline(), muleGunline()], seed: 31, recordFrames: false });
     expect(bare.frames).toEqual([]);
   });
+
+  it('a live renderer can follow a stepping battle: latestFrame/timeS/arena track each tick', () => {
+    const battle = new Battle({ builds: [muleGunline(), muleGunline()], seed: 31 });
+    expect(battle.latestFrame()).toBeNull();
+    expect(battle.timeS).toBe(0);
+    expect(battle.arena).toEqual({ lengthM: 240, widthM: 240 });
+
+    battle.step();
+    const f1 = battle.latestFrame();
+    expect(f1).not.toBeNull();
+    expect(f1!.tSec).toBeCloseTo(battle.timeS, 9);
+    expect(battle.frames.length).toBe(1);
+
+    while (battle.step()) { /* run out */ }
+    expect(battle.finished).toBe(true);
+    // The live tail and the report are the same recording (docs/08 invariant:
+    // a played battle is automatically a replay).
+    const report = battle.report();
+    expect(report.frames).toBe(battle.frames);
+    expect(battle.latestFrame()).toBe(report.frames[report.frames.length - 1]);
+    expect(report.durationS).toBeCloseTo(battle.timeS, 9);
+  });
 });
 
 describe('motion jitter (docs/03 §4): additive error punishes precision guns most', () => {

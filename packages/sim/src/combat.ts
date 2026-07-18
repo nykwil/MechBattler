@@ -836,6 +836,14 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
 
 // --- Battle -------------------------------------------------------------------
 
+/** Total capacitor storage of a build (the CAP gauge's denominator). */
+export function buildCapacitorMaxKj(build: Build): number {
+  return build.parts.reduce((s, p) => {
+    const def = getPart(p.partId);
+    return s + (def.category === 'capacitor' ? def.capacitor!.storedKj : 0);
+  }, 0);
+}
+
 export interface BattleOptions {
   builds: [Build, Build];
   seed: number;
@@ -868,7 +876,8 @@ export class Battle {
   private tick = 0;
   private readonly controllers: [Controller, Controller];
   private readonly recordFrames: boolean;
-  private readonly frames: BattleFrame[] = [];
+  /** Per-tick playback samples; a live renderer reads the tail while the battle runs. */
+  readonly frames: BattleFrame[] = [];
   /** Per-mech, per-verb signature of the last logged order, for change-only logging. */
   private lastOrderSig: [Record<string, string>, Record<string, string>] = [{}, {}];
   private surrenderTimers: [number | null, number | null] = [null, null];
@@ -906,6 +915,16 @@ export class Battle {
   }
 
   get finished(): boolean { return this.outcome !== null; }
+
+  /** Sim seconds elapsed. */
+  get timeS(): number { return this.tSec; }
+
+  get arena(): { lengthM: number; widthM: number } {
+    return { lengthM: this.arenaHalfLengthM * 2, widthM: this.arenaHalfWidthM * 2 };
+  }
+
+  /** The most recent playback frame (null before the first step or with recordFrames off). */
+  latestFrame(): BattleFrame | null { return this.frames[this.frames.length - 1] ?? null; }
 
   /** Runs one 50 ms tick. Returns false once the battle has been decided. */
   step(): boolean {
@@ -1194,10 +1213,7 @@ export class Battle {
         .map((p) => ({ instanceId: p.instanceId, partId: p.partId }));
       return {
         chassisId: self.build.chassisId,
-        capacitorMaxKj: self.build.parts.reduce((s, p) => {
-          const def = getPart(p.partId);
-          return s + (def.category === 'capacitor' ? def.capacitor!.storedKj : 0);
-        }, 0),
+        capacitorMaxKj: buildCapacitorMaxKj(self.build),
         ...this.stats[i]!,
         partsLost,
         functionalMassFrac: self.functionalMassFrac(),
@@ -1211,7 +1227,7 @@ export class Battle {
       reason: this.outcome.reason,
       mechs,
       events: this.events,
-      arena: { lengthM: this.arenaHalfLengthM * 2, widthM: this.arenaHalfWidthM * 2 },
+      arena: this.arena,
       terrain: this.terrain,
       frames: this.frames,
     };

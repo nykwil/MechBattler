@@ -75,10 +75,14 @@ flow: run headless, open the replay) and **Command** (live). Both end at the sam
 
 ## 4. Milestones
 
-1. **M1 — Live watch.** `useBattle` hook + `BattleLive` shell: the battle steps in real
-   time with pause/1×/2×, rendering the shared arena + HUD from the latest frame. No
-   input yet. Proves the loop; visually identical to the replay.
-   *(Also: extract shared components from `BattlePlayback`.)*
+1. **M1 — Live watch.** ✅ *shipped Jul 18 2026.* `useBattle` hook + `BattleLiveScreen`
+   shell: the battle steps in real time with pause/1×/2×, rendering the shared arena +
+   HUD from the latest frame. No input yet. Proves the loop; visually identical to the
+   replay. Shared components extracted from `BattlePlayback` into `BattleHud.tsx`
+   (`BattleScene` / `BattleTicker` / `BattleCaption` over a `BattleView` that both a
+   `BattleReport` and a running `Battle` satisfy); the Fight button became
+   **Fight · Live** / **Watch**; a finished live battle opens the normal report screen
+   with full replay scrubbing (the M4 parity piece came for free).
 2. **M2 — Move + throttle.** Arena click → move order; hold button; throttle buttons;
    per-verb auto flags + FULL AUTO. The PlayerController merge lands here. First moment
    the game is *played*.

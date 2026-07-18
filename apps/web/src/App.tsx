@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { computeHeatAdvice, runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { Battle, computeHeatAdvice, runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -10,7 +10,9 @@ import { PartInspector } from './components/PartInspector.js';
 import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
+import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
+import type { FightMode } from './components/ArenaPanel.js';
 import './App.css';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -27,7 +29,8 @@ export default function App() {
   } = useBuild('CH-5');
 
   const [benchResult, setBenchResult] = useState<TestBenchResult | null>(null);
-  const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef } | null>(null);
+  const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
+  const [live, setLive] = useState<{ battle: Battle; opponent: OpponentDef } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -57,10 +60,16 @@ export default function App() {
   );
 
   const fight = useCallback(
-    (opponent: OpponentDef) => {
+    (opponent: OpponentDef, mode: FightMode) => {
       const seed = Math.floor(Math.random() * 0x7fffffff);
-      const report = runBattle({ builds: [build, opponent.build], seed });
-      setBattle({ report, opponent });
+      if (mode === 'watch') {
+        const report = runBattle({ builds: [build, opponent.build], seed });
+        setBattle({ report, opponent, mode });
+      } else {
+        // Command mode steps the same Battle live (docs/08); the finished
+        // battle's report opens in the normal report screen.
+        setLive({ battle: new Battle({ builds: [build, opponent.build], seed }), opponent });
+      }
     },
     [build],
   );
@@ -165,11 +174,23 @@ export default function App() {
         </div>
       </div>
 
-      {battle && (
+      {live && (
+        <BattleLiveScreen
+          battle={live.battle}
+          opponent={live.opponent}
+          onFinished={(report) => {
+            setBattle({ report, opponent: live.opponent, mode: 'command' });
+            setLive(null);
+          }}
+          onAbort={() => setLive(null)}
+        />
+      )}
+
+      {battle && !live && (
         <BattleReportScreen
           report={battle.report}
           opponent={battle.opponent}
-          onRematch={() => fight(battle.opponent)}
+          onRematch={() => fight(battle.opponent, battle.mode)}
           onClose={() => setBattle(null)}
         />
       )}
