@@ -232,7 +232,9 @@ states, hover blurbs), HEAT/CAP/PWR gauges with threshold marks, verb chips
 (throttle / move intent / face toggle), destination waypoints in the arena, and a
 compact mirrored enemy strip. These readouts become the click targets when the verbs go
 player-controlled. Remaining polish (later): part-damage charring on the mech glyphs,
-heat glow, projectile-flight theater for slow rounds.
+heat glow, projectile-flight theater for slow rounds. **Next: the playable (live verb
+control) mode — full plan in `08-playable-battle-plan.md` (chosen Jul 18 2026 as the
+active thread, ahead of Track A).**
 
 **Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**
 1. **Ammo system** — the weapon-identity move (specced in 01 §7, biggest unimplemented
