@@ -67,9 +67,10 @@ prototype's acceptance tests; 06 catalogs the emergent synergy space.
 - Autopilot weapon-enable skips the one-tick brownout preview (03 §7 item 4).
 - Locomotion power draw uses the straight-line derated speed, not instantaneous arena
   velocity; a shed locomotion halts the mech instead of throttling it.
-- No obstacles/arena walls; spawn distance is the only geometry.
+- No obstacles yet (walls exist; interior cover is the v1.5 arena milestone).
 - Only spiders orbit, in a fixed direction; bipeds/quads still move purely radially, so
   armor skinning / radiator-side placement is exercised mainly by orbit matchups so far.
+- Ballistic weapons don't consume ammo (U-AMMO is only a cook-off liability today).
 
 ## Archetype-balancing mechanics + the RPS triangle (Jul 2026)
 
@@ -140,70 +141,78 @@ mule-skirmisher 44%, tank 33%, laser-boat 29%, orbiter 7%). Weakest kernels now:
 guns or its own carbine) and the tank's generalist score (fine — it's a specialist).
 Per-network CANNOT-SUSTAIN warnings (the laser-boat trap) are a good validation follow-up.
 
-## Balance harness (docs/05 R4) — built, first results (Jul 2026)
+## Balance harness (docs/05 R4) — built, in use (Jul 2026)
 
 `npm run sim:balance [seeds]` runs the template round-robin headless
 (`src/templates.ts` — eight archetype builds validated for placement + connectivity;
 `src/harness.ts`), reports win rates **with each build's tier-point budget** (docs/04 §5),
-and exits non-zero if any template breaches the 70% win-rate kill criterion. Current
-(20 seeds/pair, 560 battles, ~8 s):
+flags >70% (R4) and matchups outside the 35–65% band (R10). `npm run sim:adapt` runs the
+fitting-only adaptation sweep; `npm run sim:demo` the tank-vs-sniper core-loop demo.
+
+Standings after tuning pass 1 (20 seeds/pair; adapt sweep: 12 HARD, down from 19):
 
 | Template | Win rate | Budget | Note |
 |---|---|---|---|
-| railgun-mule | **96% ⚠** | 21 | Outspends the field 2–3× — the flag is mostly budget, not brokenness |
-| mule-gunline | **78% ⚠** | 8 | The best value in the roster; anchors the RPS triangle |
-| vulture-sniper | 65% | 8 | The new fast archetype — successful, not degenerate |
-| mule-skirmisher | 59% | 7 | Mission-kills the orbiter (shoots its MGs off) |
-| bastion-tank | 54% | 29 | Specialist counter, over-costed for a generalist score |
-| widow-orbiter | 34% | 6 | Evasion works vs precision, loses the DPS race |
-| vulture-skirmisher | 14% | 9 | Short MG band; dies crossing to anything |
-| mule-laser-boat | **0%** | 11 | Laser is mispriced: 4.8 kW heat for 7.2 DPS |
+| railgun-mule | **96% ⚠** | 21 | Outspends the field 2–3× — flag is mostly budget; needs brackets |
+| mule-gunline | **71% ⚠** | 8 | Best value in the roster |
+| vulture-skirmisher | 60% | 10 | Carbine kernel fix (was 14%) |
+| vulture-sniper | 59% | 8 | Fast archetype, healthy |
+| mule-skirmisher | 44% | 7 | Honest brawler |
+| bastion-tank | 33% | 29 | Specialist: adapts into any matchup with armor (0%→90–100%) |
+| mule-laser-boat | 29% | 14 | Resurrected from 0% (bridge conduit + stop-and-pop + retune) |
+| widow-orbiter | **7%** | 6 | Weakest kernel: hitscan/carbines ignore its evasion |
 
-**Still to do before trusting the R4 flags**: budget-match the roster into brackets (the
-railgun/tank flags are partly budget artifacts — a 21-budget build *should* beat 6–8 budget
-starters). The laser's 0% at budget 11 is a genuine part-mispricing signal regardless — the
-efficiency-table lever (dps per kW-heat, per kW-draw, per cell) is the next harness addition.
+**Before trusting the R4 flags**: budget-match the roster into brackets with elite
+counterparts of each archetype. The known adaptation asymmetry: armor is a universal
+fitting lever for heavies, but light mechs have no mobility equivalent (add a servo-booster
+op to the adaptation catalog).
 
-## Spec-vs-prototype gap (specced this thread, not yet implemented)
+## Workshop: done vs. remaining (01 §9 checklist)
 
-Ordered roughly by how much they'd improve the existing workshop:
+**Done**: illegal-placement feedback (rejected clicks flash + name the reason), build
+validation (FAULT/WARN/HINT panel: physical impossibilities, CANNOT SUSTAIN FIRE with
+time-to-empty, heat capacity, overload, disjoint envelopes), **balance meters** (energy +
+heat bullet gauges with capacity ticks and red overflow), **inventory hover preview**
+(meter + mass deltas from a phantom part), always-live thermal prediction, **prescriptive
+heat advice** ("run a Sweat pipe path to your Gill" — hints resolve when followed, verified),
+part selection/inspector with deliberate removal, **unified part silhouettes** on the grid.
 
-1. ~~Illegal-placement feedback~~ — **done**: rejected clicks flash the attempted cells red
-   and name the reason under the grid. Alongside it, **build validation** (`sim/src/
-   validation.ts` + `BuildWarnings` panel): errors for physical impossibilities (unpowered
-   parts with red pulsing grid outlines, dead core, cap-fed weapon without capacitors) and
-   the 02 §2 warn set (CANNOT SUSTAIN FIRE with time-to-empty, heat over cooling capacity,
-   overload, no weapons, disjoint envelopes).
-2. **Balance bars** (01 §9) — energy net-flow (negative = draining caps + time-to-empty)
-   and heat net-flow gauges, always visible.
-3. **Inventory hover preview** (01 §9) — hovering a palette part previews its stat deltas
-   before placement.
-4. **Location affinity** (01 §7 table) — rear/side-gun dispersion penalties, ammo-adjacency
-   cycle bonus, heat-sink/reactor pairing, perimeter-reactor fragility. Not in sim yet.
-5. **Stat variants on salvage** (04 §4) — ±10% rolls with green/red deltas vs. stock.
-   No salvage system exists yet at all, so this lands with the economy pass.
-6. **Quirks** (04 §4) — including the new temperature-conditioned pair (Heat-loose,
-   Cold-blooded). Sim hooks needed: per-part conditional stat curves keyed to cell T.
-7. **Mount-arc fire gating** (03 §5) — sim has arcs in the catalog but no combat, so
-   nothing enforces them yet.
-8. **Mount-minimum warning states** (02 §2, open question) — decided warn-only for now;
-   needs the loud "CANNOT SUSTAIN FIRE" treatment when built.
-9. **Irregular part shapes** (01 §1) — grid code already supports arbitrary polyominoes;
-   the catalog just needs L/T/S entries.
-10. **Turret mounts** (01 §10) — post-v1 sketch only; grid rules must not preclude it.
-11. **Auto-route suggestion button** (05 R1 mitigation) — not started.
-12. Workshop conveniences: drag-and-drop (currently click-only), undo, build save/load
-    (everything resets on reload), per-conduit load display (01 §9).
+**Remaining**: per-conduit load display, auto-route suggestion (05 R1), drag-and-drop,
+undo, build save/load (everything resets on reload), per-network peak-demand validation
+(the "laser trap": average margin passes while charge-peak demand can never fit).
 
-## Not started (the other pillars)
+## Roadmap (reviewed Jul 17 2026)
 
-- **Combat presentation** (spec 03): PixiJS playback of the battle event log, readability
-  effects (03 §9), post-battle report UI. The sim side now exists (see above) — this became
-  a rendering task, not a systems task.
-- **Salvage/economy/run structure** (spec 04): wreck screen, scrap, repair, variants,
-  quirks, 12-node ladder, intel cards (now incl. arena preview), starter kits.
-- **Batch-sim balance harness** (05 R4): headless round-robin of template builds — cheap
-  once the arena sim exists; also serves the wiggle-war test (03 §8).
+Three parallel tracks; A is the recommended next milestone.
+
+**Track A — Run structure & economy (spec 04; the missing pillar).** This is what turns
+the toy into the roguelike: fight purse → wreck screen (loot at integrity, victory type
+shapes the haul) → scrap/repair triage → 12-node ladder with intel-card opponent choice →
+starter kits → permadeath. Prerequisite first step: the **per-instance part-state
+refactor** (parts carry stat modifiers; integrity exists, variants ±10%, quirks, and
+location affinity all land on the same hook). The template roster doubles as the enemy
+pool; budget = f(node) is already the harness currency.
+
+**Track B — Combat presentation.** Canvas/SVG playback of the `BattleReport` event log
+(mechs moving, tracers as theater, part-damage charring, heat glow), plus 03 §9
+readability effects. Pure rendering; zero sim changes.
+
+**Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**
+1. **Ammo system** — the weapon-identity move (specced in 01 §7, biggest unimplemented
+   system): bins hold finite shots, feed adjacent/conduit-connected ballistic weapons;
+   ballistics become power-cheap but cell/ammo-hungry vs. energy (watts+heat) vs. railgun
+   (capacitor infrastructure). Also an economy hook (reloads cost scrap).
+2. Widow-orbiter kernel fix (7%) + budget brackets with elite templates + the weapon
+   efficiency table (dps per tier-point / kW-draw / kW-heat / cell / kg).
+3. Servo-booster adaptation op (the light-mech fitting lever).
+4. System-attacking weapons: Scald flamer (deposits heat into enemy cells — attacks the
+   thermal sim) and Static ion (drains capacitors — attacks the power sim). Higher-tier
+   only; starter weapons stay simple scalars (R5).
+5. Turn-tail flight behavior + the runaway/comeback rule for residual bad matchups.
+
+**Deferred/backlog** (unchanged): manual four-verb order UI, turret mounts, terrain +
+obstacles (v1.5 — the big fast-mech buff), irregular L/T/S part shapes, RogueTech-style
+heat-penalty ramp, physics/IK presentation, async PvP.
 
 ## Loose ends & ideas worth mining (captured, undecided)
 
@@ -221,15 +230,4 @@ Ordered roughly by how much they'd improve the existing workshop:
   (fight length, 4 Hz autopilot, timeout judging, arc-edge penalty), 04 §9 (bench-pool cap,
   gift-scrap premium, timeout salvage), plus mount minimums (02 §2).
 
-## Suggested next-thread order
-
-1. ~~Combat walking skeleton~~ — **done this thread** (headless; see above).
-2. Batch-sim balance harness on top of `runBattle` + the 05 R4 round-robin kill-criterion
-   test (weave-vs-straight is deferred with projectile travel time).
-3. Battle playback renderer (PixiJS or simple SVG/canvas first) + post-battle report UI —
-   reads the `BattleReport` event log.
-4. Salvage screen + economy loop (variants, quirks, ladder). Consider the per-instance
-   part-state refactor first (integrity already exists; quirks/variants/affinities all
-   need per-instance stat modifiers in the sim).
-5. Workshop polish pass from the gap list above (items 1–4 can be slotted anytime).
-6. Four-verb manual order UI (demoted — see direction decisions).
+(Next-thread order superseded by the Roadmap section above.)
