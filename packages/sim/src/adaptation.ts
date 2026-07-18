@@ -130,7 +130,7 @@ export function evaluateMatchup(self: Build, opponent: Build, seeds: number, bas
   let wins = 0;
   for (let s = 0; s < seeds; s++) {
     const flip = s % 2 === 1;
-    const r = runBattle({ builds: flip ? [opponent, self] : [self, opponent], seed: baseSeed + s });
+    const r = runBattle({ builds: flip ? [opponent, self] : [self, opponent], seed: baseSeed + s, recordFrames: false });
     if (r.winner !== 'draw' && (r.winner === 0) === !flip) wins++;
   }
   return wins / seeds;

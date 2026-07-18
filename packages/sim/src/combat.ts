@@ -131,6 +131,36 @@ function wrapAngle(a: number): number {
   return a;
 }
 
+// --- Orders: the four RTS verbs (docs/03 §7) ---------------------------------
+//
+// Everything that steers a mech in the arena flows through MechOrder — the
+// autopilot is just a controller that emits them at 4 Hz. A future interactive
+// mode gives the player the same channel (pass a custom Controller, or step
+// the Battle manually and call issueOrders between ticks); the sim never knows
+// who is giving the orders.
+
+export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold';
+
+export type MechOrder =
+  /** Verb 1 — fire control: which weapons are cleared to fire. */
+  | { verb: 'weapons'; enabled: Record<string, boolean> }
+  /** Verb 2 — movement: a destination plus the intent label (for logs/UI). */
+  | { verb: 'move'; intent: MoveIntent; dest: Vec2 | null }
+  /** Verb 3 — throttle: the speed setting (dispersion/heat trade, docs/03 §4). */
+  | { verb: 'throttle'; setting: SpeedSetting }
+  /** Verb 4 — facing: track the enemy, or hold a fixed bearing. */
+  | { verb: 'face'; mode: 'target' } | { verb: 'face'; mode: 'bearing'; bearingRad: number };
+
+export interface ControllerContext {
+  self: Combatant;
+  enemy: Combatant;
+  snapshot: SimSnapshot | null;
+  tSec: number;
+}
+
+/** Decides a mech's orders each command tick (4 Hz). The autopilot is one of these. */
+export type Controller = (ctx: ControllerContext) => MechOrder[];
+
 // --- Battle events / report -------------------------------------------------
 
 export interface ShotResolution {
@@ -147,11 +177,29 @@ export type BattleEvent =
   | { tSec: number; type: 'shutdown'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'cookoff'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'surrender-countdown'; mech: 0 | 1 }
+  /** A verb changed meaningfully (intent/setting/enable-set), not every 4 Hz re-issue. */
+  | { tSec: number; type: 'order'; mech: 0 | 1; order: MechOrder }
   | { tSec: number; type: 'victory'; winner: 0 | 1 | 'draw'; reason: VictoryReason };
 
 export type VictoryReason = 'core-kill' | 'mission-kill' | 'judges';
 
+/** One mech's kinematic + status sample for a playback tick. */
+export interface MechFrame {
+  x: number;
+  y: number;
+  facingRad: number;
+  speedSetting: SpeedSetting;
+  coreHp: number;
+  functionalMassFrac: number;
+}
+
+export interface BattleFrame {
+  tSec: number;
+  mechs: [MechFrame, MechFrame];
+}
+
 export interface MechReport {
+  chassisId: string;
   shotsFired: number;
   shotsHit: number;
   damageDealt: number;
@@ -168,6 +216,9 @@ export interface BattleReport {
   reason: VictoryReason;
   mechs: [MechReport, MechReport];
   events: BattleEvent[];
+  arena: { lengthM: number; widthM: number };
+  /** Per-tick playback samples (empty when recordFrames was false). */
+  frames: BattleFrame[];
 }
 
 // --- Combatant ---------------------------------------------------------------
@@ -191,6 +242,8 @@ export class Combatant {
   facingRad: number;
   speedSetting: SpeedSetting = 'cruise';
   destination: Vec2 | null = null;
+  moveIntent: MoveIntent = 'hold';
+  faceOrder: Extract<MechOrder, { verb: 'face' }> = { verb: 'face', mode: 'target' };
   weaponsEnabled: Record<string, boolean> = {};
   staggerUntilS = -1;
   staggerDispersionUntilS = -1;
@@ -445,10 +498,11 @@ export class Combatant {
 // --- Autopilot ----------------------------------------------------------------
 
 /**
- * The four-verb autopilot (docs/03 §7), evaluated at 4 Hz. Writes destination,
- * speed setting, facing intent, and per-weapon enables onto the combatant.
+ * The four-verb autopilot (docs/03 §7), evaluated at 4 Hz. Emits the same
+ * MechOrder stream a player would issue — band-seeking movement, orbit for
+ * strafe-capable chassis, arc/range/temperature fire gating.
  */
-function runAutopilot(self: Combatant, enemy: Combatant, snapshot: SimSnapshot | null): void {
+export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
   const toEnemy = sub(enemy.pos, self.pos);
   const range = len(toEnemy);
   const dir = norm(toEnemy);
@@ -457,11 +511,12 @@ function runAutopilot(self: Combatant, enemy: Combatant, snapshot: SimSnapshot |
 
   // Verb 2: destination.
   const canOrbit = self.chassis.speedsMps.strafe >= 0.75 * self.chassis.speedsMps.fwd;
+  let move: Extract<MechOrder, { verb: 'move' }>;
   if (band.bandEnd <= 0) {
-    self.destination = null; // no weapons: hold (nothing better to do yet)
+    move = { verb: 'move', intent: 'hold', dest: null }; // no weapons: hold (nothing better to do yet)
   } else if (range > band.bandEnd || range < band.bandStart) {
     // Seek the band center along the line to the enemy (close in or back away).
-    self.destination = sub(enemy.pos, scale(dir, bandCenter));
+    move = { verb: 'move', intent: range > band.bandEnd ? 'close' : 'retreat', dest: sub(enemy.pos, scale(dir, bandCenter)) };
   } else if (canOrbit) {
     // Spiders orbit while facing (docs/03 §7): aim for a point at band-center
     // range, rotated ahead along the orbit — sustained lateral motion that
@@ -470,13 +525,18 @@ function runAutopilot(self: Combatant, enemy: Combatant, snapshot: SimSnapshot |
     const cosR = Math.cos(stepRad);
     const sinR = Math.sin(stepRad);
     const fromEnemy = scale(dir, -bandCenter);
-    self.destination = add(enemy.pos, {
-      x: fromEnemy.x * cosR - fromEnemy.y * sinR,
-      y: fromEnemy.x * sinR + fromEnemy.y * cosR,
-    });
+    move = {
+      verb: 'move', intent: 'orbit',
+      dest: add(enemy.pos, {
+        x: fromEnemy.x * cosR - fromEnemy.y * sinR,
+        y: fromEnemy.x * sinR + fromEnemy.y * cosR,
+      }),
+    };
   } else {
     // Inside the band: drift toward band center distance.
-    self.destination = Math.abs(range - bandCenter) > 5 ? sub(enemy.pos, scale(dir, bandCenter)) : null;
+    move = Math.abs(range - bandCenter) > 5
+      ? { verb: 'move', intent: 'close', dest: sub(enemy.pos, scale(dir, bandCenter)) }
+      : { verb: 'move', intent: 'hold', dest: null };
   }
 
   // Verb 3: speed setting.
@@ -486,23 +546,51 @@ function runAutopilot(self: Combatant, enemy: Combatant, snapshot: SimSnapshot |
   // Verb 1: weapons on/off (arc + range + temperature; brownout preview not yet implemented).
   const bearingToEnemy = Math.atan2(dir.y, dir.x);
   const bearingOffset = Math.abs(wrapAngle(bearingToEnemy - self.facingRad));
+  const enabled: Record<string, boolean> = {};
   for (const p of self.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon') continue;
-    if (!self.isPartFunctional(p.instanceId)) { self.weaponsEnabled[p.instanceId] = false; continue; }
+    if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
     const despawnRange = def.weapon!.falloff.rangeEnd * 1.3;
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < 115;
-    const enabled = inArc && range <= despawnRange && coolEnough;
-    self.weaponsEnabled[p.instanceId] = enabled;
-    if (enabled && def.weapon!.dispersionMrad <= 2) precisionActive = true;
+    const on = inArc && range <= despawnRange && coolEnough;
+    enabled[p.instanceId] = on;
+    if (on && def.weapon!.dispersionMrad <= 2) precisionActive = true;
   }
 
-  if (range > 1.5 * band.bandEnd) self.speedSetting = 'flank';
-  else if (inBand && precisionActive) self.speedSetting = 'creep';
-  else self.speedSetting = 'cruise';
-  if (self.destination === null) self.speedSetting = 'stationary';
+  let setting: SpeedSetting;
+  if (range > 1.5 * band.bandEnd) setting = 'flank';
+  else if (inBand && precisionActive) setting = 'creep';
+  else setting = 'cruise';
+  if (move.dest === null) setting = 'stationary';
+
+  return [
+    { verb: 'weapons', enabled },
+    move,
+    { verb: 'throttle', setting },
+    { verb: 'face', mode: 'target' },
+  ];
+};
+
+/** Applies one order to a combatant's control state. The single write path for all verbs. */
+export function applyOrder(self: Combatant, order: MechOrder): void {
+  switch (order.verb) {
+    case 'weapons':
+      self.weaponsEnabled = { ...order.enabled };
+      break;
+    case 'move':
+      self.moveIntent = order.intent;
+      self.destination = order.dest;
+      break;
+    case 'throttle':
+      self.speedSetting = order.setting;
+      break;
+    case 'face':
+      self.faceOrder = order;
+      break;
+  }
 }
 
 // --- Movement integration ------------------------------------------------------
@@ -519,8 +607,10 @@ function maxSpeedInDirection(speeds: LoadScaledSpeeds, angleOffRad: number): num
 const SPEED_FRACTION: Record<SpeedSetting, number> = { stationary: 0, creep: 0.3, cruise: 0.65, flank: 1.0 };
 
 function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: boolean, tSec: number, dt: number): void {
-  // Verb 4: facing = face target (v0 autopilot default).
-  const desired = Math.atan2(enemy.pos.y - self.pos.y, enemy.pos.x - self.pos.x);
+  // Verb 4: facing per the standing face order (autopilot default: track target).
+  const desired = self.faceOrder.mode === 'bearing'
+    ? self.faceOrder.bearingRad
+    : Math.atan2(enemy.pos.y - self.pos.y, enemy.pos.x - self.pos.x);
   const before = self.facingRad;
   if (tSec >= self.staggerUntilS) {
     const maxTurn = self.speeds.turnRateDegS * (Math.PI / 180) * dt;
@@ -559,6 +649,14 @@ export interface BattleOptions {
   spawnDistanceM?: number;
   arenaLengthM?: number;
   arenaWidthM?: number;
+  /**
+   * Order sources, one per mech (default: the autopilot for both). A future
+   * player-controlled mode passes its own Controller — or a no-op controller
+   * plus manual issueOrders() calls between steps.
+   */
+  controllers?: [Controller, Controller];
+  /** Record per-tick playback frames in the report (default true; harness runs disable it). */
+  recordFrames?: boolean;
 }
 
 export class Battle {
@@ -571,6 +669,11 @@ export class Battle {
   private readonly arenaHalfWidthM: number;
   private tSec = 0;
   private tick = 0;
+  private readonly controllers: [Controller, Controller];
+  private readonly recordFrames: boolean;
+  private readonly frames: BattleFrame[] = [];
+  /** Per-mech, per-verb signature of the last logged order, for change-only logging. */
+  private lastOrderSig: [Record<string, string>, Record<string, string>] = [{}, {}];
   private surrenderTimers: [number | null, number | null] = [null, null];
   private lastShed: [Set<string>, Set<string>] = [new Set(), new Set()];
   private lastShutdown: [Set<string>, Set<string>] = [new Set(), new Set()];
@@ -585,6 +688,8 @@ export class Battle {
     this.seed = options.seed;
     this.rng = new Pcg32(options.seed);
     this.timeoutS = options.timeoutS ?? DEFAULT_TIMEOUT_S;
+    this.controllers = options.controllers ?? [autopilotController, autopilotController];
+    this.recordFrames = options.recordFrames ?? true;
     this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
     this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
     const half = Math.min((options.spawnDistanceM ?? DEFAULT_SPAWN_DISTANCE_M) / 2, this.arenaHalfLengthM - 2);
@@ -611,17 +716,18 @@ export class Battle {
     this.tSec += dt;
     const [a, b] = this.combatants;
 
-    // Autopilot at 4 Hz.
+    // Controllers at 4 Hz (autopilot by default) issue orders through the
+    // same channel a player would.
     if (this.tick % AUTOPILOT_PERIOD_TICKS === 0) {
-      runAutopilot(a, b, this.lastSnapshots[0]);
-      runAutopilot(b, a, this.lastSnapshots[1]);
+      this.issueOrders(0, this.controllers[0]({ self: a, enemy: b, snapshot: this.lastSnapshots[0], tSec: this.tSec }));
+      this.issueOrders(1, this.controllers[1]({ self: b, enemy: a, snapshot: this.lastSnapshots[1], tSec: this.tSec }));
     }
     this.tick++;
 
     // Power/heat/weapon-cycle sim per mech, then resolve any shots it produced.
     for (const i of [0, 1] as const) {
       const self = this.combatants[i];
-      const enemy = this.combatants[1 - i];
+      const enemy = this.combatants[(1 - i) as 0 | 1];
       const command: SimCommand = { weaponsEnabled: self.weaponsEnabled, speedSetting: self.speedSetting };
       const snapshot = self.sim.step(dt, command);
       this.lastSnapshots[i] = snapshot;
@@ -657,15 +763,45 @@ export class Battle {
     for (const i of [0, 1] as const) {
       const locomotionShed = this.lastSnapshots[i]?.shedInstanceIds.includes(CORE_INSTANCE_ID) ?? false;
       const c = this.combatants[i];
-      integrateMovement(c, this.combatants[1 - i], locomotionShed, this.tSec, dt);
+      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt);
       if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
       else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
       if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
       else if (c.pos.y > this.arenaHalfWidthM) { c.pos.y = this.arenaHalfWidthM; c.vel.y = Math.min(0, c.vel.y); }
     }
 
+    if (this.recordFrames) {
+      this.frames.push({
+        tSec: this.tSec,
+        mechs: [a, b].map((c) => ({
+          x: c.pos.x, y: c.pos.y, facingRad: c.facingRad, speedSetting: c.speedSetting,
+          coreHp: c.coreHp, functionalMassFrac: c.functionalMassFrac(),
+        })) as [MechFrame, MechFrame],
+      });
+    }
+
     this.checkVictory();
     return this.outcome === null;
+  }
+
+  /**
+   * Applies orders to a mech and logs each verb whose meaning changed since
+   * the last logged order (destination coordinates are tracking noise; intent,
+   * throttle, facing mode, and the enabled-weapon set are decisions).
+   */
+  issueOrders(mech: 0 | 1, orders: MechOrder[]): void {
+    for (const order of orders) {
+      applyOrder(this.combatants[mech], order);
+      const sig = order.verb === 'weapons'
+        ? Object.keys(order.enabled).filter((id) => order.enabled[id]).sort().join(',')
+        : order.verb === 'move' ? order.intent
+        : order.verb === 'throttle' ? order.setting
+        : order.mode === 'bearing' ? `bearing:${order.bearingRad.toFixed(2)}` : 'target';
+      if (this.lastOrderSig[mech][order.verb] !== sig) {
+        this.lastOrderSig[mech][order.verb] = sig;
+        this.events.push({ tSec: this.tSec, type: 'order', mech, order });
+      }
+    }
   }
 
   private logTransitions(i: 0 | 1, snapshot: SimSnapshot): void {
@@ -701,8 +837,9 @@ export class Battle {
     });
     const damagePerProjectile = weapon.damage * falloffAt(def, range);
 
+    const stats = this.stats[i]!;
     for (let s = 0; s < salvo; s++) {
-      this.stats[i].shotsFired++;
+      stats.shotsFired++;
       const hitRoll = this.rng.nextFloat() < model.pHit;
       let result: ShotResolution = { hit: false, damaged: [] };
       if (hitRoll) {
@@ -720,8 +857,8 @@ export class Battle {
       }
       const dealt = result.damaged.reduce((sum, d) => sum + d.damage, 0);
       if (result.hit) {
-        this.stats[i].shotsHit++;
-        this.stats[i].damageDealt += dealt;
+        stats.shotsHit++;
+        stats.damageDealt += dealt;
         for (const d of result.damaged) {
           if (d.instanceId !== CORE_INSTANCE_ID && !enemy.isPartFunctional(d.instanceId) && (enemy.hpByInstance.get(d.instanceId) ?? 1) <= 0) {
             // Only log the destruction once (applyRay already marked it in the sim).
@@ -806,6 +943,7 @@ export class Battle {
         .filter((p) => !self.isPartFunctional(p.instanceId))
         .map((p) => ({ instanceId: p.instanceId, partId: p.partId }));
       return {
+        chassisId: self.build.chassisId,
         ...this.stats[i]!,
         partsLost,
         functionalMassFrac: self.functionalMassFrac(),
@@ -819,6 +957,8 @@ export class Battle {
       reason: this.outcome.reason,
       mechs,
       events: this.events,
+      arena: { lengthM: this.arenaHalfLengthM * 2, widthM: this.arenaHalfWidthM * 2 },
+      frames: this.frames,
     };
   }
 }

@@ -154,3 +154,25 @@
   border-color: var(--signal-red);
 }
 .report-btn:hover { filter: brightness(1.2); }
+
+.report-tabs {
+  display: flex;
+  gap: 6px;
+  margin: 12px 0;
+}
+.report-tab {
+  padding: 5px 14px;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-panel-raised);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.report-tab.active {
+  border-color: var(--signal-amber-dim);
+  color: var(--ink-primary);
+}

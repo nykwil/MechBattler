@@ -1,23 +1,9 @@
-import { getPart, CORE_INSTANCE_ID, type BattleEvent, type BattleReport } from '@mechbattler/sim';
+import { useState } from 'react';
+import type { BattleEvent, BattleReport } from '@mechbattler/sim';
 import type { OpponentDef } from '../lib/opponents.js';
+import { eventText, fmtTime, partName, REASON_TEXT } from '../lib/battleText.js';
+import { BattlePlayback } from './BattlePlayback.js';
 import './BattleReportScreen.css';
-
-function partName(partId: string): string {
-  if (partId === CORE_INSTANCE_ID) return 'Core';
-  return getPart(partId).name;
-}
-
-function fmtTime(tSec: number): string {
-  const m = Math.floor(tSec / 60);
-  const s = tSec - m * 60;
-  return `${m}:${s.toFixed(1).padStart(4, '0')}`;
-}
-
-const REASON_TEXT: Record<BattleReport['reason'], string> = {
-  'core-kill': 'core destroyed',
-  'mission-kill': 'mission kill — no functional weapons, surrender',
-  judges: "judges' decision — most functional mass remaining",
-};
 
 interface DamageRow {
   instanceId: string;
@@ -46,34 +32,10 @@ function damageTakenByPart(report: BattleReport, mech: 0 | 1): DamageRow[] {
 }
 
 function timelineRows(report: BattleReport): BattleEvent[] {
+  // Orders live in the replay ticker; the post-battle timeline keeps consequences.
   return report.events.filter(
-    (e) => e.type !== 'shot' || (e.hit && e.totalDamageDealt >= 15),
+    (e) => e.type !== 'order' && (e.type !== 'shot' || (e.hit && e.totalDamageDealt >= 15)),
   );
-}
-
-function eventText(e: BattleEvent, names: [string, string]): { text: string; cls: string } {
-  switch (e.type) {
-    case 'shot':
-      return {
-        text: `${names[e.mech]} — ${partName(e.partId)} lands a heavy hit (${e.totalDamageDealt.toFixed(0)} dmg)`,
-        cls: e.mech === 0 ? 'good' : 'bad',
-      };
-    case 'part-destroyed':
-      return { text: `${names[e.mech]} — ${partName(e.partId)} DESTROYED (${e.cause})`, cls: e.mech === 0 ? 'bad' : 'good' };
-    case 'shed':
-      return { text: `${names[e.mech]} — power shed: ${e.instanceId === CORE_INSTANCE_ID ? 'locomotion' : e.instanceId}`, cls: 'warn' };
-    case 'shutdown':
-      return { text: `${names[e.mech]} — thermal shutdown: ${e.instanceId}`, cls: 'warn' };
-    case 'cookoff':
-      return { text: `${names[e.mech]} — AMMO COOK-OFF`, cls: 'bad' };
-    case 'surrender-countdown':
-      return { text: `${names[e.mech]} — no functional weapons, surrender countdown`, cls: 'warn' };
-    case 'victory':
-      return {
-        text: e.winner === 'draw' ? `DRAW — ${REASON_TEXT[e.reason]}` : `${names[e.winner]} WINS — ${REASON_TEXT[e.reason]}`,
-        cls: 'victory',
-      };
-  }
 }
 
 export function BattleReportScreen({
@@ -89,6 +51,8 @@ export function BattleReportScreen({
   const banner = report.winner === 'draw' ? 'DRAW' : won ? 'VICTORY' : 'DEFEAT';
   const yourDamage = damageTakenByPart(report, 0);
   const theirDamage = damageTakenByPart(report, 1);
+  const hasReplay = report.frames.length > 0;
+  const [view, setView] = useState<'replay' | 'report'>(hasReplay ? 'replay' : 'report');
 
   return (
     <div className="report-overlay" role="dialog" aria-modal="true">
@@ -100,6 +64,23 @@ export function BattleReportScreen({
           </div>
         </div>
 
+        {hasReplay && (
+          <div className="report-tabs">
+            {(['replay', 'report'] as const).map((v) => (
+              <button
+                key={v} type="button"
+                className={`report-tab${view === v ? ' active' : ''}`}
+                onClick={() => setView(v)}
+              >
+                {v === 'replay' ? 'Replay' : 'Report'}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {view === 'replay' && hasReplay && <BattlePlayback report={report} names={names} />}
+
+        {view === 'report' && (<>
         <div className="report-columns">
           {([0, 1] as const).map((i) => {
             const m = report.mechs[i];
@@ -144,6 +125,7 @@ export function BattleReportScreen({
             );
           })}
         </div>
+        </>)}
 
         <div className="report-actions">
           <button type="button" className="report-btn rematch" onClick={onRematch}>Rematch</button>

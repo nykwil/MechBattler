@@ -81,6 +81,7 @@ export function runRoundRobin(
           builds: flip ? [b.build, a.build] : [a.build, b.build],
           seed,
           timeoutS: options.timeoutS,
+          recordFrames: false,
         });
         battles++;
         result.avgDurationS += report.durationS;

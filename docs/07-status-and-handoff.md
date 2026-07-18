@@ -193,9 +193,17 @@ refactor** (parts carry stat modifiers; integrity exists, variants ±10%, quirks
 location affinity all land on the same hook). The template roster doubles as the enemy
 pool; budget = f(node) is already the harness currency.
 
-**Track B — Combat presentation.** Canvas/SVG playback of the `BattleReport` event log
-(mechs moving, tracers as theater, part-damage charring, heat glow), plus 03 §9
-readability effects. Pure rendering; zero sim changes.
+**Track B — Combat presentation.** ✅ **v1 shipped (Jul 17 2026).** The battle is now
+order-driven end to end: the four verbs are a typed `MechOrder` union, the autopilot is
+just a `Controller` that emits them at 4 Hz through `Battle.issueOrders` (the exact
+channel a future player-controlled mode will use — pass a custom controller or step the
+battle manually), order *changes* are logged as `order` events, and reports carry
+per-tick `frames` (pose, throttle, core HP, functional mass; `recordFrames: false` for
+harness runs). The web report screen gained a Replay tab: SVG arena playback with
+oriented true-footprint mechs (magnified 5×), tracers/impact rings/destruction flashes
+from the event log, status meters, play/pause/speed/scrub, and a ticker narrating orders
+and consequences. Remaining polish (later): part-damage charring on the mech glyphs,
+heat glow, projectile-flight theater for slow rounds.
 
 **Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**
 1. **Ammo system** — the weapon-identity move (specced in 01 §7, biggest unimplemented
