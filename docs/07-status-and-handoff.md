@@ -202,7 +202,16 @@ per-tick `frames` (pose, throttle, core HP, functional mass; `recordFrames: fals
 harness runs). The web report screen gained a Replay tab: SVG arena playback with
 oriented true-footprint mechs (magnified 5×), tracers/impact rings/destruction flashes
 from the event log, status meters, play/pause/speed/scrub, and a ticker narrating orders
-and consequences. Remaining polish (later): part-damage charring on the mech glyphs,
+and consequences. **v2: cockpit HUD** (LoL-style, prepping the playable mode): frames
+now carry per-weapon fire-control state (`WeaponFrame`: readiness fill toward the next
+shot across all three feed types — cycle / charge / capacitor — enabled, shed/shutdown/
+destroyed status, temp), hottest-cell heat, pooled capacitor kJ, supply/demand kW, and
+the standing orders (intent, face mode, destination). The replay renders your gun bar
+along the bottom (ability-square slots with ready-fill, muzzle flash, HOLD/shutdown/✕
+states, hover blurbs), HEAT/CAP/PWR gauges with threshold marks, verb chips
+(throttle / move intent / face toggle), destination waypoints in the arena, and a
+compact mirrored enemy strip. These readouts become the click targets when the verbs go
+player-controlled. Remaining polish (later): part-damage charring on the mech glyphs,
 heat glow, projectile-flight theater for slow rounds.
 
 **Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**

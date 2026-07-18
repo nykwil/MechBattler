@@ -183,6 +183,19 @@ export type BattleEvent =
 
 export type VictoryReason = 'core-kill' | 'mission-kill' | 'judges';
 
+/** One weapon's fire-control state in a playback tick (HUD ability-bar data). */
+export interface WeaponFrame {
+  instanceId: string;
+  partId: string;
+  /** 0..1 progress toward the next shot (cycle / charge / capacitor fill). */
+  readyFrac: number;
+  /** Cleared to fire by the current weapons order. */
+  enabled: boolean;
+  status: 'ok' | 'shed' | 'shutdown' | 'destroyed';
+  /** Hottest cell of the part, °C. */
+  tempC: number;
+}
+
 /** One mech's kinematic + status sample for a playback tick. */
 export interface MechFrame {
   x: number;
@@ -191,6 +204,17 @@ export interface MechFrame {
   speedSetting: SpeedSetting;
   coreHp: number;
   functionalMassFrac: number;
+  weapons: WeaponFrame[];
+  /** Hottest cell anywhere on the mech, °C (the HUD heat gauge). */
+  hottestCellC: number;
+  /** Pooled capacitor charge, kJ (capacity is MechReport.capacitorMaxKj). */
+  capacitorKj: number;
+  supplyKw: number;
+  demandKw: number;
+  /** Standing orders, for the HUD verb readouts and the destination marker. */
+  moveIntent: MoveIntent;
+  faceMode: 'target' | 'bearing';
+  dest: Vec2 | null;
 }
 
 export interface BattleFrame {
@@ -200,6 +224,8 @@ export interface BattleFrame {
 
 export interface MechReport {
   chassisId: string;
+  /** Total capacitor capacity of the build, kJ (0 = no capacitors; hide the gauge). */
+  capacitorMaxKj: number;
   shotsFired: number;
   shotsHit: number;
   damageDealt: number;
@@ -773,15 +799,55 @@ export class Battle {
     if (this.recordFrames) {
       this.frames.push({
         tSec: this.tSec,
-        mechs: [a, b].map((c) => ({
-          x: c.pos.x, y: c.pos.y, facingRad: c.facingRad, speedSetting: c.speedSetting,
-          coreHp: c.coreHp, functionalMassFrac: c.functionalMassFrac(),
-        })) as [MechFrame, MechFrame],
+        mechs: [this.sampleMechFrame(a, this.lastSnapshots[0]), this.sampleMechFrame(b, this.lastSnapshots[1])],
       });
     }
 
     this.checkVictory();
     return this.outcome === null;
+  }
+
+  /** Samples the cockpit-visible state of one mech (HUD data, not sim state). */
+  private sampleMechFrame(c: Combatant, snap: SimSnapshot | null): MechFrame {
+    const weapons: WeaponFrame[] = [];
+    for (const p of c.build.parts) {
+      const def = getPart(p.partId);
+      if (def.category !== 'weapon') continue;
+      const rt = c.sim.instanceRuntime.get(p.instanceId)!;
+      const destroyed = !c.isPartFunctional(p.instanceId);
+      // Progress toward the next shot, whatever feeds the gun: cycle time
+      // (continuous draw), charge (laser), or capacitor dump (railgun).
+      // A post-shot cooldown reads as 0 — the bar visibly resets on fire.
+      let readyFrac = 0;
+      if (!destroyed && !rt.isShutdown) {
+        if (def.draw?.continuousKw) readyFrac = Math.min(rt.cycleTimer / def.weapon!.cycleS, 1);
+        else if (def.draw?.chargedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1);
+        else if (def.draw?.capFedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1);
+      }
+      weapons.push({
+        instanceId: p.instanceId,
+        partId: p.partId,
+        readyFrac,
+        enabled: c.weaponsEnabled[p.instanceId] === true,
+        status: destroyed ? 'destroyed' : rt.isShutdown ? 'shutdown' : rt.isShed ? 'shed' : 'ok',
+        tempC: snap ? c.hottestCellC(p.instanceId, snap) : 25,
+      });
+    }
+    let hottest = 25;
+    if (snap) for (const t of Object.values(snap.cellTempsC)) if (t > hottest) hottest = t;
+    const capacitorKj = snap ? Object.values(snap.capacitorStoredKj).reduce((s, kj) => s + kj, 0) : 0;
+    return {
+      x: c.pos.x, y: c.pos.y, facingRad: c.facingRad, speedSetting: c.speedSetting,
+      coreHp: c.coreHp, functionalMassFrac: c.functionalMassFrac(),
+      weapons,
+      hottestCellC: hottest,
+      capacitorKj,
+      supplyKw: snap?.totalSupplyKw ?? 0,
+      demandKw: snap?.totalDemandKw ?? 0,
+      moveIntent: c.moveIntent,
+      faceMode: c.faceOrder.mode,
+      dest: c.destination ? { x: c.destination.x, y: c.destination.y } : null,
+    };
   }
 
   /**
@@ -944,6 +1010,10 @@ export class Battle {
         .map((p) => ({ instanceId: p.instanceId, partId: p.partId }));
       return {
         chassisId: self.build.chassisId,
+        capacitorMaxKj: self.build.parts.reduce((s, p) => {
+          const def = getPart(p.partId);
+          return s + (def.category === 'capacitor' ? def.capacitor!.storedKj : 0);
+        }, 0),
         ...this.stats[i]!,
         partsLost,
         functionalMassFrac: self.functionalMassFrac(),

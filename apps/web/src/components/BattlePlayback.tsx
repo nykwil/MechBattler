@@ -1,28 +1,43 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  getChassis, CELL_SIZE_M, CORE_HP, TICK_S,
-  type BattleEvent, type BattleReport, type MechFrame,
+  getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
+  type BattleEvent, type BattleReport, type MechFrame, type WeaponFrame, type PartDef,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
 import './BattlePlayback.css';
 
 /**
- * Replay player over the battle report's frame + event log. Renders nothing
- * the sim didn't record (rule R6: presentation is a playback layer) — mech
- * poses come from frames, tracers and flashes from shot events, and the
- * ticker narrates the order stream so the four verbs stay visible.
+ * Replay player over the battle report's frame + event log, laid out like a
+ * cockpit HUD: your guns along the bottom with rate-of-fire fill, heat /
+ * capacitor / power gauges, and the standing orders (throttle, move intent,
+ * face mode) as toggle chips. Everything renders from recorded frames (rule
+ * R6) — the same HUD becomes the control surface when the verbs go playable.
  */
 
 /** True footprints are ~3 m in a 200 m arena; magnify them to stay readable. */
 const MECH_MAG = 5;
 const TRACER_LINGER_S = 0.22;
 const FLASH_LINGER_S = 0.4;
+const MUZZLE_FLASH_S = 0.18;
 const MECH_COLORS = ['var(--signal-blue)', 'var(--signal-red)'] as const;
 const SPEEDS = [1, 2, 4, 8] as const;
+/** Heat gauge span: ambient to the damage threshold (docs/01 §4 ladder). */
+const HEAT_MIN_C = 25;
+const HEAT_MAX_C = 150;
 
 function frameAt(report: BattleReport, tSec: number) {
   const idx = Math.min(report.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
   return report.frames[idx];
+}
+
+function shortName(partId: string): string {
+  return getPart(partId).name.split(' (')[0]!;
+}
+
+function weaponBlurb(def: PartDef): string {
+  const w = def.weapon!;
+  const speed = w.projectileSpeed === 'hitscan' ? 'hitscan' : `${w.projectileSpeed} m/s`;
+  return `${def.name} — ${w.damage}${w.salvoCount ? `×${w.salvoCount}` : ''} dmg every ${w.cycleS}s · ${speed} · band ${w.falloff.rangeStart}–${w.falloff.rangeEnd} m`;
 }
 
 function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: string; color: string }) {
@@ -43,10 +58,64 @@ function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: s
   );
 }
 
+function WeaponSlot({
+  wf, fired, compact, onHover,
+}: {
+  wf: WeaponFrame;
+  fired: boolean;
+  compact?: boolean;
+  onHover?: (partId: string | null) => void;
+}) {
+  const def = getPart(wf.partId);
+  const cls = [
+    'hud-slot',
+    wf.status,
+    !wf.enabled && wf.status === 'ok' ? 'holdfire' : '',
+    fired ? 'fired' : '',
+    compact ? 'compact' : '',
+  ].filter(Boolean).join(' ');
+  return (
+    <div
+      className={cls}
+      title={weaponBlurb(def)}
+      onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
+    >
+      <div className="hud-slot-fill" style={{ height: `${wf.readyFrac * 100}%` }} />
+      <span className="hud-slot-label">{shortName(wf.partId)}</span>
+      {wf.status === 'destroyed' && <span className="hud-slot-x">✕</span>}
+      {wf.status === 'shutdown' && <span className="hud-slot-x">♨</span>}
+      {!wf.enabled && wf.status === 'ok' && <span className="hud-slot-hold">HOLD</span>}
+    </div>
+  );
+}
+
+function Gauge({
+  label, frac, marks, cls, text,
+}: {
+  label: string;
+  frac: number;
+  marks?: number[];
+  cls: string;
+  text: string;
+}) {
+  return (
+    <div className="hud-gauge">
+      <span className="hud-gauge-label">{label}</span>
+      <span className="hud-gauge-track">
+        <span className={`hud-gauge-fill ${cls}`} style={{ width: `${Math.min(100, Math.max(0, frac * 100))}%` }} />
+        {marks?.map((m) => <span key={m} className="hud-gauge-mark" style={{ left: `${m * 100}%` }} />)}
+      </span>
+      <span className="hud-gauge-text">{text}</span>
+    </div>
+  );
+}
+
 export function BattlePlayback({ report, names }: { report: BattleReport; names: [string, string] }) {
   const [tSec, setTSec] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(2);
+  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const tRef = useRef(0);
 
   useEffect(() => {
@@ -86,6 +155,14 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
     ),
     [report.events, tSec],
   );
+  /** Weapon instances that fired within the muzzle-flash window (slot flash). */
+  const firedIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const e of report.events) {
+      if (e.type === 'shot' && e.tSec <= tSec && e.tSec > tSec - MUZZLE_FLASH_S) ids.add(`${e.mech}:${e.instanceId}`);
+    }
+    return ids;
+  }, [report.events, tSec]);
 
   // Ticker: decisions and consequences up to now (routine shots stay out).
   const tickerRows = useMemo(() => {
@@ -94,7 +171,7 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
       if (e.type === 'shot') return e.hit && e.totalDamageDealt >= 15;
       return true;
     });
-    return rows.slice(-7);
+    return rows.slice(-6);
   }, [report.events, tSec]);
 
   const halfL = report.arena.lengthM / 2;
@@ -102,25 +179,31 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
   const margin = 8;
 
   if (!frame) return null;
+  const you = frame.mechs[0];
+  const foe = frame.mechs[1];
+  const heatFrac = (m: MechFrame) => (m.hottestCellC - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C);
 
   return (
     <div className="playback">
-      <div className="playback-status">
-        {([0, 1] as const).map((i) => {
-          const m = frame.mechs[i];
-          return (
-            <div key={i} className="playback-mech-status" style={{ borderColor: MECH_COLORS[i] }}>
-              <span className="playback-mech-name" style={{ color: MECH_COLORS[i] }}>{names[i]}</span>
-              <span className="playback-meter" title="Core HP">
-                <span className="playback-meter-fill core" style={{ width: `${(100 * Math.max(0, m.coreHp)) / CORE_HP}%` }} />
-              </span>
-              <span className="playback-meter" title="Functional mass">
-                <span className="playback-meter-fill mass" style={{ width: `${100 * m.functionalMassFrac}%` }} />
-              </span>
-              <span className="playback-throttle">{m.speedSetting}</span>
-            </div>
-          );
-        })}
+      {/* Enemy strip (compact mirror of the cockpit). */}
+      <div className="hud-enemy" style={{ borderColor: MECH_COLORS[1] }}>
+        <span className="hud-name" style={{ color: MECH_COLORS[1] }}>{names[1]}</span>
+        <span className="hud-meter" title="Core HP">
+          <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, foe.coreHp)) / CORE_HP}%` }} />
+        </span>
+        <span className="hud-meter" title="Functional mass">
+          <span className="hud-meter-fill mass" style={{ width: `${100 * foe.functionalMassFrac}%` }} />
+        </span>
+        <span className="hud-meter" title={`Heat: ${foe.hottestCellC.toFixed(0)}°C`}>
+          <span className="hud-meter-fill heat" style={{ width: `${Math.min(100, Math.max(0, heatFrac(foe) * 100))}%` }} />
+        </span>
+        <span className="hud-enemy-slots">
+          {foe.weapons.map((wf) => (
+            <WeaponSlot key={wf.instanceId} wf={wf} fired={firedIds.has(`1:${wf.instanceId}`)} compact />
+          ))}
+        </span>
+        <span className="hud-chip">{foe.speedSetting}</span>
+        <span className="hud-chip">{foe.moveIntent}</span>
       </div>
 
       <svg
@@ -131,6 +214,21 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
         {Array.from({ length: Math.floor(halfL / 25) * 2 + 1 }, (_, k) => (k - Math.floor(halfL / 25)) * 25).map((x) => (
           <line key={x} x1={x} y1={-halfW} x2={x} y2={halfW} className="playback-gridline" />
         ))}
+
+        {/* Destination markers: the standing move order, drawn like an RTS waypoint. */}
+        {([0, 1] as const).map((i) => {
+          const m = frame.mechs[i];
+          if (!m.dest) return null;
+          return (
+            <g key={`dest${i}`} className="playback-dest" stroke={MECH_COLORS[i]}>
+              <line x1={m.x} y1={m.y} x2={m.dest.x} y2={m.dest.y} />
+              <path
+                d={`M ${m.dest.x} ${m.dest.y - 2.6} L ${m.dest.x + 2.6} ${m.dest.y} L ${m.dest.x} ${m.dest.y + 2.6} L ${m.dest.x - 2.6} ${m.dest.y} Z`}
+                fill="none"
+              />
+            </g>
+          );
+        })}
 
         {tracers.map((e, idx) => {
           const f = frameAt(report, e.tSec);
@@ -167,6 +265,61 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={report.mechs[i].chassisId} color={MECH_COLORS[i]} />
         ))}
       </svg>
+
+      {/* Your cockpit: portrait | gun bar | gauges + verb chips. */}
+      <div className="hud-cockpit" style={{ borderColor: MECH_COLORS[0] }}>
+        <div className="hud-portrait">
+          <span className="hud-name" style={{ color: MECH_COLORS[0] }}>{names[0]}</span>
+          <span className="hud-meter" title="Core HP">
+            <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / CORE_HP}%` }} />
+          </span>
+          <span className="hud-meter" title="Functional mass">
+            <span className="hud-meter-fill mass" style={{ width: `${100 * you.functionalMassFrac}%` }} />
+          </span>
+        </div>
+
+        <div className="hud-guns">
+          <div className="hud-gun-row">
+            {you.weapons.length === 0 && <span className="hud-empty">no weapons</span>}
+            {you.weapons.map((wf) => (
+              <WeaponSlot
+                key={wf.instanceId} wf={wf}
+                fired={firedIds.has(`0:${wf.instanceId}`)}
+                onHover={setHoveredWeapon}
+              />
+            ))}
+          </div>
+          <div className="hud-gun-blurb">
+            {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · HOLD = fire control withheld'}
+          </div>
+        </div>
+
+        <div className="hud-gauges">
+          <Gauge
+            label="HEAT" frac={heatFrac(you)} cls={you.hottestCellC >= 130 ? 'heat-hot' : 'heat'}
+            marks={[(100 - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C), (130 - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C)]}
+            text={`${you.hottestCellC.toFixed(0)}°C`}
+          />
+          {report.mechs[0].capacitorMaxKj > 0 && (
+            <Gauge
+              label="CAP" frac={you.capacitorKj / report.mechs[0].capacitorMaxKj} cls="cap"
+              text={`${you.capacitorKj.toFixed(0)}/${report.mechs[0].capacitorMaxKj} kJ`}
+            />
+          )}
+          <Gauge
+            label="PWR" frac={you.supplyKw > 0 ? you.demandKw / you.supplyKw : 0}
+            cls={you.demandKw > you.supplyKw ? 'pwr-over' : 'pwr'}
+            text={`${you.demandKw.toFixed(0)}/${you.supplyKw.toFixed(0)} kW`}
+          />
+          <div className="hud-verbs">
+            <span className="hud-chip active">{you.speedSetting}</span>
+            <span className="hud-chip active">{you.moveIntent}</span>
+            <span className={`hud-chip${you.faceMode === 'target' ? ' active' : ''}`} title="Facing order">
+              face: {you.faceMode}
+            </span>
+          </div>
+        </div>
+      </div>
 
       <div className="playback-controls">
         <button

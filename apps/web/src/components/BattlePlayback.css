@@ -4,49 +4,238 @@
   gap: 10px;
 }
 
-.playback-status {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+/* --- Shared HUD atoms ------------------------------------------------------ */
+
+.hud-name {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  flex: none;
 }
-.playback-mech-status {
+.hud-meter {
+  flex: 1;
+  min-width: 40px;
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+.hud-meter-fill {
+  display: block;
+  height: 100%;
+  transition: width 0.1s linear;
+}
+.hud-meter-fill.core { background: var(--signal-amber); }
+.hud-meter-fill.mass { background: var(--signal-green); }
+.hud-meter-fill.heat { background: var(--signal-red); }
+
+.hud-chip {
+  flex: none;
+  padding: 2px 7px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 3px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 9.5px;
+}
+.hud-chip.active {
+  border-color: var(--signal-amber-dim);
+  color: var(--signal-amber);
+}
+
+/* --- Enemy strip ----------------------------------------------------------- */
+
+.hud-enemy {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 10px;
+  padding: 5px 10px;
   border: 1px solid;
   border-radius: var(--radius-md);
   background: var(--bg-inset);
   font-family: var(--font-mono);
   font-size: 10.5px;
 }
-.playback-mech-name {
-  font-weight: 700;
-  letter-spacing: 0.08em;
+.hud-enemy-slots {
+  display: flex;
+  gap: 3px;
+}
+
+/* --- Cockpit (your bottom bar) --------------------------------------------- */
+
+.hud-cockpit {
+  display: flex;
+  align-items: stretch;
+  gap: 14px;
+  padding: 8px 12px;
+  border: 1px solid;
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+.hud-portrait {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  width: 110px;
   flex: none;
 }
-.playback-meter {
+.hud-portrait .hud-meter { flex: none; width: 100%; }
+
+.hud-guns {
   flex: 1;
-  height: 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+.hud-gun-row {
+  display: flex;
+  gap: 6px;
+}
+.hud-empty { color: var(--ink-faint); }
+.hud-gun-blurb {
+  font-size: 9.5px;
+  color: var(--ink-faint);
+  min-height: 12px;
+  text-align: center;
+}
+
+/* Weapon slot: an ability square whose fill is progress to the next shot. */
+.hud-slot {
+  position: relative;
+  width: 52px;
+  height: 44px;
+  border: 1px solid var(--line-hairline);
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  cursor: default;
+}
+.hud-slot.compact {
+  width: 30px;
+  height: 20px;
+}
+.hud-slot-fill {
+  position: absolute;
+  inset: auto 0 0 0;
+  background: rgba(232, 162, 61, 0.35);
+  transition: height 0.08s linear;
+}
+.hud-slot.ok { border-color: var(--signal-amber-dim); }
+.hud-slot.ok .hud-slot-fill { background: rgba(232, 162, 61, 0.45); }
+.hud-slot.holdfire { border-color: var(--line-hairline); opacity: 0.65; }
+.hud-slot.holdfire .hud-slot-fill { background: rgba(255, 255, 255, 0.12); }
+.hud-slot.shed { border-color: var(--signal-blue-dim); opacity: 0.7; }
+.hud-slot.shutdown {
+  border-color: var(--signal-red);
+  animation: slot-overheat 1s ease-in-out infinite;
+}
+.hud-slot.destroyed { border-color: var(--line-hairline); opacity: 0.4; }
+.hud-slot.destroyed .hud-slot-fill { display: none; }
+.hud-slot.fired {
+  box-shadow: 0 0 10px 1px rgba(232, 162, 61, 0.7) inset;
+}
+.hud-slot.fired .hud-slot-fill { background: var(--signal-amber); }
+@keyframes slot-overheat {
+  0%, 100% { box-shadow: 0 0 6px 0 rgba(214, 69, 69, 0.5) inset; }
+  50% { box-shadow: 0 0 12px 2px rgba(214, 69, 69, 0.9) inset; }
+}
+.hud-slot-label {
+  position: relative;
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: var(--ink-secondary);
+  padding-bottom: 3px;
+  pointer-events: none;
+}
+.hud-slot.compact .hud-slot-label { display: none; }
+.hud-slot-x,
+.hud-slot-hold {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+.hud-slot-x { color: var(--signal-red); font-size: 14px; }
+.hud-slot.compact .hud-slot-x { font-size: 10px; }
+.hud-slot-hold {
+  color: var(--ink-faint);
+  font-size: 8px;
+  letter-spacing: 0.12em;
+  padding-bottom: 12px;
+}
+.hud-slot.compact .hud-slot-hold { display: none; }
+
+/* --- Gauges ---------------------------------------------------------------- */
+
+.hud-gauges {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  width: 210px;
+  flex: none;
+}
+.hud-gauge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.hud-gauge-label {
+  flex: none;
+  width: 34px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+  color: var(--ink-faint);
+}
+.hud-gauge-track {
+  position: relative;
+  flex: 1;
+  height: 7px;
   border-radius: 3px;
   background: rgba(0, 0, 0, 0.45);
   overflow: hidden;
 }
-.playback-meter-fill {
+.hud-gauge-fill {
   display: block;
   height: 100%;
   transition: width 0.1s linear;
 }
-.playback-meter-fill.core { background: var(--signal-amber); }
-.playback-meter-fill.mass { background: var(--signal-green); }
-.playback-throttle {
-  flex: none;
-  color: var(--ink-faint);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  min-width: 62px;
-  text-align: right;
+.hud-gauge-fill.heat { background: var(--signal-amber); }
+.hud-gauge-fill.heat-hot { background: var(--signal-red); }
+.hud-gauge-fill.cap { background: var(--signal-blue); }
+.hud-gauge-fill.pwr { background: var(--signal-blue); }
+.hud-gauge-fill.pwr-over { background: var(--signal-red); }
+.hud-gauge-mark {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.4);
 }
+.hud-gauge-text {
+  flex: none;
+  width: 64px;
+  text-align: right;
+  font-size: 9px;
+  color: var(--ink-secondary);
+}
+.hud-verbs {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* --- Arena ----------------------------------------------------------------- */
 
 .playback-arena {
   width: 100%;
@@ -62,6 +251,11 @@
 .playback-gridline {
   stroke: rgba(255, 255, 255, 0.04);
   stroke-width: 0.5;
+}
+.playback-dest {
+  stroke-width: 0.5;
+  stroke-dasharray: 2 2;
+  opacity: 0.55;
 }
 .playback-tracer {
   stroke-width: 0.6;
@@ -81,6 +275,8 @@
   stroke: var(--signal-red);
   stroke-width: 1.2;
 }
+
+/* --- Transport controls + ticker ------------------------------------------- */
 
 .playback-controls {
   display: flex;
@@ -112,7 +308,7 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 118px;
+  min-height: 102px;
   padding: 8px 10px;
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
