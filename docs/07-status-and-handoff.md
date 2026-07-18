@@ -232,9 +232,15 @@ states, hover blurbs), HEAT/CAP/PWR gauges with threshold marks, verb chips
 (throttle / move intent / face toggle), destination waypoints in the arena, and a
 compact mirrored enemy strip. These readouts become the click targets when the verbs go
 player-controlled. Remaining polish (later): part-damage charring on the mech glyphs,
-heat glow, projectile-flight theater for slow rounds. **Next: the playable (live verb
-control) mode — full plan in `08-playable-battle-plan.md` (chosen Jul 18 2026 as the
-active thread, ahead of Track A).**
+heat glow, projectile-flight theater for slow rounds.
+
+**The playable (live verb control) mode SHIPPED Jul 18 2026** — milestones M1–M4 of
+`08-playable-battle-plan.md` (live stepping with tactical pause, manual move/throttle/
+weapons/face over the autopilot via `withManualOrders`, keybindings, report parity).
+The Fight button offers **Fight · Live** (command) and **Watch** (headless + replay).
+Still open from that plan: M5 stretch (enemy-intel limits on the live strip, waypoint
+queues, region triggers) and the "scripted player beats the autopilot in a matchup it
+loses" showcase test. **Next: Track A — run structure & economy.**
 
 **Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**
 1. **Ammo system** — the weapon-identity move (specced in 01 §7, biggest unimplemented
