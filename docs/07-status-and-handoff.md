@@ -242,14 +242,13 @@ Still open from that plan: M5 stretch (enemy-intel limits on the live strip, way
 queues, region triggers) and the "scripted player beats the autopilot in a matchup it
 loses" showcase test.
 
-**Next: UX & diagnostics pass** (decided Jul 18 2026, planned in
-`09-ux-diagnostics-plan.md`) — make what exists more user-friendly before adding systems.
-Already shipped from that scope: firing-arc wedges in the grid editor, the range sandbox
-(windowed live-fire DPS at selectable target ranges), and the auto-face-on-manual-waypoint
-fix. Remaining milestones: M1 playable friction fixes (abort→stale-report, live 4×,
-same-seed rematch) → M2 not-firing legibility (per-slot gate reasons) → M3 audit coverage
-/ M4 auto-wire baseline → M5 bench uptime attribution.
-**Track A — run structure & economy — follows.**
+**The UX & diagnostics pass SHIPPED Jul 18 2026** (`09-ux-diagnostics-plan.md`, all five
+milestones): arc wedges + range sandbox + waypoint-facing fix, playable friction fixes
+(no stale report after abort, live 4×, same-seed rematch), not-firing legibility
+(per-slot RANGE/ARC/HOT vs player HOLD), the network-starved audit, the ⚡ Auto-wire
+baseline, and sandbox uptime attribution. Balancing explicitly deferred — building for
+feature-completeness and user experience first (user call, Jul 18 2026).
+**Next: Track A — run structure & economy.**
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

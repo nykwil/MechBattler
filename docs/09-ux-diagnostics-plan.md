@@ -18,7 +18,7 @@ auto-face-on-manual-waypoint fix (dead-gun travel now uses forward speed).
 
 ## 2. Milestones
 
-### M1 — Playable friction fixes (small, ship first)
+### M1 — Playable friction fixes (small, ship first) ✅ *shipped Jul 18 2026*
 
 The command-mode paper cuts from the playability review, all one-to-two-line-diff sized:
 
@@ -31,7 +31,10 @@ The command-mode paper cuts from the playability review, all one-to-two-line-dif
   loss into a controlled experiment — exactly the engineer fantasy. Ship as a second
   rematch button on the report screen.
 
-### M2 — Not-firing legibility (03 §9)
+### M2 — Not-firing legibility (03 §9) ✅ *shipped Jul 18 2026 — `WeaponFrame.gate`
+('arc'|'range'|'heat'), slot labels RANGE/ARC/HOT with HOLD reserved for the player's
+order (keyed off the override so it reads back instantly while paused); bonus fix:
+`useBattle` primes one tick so pausing at 0:00.0 shows the spawn state.*
 
 Whenever a gun is silent, the HUD slot says *why*, distinguishably: **out of arc / out of
 range / cooling / power-shed / shutdown / player hold**. Today a single HOLD label
@@ -45,7 +48,10 @@ conflates player intent with fire-control gating.
 - Test: pinned sim test per gate; Playwright asserts the slot text at a long spawn
   distance reads range-gated, and flips to player-hold on click.
 
-### M3 — Build audit coverage (01 §9)
+### M3 — Build audit coverage (01 §9) ✅ *shipped Jul 18 2026 — the load-bearing new
+check was `network-starved` (a starved reactor island the pooled margin hides); the
+never-satisfiable-weapon cases turned out already covered by cap-starved (error) and the
+always-on thermal prediction.*
 
 The live audit surface already exists (`validation.ts` → `BuildWarnings`, with
 error/warn/hint = the intake's hard-error/warning/optimization split, and it runs on every
@@ -61,7 +67,9 @@ edit — better than the notes' button). This milestone is *coverage*:
 - Each check lands with a fixture-build test proving it fires and a clean-build test
   proving it doesn't.
 
-### M4 — Auto-wire baseline (01 §9)
+### M4 — Auto-wire baseline (01 §9) ✅ *shipped Jul 18 2026 — `autoWire()` +
+⚡ Auto-wire button, laid conduits flash green; pinned tests re-wire every template
+stripped of its conduits.*
 
 One button: generate a *functional* (not optimal) conduit graph connecting every placed
 part to a reactor. Player keeps all placement decisions; the game does the busywork of a
@@ -75,7 +83,9 @@ first wiring pass, and hand-routing remains the optimization game (05 R1 mitigat
 - Test: every template build minus its conduits re-wires to full connectivity; a build
   with no reactor reports cleanly instead of looping.
 
-### M5 — Bench attribution (02 §6)
+### M5 — Bench attribution (02 §6) ✅ *shipped Jul 18 2026 — per-weapon uptime bars in
+the sandbox with silence attributed via the M2 gate reasons; the per-support-part
+contribution stretch (virtual part removal) remains open.*
 
 The range sandbox measures *what*; this adds *why*:
 
