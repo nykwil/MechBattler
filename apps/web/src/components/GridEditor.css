@@ -47,6 +47,30 @@
   0%, 100% { opacity: 1; }
   50% { opacity: 0.35; }
 }
+.grid-svg .cell-flash {
+  fill: none;
+  stroke: var(--signal-green);
+  stroke-width: 2.5;
+  pointer-events: none;
+  animation: flash-fade 1.6s ease-out forwards;
+}
+@keyframes flash-fade {
+  0% { opacity: 1; }
+  70% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.autowire-btn {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  padding: 3px 10px;
+  background: none;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+.autowire-btn:hover { color: var(--ink-primary); border-color: var(--signal-green); }
 .grid-svg .cell-rejected {
   fill: var(--signal-red);
   pointer-events: none;

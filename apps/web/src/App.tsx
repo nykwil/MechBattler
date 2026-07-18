@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { computeHeatAdvice, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { autoWire, computeHeatAdvice, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -24,7 +24,7 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 export default function App() {
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, place, remove, movePriority, setOverlay,
+    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, movePriority, setOverlay,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -32,6 +32,15 @@ export default function App() {
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
+  const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
+
+  const autoWireNow = useCallback(() => {
+    const { conduits } = autoWire(chassis, build);
+    if (conduits.length === 0) return;
+    addParts(conduits);
+    setFlashIds(new Set(conduits.map((c) => c.instanceId)));
+    setTimeout(() => setFlashIds(new Set()), 1700);
+  }, [chassis, build, addParts]);
 
   useEffect(() => {
     setBenchResult(null);
@@ -146,6 +155,8 @@ export default function App() {
             onSelectInstance={selectInstance}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
             faultInstanceIds={faultInstanceIds}
+            flashInstanceIds={flashIds}
+            onAutoWire={autoWireNow}
           />
         </div>
 

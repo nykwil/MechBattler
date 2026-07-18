@@ -34,6 +34,7 @@ type Action =
   | { type: 'ROTATE' }
   | { type: 'PLACE'; x: number; y: number }
   | { type: 'REMOVE'; instanceId: string }
+  | { type: 'ADD_PARTS'; parts: PlacedPart[] }
   | { type: 'MOVE_PRIORITY'; instanceId: string; direction: -1 | 1 }
   | { type: 'SET_OVERLAY'; overlay: OverlayMode };
 
@@ -85,6 +86,10 @@ function reducer(state: EditorState, action: Action): EditorState {
         : state.powerPriority;
       return { ...state, parts: [...state.parts, candidate], powerPriority, nextSeq: state.nextSeq + 1 };
     }
+    case 'ADD_PARTS':
+      // Sim-generated placements (auto-wire): already legal, appended as-is.
+      // Conduits draw nothing, so the power priority list is untouched.
+      return { ...state, parts: [...state.parts, ...action.parts] };
     case 'REMOVE':
       return {
         ...state,
@@ -148,6 +153,7 @@ export function useBuild(defaultChassisId: string) {
     rotate: () => dispatch({ type: 'ROTATE' }),
     place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
     remove: (instanceId: string) => dispatch({ type: 'REMOVE', instanceId }),
+    addParts: (parts: PlacedPart[]) => dispatch({ type: 'ADD_PARTS', parts }),
     movePriority: (instanceId: string, direction: -1 | 1) => dispatch({ type: 'MOVE_PRIORITY', instanceId, direction }),
     setOverlay: (overlay: OverlayMode) => dispatch({ type: 'SET_OVERLAY', overlay }),
     checkCandidate,

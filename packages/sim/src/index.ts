@@ -11,5 +11,6 @@ export * from './combat.js';
 export * from './templates.js';
 export * from './harness.js';
 export * from './sandbox.js';
+export * from './autowire.js';
 export * from './adaptation.js';
 export * from './validation.js';

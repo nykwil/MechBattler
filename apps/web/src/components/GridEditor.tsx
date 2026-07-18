@@ -41,7 +41,7 @@ const REJECTION_TEXT: Record<string, string> = {
 
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
-  onPlace, onSelectInstance, thermalSnapshot, faultInstanceIds,
+  onPlace, onSelectInstance, thermalSnapshot, faultInstanceIds, flashInstanceIds, onAutoWire,
 }: {
   chassis: ChassisSpec;
   parts: PlacedPart[];
@@ -54,6 +54,9 @@ export function GridEditor({
   onSelectInstance: (instanceId: string | null) => void;
   thermalSnapshot: Record<string, number> | null;
   faultInstanceIds: Set<string>;
+  /** Freshly auto-wired conduits, highlighted briefly so the pass is visible. */
+  flashInstanceIds: Set<string>;
+  onAutoWire: () => void;
 }) {
   const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
   // Illegal-placement feedback (docs/07 gap #1): a rejected click flashes the
@@ -89,6 +92,10 @@ export function GridEditor({
   const faultOutlines = useMemo(() => parts
     .filter((p) => faultInstanceIds.has(p.instanceId))
     .map((p) => outlinePath(getOccupiedCells(p, getPart(p.partId)))), [parts, faultInstanceIds]);
+
+  const flashOutlines = useMemo(() => parts
+    .filter((p) => flashInstanceIds.has(p.instanceId))
+    .map((p) => outlinePath(getOccupiedCells(p, getPart(p.partId)))), [parts, flashInstanceIds]);
 
   /** One boundary path per placed part, so multi-cell parts read as one piece. */
   const partOutlines = useMemo(() => parts.map((p) => ({
@@ -184,6 +191,10 @@ export function GridEditor({
             <path key={`fault-${i}`} className="cell-fault" d={d} />
           ))}
 
+          {flashOutlines.map((d, i) => (
+            <path key={`flash-${i}`} className="cell-flash" d={d} />
+          ))}
+
           {selectedOutline && <path className="cell-selected" d={selectedOutline} />}
 
           {rejection && rejection.cells.map(({ x, y }) => (
@@ -229,6 +240,14 @@ export function GridEditor({
         <span>{chassis.name} · {chassis.type}</span>
         <span>{cells.length} cells</span>
         <span>{parts.length} parts placed</span>
+        <button
+          type="button"
+          className="autowire-btn"
+          onClick={onAutoWire}
+          title="Lay a functional (not optimal) conduit graph to every unpowered part and the core — you can still reroute by hand"
+        >
+          ⚡ Auto-wire
+        </button>
       </div>
       {rejection && <div className="grid-rejection">✕ {rejection.reason}</div>}
       <Legend overlay={overlay} />
