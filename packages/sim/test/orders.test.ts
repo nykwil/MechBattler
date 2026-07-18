@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { Build, PlacedPart } from '../src/types.js';
-import { Battle, runBattle, type Controller, type MechOrder } from '../src/combat.js';
+import {
+  Battle, runBattle, computeHitModel, MOVE_JITTER_MRAD_PER_MPS,
+  TRACKING_LAG_BASE_S, type Controller, type MechOrder,
+} from '../src/combat.js';
+import { TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 
 function muleGunline(): Build {
@@ -64,5 +68,54 @@ describe('the order channel (RTS verbs, docs/03 §7)', () => {
 
     const bare = runBattle({ builds: [muleGunline(), muleGunline()], seed: 31, recordFrames: false });
     expect(bare.frames).toEqual([]);
+  });
+});
+
+describe('motion jitter (docs/03 §4): additive error punishes precision guns most', () => {
+  // Each gun at its own working range, against a light mech's ~0.6 m
+  // projected half-width (the regime where the additive jitter bites).
+  const at = (baseMrad: number, rangeM: number, speedMps: number) => computeHitModel({
+    rangeM,
+    sigmaRad: (baseMrad + MOVE_JITTER_MRAD_PER_MPS * speedMps) * 0.001,
+    lateralSpeedMps: 0,
+    lagS: TRACKING_LAG_BASE_S,
+    projectileSpeed: 800,
+    targetHalfWidthM: 0.6,
+  }).pHit;
+
+  it('a railgun at its range loses far more hit% on the move than a machine gun at its own', () => {
+    const railgunLoss = at(1.2, 240, 0) - at(1.2, 240, 6);
+    const mgLoss = at(8.0, 60, 0) - at(8.0, 60, 6);
+    expect(railgunLoss).toBeGreaterThan(2 * Math.max(mgLoss, 1e-9));
+    expect(at(1.2, 240, 0)).toBeGreaterThan(0.9); // standing still, the sniper is deadly
+  });
+});
+
+describe('exchange-optimizing autopilot (docs/03 §7 rewrite)', () => {
+  const get = (id: string) => TEMPLATES.find((t) => t.id === id)!.build;
+
+  it('an out-of-reach brawler faces its direction of travel, then the target once in reach', () => {
+    // Bastion (Maul, ~58 m reach) spawns at 160 m: it should close while
+    // facing the travel bearing (fast forward speed), switching to target
+    // tracking once the gun can bear.
+    const report = runBattle({ builds: [get('vulture-sniper'), get('bastion-tank')], seed: 77 });
+    const faces = report.events.filter((e) => e.type === 'order' && e.mech === 1 && e.order.verb === 'face');
+    expect(faces.length).toBeGreaterThanOrEqual(2);
+    expect(faces[0]!.type === 'order' && faces[0]!.order.verb === 'face' && faces[0]!.order.mode).toBe('bearing');
+    expect(faces.some((e) => e.type === 'order' && e.order.verb === 'face' && e.order.mode === 'target')).toBe(true);
+  });
+
+  it('a pressed sniper stands or gives ground; it never brawls forward into the tank', () => {
+    const report = runBattle({ builds: [get('vulture-sniper'), get('bastion-tank')], seed: 77 });
+    const sniperMoves = report.events
+      .filter((e) => e.type === 'order' && e.mech === 0 && e.order.verb === 'move')
+      .map((e) => (e.type === 'order' && e.order.verb === 'move' ? e.order.intent : ''));
+    expect(sniperMoves).toContain('retreat');
+  });
+
+  it('an out-ranged, losing mech turns tail (flee at forward speed, guns off target)', () => {
+    const report = runBattle({ builds: [get('vulture-skirmisher'), get('mule-gunline')], seed: 77 });
+    const fled = report.events.some((e) => e.type === 'order' && e.order.verb === 'move' && e.order.intent === 'flee');
+    expect(fled).toBe(true);
   });
 });

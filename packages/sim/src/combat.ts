@@ -62,12 +62,17 @@ export const STAGGER_DAMAGE_PER_T = 3.3;
 export const TRACKING_LAG_BASE_S = 0.3;
 export const TRACKING_LAG_TC_S = 0.1;
 
-const SPEED_DISPERSION_MULT: Record<SpeedSetting, number> = {
-  stationary: 0.7, // treated as creep-or-better (docs/03 §4 has no stationary row; standing still is at least as steady)
-  creep: 0.7,
-  cruise: 1.0,
-  flank: 1.6,
-};
+/**
+ * Motion jitter (docs/03 §4): moving adds an absolute pointing error scaling
+ * with the shooter's actual speed. Because it's additive, precise long-range
+ * guns (railgun 1.2 mrad) suffer proportionally far more than brawling guns
+ * (MG 8 mrad) — long-range fire wants a stationary platform, and "accuracy
+ * while still" is simply zero jitter. Replaces the old flat speed-setting
+ * dispersion multipliers.
+ */
+export const MOVE_JITTER_MRAD_PER_MPS = 0.3;
+/** How far ahead the autopilot projects a maneuver when scoring it. */
+export const MANEUVER_HORIZON_S = 2.0;
 
 export interface Vec2 { x: number; y: number }
 
@@ -139,7 +144,7 @@ function wrapAngle(a: number): number {
 // the Battle manually and call issueOrders between ticks); the sim never knows
 // who is giving the orders.
 
-export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold';
+export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold' | 'flee';
 
 export type MechOrder =
   /** Verb 1 — fire control: which weapons are cleared to fire. */
@@ -524,52 +529,133 @@ export class Combatant {
 // --- Autopilot ----------------------------------------------------------------
 
 /**
- * The four-verb autopilot (docs/03 §7), evaluated at 4 Hz. Emits the same
- * MechOrder stream a player would issue — band-seeking movement, orbit for
- * strafe-capable chassis, arc/range/temperature fire gating.
+ * Expected sustained dps of `shooter` against `target` at a hypothetical
+ * range and speed pair, under the stat-based hit model (docs/03 §5). This is
+ * the autopilot's scoring primitive: it prices exactly the trade the player
+ * will later make by hand — moving costs your own accuracy (motion jitter),
+ * crossing speed costs the enemy theirs (tracking lag), range costs both
+ * (dispersion growth + falloff). Exported so the workshop can chart it.
+ */
+export function estimateExpectedDps(
+  shooter: Combatant, target: Combatant, rangeM: number,
+  shooterSpeedMps: number, targetLateralMps: number, snapshot: SimSnapshot | null,
+): number {
+  const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
+  // Pose is unknown at planning time; use the mean silhouette half-width.
+  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M;
+  let dps = 0;
+  for (const p of shooter.build.parts) {
+    const def = getPart(p.partId);
+    if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
+    const w = def.weapon!;
+    if (rangeM > w.falloff.rangeEnd * 1.3) continue;
+    const model = computeHitModel({
+      rangeM,
+      sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * shooterSpeedMps) * 0.001,
+      lateralSpeedMps: targetLateralMps,
+      lagS,
+      projectileSpeed: w.projectileSpeed,
+      targetHalfWidthM: halfWidthM,
+    });
+    dps += (model.pHit * w.damage * (w.salvoCount ?? 1) * falloffAt(def, rangeM)) / w.cycleS;
+  }
+  return dps;
+}
+
+/**
+ * The four-verb autopilot (docs/03 §7), evaluated at 4 Hz. Movement is chosen
+ * in two steps: (1) scan the standing-exchange curve U(r) = my dps − their
+ * dps at each range to find the range that optimizes my weapons' reach and
+ * accuracy against theirs; (2) move there, choosing throttle by what speed
+ * costs at the current range, and once there choosing stand-still (accuracy)
+ * vs orbit (tracking-error defense) by the same exchange arithmetic.
+ * Playstyles are emergent chassis+gun physics, not scripts: a spider whose
+ * strafe nearly matches its forward speed finds orbiting cheap; a biped's
+ * slow reverse makes backpedaling expensive; a sniper's precise gun makes
+ * standing still worth the exposure, and its long reach pushes r* far out.
  */
 export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
   const toEnemy = sub(enemy.pos, self.pos);
   const range = len(toEnemy);
   const dir = norm(toEnemy);
-  const band = self.band;
-  const bandCenter = (band.bandStart + band.bandEnd) / 2;
 
-  // Verb 2: destination.
-  const canOrbit = self.chassis.speedsMps.strafe >= 0.75 * self.chassis.speedsMps.fwd;
-  let move: Extract<MechOrder, { verb: 'move' }>;
-  if (band.bandEnd <= 0) {
-    move = { verb: 'move', intent: 'hold', dest: null }; // no weapons: hold (nothing better to do yet)
-  } else if (range > band.bandEnd || range < band.bandStart) {
-    // Seek the band center along the line to the enemy (close in or back away).
-    move = { verb: 'move', intent: range > band.bandEnd ? 'close' : 'retreat', dest: sub(enemy.pos, scale(dir, bandCenter)) };
-  } else if (canOrbit) {
-    // Spiders orbit while facing (docs/03 §7): aim for a point at band-center
-    // range, rotated ahead along the orbit — sustained lateral motion that
-    // exercises the enemy's tracking lag.
-    const stepRad = 0.35 * self.orbitDir;
-    const cosR = Math.cos(stepRad);
-    const sinR = Math.sin(stepRad);
-    const fromEnemy = scale(dir, -bandCenter);
-    move = {
-      verb: 'move', intent: 'orbit',
-      dest: add(enemy.pos, {
-        x: fromEnemy.x * cosR - fromEnemy.y * sinR,
-        y: fromEnemy.x * sinR + fromEnemy.y * cosR,
-      }),
-    };
-  } else {
-    // Inside the band: drift toward band center distance.
-    move = Math.abs(range - bandCenter) > 5
-      ? { verb: 'move', intent: 'close', dest: sub(enemy.pos, scale(dir, bandCenter)) }
-      : { verb: 'move', intent: 'hold', dest: null };
+  // Farthest range at which any functional gun still fires (despawn bound).
+  let maxReachM = 0;
+  for (const p of self.build.parts) {
+    const def = getPart(p.partId);
+    if (def.category !== 'weapon' || !self.isPartFunctional(p.instanceId)) continue;
+    maxReachM = Math.max(maxReachM, def.weapon!.falloff.rangeEnd * 1.3);
   }
 
-  // Verb 3: speed setting.
-  const inBand = range >= band.bandStart && range <= band.bandEnd;
-  let precisionActive = false;
+  const enemyLateralNow = enemy.lateralSpeedMps(dir);
+  const enemySpeedNow = len(enemy.vel);
+  /** Net expected exchange at range r given my speed/crossing speed. */
+  const exchangeAt = (r: number, mySpeedMps: number, myLateralMps: number): number =>
+    estimateExpectedDps(self, enemy, r, mySpeedMps, enemyLateralNow, snapshot) -
+    estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null);
 
-  // Verb 1: weapons on/off (arc + range + temperature; brownout preview not yet implemented).
+  // --- Verb 2 + 3 ---
+  let move: Extract<MechOrder, { verb: 'move' }>;
+  let setting: SpeedSetting;
+  if (maxReachM === 0) {
+    // No functional guns: turn tail (the surrender clock is ticking anyway).
+    move = { verb: 'move', intent: 'flee', dest: sub(self.pos, scale(dir, 80)) };
+    setting = 'flank';
+  } else {
+    // Scan standing ranges nearest-first; strict improvement keeps the
+    // aggressive tie-break (mirror matchups charge instead of stalling).
+    let bestR = 10;
+    let bestU = -Infinity;
+    for (let r = 10; r <= 260; r += 5) {
+      const u = exchangeAt(r, 0, 0);
+      if (u > bestU + 1e-9) { bestU = u; bestR = r; }
+    }
+
+    if (Math.abs(range - bestR) > 8) {
+      const closing = range > bestR;
+      // Transit throttle: speed costs my accuracy now — pay only what the
+      // current range says it's worth. (Out of everyone's reach it's free.)
+      const transitSpeed = (s: SpeedSetting) => (closing ? self.speeds.fwd : self.speeds.rev) * SPEED_FRACTION[s];
+      setting = exchangeAt(range, transitSpeed('flank'), 0) >= exchangeAt(range, transitSpeed('cruise'), 0) ? 'flank' : 'cruise';
+      if (closing) {
+        move = { verb: 'move', intent: 'close', dest: sub(enemy.pos, scale(dir, bestR)) };
+      } else if (range > maxReachM) {
+        // Want distance and can't shoot from here anyway: turn tail and use
+        // the full forward speed instead of the slow reverse.
+        move = { verb: 'move', intent: 'flee', dest: sub(enemy.pos, scale(dir, bestR + 40)) };
+        setting = 'flank';
+      } else {
+        move = { verb: 'move', intent: 'retreat', dest: sub(enemy.pos, scale(dir, bestR)) };
+      }
+    } else {
+      // At the chosen range: stand for accuracy, or orbit to tax the enemy's
+      // tracking? Crossing speed costs me jitter and them tracking error —
+      // the exchange says whether my guns or theirs are more motion-tolerant.
+      const orbitSpeed = (s: SpeedSetting) => self.speeds.strafe * SPEED_FRACTION[s];
+      const holdU = exchangeAt(range, 0, 0);
+      const orbitCruiseU = exchangeAt(range, orbitSpeed('cruise'), orbitSpeed('cruise'));
+      const orbitFlankU = exchangeAt(range, orbitSpeed('flank'), orbitSpeed('flank'));
+      if (Math.max(orbitCruiseU, orbitFlankU) > holdU) {
+        const stepRad = 0.35 * self.orbitDir;
+        const cosR = Math.cos(stepRad);
+        const sinR = Math.sin(stepRad);
+        const fromEnemy = scale(dir, -range);
+        move = {
+          verb: 'move', intent: 'orbit',
+          dest: add(enemy.pos, {
+            x: fromEnemy.x * cosR - fromEnemy.y * sinR,
+            y: fromEnemy.x * sinR + fromEnemy.y * cosR,
+          }),
+        };
+        setting = orbitFlankU >= orbitCruiseU ? 'flank' : 'cruise';
+      } else {
+        move = { verb: 'move', intent: 'hold', dest: null };
+        setting = 'stationary';
+      }
+    }
+  }
+
+  // --- Verb 1: weapons on/off (arc + range + temperature) ---
   const bearingToEnemy = Math.atan2(dir.y, dir.x);
   const bearingOffset = Math.abs(wrapAngle(bearingToEnemy - self.facingRad));
   const enabled: Record<string, boolean> = {};
@@ -581,22 +667,28 @@ export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
     const inArc = bearingOffset <= halfArc;
     const despawnRange = def.weapon!.falloff.rangeEnd * 1.3;
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < 115;
-    const on = inArc && range <= despawnRange && coolEnough;
-    enabled[p.instanceId] = on;
-    if (on && def.weapon!.dispersionMrad <= 2) precisionActive = true;
+    enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
   }
 
-  let setting: SpeedSetting;
-  if (range > 1.5 * band.bandEnd) setting = 'flank';
-  else if (inBand && precisionActive) setting = 'creep';
-  else setting = 'cruise';
-  if (move.dest === null) setting = 'stationary';
+  // --- Verb 4: face the target only when a gun that needs facing can reach;
+  // otherwise face the direction of travel and use the (faster) forward speed.
+  let face: Extract<MechOrder, { verb: 'face' }>;
+  if (move.intent === 'flee') {
+    face = { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(-dir.y, -dir.x) };
+  } else if (maxReachM > 0 && range <= maxReachM) {
+    face = { verb: 'face', mode: 'target' };
+  } else if (move.dest) {
+    const toDest = sub(move.dest, self.pos);
+    face = { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(toDest.y, toDest.x) };
+  } else {
+    face = { verb: 'face', mode: 'target' };
+  }
 
   return [
     { verb: 'weapons', enabled },
     move,
-    { verb: 'throttle', setting },
-    { verb: 'face', mode: 'target' },
+    { verb: 'throttle', setting: move.dest === null ? 'stationary' : setting },
+    face,
   ];
 };
 
@@ -952,9 +1044,9 @@ export class Battle {
     }
   }
 
-  /** Base dispersion x speed-setting x turning x arc-edge x stagger multipliers (docs/03 §5). */
+  /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
   private effectiveDispersionRad(self: Combatant, def: PartDef, aimBearing: number): number {
-    let mrad = def.weapon!.dispersionMrad * SPEED_DISPERSION_MULT[self.speedSetting];
+    let mrad = def.weapon!.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * len(self.vel);
     if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1.3;
     const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
     const offset = Math.abs(wrapAngle(aimBearing - self.facingRad));

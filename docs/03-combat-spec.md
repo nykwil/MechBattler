@@ -69,11 +69,19 @@ matter once turrets/bigger fast chassis/terrain arrive.
 
 ## 4. Speed settings
 
-| Setting | Speed | Locomotion power | Own-fire dispersion | Locomotion heat |
-|---|---|---|---|---|
-| Creep | 30% of max | proportional | ×0.7 | none |
-| Cruise | 65% | proportional | ×1.0 | none |
-| Flank | 100% | proportional ×1.25 | ×1.6 | 0.15 kJ/s per tonne |
+| Setting | Speed | Locomotion power | Locomotion heat |
+|---|---|---|---|
+| Creep | 30% of max | proportional | none |
+| Cruise | 65% | proportional | none |
+| Flank | 100% | proportional ×1.25 | 0.15 kJ/s per tonne |
+
+**Motion jitter (Jul 2026 — replaces the old per-setting dispersion multipliers)**: moving
+adds an **absolute** pointing error of **0.3 mrad per m/s of actual speed** to every gun's
+base dispersion. Because it's additive, precision long-range guns pay proportionally the
+most (a 1.2 mrad railgun at 4 m/s more than doubles its error; an 8 mrad machine gun barely
+notices) — long-range fire wants a stationary platform, brawling guns tolerate the run-in,
+and standing still is simply zero jitter. This is the accuracy half of the movement trade;
+the defensive half is crossing speed vs the enemy's tracking lag (§5).
 
 ## 5. Ballistics and the aim model
 
@@ -111,8 +119,8 @@ and — on a hit — resolved to an entry cell by sampling where across the targ
 it lands (then the normal penetration walk of §6 runs). The lateral aim error at the
 target combines, in quadrature:
 
-- **Dispersion**: σ(rad) × range, with all shooter-state multipliers (speed setting,
-  turning, arc edge, stagger).
+- **Dispersion**: (σ base + motion jitter §4)(rad) × range, with the shooter-state
+  multipliers (turning, arc edge, stagger).
 - **Aim staleness × target crossing speed**: staleness = **tracking lag + time-of-flight**,
   where lag = 0.3 s (0.1 s with a powered U-TC1) and time-of-flight = range ÷ muzzle
   velocity (0 for hitscan). Lateral target speed × staleness is the miss distance.
@@ -149,22 +157,32 @@ DPS ≥ 50% of its peak.
 disjoint, the band of the highest-DPS group wins and the workshop warns about the mismatch).
 Shown in the workshop stats bar and drawn as a ring in the arena (rule R5).
 
-**Autopilot, in terms of the four verbs** (evaluated at 4 Hz):
+**Autopilot, in terms of the four verbs** (evaluated at 4 Hz; rewritten Jul 2026 to be
+exchange-optimizing rather than band-scripted):
 
-1. *Destination*: if outside band → nearest point inside band; inside band → hold, drifting
-   to keep range near band center; if enemy closes under band minimum and we out-range them →
-   back away (kite) along the range gradient, obstacle-aware (v1.5).
-2. *Speed*: flank when > 1.5× band max away; cruise inside/near band; creep when an active
-   weapon has dispersion ≤ 2 mrad (precision guns want stillness).
-3. *Facing*: face target (default). Chassis with strafe ≥ 75% of forward speed (spiders)
-   orbit while facing; others bite the strafe penalty or turn.
+1. *Destination*: scan the **standing-exchange curve** U(r) = my expected dps at r (both
+   stationary) − theirs, over r = 10..260 m, using the real hit model (§5) — falloff,
+   dispersion growth, motion jitter, tracking lag, silhouette. Move to r\* = argmax U
+   (nearest-first tie-break, so mirror matchups charge instead of stalling). Near r\*,
+   choose **hold** (accuracy) vs **orbit** (crossing speed taxes the enemy's tracking) by
+   the same arithmetic — whichever side's guns are more motion-tolerant wins that call.
+2. *Speed*: transit throttle is scored too — flank vs cruise at the current range, paying
+   motion jitter only when it costs something (out of everyone's reach, speed is free).
+3. *Facing*: face the target only when a functional gun that needs facing can reach it;
+   otherwise face the direction of travel and use the (faster) forward speed. Wanting
+   distance while out of reach = **turn-tail flight** (guns silent, full forward speed) —
+   this is why slow strafe/reverse on most chassis matters: backpedaling under fire is a
+   real cost, and the spider's near-isotropic speeds are a real identity.
 4. *Weapons*: enable when target in envelope AND part temperature < 115°C AND powering the
    weapon won't shed a higher-priority consumer (a one-tick brownout preview using the
-   player's priority list). Player force-on overrides all three checks — knowingly cooking or
-   browning out your mech is allowed.
+   player's priority list — preview not yet implemented). Player force-on overrides all
+   three checks — knowingly cooking or browning out your mech is allowed.
 
-The autopilot never uses information a player couldn't see. It is deliberately simple; its
-quality is a product of the build (envelopes, priorities, chassis) — which is the game.
+The autopilot never uses information a player couldn't see, and it prices exactly the
+trades a player will later make by hand. Playstyles are emergent chassis+gun physics, not
+scripts: snipers stand and want distance, brawlers charge, spiders orbit, and a mech whose
+guns are gone or out-ranged runs. Its quality is a product of the build (envelopes,
+priorities, chassis) — which is the game.
 
 ## 8. The wiggle-war question — moot under the stat-based hit model
 

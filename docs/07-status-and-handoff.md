@@ -167,6 +167,16 @@ counterparts of each archetype. The known adaptation asymmetry: armor is a unive
 fitting lever for heavies, but light mechs have no mobility equivalent (add a servo-booster
 op to the adaptation catalog).
 
+**Standings shifted (Jul 17 2026, motion-jitter + exchange-optimizing autopilot — table
+above is pre-rewrite)**: gunline 77%⚑ · vulture-skirmisher 70% · sniper 62% · mule-skirm
+51% · railgun-mule ~46% (was 96% — kiting now costs accuracy, and **bastion-tank walks
+both snipers down 100-0**: backpedal jitter on a 1.2 mrad gun is crippling, exactly the
+tank-counters-runaway-sniper dynamic we wanted) · laser-boat 32% · tank 29% (bimodal:
+100% vs snipers, ~0% vs brawlers — armor adaptation is its lever) · orbiter 24% (up from
+7%; orbiting is now chosen by exchange arithmetic). More 100/0 matchups than before —
+the optimizing autopilot polarizes raw kernels; **tuning pass 2 + budget brackets**
+(Track C2) should run before reading these as part-balance verdicts.
+
 ## Workshop: done vs. remaining (01 §9 checklist)
 
 **Done**: illegal-placement feedback (rejected clicks flash + name the reason), build
