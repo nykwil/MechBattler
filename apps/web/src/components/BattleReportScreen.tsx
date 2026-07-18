@@ -39,11 +39,12 @@ function timelineRows(report: BattleReport): BattleEvent[] {
 }
 
 export function BattleReportScreen({
-  report, opponent, onRematch, onClose,
+  report, opponent, onRematch, onRematchSameSeed, onClose,
 }: {
   report: BattleReport;
   opponent: OpponentDef;
   onRematch: () => void;
+  onRematchSameSeed: () => void;
   onClose: () => void;
 }) {
   const names: [string, string] = ['YOU', opponent.name.toUpperCase()];
@@ -129,6 +130,14 @@ export function BattleReportScreen({
 
         <div className="report-actions">
           <button type="button" className="report-btn rematch" onClick={onRematch}>Rematch</button>
+          <button
+            type="button"
+            className="report-btn"
+            onClick={onRematchSameSeed}
+            title="Replay the exact same battlefield and dice against your current build — a controlled experiment after a refit"
+          >
+            Rematch · same seed
+          </button>
           <button type="button" className="report-btn" onClick={onClose}>Back to workshop</button>
         </div>
       </div>

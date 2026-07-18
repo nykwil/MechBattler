@@ -20,7 +20,7 @@ import './BattleLiveScreen.css';
  * the report screen.
  */
 
-const LIVE_SPEEDS = [1, 2] as const;
+const LIVE_SPEEDS = [1, 2, 4] as const;
 /** Hold the decided battle on screen briefly so the killing blow reads. */
 const END_HOLD_S = 1.6;
 

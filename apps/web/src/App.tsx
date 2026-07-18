@@ -60,15 +60,20 @@ export default function App() {
   );
 
   const fight = useCallback(
-    (opponent: OpponentDef, mode: FightMode) => {
-      const seed = Math.floor(Math.random() * 0x7fffffff);
+    (opponent: OpponentDef, mode: FightMode, seed?: number) => {
+      // A same-seed rematch (seed passed in) replays the exact battlefield
+      // against the current build — a controlled experiment after a refit.
+      const s = seed ?? Math.floor(Math.random() * 0x7fffffff);
+      // Drop any open report so aborting the new fight lands in the workshop,
+      // not on the stale previous report (docs/09 M1).
+      setBattle(null);
       if (mode === 'watch') {
-        const report = runBattle({ builds: [build, opponent.build], seed });
+        const report = runBattle({ builds: [build, opponent.build], seed: s });
         setBattle({ report, opponent, mode });
       } else {
         // Command mode steps the same Battle live (docs/08); the finished
         // battle's report opens in the normal report screen.
-        setLive({ build, opponent, seed });
+        setLive({ build, opponent, seed: s });
       }
     },
     [build],
@@ -194,6 +199,7 @@ export default function App() {
           report={battle.report}
           opponent={battle.opponent}
           onRematch={() => fight(battle.opponent, battle.mode)}
+          onRematchSameSeed={() => fight(battle.opponent, battle.mode, battle.report.seed)}
           onClose={() => setBattle(null)}
         />
       )}
