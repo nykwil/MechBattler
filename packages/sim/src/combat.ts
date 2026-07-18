@@ -821,17 +821,32 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
         if (m.move === 'hold') return { verb: 'throttle', setting: 'stationary' };
         if (m.move) return { verb: 'throttle', setting: 'cruise' };
       }
-      if (o.verb === 'face' && m.face) {
-        if (m.face === 'movement') {
-          const speed = Math.hypot(ctx.self.vel.x, ctx.self.vel.y);
-          return {
-            verb: 'face', mode: 'bearing',
-            bearingRad: speed > 0.5 ? Math.atan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
-          };
+      if (o.verb === 'face') {
+        if (m.face) {
+          if (m.face === 'movement') {
+            const speed = Math.hypot(ctx.self.vel.x, ctx.self.vel.y);
+            return {
+              verb: 'face', mode: 'bearing',
+              bearingRad: speed > 0.5 ? Math.atan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
+            };
+          }
+          return m.face.mode === 'target'
+            ? { verb: 'face', mode: 'target' }
+            : { verb: 'face', mode: 'bearing', bearingRad: m.face.bearingRad };
         }
-        return m.face.mode === 'target'
-          ? { verb: 'face', mode: 'target' }
-          : { verb: 'face', mode: 'bearing', bearingRad: m.face.bearingRad };
+        // Move is manual but face is on auto: when the autopilot chose
+        // travel-facing (mode bearing — no gun can reach, docs/03 §7.4), its
+        // bearing was aimed at its own destination, not the player's waypoint.
+        // Re-aim at the manual dest so the mech travels on its (faster)
+        // forward speed; target-tracking passes through untouched.
+        if (m.move && m.move !== 'hold' && o.mode === 'bearing') {
+          const dx = m.move.dest.x - ctx.self.pos.x;
+          const dy = m.move.dest.y - ctx.self.pos.y;
+          if (Math.hypot(dx, dy) > 2) {
+            return { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(dy, dx) };
+          }
+        }
+        return o;
       }
       return o;
     });

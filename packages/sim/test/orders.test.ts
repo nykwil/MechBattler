@@ -200,6 +200,29 @@ describe('manual order overrides (docs/08 §3): the player merge over the autopi
     while (battle.step()) { /* run out */ }
     expect(arrived).toBe(true);
   });
+
+  it('auto-face on a manual waypoint aims at the waypoint, not the autopilot\'s flee point (dead guns)', () => {
+    // A weaponless mech (as after losing its guns): the autopilot wants to
+    // flee away from the enemy and would face that way. With a manual
+    // waypoint perpendicular to the enemy axis and face on auto, the mech
+    // must face its actual travel direction (+y) for the forward-speed win.
+    const gunless = muleGunline();
+    gunless.parts = gunless.parts.filter((p) => p.instanceId !== 'ac');
+    const player = withManualOrders(autopilotController, () => ({ move: { dest: { x: -80, y: 60 } } }));
+    const battle = new Battle({
+      builds: [gunless, muleGunline()],
+      seed: 5,
+      controllers: [player, autopilotController],
+      timeoutS: 8,
+      suppressSurrender: true,
+    });
+    while (battle.step()) { /* run out */ }
+    const frames = battle.frames.filter((f) => f.tSec > 3 && f.tSec < 7);
+    const m = frames[Math.floor(frames.length / 2)]!.mechs[0];
+    const toDest = Math.atan2(60 - m.y, -80 - m.x);
+    const off = Math.abs(Math.atan2(Math.sin(m.facingRad - toDest), Math.cos(m.facingRad - toDest)));
+    expect(off).toBeLessThan(0.4);
+  });
 });
 
 describe('motion jitter (docs/03 §4): additive error punishes precision guns most', () => {
