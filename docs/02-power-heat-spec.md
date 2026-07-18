@@ -166,6 +166,13 @@ part thermal mass = +3°C per shot locally, bleeding into neighbors at 0.03 kW/�
 The test bench runs the actual sim to produce these — they are measurements, not estimates,
 so they can never lie (deck-building trust).
 
+**Planned bench diagnostics (Jul 2026 notes intake)** — same measured-not-estimated stance,
+aimed at making *why* a build underperforms legible: DPS by range bracket (close/medium/
+long, from the envelope math in 03 §7); per-weapon **uptime** and downtime attributed to
+its cause (out of range, cooling, power-starved, cycling); per-part contribution (damage by
+weapon, uptime bought by each radiator/capacitor); and a target selector with
+close/medium/long dummy placements for rapid before/after comparison when a part moves.
+
 ## 7. Numbers needing prototype validation
 
 - Brownout hysteresis (1.0 s / 10%): enough to prevent flapping without feeling laggy?

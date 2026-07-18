@@ -240,7 +240,22 @@ weapons/face over the autopilot via `withManualOrders`, keybindings, report pari
 The Fight button offers **Fight · Live** (command) and **Watch** (headless + replay).
 Still open from that plan: M5 stretch (enemy-intel limits on the live strip, waypoint
 queues, region triggers) and the "scripted player beats the autopilot in a matchup it
-loses" showcase test. **Next: Track A — run structure & economy.**
+loses" showcase test.
+
+**Next: UX & diagnostics pass** (decided Jul 18 2026, informed by the design-notes intake
+below) — make what exists more user-friendly before adding systems: quick build audit +
+auto-wire baseline + arc visualization (01 §9), bench diagnostics with limiting-factor
+attribution (02 §6), per-slot not-firing reasons in the live HUD (03 §9), plus the small
+playable-mode fixes (abort→stale-report bug, live 4× speed, same-seed rematch).
+**Track A — run structure & economy — follows.**
+
+**Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
+against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
+mechanics (03 §5), heat/power as the real limits (02), support-part identities (06),
+determinism/serialization (R6). Newly captured: build audit / auto-wire / arc overlay
+(01 §9), bench diagnostics (02 §6), not-firing legibility (03 §9), conditional-fire
+stance (03 §2 post-v1 note), wall-corner flight watch item (03 §10), multiplayer
+lock-in concept (00 backlog).
 
 **Track C — Sim/balance thread (slots in anytime, feeds tuning pass 2):**
 1. **Ammo system** — the weapon-identity move (specced in 01 §7, biggest unimplemented

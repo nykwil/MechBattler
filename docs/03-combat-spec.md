@@ -54,6 +54,13 @@ is enough to express "hold fire, get to that spot, then fight" without a scripti
 (When terrain ships, triggers gain "on entering region," enabling "don't fire until the
 water.")
 
+**Post-v1 note (Jul 2026 notes intake)**: richer per-weapon firing policies — range bands,
+heat thresholds, coordinated volleys, target priorities — are a candidate *unlock through
+targeting-computer-class parts*, so doctrine depth is bought with cells/mass/watts like
+everything else. They are never a free-floating scripting layer (rule R2); the standing
+answer to "how complex before it feels like programming?" is: the autopilot already prices
+those conditions (§7), and parts may widen what it's permitted to consider.
+
 ## 3. Movement model
 
 Per-chassis directional speed profile (catalog in 01 §2): distinct forward / strafe / reverse
@@ -242,6 +249,11 @@ Combat must be legible enough that the workshop fix is obvious:
 - **Damage**: destroyed cells char on the mech's silhouette (the top-down sprite *is* the
   grid); severed conduits spark once, then everything downstream greys out.
 - **Aim**: subtle predicted-aim-point markers; the ideal range ring around each mech.
+- **Not-firing legibility (Jul 2026 notes intake)**: whenever a gun is silent, the HUD slot
+  must say *why*, distinguishably — out of arc, out of range, overheated/shutdown,
+  power-shed, autopilot fire-control hold, or **player hold**. Hidden failure states make
+  the doctrine feel arbitrary; the current single "HOLD" label conflates player and
+  autopilot holds (known playability finding, Jul 2026).
 - **Post-battle report**: event timeline (every shed/shutdown/part-loss, timestamped), damage
   by part, per-cell max temperature, supply-vs-demand power graph. This report is the bridge
   back to the workshop.
@@ -259,3 +271,7 @@ Combat must be legible enough that the workshop fix is obvious:
   `combat.ts`) — validate against fight-length targets.
 - Tracking lag 0.3 s / 0.1 s (§5): measured effect at 40 m is AC 74% → 94% hit rate with a
   TC vs an orbiting spider — confirm this reads as a fair trade at other ranges/speeds.
+- Flight behavior at the wall (Jul 2026 notes intake — "enemy left the arena" class of
+  bug): a mech wanting distance with no runway should visibly re-engage or orbit, not
+  jitter in a corner. Walls clamp position (§3), so it can't leave — watch playtests for
+  degenerate corner behavior and add a leash/recovery rule only if observed.

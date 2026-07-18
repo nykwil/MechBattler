@@ -128,7 +128,16 @@ where the novelty risk lives. Combat arena second. Economy/run structure third.
 - Environmental terrain effects (tree cover accuracy penalty, water accelerates cooling).
   The order/trigger system is designed so "hold fire until reaching the water" works the day
   terrain ships.
-- Asynchronous PvP against other players' builds.
+- Asynchronous PvP against other players' builds. Expanded concept (Jul 2026 notes
+  intake): a multiplayer roguelike ladder — build, queue *while still building*, fight,
+  salvage. The key experience rule: matchmaking is a layer around building, never an
+  interruption of it — match found announces a visible grace period to finish the edit,
+  review warnings, and **lock the build**; the locked snapshot is explicit before the
+  fight. The architecture spike this implies is largely pre-satisfied by rule R6: the sim
+  is pure/deterministic/headless, builds are serializable data instantiated identically in
+  bench/arena, and battles replay from seed + order stream. Open questions parked: live vs
+  spectated vs cockpit-intervention combat, pre-lock opponent intel, reward structure
+  without runaway winners, what persists across a run.
 - Meta-progression unlocks, pilot characters, multi-mech squads.
 
 ## Glossary

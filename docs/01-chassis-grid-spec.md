@@ -172,7 +172,21 @@ flavor noise.
   delta on both balance bars and the stats bar *before* placement — browsing inventory is
   reading trade-offs, not reading flavor text.
 - **Test bench**: run the real sim against a stationary/moving target dummy without leaving
-  the workshop. Same code path as the arena (rule R6).
+  the workshop. Same code path as the arena (rule R6). Planned diagnostics extensions in
+  02 §6.
+- **Quick build audit** (planned, Jul 2026 notes intake): one button that inspects the
+  current build and reports findings in three severities — **hard errors** (a required
+  subsystem cannot function: orphaned reactor, weapon with no power path), **warnings**
+  (functions but starved, knife-edge hot, arc-blocked, or never satisfies its firing gate),
+  and **optimization notes** (works, but routing or cooling is wasteful). Principle: help
+  the player *find* the problem; never make the building decision for them.
+- **Auto-wire baseline** (planned, same intake): an optional operation that lays a
+  functional (not optimal) conduit graph so a new player gets a running mech to improve,
+  rather than a dead one to debug. Hand-routing remains the optimization game (05 R1
+  routing-tedium mitigation).
+- **Weapon arc visualization** (planned, same intake): placed weapons draw their mount arc
+  as an overlay wedge in the workshop, so arc coverage/blind spots are a visible build
+  property before the fight (rule R5) — arcs already gate fire in combat (03 §5).
 
 ## 10. Turret mounts (post-v1 design sketch)
 
