@@ -96,9 +96,11 @@ flow: run headless, open the replay) and **Command** (live). Both end at the sam
    clears all manual state via `withManualOrders`'s `onArrival` hook. Face-movement's
    continuously tracked bearing forced the order-log signature to bucket bearings at
    0.5 rad so steering noise stays out of the ticker.
-4. **M4 — Report parity + polish.** Played battles open the normal report with full
-   replay scrubbing (should be nearly free); keybindings (space = pause, 1-9 = gun
-   slots, A = full auto); order feedback (click ripple at the waypoint).
+4. **M4 — Report parity + polish.** ✅ *shipped Jul 18 2026.* Report parity came free
+   with M1 (a finished live battle opens the report screen with the replay tab).
+   Keybindings: space = pause, 1–9 = gun fire-control cycle, H = hold position,
+   F = face cycle, A = full auto (the workshop's own hotkeys are suppressed while a
+   battle overlay is open); click ripple at the waypoint; key hint caption.
 5. **M5 — Stretch.** Enemy-intel limits (should the live enemy strip show their heat and
    cooldowns? candidate rule: intel cards' confirmed facts only, full readouts in the
    post-battle replay); waypoint queues; "don't fire until the water" region triggers.

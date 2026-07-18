@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   type BattleEvent, type BattleFrame, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
@@ -131,7 +131,7 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay,
 }: {
   view: BattleView;
   tSec: number;
@@ -142,6 +142,8 @@ export function BattleScene({
   weaponOverrides?: Record<string, WeaponOverride>;
   /** Command mode: click a gun slot to cycle auto → hold-fire → force-fire. */
   onWeaponClick?: (instanceId: string) => void;
+  /** Extra SVG rendered over the arena (order feedback like click ripples). */
+  arenaOverlay?: ReactNode;
 }) {
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const frame = frameAt(view, tSec);
@@ -280,6 +282,7 @@ export function BattleScene({
         {([0, 1] as const).map((i) => (
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={view.mechs[i].chassisId} color={MECH_COLORS[i]} />
         ))}
+        {arenaOverlay}
       </svg>
 
       {/* Your cockpit: portrait | gun bar | gauges + verb chips. */}

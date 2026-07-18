@@ -58,6 +58,16 @@
   color: var(--signal-green);
 }
 
+.live-ripple {
+  fill: none;
+  stroke: var(--signal-blue);
+  animation: live-ripple 0.6s ease-out forwards;
+}
+@keyframes live-ripple {
+  from { r: 2px; stroke-width: 1.6px; opacity: 0.9; }
+  to { r: 14px; stroke-width: 0.3px; opacity: 0; }
+}
+
 .live-endbanner {
   margin-top: 10px;
   padding: 8px;

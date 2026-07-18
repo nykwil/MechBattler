@@ -110,6 +110,14 @@ export function BattleLiveScreen({
     return () => window.clearTimeout(id);
   }, [finished, battle, onFinished]);
 
+  /** Order feedback: a ripple ring at the last waypoint click. */
+  const [ripple, setRipple] = useState<{ x: number; y: number; key: number } | null>(null);
+  useEffect(() => {
+    if (!ripple) return;
+    const id = window.setTimeout(() => setRipple(null), 650);
+    return () => window.clearTimeout(id);
+  }, [ripple]);
+
   const orderMove = (x: number, y: number, kind: 'move' | 'auto') => {
     if (finished) return;
     if (kind === 'auto') {
@@ -119,6 +127,7 @@ export function BattleLiveScreen({
     const hl = battle.arena.lengthM / 2;
     const hw = battle.arena.widthM / 2;
     const dest = { x: Math.max(-hl, Math.min(hl, x)), y: Math.max(-hw, Math.min(hw, y)) };
+    setRipple({ x: dest.x, y: dest.y, key: Date.now() });
     setManual((m) => {
       const next: ManualState = { ...m, move: { dest } };
       // While holding a bearing, an arena click also aims it (docs/08 §2).
@@ -148,6 +157,32 @@ export function BattleLiveScreen({
     });
   };
 
+  // Keybindings (docs/08 M4): space = pause, 1-9 = gun slots, A = full auto,
+  // H = hold position, F = face cycle.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === ' ') {
+        e.preventDefault();
+        if (!battle.finished) setPaused((p) => !p);
+      } else if (e.key >= '1' && e.key <= '9') {
+        const idx = Number(e.key) - 1;
+        const guns = battle.latestFrame()?.mechs[0].weapons ?? [];
+        const gun = guns[idx];
+        if (gun) cycleWeapon(gun.instanceId);
+      } else if (e.key.toLowerCase() === 'a') {
+        setManual(FULL_AUTO);
+      } else if (e.key.toLowerCase() === 'h') {
+        setManual((m) => ({ ...m, move: m.move === 'hold' ? 'auto' : 'hold' }));
+      } else if (e.key.toLowerCase() === 'f') {
+        cycleFace();
+      }
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [battle]);
+
   const moveMode = manual.move === 'auto' ? 'auto' : manual.move === 'hold' ? 'hold' : 'waypoint';
 
   return (
@@ -176,6 +211,7 @@ export function BattleLiveScreen({
             onArenaOrder={orderMove}
             weaponOverrides={manual.weapons}
             onWeaponClick={cycleWeapon}
+            arenaOverlay={ripple && <circle key={ripple.key} className="live-ripple" cx={ripple.x} cy={ripple.y} />}
           />
 
           {/* Manual verb overrides (docs/08 §2). Chips toggle: active manual
@@ -232,6 +268,9 @@ export function BattleLiveScreen({
 
           <BattleTicker view={view} tSec={tSec} names={names} />
           <BattleCaption view={view} />
+          <div className="playback-caption">
+            keys: space pause · 1–9 cycle gun fire control · H hold position · F face mode · A full auto · right-click revert move
+          </div>
         </div>
 
         {finished && <div className="live-endbanner">BATTLE DECIDED — preparing report…</div>}
