@@ -7,7 +7,7 @@
 import type { Build, ChassisSpec } from './types.js';
 import { getPart } from './catalog.js';
 import { buildOccupancyMap, computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
-import { computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
+import { averageDrawKw, computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
 
 export type IssueSeverity = 'error' | 'warn' | 'hint';
 
@@ -22,6 +22,7 @@ export interface BuildIssue {
     | 'overloaded'
     | 'no-weapons'
     | 'band-mismatch'
+    | 'network-starved'
     | 'part-overheats'
     | 'part-runs-hot'
     | 'radiator-far'
@@ -126,6 +127,35 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
       message: 'No weapons mounted — the mech surrenders by mission-kill 3 s into any fight',
       instanceIds: [],
     });
+  }
+
+  // Per-network starvation (docs/09 M3): the global margin pools all reactors,
+  // so a split-network mistake — one reactor's island overloaded while another
+  // idles — can look fine above. Only fires when the pooled margin is healthy;
+  // otherwise the cannot-sustain-fire warning already covers it.
+  if (margin.marginKw >= 0 && networks.length > 1) {
+    for (const net of networks) {
+      const supplyKw = net.reactorInstanceIds.reduce((s, id) => {
+        const p = build.parts.find((mp) => mp.instanceId === id);
+        return s + (p ? getPart(p.partId).reactor?.outputKw ?? 0 : 0);
+      }, 0);
+      const demandKw = net.memberInstanceIds.reduce((s, id) => {
+        const p = build.parts.find((mp) => mp.instanceId === id);
+        return s + (p ? averageDrawKw(getPart(p.partId)) : 0);
+      }, 0);
+      if (demandKw > supplyKw) {
+        const consumers = net.memberInstanceIds.filter((id) => {
+          const p = build.parts.find((mp) => mp.instanceId === id);
+          return p && averageDrawKw(getPart(p.partId)) > 0;
+        });
+        issues.push({
+          severity: 'warn',
+          code: 'network-starved',
+          message: `Power split: one reactor network supplies ${supplyKw.toFixed(0)} kW against ${demandKw.toFixed(1)} kW of demand while your other reactor${networks.length > 2 ? 's' : ''} can't reach it — bridge the networks with conduits or move a consumer`,
+          instanceIds: consumers,
+        });
+      }
+    }
   }
 
   const band = computeIdealRangeBand(build);

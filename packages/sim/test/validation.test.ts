@@ -63,6 +63,25 @@ describe('build validation (docs/02 §2, warn-only philosophy)', () => {
     expect(codes(build)).toContain('overheats'); // combustion waste + AC heat, zero radiators
   });
 
+  it('flags a starved reactor island that the pooled energy margin hides', () => {
+    // Two lasers (15 kW avg each) on a 25 kW Whisper, while an unconnected
+    // 40 kW Lump idles: pooled margin is healthy, that island is not.
+    const build: Build = {
+      chassisId: 'CH-5',
+      parts: [
+        part('whisper', 'R-E25', 0, 0),
+        part('las1', 'W-LAS', 2, 0),
+        part('las2', 'W-LAS', 0, 2, 90),
+        part('lump', 'R-C40', 4, 2),
+      ],
+      powerPriority: [],
+    };
+    const issue = validateBuild(chassis, build).find((i) => i.code === 'network-starved');
+    expect(issue?.severity).toBe('warn');
+    expect(issue?.instanceIds).toEqual(expect.arrayContaining(['las1', 'las2']));
+    expect(codes(build)).not.toContain('cannot-sustain-fire');
+  });
+
   it('template roster builds produce no errors (warnings allowed)', () => {
     for (const t of TEMPLATES) {
       const errors = validateBuild(getChassis(t.build.chassisId), t.build).filter((i) => i.severity === 'error');

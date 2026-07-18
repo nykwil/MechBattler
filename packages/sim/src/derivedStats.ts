@@ -45,7 +45,7 @@ function weaponInstances(build: Build): { part: PlacedPart; def: PartDef }[] {
 }
 
 /** Average continuous power draw for a weapon at max cadence, for the energy-margin estimate. */
-function averageDrawKw(def: PartDef): number {
+export function averageDrawKw(def: PartDef): number {
   if (def.draw?.continuousKw) return def.draw.continuousKw;
   if (def.draw?.chargedEnergyPerShotKj) return def.draw.chargedEnergyPerShotKj / def.weapon!.cycleS;
   if (def.draw?.capFedEnergyPerShotKj) return def.draw.capFedEnergyPerShotKj / def.weapon!.cycleS;
