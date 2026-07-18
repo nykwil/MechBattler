@@ -37,6 +37,20 @@ describe('range sandbox (docs/02 §6 bench diagnostics)', () => {
     expect(far!.targetDestroyed).toBe(false);
   });
 
+  it('attributes the window: full uptime in band, range-gated silence beyond reach', () => {
+    const [near, far] = runRangeSandbox({
+      build: muleGunline(),
+      rangesM: [50, 220],
+      durationS: 20,
+      seed: 7,
+    });
+    const acNear = near!.weapons.find((w) => w.partId === 'W-AC')!;
+    expect(acNear.uptimeFrac).toBeGreaterThan(0.9);
+    const acFar = far!.weapons.find((w) => w.partId === 'W-AC')!;
+    expect(acFar.uptimeFrac).toBeLessThan(0.1);
+    expect(acFar.downFracs.range ?? 0).toBeGreaterThan(0.9);
+  });
+
   it('the target dummy is a valid weaponless armor slab', () => {
     const dummy = targetDummyBuild();
     expect(dummy.parts.length).toBeGreaterThan(30);

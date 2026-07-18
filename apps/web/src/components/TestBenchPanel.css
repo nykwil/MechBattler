@@ -144,3 +144,23 @@
 .sandbox-row-dps { color: var(--signal-green); font-weight: 600; width: 62px; flex: none; }
 .sandbox-row-dps.zero { color: var(--ink-faint); font-weight: 400; }
 .sandbox-row-detail { color: var(--ink-secondary); }
+
+.sandbox-block { padding: 3px 0; }
+.sandbox-block + .sandbox-block { border-top: 1px solid var(--line-hairline); }
+.sandbox-uptime {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 1px 0 1px 8px;
+}
+.sandbox-uptime-name { color: var(--ink-faint); width: 64px; flex: none; font-size: 10px; }
+.sandbox-uptime-bar {
+  display: flex;
+  width: 90px;
+  flex: none;
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-inset);
+}
+.sandbox-uptime-text { color: var(--ink-secondary); font-size: 10px; }

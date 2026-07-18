@@ -122,6 +122,44 @@ export function TestBenchPanel({
   );
 }
 
+const DOWN_LABEL: Record<string, string> = {
+  range: 'out of reach',
+  arc: 'out of arc',
+  heat: 'cooling',
+  power: 'power-shed',
+  shutdown: 'shutdown',
+  destroyed: 'destroyed',
+};
+const DOWN_COLOR: Record<string, string> = {
+  range: 'var(--ink-faint)',
+  arc: 'var(--ink-faint)',
+  heat: 'var(--signal-amber)',
+  power: 'var(--signal-red)',
+  shutdown: 'var(--signal-red)',
+  destroyed: 'var(--signal-red)',
+};
+
+/** One gun's window: how much of it was spent firing vs why it was silent (docs/09 M5). */
+function UptimeBar({ w }: { w: SandboxTargetResult['weapons'][number] }) {
+  const downs = Object.entries(w.downFracs).filter(([, f]) => (f ?? 0) >= 0.005);
+  const parts = [
+    w.uptimeFrac >= 0.005 ? `up ${Math.round(w.uptimeFrac * 100)}%` : null,
+    ...downs.map(([k, f]) => `${DOWN_LABEL[k] ?? k} ${Math.round((f ?? 0) * 100)}%`),
+  ].filter(Boolean);
+  return (
+    <div className="sandbox-uptime">
+      <span className="sandbox-uptime-name">{w.name.replace(/ \(.*\)/, '')}</span>
+      <span className="sandbox-uptime-bar">
+        <span style={{ flexGrow: w.uptimeFrac, background: 'var(--signal-green)' }} />
+        {downs.map(([k, f]) => (
+          <span key={k} style={{ flexGrow: f, background: DOWN_COLOR[k] ?? 'var(--ink-faint)' }} />
+        ))}
+      </span>
+      <span className="sandbox-uptime-text">{w.dps.toFixed(1)} dps · {parts.join(' · ')}</span>
+    </div>
+  );
+}
+
 /**
  * Range sandbox (docs/02 §6): armor dummies at selectable ranges, shot at with
  * the real combat rules. DPS is averaged over a 45 s window so slow-cycling
@@ -202,17 +240,18 @@ function RangeSandbox({ build, hasWeapons }: { build: Build; hasWeapons: boolean
           {results && hasWeapons && (
             <div className="sandbox-rows">
               {results.map((res) => (
-                <div key={res.rangeM} className="sandbox-row">
-                  <span className="sandbox-row-range">{res.rangeM}m</span>
-                  <span className={`sandbox-row-dps${res.dps === 0 ? ' zero' : ''}`}>{res.dps.toFixed(1)} dps</span>
-                  <span className="sandbox-row-detail">
-                    {res.shots === 0
-                      ? 'held fire — out of reach'
-                      : `${Math.round((res.hitFrac ?? 0) * 100)}% hit · ${res.weapons
-                          .map((w) => `${w.name.replace(/ \(.*\)/, '')} ${w.dps.toFixed(1)}`)
-                          .join(' · ')}`}
-                    {res.targetDestroyed && ' · target destroyed'}
-                  </span>
+                <div key={res.rangeM} className="sandbox-block">
+                  <div className="sandbox-row">
+                    <span className="sandbox-row-range">{res.rangeM}m</span>
+                    <span className={`sandbox-row-dps${res.dps === 0 ? ' zero' : ''}`}>{res.dps.toFixed(1)} dps</span>
+                    <span className="sandbox-row-detail">
+                      {res.shots === 0
+                        ? 'held fire — see why below'
+                        : `${Math.round((res.hitFrac ?? 0) * 100)}% hit`}
+                      {res.targetDestroyed && ' · target destroyed'}
+                    </span>
+                  </div>
+                  {res.weapons.map((w) => <UptimeBar key={w.partId} w={w} />)}
                 </div>
               ))}
             </div>

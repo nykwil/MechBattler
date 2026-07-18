@@ -19,12 +19,19 @@ import { TERRAIN_CELL_SIZE_M, type TerrainGrid } from './terrain.js';
 export const SANDBOX_RANGES_M = [30, 60, 100, 150, 200] as const;
 export const SANDBOX_DURATION_S = 45;
 
+/** Where a weapon's window went when it wasn't cleared to fire. */
+export type SandboxDownCause = 'range' | 'arc' | 'heat' | 'power' | 'shutdown' | 'destroyed';
+
 export interface SandboxWeaponRow {
   partId: string;
   name: string;
   shots: number;
   hits: number;
   dps: number;
+  /** Fraction of the window this gun was cleared to fire (docs/09 M5). */
+  uptimeFrac: number;
+  /** Fractions of the window by silence cause; sums with uptimeFrac to ~1. */
+  downFracs: Partial<Record<SandboxDownCause, number>>;
 }
 
 export interface SandboxTargetResult {
@@ -92,7 +99,8 @@ export function runRangeSandbox(options: {
       arenaWidthM,
       terrain: openTerrain(arenaLengthM, arenaWidthM),
       timeoutS: durationS + 10,
-      recordFrames: false,
+      // Frames feed the uptime attribution below (docs/09 M5).
+      recordFrames: true,
       suppressSurrender: true,
       controllers: [
         withManualOrders(autopilotController, () => ({ move: 'hold', face: { mode: 'target' } })),
@@ -104,17 +112,27 @@ export function runRangeSandbox(options: {
     });
     while (battle.timeS < durationS && battle.step()) { /* run the window */ }
 
+    // Every mounted gun gets a row, so a weapon that never fired still shows
+    // its window attribution instead of silently vanishing.
     const perWeapon = new Map<string, SandboxWeaponRow>();
+    const rowByInstance = new Map<string, SandboxWeaponRow>();
+    for (const p of options.build.parts) {
+      const def = getPart(p.partId);
+      if (def.category !== 'weapon') continue;
+      let row = perWeapon.get(p.partId);
+      if (!row) {
+        row = { partId: p.partId, name: def.name, shots: 0, hits: 0, dps: 0, uptimeFrac: 0, downFracs: {} };
+        perWeapon.set(p.partId, row);
+      }
+      rowByInstance.set(p.instanceId, row);
+    }
     let shots = 0;
     let hits = 0;
     let damage = 0;
     for (const ev of battle.events as BattleEvent[]) {
       if (ev.type !== 'shot' || ev.mech !== 0) continue;
-      let row = perWeapon.get(ev.partId);
-      if (!row) {
-        row = { partId: ev.partId, name: getPart(ev.partId).name, shots: 0, hits: 0, dps: 0 };
-        perWeapon.set(ev.partId, row);
-      }
+      const row = perWeapon.get(ev.partId);
+      if (!row) continue;
       row.shots++;
       shots++;
       if (ev.hit) { row.hits++; hits++; }
@@ -123,6 +141,34 @@ export function runRangeSandbox(options: {
     }
     const elapsedS = Math.max(battle.timeS, 1e-6);
     for (const row of perWeapon.values()) row.dps /= elapsedS;
+
+    // Uptime attribution (docs/09 M5): per frame, a gun is either cleared to
+    // fire or silenced for a nameable cause — the M2 gate reasons plus the
+    // power/heat status ladder. Duplicate mounts pool into one row.
+    const frameCount = battle.frames.length;
+    if (frameCount > 0) {
+      for (const frame of battle.frames) {
+        for (const wf of frame.mechs[0].weapons) {
+          const row = rowByInstance.get(wf.instanceId);
+          if (!row) continue;
+          const cause: SandboxDownCause | 'up' =
+            wf.status === 'destroyed' ? 'destroyed'
+              : wf.status === 'shutdown' ? 'shutdown'
+                : wf.status === 'shed' ? 'power'
+                  : wf.enabled ? 'up'
+                    : wf.gate ?? 'heat';
+          if (cause === 'up') row.uptimeFrac += 1;
+          else row.downFracs[cause] = (row.downFracs[cause] ?? 0) + 1;
+        }
+      }
+      const instancesPerRow = new Map<SandboxWeaponRow, number>();
+      for (const row of rowByInstance.values()) instancesPerRow.set(row, (instancesPerRow.get(row) ?? 0) + 1);
+      for (const [row, n] of instancesPerRow) {
+        const total = frameCount * n;
+        row.uptimeFrac /= total;
+        for (const k of Object.keys(row.downFracs) as SandboxDownCause[]) row.downFracs[k]! /= total;
+      }
+    }
 
     return {
       rangeM,
