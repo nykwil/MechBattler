@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import {
+  runRangeSandbox,
   runTestBench,
+  SANDBOX_RANGES_M,
   type Build,
   type ChassisSpec,
+  type SandboxTargetResult,
   type SpeedSetting,
   type TestBenchResult,
 } from '@mechbattler/sim';
@@ -111,6 +114,109 @@ export function TestBenchPanel({
               <div className="event-row">Clean run — nothing browned out or overheated.</div>
             )}
           </div>
+        </>
+      )}
+
+      <RangeSandbox build={build} hasWeapons={hasWeapons} />
+    </div>
+  );
+}
+
+/**
+ * Range sandbox (docs/02 §6): armor dummies at selectable ranges, shot at with
+ * the real combat rules. DPS is averaged over a 45 s window so slow-cycling
+ * guns read as a stable number, and a gun fire control would gate (out of
+ * reach, cooked) honestly measures 0.
+ */
+function RangeSandbox({ build, hasWeapons }: { build: Build; hasWeapons: boolean }) {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<Set<number>>(() => new Set(SANDBOX_RANGES_M));
+  const [results, setResults] = useState<SandboxTargetResult[] | null>(null);
+  const [running, setRunning] = useState(false);
+
+  function toggleRange(r: number) {
+    setActive((prev) => {
+      const next = new Set(prev);
+      if (next.has(r)) next.delete(r);
+      else next.add(r);
+      return next;
+    });
+    setResults(null);
+  }
+
+  function run() {
+    setRunning(true);
+    setTimeout(() => {
+      setResults(runRangeSandbox({ build, rangesM: SANDBOX_RANGES_M.filter((r) => active.has(r)) }));
+      setRunning(false);
+    }, 0);
+  }
+
+  const maxRange = SANDBOX_RANGES_M[SANDBOX_RANGES_M.length - 1]!;
+
+  return (
+    <div className="sandbox">
+      <button type="button" className="sandbox-toggle" onClick={() => setOpen((o) => !o)}>
+        {open ? '▾' : '▸'} Range sandbox — live fire at target dummies
+      </button>
+      {open && (
+        <>
+          <div className="sandbox-strip">
+            <span className="sandbox-shooter" title="Your mech, holding position">◤</span>
+            <div className="sandbox-track">
+              {SANDBOX_RANGES_M.map((r) => {
+                const res = results?.find((x) => x.rangeM === r);
+                return (
+                  <button
+                    key={r}
+                    type="button"
+                    className={`sandbox-target${active.has(r) ? ' active' : ''}`}
+                    style={{ left: `${(r / maxRange) * 92}%` }}
+                    onClick={() => toggleRange(r)}
+                    title={active.has(r) ? 'Click to remove this target' : 'Click to add a target here'}
+                  >
+                    <span className="sandbox-target-box">{active.has(r) ? '▣' : '□'}</span>
+                    <span className="sandbox-target-range">{r}m</span>
+                    {res && (
+                      <span className={`sandbox-target-dps${res.dps === 0 ? ' zero' : ''}`}>
+                        {res.dps.toFixed(1)}
+                        <em>dps</em>
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+          <button type="button" className="run-btn" onClick={run} disabled={running || active.size === 0}>
+            {running ? 'Running…' : 'Fire for 45s'}
+          </button>
+          {!results && (
+            <div className="placeholder">
+              Parks the mech at each range from an inert armor slab and fires under normal fire
+              control for 45 simulated seconds. Measured, not estimated — a gun that's out of
+              reach or cooking itself scores the 0 it would score in the arena.
+            </div>
+          )}
+          {results && !hasWeapons && <div className="placeholder">No weapons mounted — nothing to measure.</div>}
+          {results && hasWeapons && (
+            <div className="sandbox-rows">
+              {results.map((res) => (
+                <div key={res.rangeM} className="sandbox-row">
+                  <span className="sandbox-row-range">{res.rangeM}m</span>
+                  <span className={`sandbox-row-dps${res.dps === 0 ? ' zero' : ''}`}>{res.dps.toFixed(1)} dps</span>
+                  <span className="sandbox-row-detail">
+                    {res.shots === 0
+                      ? 'held fire — out of reach'
+                      : `${Math.round((res.hitFrac ?? 0) * 100)}% hit · ${res.weapons
+                          .map((w) => `${w.name.replace(/ \(.*\)/, '')} ${w.dps.toFixed(1)}`)
+                          .join(' · ')}`}
+                    {res.targetDestroyed && ' · target destroyed'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </>
       )}
     </div>

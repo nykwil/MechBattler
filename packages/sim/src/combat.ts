@@ -931,6 +931,12 @@ export interface BattleOptions {
   controllers?: [Controller, Controller];
   /** Record per-tick playback frames in the report (default true; harness runs disable it). */
   recordFrames?: boolean;
+  /**
+   * Skip the mission-kill surrender check (default false). The workshop range
+   * sandbox sets this so its weaponless target dummy stands and takes fire
+   * instead of surrendering 3 s in; core-kill and timeout still end the battle.
+   */
+  suppressSurrender?: boolean;
 }
 
 export class Battle {
@@ -946,6 +952,7 @@ export class Battle {
   private tick = 0;
   private readonly controllers: [Controller, Controller];
   private readonly recordFrames: boolean;
+  private readonly suppressSurrender: boolean;
   /** Per-tick playback samples; a live renderer reads the tail while the battle runs. */
   readonly frames: BattleFrame[] = [];
   /** Per-mech, per-verb signature of the last logged order, for change-only logging. */
@@ -966,6 +973,7 @@ export class Battle {
     this.timeoutS = options.timeoutS ?? DEFAULT_TIMEOUT_S;
     this.controllers = options.controllers ?? [autopilotController, autopilotController];
     this.recordFrames = options.recordFrames ?? true;
+    this.suppressSurrender = options.suppressSurrender ?? false;
     this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
     this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
     this.terrain = options.terrain ?? generateTerrain(options.seed, this.arenaHalfLengthM * 2, this.arenaHalfWidthM * 2);
@@ -1249,7 +1257,7 @@ export class Battle {
     }
 
     // Mission-kill: no functional weapons -> surrender 3 s later (docs/03 §1).
-    for (const i of [0, 1] as const) {
+    for (const i of this.suppressSurrender ? [] : ([0, 1] as const)) {
       const self = this.combatants[i];
       if (!self.hasFunctionalWeapons()) {
         if (this.surrenderTimers[i] === null) {

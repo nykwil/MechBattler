@@ -10,5 +10,6 @@ export * from './terrain.js';
 export * from './combat.js';
 export * from './templates.js';
 export * from './harness.js';
+export * from './sandbox.js';
 export * from './adaptation.js';
 export * from './validation.js';

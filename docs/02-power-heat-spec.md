@@ -168,7 +168,9 @@ so they can never lie (deck-building trust).
 
 **Planned bench diagnostics (Jul 2026 notes intake)** — same measured-not-estimated stance,
 aimed at making *why* a build underperforms legible: DPS by range bracket (close/medium/
-long, from the envelope math in 03 §7); per-weapon **uptime** and downtime attributed to
+long — the **range sandbox** shipped Jul 18 2026: armor dummies at selectable ranges,
+windowed 45 s live fire, per-weapon DPS and hit% under real fire control); per-weapon
+**uptime** and downtime attributed to
 its cause (out of range, cooling, power-starved, cycling); per-part contribution (damage by
 weapon, uptime bought by each radiator/capacitor); and a target selector with
 close/medium/long dummy placements for rapid before/after comparison when a part moves.
