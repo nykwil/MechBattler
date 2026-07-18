@@ -96,6 +96,27 @@ export function GridEditor({
     d: outlinePath(getOccupiedCells(p, getPart(p.partId))),
   })), [parts]);
 
+  // Firing-direction wedges: grid up is chassis forward (docs/01 §1), and mount
+  // arcs are centered on forward regardless of placement — so every weapon gets
+  // an up-pointing wedge spanning its real mountArcDeg at the part's centroid.
+  const weaponArcs = useMemo(() => parts.flatMap((p) => {
+    const def = getPart(p.partId);
+    if (!def.weapon) return [];
+    const occ = getOccupiedCells(p, def);
+    const cx = (occ.reduce((s, c) => s + c.x, 0) / occ.length + 0.5) * CELL;
+    const cy = (occ.reduce((s, c) => s + c.y, 0) / occ.length + 0.5) * CELL;
+    const half = (def.weapon.mountArcDeg / 2) * (Math.PI / 180);
+    const r = CELL * 0.75;
+    const x0 = cx + r * Math.sin(-half);
+    const y0 = cy - r * Math.cos(-half);
+    const x1 = cx + r * Math.sin(half);
+    const y1 = cy - r * Math.cos(half);
+    return [{
+      instanceId: p.instanceId,
+      d: `M${cx},${cy} L${x0},${y0} A${r},${r} 0 ${half > Math.PI / 2 ? 1 : 0} 1 ${x1},${y1} Z`,
+    }];
+  }), [parts]);
+
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < chassis.height; y++) {
     for (let x = 0; x < chassis.width; x++) {
@@ -153,6 +174,10 @@ export function GridEditor({
 
           {partOutlines.map(({ instanceId, d }) => (
             <path key={`outline-${instanceId}`} className="part-outline" d={d} />
+          ))}
+
+          {overlay === 'parts' && weaponArcs.map(({ instanceId, d }) => (
+            <path key={`arc-${instanceId}`} className="weapon-arc" d={d} />
           ))}
 
           {faultOutlines.map((d, i) => (
@@ -238,6 +263,7 @@ function Legend({ overlay }: { overlay: OverlayMode }) {
       <LegendItem color={CATEGORY_COLOR.weapon} label="Weapon" />
       <LegendItem color={CATEGORY_COLOR.utility} label="Utility" />
       <LegendItem color={CATEGORY_COLOR.structural} label="Structural" />
+      <LegendItem color="rgba(255,255,255,0.65)" label="Fire arc (↑ = forward)" />
     </div>
   );
 }
