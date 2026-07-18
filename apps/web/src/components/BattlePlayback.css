@@ -334,3 +334,17 @@
   color: var(--ink-faint);
   text-align: center;
 }
+
+/* --- Terrain --------------------------------------------------------------- */
+
+.playback-tile.forest { fill: rgba(93, 160, 90, 0.16); }
+.playback-tile.hill { fill: rgba(206, 186, 140, 0.13); }
+.playback-tile.water { fill: rgba(90, 150, 199, 0.18); }
+
+.hud-chip.tile-forest { border-color: rgba(93, 160, 90, 0.7); color: #7dbb7a; }
+.hud-chip.tile-hill { border-color: rgba(206, 186, 140, 0.7); color: #cec08e; }
+.hud-chip.tile-water { border-color: rgba(90, 150, 199, 0.7); color: #7ab4d8; }
+
+.tile-key.forest { color: rgba(93, 160, 90, 0.9); }
+.tile-key.hill { color: rgba(206, 186, 140, 0.9); }
+.tile-key.water { color: rgba(90, 150, 199, 0.9); }

@@ -28,18 +28,23 @@ import { Simulation, type SimCommand, type SimSnapshot, type SpeedSetting } from
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 import { Pcg32 } from './rng.js';
+import {
+  generateTerrain, terrainAt, FOREST_COVER_MULT, HILL_RANGE_MULT,
+  TERRAIN_SPEED_MULT, WATER_RADIATOR_MULT, type TerrainGrid, type TerrainType,
+} from './terrain.js';
 
 export const CELL_SIZE_M = 0.5;
 export const TICK_S = 1 / 20;
 export const AUTOPILOT_PERIOD_TICKS = 5; // 4 Hz (docs/03 §7)
 export const DEFAULT_TIMEOUT_S = 120;
 export const DEFAULT_SPAWN_DISTANCE_M = 160;
-/** Arena rectangle (docs/03 §1): 200 m × 140 m. Walls bound movement -- a
- *  kiter has only (arenaLength − spawnDistance)/2 of runway before its back
- *  wall, so infinite runaway is impossible. This is the counter to the
- *  runaway-sniper degeneracy: at some point the sniper must stand and fight. */
-export const DEFAULT_ARENA_LENGTH_M = 200;
-export const DEFAULT_ARENA_WIDTH_M = 140;
+/** Arena square (docs/03 §1): 240 m × 240 m with a terrain tile grid (§2).
+ *  Walls bound movement -- a kiter has only (arenaLength − spawnDistance)/2
+ *  of runway before its back wall, so infinite runaway is impossible. This is
+ *  the counter to the runaway-sniper degeneracy: at some point the sniper
+ *  must stand and fight. */
+export const DEFAULT_ARENA_LENGTH_M = 240;
+export const DEFAULT_ARENA_WIDTH_M = 240;
 /** The core is not a catalog part; its HP needs prototype validation (add to docs/03 §10). */
 export const CORE_HP = 50;
 export const SURRENDER_DELAY_S = 3;
@@ -161,6 +166,7 @@ export interface ControllerContext {
   enemy: Combatant;
   snapshot: SimSnapshot | null;
   tSec: number;
+  terrain: TerrainGrid;
 }
 
 /** Decides a mech's orders each command tick (4 Hz). The autopilot is one of these. */
@@ -220,6 +226,8 @@ export interface MechFrame {
   moveIntent: MoveIntent;
   faceMode: 'target' | 'bearing';
   dest: Vec2 | null;
+  /** Terrain tile the mech is standing on (HUD chip + effects readout). */
+  tile: TerrainType;
 }
 
 export interface BattleFrame {
@@ -248,6 +256,7 @@ export interface BattleReport {
   mechs: [MechReport, MechReport];
   events: BattleEvent[];
   arena: { lengthM: number; widthM: number };
+  terrain: TerrainGrid;
   /** Per-tick playback samples (empty when recordFrames was false). */
   frames: BattleFrame[];
 }
@@ -536,19 +545,29 @@ export class Combatant {
  * crossing speed costs the enemy theirs (tracking lag), range costs both
  * (dispersion growth + falloff). Exported so the workshop can chart it.
  */
+export interface DpsTerrainMods {
+  /** Shooter elevation: falloff band + despawn bound scale (hill = 1.25). */
+  shooterRangeMult?: number;
+  /** Target concealment: silhouette fraction visible (forest = 0.65). */
+  targetCoverMult?: number;
+}
+
 export function estimateExpectedDps(
   shooter: Combatant, target: Combatant, rangeM: number,
   shooterSpeedMps: number, targetLateralMps: number, snapshot: SimSnapshot | null,
+  mods: DpsTerrainMods = {},
 ): number {
+  const rangeMult = mods.shooterRangeMult ?? 1;
+  const coverMult = mods.targetCoverMult ?? 1;
   const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
-  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M;
+  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M * coverMult;
   let dps = 0;
   for (const p of shooter.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
     const w = def.weapon!;
-    if (rangeM > w.falloff.rangeEnd * 1.3) continue;
+    if (rangeM > w.falloff.rangeEnd * 1.3 * rangeMult) continue;
     const model = computeHitModel({
       rangeM,
       sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * shooterSpeedMps) * 0.001,
@@ -557,9 +576,17 @@ export function estimateExpectedDps(
       projectileSpeed: w.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
-    dps += (model.pHit * w.damage * (w.salvoCount ?? 1) * falloffAt(def, rangeM)) / w.cycleS;
+    dps += (model.pHit * w.damage * (w.salvoCount ?? 1) * falloffAt(def, rangeM / rangeMult)) / w.cycleS;
   }
   return dps;
+}
+
+/** Terrain modifiers for a shooter standing on `shooterTile` firing at a target on `targetTile`. */
+export function terrainDpsMods(shooterTile: TerrainType, targetTile: TerrainType): DpsTerrainMods {
+  return {
+    shooterRangeMult: shooterTile === 'hill' ? HILL_RANGE_MULT : 1,
+    targetCoverMult: targetTile === 'forest' ? FOREST_COVER_MULT : 1,
+  };
 }
 
 /**
@@ -574,25 +601,62 @@ export function estimateExpectedDps(
  * slow reverse makes backpedaling expensive; a sniper's precise gun makes
  * standing still worth the exposure, and its long reach pushes r* far out.
  */
-export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
+export const autopilotController: Controller = ({ self, enemy, snapshot, terrain }) => {
   const toEnemy = sub(enemy.pos, self.pos);
   const range = len(toEnemy);
   const dir = norm(toEnemy);
 
-  // Farthest range at which any functional gun still fires (despawn bound).
+  const myTile = terrainAt(terrain, self.pos.x, self.pos.y);
+  const enemyTile = terrainAt(terrain, enemy.pos.x, enemy.pos.y);
+  // Overheating makes a coolant bath worth real dps in the scoring below.
+  let hottestC = 25;
+  if (snapshot) for (const t of Object.values(snapshot.cellTempsC)) if (t > hottestC) hottestC = t;
+  const running_hot = hottestC >= 100;
+
+  // Farthest range at which any functional gun still fires (despawn bound,
+  // elevation-extended when standing on a hill).
   let maxReachM = 0;
   for (const p of self.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !self.isPartFunctional(p.instanceId)) continue;
     maxReachM = Math.max(maxReachM, def.weapon!.falloff.rangeEnd * 1.3);
   }
+  if (myTile === 'hill') maxReachM *= HILL_RANGE_MULT;
 
   const enemyLateralNow = enemy.lateralSpeedMps(dir);
   const enemySpeedNow = len(enemy.vel);
-  /** Net expected exchange at range r given my speed/crossing speed. */
+  /** Net expected exchange at range r given my speed/crossing speed, on current tiles. */
   const exchangeAt = (r: number, mySpeedMps: number, myLateralMps: number): number =>
-    estimateExpectedDps(self, enemy, r, mySpeedMps, enemyLateralNow, snapshot) -
-    estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null);
+    estimateExpectedDps(self, enemy, r, mySpeedMps, enemyLateralNow, snapshot, terrainDpsMods(myTile, enemyTile)) -
+    estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null, terrainDpsMods(enemyTile, myTile));
+  /** Standing exchange if I were positioned at `pos` (its tile's cover/elevation/coolant). */
+  const exchangeAtPos = (pos: Vec2): number => {
+    const t = terrainAt(terrain, pos.x, pos.y);
+    const r = len(sub(enemy.pos, pos));
+    let u = estimateExpectedDps(self, enemy, r, 0, enemyLateralNow, snapshot, terrainDpsMods(t, enemyTile)) -
+      estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, t));
+    if (t === 'water' && running_hot) u += 2;
+    return u;
+  };
+  /** Refine an ideal standing point by shopping the 3×3 neighboring tiles for better ground. */
+  const halfL = (terrain.cols * terrain.cellSizeM) / 2;
+  const halfW = (terrain.rows * terrain.cellSizeM) / 2;
+  const pickGround = (ideal: Vec2): Vec2 => {
+    let best = ideal;
+    let bestU = exchangeAtPos(ideal);
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        if (dx === 0 && dy === 0) continue;
+        const p: Vec2 = {
+          x: Math.max(-halfL + 2, Math.min(halfL - 2, ideal.x + dx * terrain.cellSizeM)),
+          y: Math.max(-halfW + 2, Math.min(halfW - 2, ideal.y + dy * terrain.cellSizeM)),
+        };
+        const u = exchangeAtPos(p);
+        if (u > bestU + 1e-9) { bestU = u; best = p; }
+      }
+    }
+    return best;
+  };
 
   // --- Verb 2 + 3 ---
   let move: Extract<MechOrder, { verb: 'move' }>;
@@ -618,15 +682,27 @@ export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
       const transitSpeed = (s: SpeedSetting) => (closing ? self.speeds.fwd : self.speeds.rev) * SPEED_FRACTION[s];
       setting = exchangeAt(range, transitSpeed('flank'), 0) >= exchangeAt(range, transitSpeed('cruise'), 0) ? 'flank' : 'cruise';
       if (closing) {
-        move = { verb: 'move', intent: 'close', dest: sub(enemy.pos, scale(dir, bestR)) };
+        move = { verb: 'move', intent: 'close', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
       } else if (range > maxReachM) {
         // Want distance and can't shoot from here anyway: turn tail and use
         // the full forward speed instead of the slow reverse.
         move = { verb: 'move', intent: 'flee', dest: sub(enemy.pos, scale(dir, bestR + 40)) };
         setting = 'flank';
       } else {
-        move = { verb: 'move', intent: 'retreat', dest: sub(enemy.pos, scale(dir, bestR)) };
+        move = { verb: 'move', intent: 'retreat', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
       }
+    } else if (
+      // At the chosen range: is there better ground one tile away? A hill for
+      // my guns' reach, forest cover, or a coolant bath when running hot are
+      // worth a short reposition inside the band.
+      (() => {
+        const spot = pickGround(self.pos);
+        return (spot.x !== self.pos.x || spot.y !== self.pos.y) && exchangeAtPos(spot) > exchangeAtPos(self.pos) + 0.5;
+      })()
+    ) {
+      const spot = pickGround(self.pos);
+      move = { verb: 'move', intent: len(sub(enemy.pos, spot)) < range ? 'close' : 'retreat', dest: spot };
+      setting = 'cruise';
     } else {
       // At the chosen range: stand for accuracy, or orbit to tax the enemy's
       // tracking? Crossing speed costs me jitter and them tracking error —
@@ -665,7 +741,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot }) => {
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
-    const despawnRange = def.weapon!.falloff.rangeEnd * 1.3;
+    const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < 115;
     enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
   }
@@ -724,7 +800,7 @@ function maxSpeedInDirection(speeds: LoadScaledSpeeds, angleOffRad: number): num
 
 const SPEED_FRACTION: Record<SpeedSetting, number> = { stationary: 0, creep: 0.3, cruise: 0.65, flank: 1.0 };
 
-function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: boolean, tSec: number, dt: number): void {
+function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: boolean, tSec: number, dt: number, terrainSpeedMult = 1): void {
   // Verb 4: facing per the standing face order (autopilot default: track target).
   const desired = self.faceOrder.mode === 'bearing'
     ? self.faceOrder.bearingRad
@@ -745,7 +821,7 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
     if (dist > 0.5) {
       const dir = norm(toDest);
       const angleOff = wrapAngle(Math.atan2(dir.y, dir.x) - self.facingRad);
-      const maxV = maxSpeedInDirection(self.speeds, angleOff) * SPEED_FRACTION[self.speedSetting];
+      const maxV = maxSpeedInDirection(self.speeds, angleOff) * SPEED_FRACTION[self.speedSetting] * terrainSpeedMult;
       // Slow into the destination so we don't orbit it.
       const arrivalV = Math.sqrt(2 * accel * dist);
       targetVel = scale(dir, Math.min(maxV, arrivalV));
@@ -767,6 +843,8 @@ export interface BattleOptions {
   spawnDistanceM?: number;
   arenaLengthM?: number;
   arenaWidthM?: number;
+  /** Terrain override; default generates a tile grid from the battle seed. */
+  terrain?: TerrainGrid;
   /**
    * Order sources, one per mech (default: the autopilot for both). A future
    * player-controlled mode passes its own Controller — or a no-op controller
@@ -781,6 +859,7 @@ export class Battle {
   readonly combatants: [Combatant, Combatant];
   readonly events: BattleEvent[] = [];
   readonly seed: number;
+  readonly terrain: TerrainGrid;
   private readonly rng: Pcg32;
   private readonly timeoutS: number;
   private readonly arenaHalfLengthM: number;
@@ -810,6 +889,7 @@ export class Battle {
     this.recordFrames = options.recordFrames ?? true;
     this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
     this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
+    this.terrain = options.terrain ?? generateTerrain(options.seed, this.arenaHalfLengthM * 2, this.arenaHalfWidthM * 2);
     const half = Math.min((options.spawnDistanceM ?? DEFAULT_SPAWN_DISTANCE_M) / 2, this.arenaHalfLengthM - 2);
     // Seeded lateral spawn jitter: without it the autopilots take identical
     // approach lanes every battle and matchup outcomes are nearly binary
@@ -837,8 +917,8 @@ export class Battle {
     // Controllers at 4 Hz (autopilot by default) issue orders through the
     // same channel a player would.
     if (this.tick % AUTOPILOT_PERIOD_TICKS === 0) {
-      this.issueOrders(0, this.controllers[0]({ self: a, enemy: b, snapshot: this.lastSnapshots[0], tSec: this.tSec }));
-      this.issueOrders(1, this.controllers[1]({ self: b, enemy: a, snapshot: this.lastSnapshots[1], tSec: this.tSec }));
+      this.issueOrders(0, this.controllers[0]({ self: a, enemy: b, snapshot: this.lastSnapshots[0], tSec: this.tSec, terrain: this.terrain }));
+      this.issueOrders(1, this.controllers[1]({ self: b, enemy: a, snapshot: this.lastSnapshots[1], tSec: this.tSec, terrain: this.terrain }));
     }
     this.tick++;
 
@@ -846,7 +926,12 @@ export class Battle {
     for (const i of [0, 1] as const) {
       const self = this.combatants[i];
       const enemy = this.combatants[(1 - i) as 0 | 1];
-      const command: SimCommand = { weaponsEnabled: self.weaponsEnabled, speedSetting: self.speedSetting };
+      const tile = terrainAt(this.terrain, self.pos.x, self.pos.y);
+      const command: SimCommand = {
+        weaponsEnabled: self.weaponsEnabled,
+        speedSetting: self.speedSetting,
+        radiatorMult: tile === 'water' ? WATER_RADIATOR_MULT : 1,
+      };
       const snapshot = self.sim.step(dt, command);
       this.lastSnapshots[i] = snapshot;
 
@@ -881,7 +966,8 @@ export class Battle {
     for (const i of [0, 1] as const) {
       const locomotionShed = this.lastSnapshots[i]?.shedInstanceIds.includes(CORE_INSTANCE_ID) ?? false;
       const c = this.combatants[i];
-      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt);
+      const speedMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
+      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult);
       if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
       else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
       if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
@@ -939,6 +1025,7 @@ export class Battle {
       moveIntent: c.moveIntent,
       faceMode: c.faceOrder.mode,
       dest: c.destination ? { x: c.destination.x, y: c.destination.y } : null,
+      tile: terrainAt(this.terrain, c.pos.x, c.pos.y),
     };
   }
 
@@ -984,7 +1071,12 @@ export class Battle {
     const aimBearing = Math.atan2(toEnemy.y, toEnemy.x);
     const losDir = norm(toEnemy);
     const lagS = self.hasPoweredTargetingComputer(this.lastSnapshots[i]) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
-    const halfWidthM = enemy.projectedHalfWidthM(losDir);
+    // Terrain (docs/03 §2): a shooter on a hill fires down an extended
+    // envelope; a target in forest shows a reduced silhouette.
+    const shooterTile = terrainAt(this.terrain, self.pos.x, self.pos.y);
+    const targetTile = terrainAt(this.terrain, enemy.pos.x, enemy.pos.y);
+    const rangeMult = shooterTile === 'hill' ? HILL_RANGE_MULT : 1;
+    const halfWidthM = enemy.projectedHalfWidthM(losDir) * (targetTile === 'forest' ? FOREST_COVER_MULT : 1);
     const model = computeHitModel({
       rangeM: range,
       sigmaRad: this.effectiveDispersionRad(self, def, aimBearing),
@@ -993,7 +1085,7 @@ export class Battle {
       projectileSpeed: weapon.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
-    const damagePerProjectile = weapon.damage * falloffAt(def, range);
+    const damagePerProjectile = weapon.damage * falloffAt(def, range / rangeMult);
 
     const stats = this.stats[i]!;
     for (let s = 0; s < salvo; s++) {
@@ -1120,6 +1212,7 @@ export class Battle {
       mechs,
       events: this.events,
       arena: { lengthM: this.arenaHalfLengthM * 2, widthM: this.arenaHalfWidthM * 2 },
+      terrain: this.terrain,
       frames: this.frames,
     };
   }

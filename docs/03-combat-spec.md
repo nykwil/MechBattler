@@ -6,14 +6,35 @@ shared sim core at 20 Hz.
 
 ## 1. Arena
 
-- v1: flat rectangle, **200 m × 140 m**, spawns 160 m apart facing each other. 1v1.
-- v1.5 (before terrain proper): 2–4 static rectangular obstacles that block projectiles and
-  movement — enough to make "ideal fire position" mean something.
+- v1 (Jul 2026): square, **240 m × 240 m**, spawns 160 m apart facing each other. 1v1.
+  Overlaid with the **terrain tile grid** (§1a).
 - Battle length target: 30–120 s. Timeout at 120 s → judges' decision: winner is the mech
   with the higher % of functional part mass remaining.
 - Victory: enemy core destroyed, **or** mission-kill (enemy has no functional weapons)
   triggering surrender after 3 s. Mission-kills matter: they leave more salvage intact
   (see `04-salvage-economy-spec.md` §2).
+
+## 1a. Terrain (Jul 2026)
+
+A coarse **square tile grid** (20 m tiles, 12×12 on the default arena), generated from the
+battle seed by random-walk blob growth (~70% open — fights still cross real ground;
+deterministic, replayable). Square over hex: it matches the game's grid language and the
+math stays trivial. Every effect is a physical modifier on an existing model (rule R1),
+never a scripted proc:
+
+| Tile | Effect | Mechanism | Speed |
+|---|---|---|---|
+| Forest | cover | incoming fire sees ×0.65 of the target's silhouette (hit model §5) | ×0.8 |
+| Hill | range | shooter's falloff band + despawn bound ×1.25 (elevation flattens the ballistic problem) | ×0.9 |
+| Water | cooling | radiator transfer and cap ×1.6 (convection into water — the counterpart to ram-air) | ×0.65 |
+
+The autopilot prices tiles in its exchange scoring (§7): destinations are refined by
+shopping neighboring tiles for better ground, and a mech running hot values a coolant
+bath at real dps-equivalent. Terrain is in the battle report (`report.terrain`) and drawn
+in the replay; the mech's current tile is in every playback frame.
+
+Backlog: obstacles that block movement/projectiles, line-of-sight blocking (true
+concealment vs the current statistical cover), region-entry triggers for manual orders.
 
 ## 2. The four command verbs
 

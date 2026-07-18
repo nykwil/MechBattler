@@ -177,6 +177,16 @@ tank-counters-runaway-sniper dynamic we wanted) · laser-boat 32% · tank 29% (b
 the optimizing autopilot polarizes raw kernels; **tuning pass 2 + budget brackets**
 (Track C2) should run before reading these as part-balance verdicts.
 
+**Terrain shipped (Jul 18 2026, docs/03 §1a)**: arena is now a 240×240 square with a
+seeded 20 m tile grid — forest (×0.65 silhouette cover), hill (×1.25 range envelope),
+water (×1.6 radiator, the ram-air counterpart), each with a speed cost. The autopilot
+prices tiles in its exchange scoring and shops neighboring tiles for better ground; the
+replay draws the tiles and the HUD shows the current tile chip. Standings on terrain:
+vulture-skirmisher 76%⚑ · gunline 76%⚑ · sniper 66% · laser-boat 44% (longer sightlines
+suit it) · railgun 43% · mule-skirm 41% · tank 29% · orbiter 24%. Losing kernels now
+rationally refuse engagements and run until cornered (walls end it) — the runaway rule
+(Track C5) will want a look at this.
+
 ## Workshop: done vs. remaining (01 §9 checklist)
 
 **Done**: illegal-placement feedback (rejected clicks flash + name the reason), build

@@ -51,6 +51,8 @@ export const RAM_AIR_MAX_BONUS = 0.5;
 export interface SimCommand {
   weaponsEnabled: Record<string, boolean>;
   speedSetting: SpeedSetting;
+  /** Environmental radiator multiplier (e.g. wading through water, docs/03 §2). Default 1. */
+  radiatorMult?: number;
 }
 
 export interface ShotEvent {
@@ -438,15 +440,15 @@ export class Simulation {
       cell.tempC += kj / cell.thermalMassKjPerC;
     }
 
-    // --- 10. Radiators (with ram-air speed bonus) ---
-    const ramAir = 1 + RAM_AIR_MAX_BONUS * SPEED_SETTING_FRACTIONS[command.speedSetting];
+    // --- 10. Radiators (with ram-air speed bonus and environmental multiplier) ---
+    const ramAir = (1 + RAM_AIR_MAX_BONUS * SPEED_SETTING_FRACTIONS[command.speedSetting]) * (command.radiatorMult ?? 1);
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
       const keys = this.thermal.cellKeysByInstance.get(p.instanceId)!;
       const raws = keys.map((k) => {
         const cell = this.thermal.cells.get(k)!;
-        return { key: k, raw: Math.max(0, RADIATOR_K * (cell.tempC - AMBIENT_C)) };
+        return { key: k, raw: Math.max(0, RADIATOR_K * (command.radiatorMult ?? 1) * (cell.tempC - AMBIENT_C)) };
       });
       const rawTotal = raws.reduce((s, r) => s + r.raw, 0);
       const factor = rawTotal > 0 ? Math.min(1, (RADIATOR_CAP_KW * ramAir) / rawTotal) : 0;

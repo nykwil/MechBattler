@@ -204,12 +204,28 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
         </span>
         <span className="hud-chip">{foe.speedSetting}</span>
         <span className="hud-chip">{foe.moveIntent}</span>
+        {foe.tile !== 'open' && <span className={`hud-chip tile-${foe.tile}`}>{foe.tile}</span>}
       </div>
 
       <svg
         className="playback-arena"
         viewBox={`${-halfL - margin} ${-halfW - margin} ${2 * (halfL + margin)} ${2 * (halfW + margin)}`}
       >
+        {/* Terrain tiles (docs/03 §2): forest = cover, hill = range, water = cooling. */}
+        {report.terrain.cells.flatMap((row, ry) =>
+          row.map((tile, cx) =>
+            tile === 'open' ? null : (
+              <rect
+                key={`t${cx}-${ry}`}
+                className={`playback-tile ${tile}`}
+                x={-halfL + cx * report.terrain.cellSizeM}
+                y={-halfW + ry * report.terrain.cellSizeM}
+                width={report.terrain.cellSizeM}
+                height={report.terrain.cellSizeM}
+              />
+            ),
+          ),
+        )}
         <rect x={-halfL} y={-halfW} width={2 * halfL} height={2 * halfW} className="playback-walls" />
         {Array.from({ length: Math.floor(halfL / 25) * 2 + 1 }, (_, k) => (k - Math.floor(halfL / 25)) * 25).map((x) => (
           <line key={x} x1={x} y1={-halfW} x2={x} y2={halfW} className="playback-gridline" />
@@ -317,6 +333,14 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
             <span className={`hud-chip${you.faceMode === 'target' ? ' active' : ''}`} title="Facing order">
               face: {you.faceMode}
             </span>
+            {you.tile !== 'open' && (
+              <span
+                className={`hud-chip tile-${you.tile}`}
+                title={you.tile === 'forest' ? 'Forest: cover from incoming fire, slower' : you.tile === 'hill' ? 'Hill: extended weapon range' : 'Water: radiators boosted, much slower'}
+              >
+                {you.tile}
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -354,7 +378,12 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
         })}
       </div>
 
-      <div className="playback-caption">mech footprints magnified {MECH_MAG}× · arena {report.arena.lengthM} × {report.arena.widthM} m</div>
+      <div className="playback-caption">
+        mech footprints magnified {MECH_MAG}× · arena {report.arena.lengthM} × {report.arena.widthM} m ·
+        <span className="tile-key forest"> ■</span> forest (cover)
+        <span className="tile-key hill"> ■</span> hill (range)
+        <span className="tile-key water"> ■</span> water (cooling)
+      </div>
     </div>
   );
 }
