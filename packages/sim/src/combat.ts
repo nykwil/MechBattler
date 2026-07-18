@@ -537,6 +537,13 @@ export class Combatant {
 
 // --- Autopilot ----------------------------------------------------------------
 
+export interface DpsTerrainMods {
+  /** Shooter elevation: falloff band + despawn bound scale (hill = 1.25). */
+  shooterRangeMult?: number;
+  /** Target concealment: silhouette fraction visible (forest = 0.65). */
+  targetCoverMult?: number;
+}
+
 /**
  * Expected sustained dps of `shooter` against `target` at a hypothetical
  * range and speed pair, under the stat-based hit model (docs/03 §5). This is
@@ -545,13 +552,6 @@ export class Combatant {
  * crossing speed costs the enemy theirs (tracking lag), range costs both
  * (dispersion growth + falloff). Exported so the workshop can chart it.
  */
-export interface DpsTerrainMods {
-  /** Shooter elevation: falloff band + despawn bound scale (hill = 1.25). */
-  shooterRangeMult?: number;
-  /** Target concealment: silhouette fraction visible (forest = 0.65). */
-  targetCoverMult?: number;
-}
-
 export function estimateExpectedDps(
   shooter: Combatant, target: Combatant, rangeM: number,
   shooterSpeedMps: number, targetLateralMps: number, snapshot: SimSnapshot | null,
@@ -611,7 +611,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   // Overheating makes a coolant bath worth real dps in the scoring below.
   let hottestC = 25;
   if (snapshot) for (const t of Object.values(snapshot.cellTempsC)) if (t > hottestC) hottestC = t;
-  const running_hot = hottestC >= 100;
+  const runningHot = hottestC >= 100;
 
   // Farthest range at which any functional gun still fires (despawn bound,
   // elevation-extended when standing on a hill).
@@ -635,7 +635,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     const r = len(sub(enemy.pos, pos));
     let u = estimateExpectedDps(self, enemy, r, 0, enemyLateralNow, snapshot, terrainDpsMods(t, enemyTile)) -
       estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, t));
-    if (t === 'water' && running_hot) u += 2;
+    if (t === 'water' && runningHot) u += 2;
     return u;
   };
   /** Refine an ideal standing point by shopping the 3×3 neighboring tiles for better ground. */
@@ -656,6 +656,11 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       }
     }
     return best;
+  };
+  /** True when repositioning one tile away beats standing on this ground by a real margin. */
+  const betterGroundNearby = (): boolean => {
+    const spot = pickGround(self.pos);
+    return (spot.x !== self.pos.x || spot.y !== self.pos.y) && exchangeAtPos(spot) > exchangeAtPos(self.pos) + 0.5;
   };
 
   // --- Verb 2 + 3 ---
@@ -691,15 +696,10 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       } else {
         move = { verb: 'move', intent: 'retreat', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
       }
-    } else if (
-      // At the chosen range: is there better ground one tile away? A hill for
-      // my guns' reach, forest cover, or a coolant bath when running hot are
+    } else if (betterGroundNearby()) {
+      // At the chosen range: better ground one tile away — a hill for my
+      // guns' reach, forest cover, or a coolant bath when running hot are
       // worth a short reposition inside the band.
-      (() => {
-        const spot = pickGround(self.pos);
-        return (spot.x !== self.pos.x || spot.y !== self.pos.y) && exchangeAtPos(spot) > exchangeAtPos(self.pos) + 0.5;
-      })()
-    ) {
       const spot = pickGround(self.pos);
       move = { verb: 'move', intent: len(sub(enemy.pos, spot)) < range ? 'close' : 'retreat', dest: spot };
       setting = 'cruise';
