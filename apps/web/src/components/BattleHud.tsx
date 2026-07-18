@@ -91,10 +91,30 @@ function WeaponSlot({
     onClick ? 'clickable' : '',
   ].filter(Boolean).join(' ');
   const ovrText = override === 'hold' ? ' — manual: HOLD FIRE' : override === 'force' ? ' — manual: FORCE FIRE' : '';
+  // Not-firing legibility (docs/09 M2): name the specific fire-control gate
+  // instead of one ambiguous HOLD. A player hold is an order, not a diagnosis
+  // — it wins the label so "I said stop" never reads as a malfunction.
+  // The player-hold label keys off the override, not the sim's enabled flag —
+  // the order must read back instantly even while paused, before the next
+  // controller tick applies it.
+  const silence =
+    wf.status !== 'ok'
+      ? null
+      : override === 'hold'
+        ? { label: 'HOLD', blurb: 'holding fire on your order' }
+        : wf.enabled
+          ? null
+          : wf.gate === 'range'
+          ? { label: 'RANGE', blurb: 'target beyond this gun\'s reach' }
+          : wf.gate === 'arc'
+            ? { label: 'ARC', blurb: 'target outside the mount arc — turn to bear' }
+            : wf.gate === 'heat'
+              ? { label: 'HOT', blurb: 'fire control holding at ≥115°C (shutdown at 130°C)' }
+              : { label: 'HOLD', blurb: 'fire control holding' };
   return (
     <div
       className={cls}
-      title={weaponBlurb(def) + ovrText + (onClick ? ' · click: auto → hold → force' : '')}
+      title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '') + (onClick ? ' · click: auto → hold → force' : '')}
       onClick={onClick}
       onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
@@ -103,7 +123,8 @@ function WeaponSlot({
       <span className="hud-slot-label">{shortName(wf.partId)}</span>
       {wf.status === 'destroyed' && <span className="hud-slot-x">✕</span>}
       {wf.status === 'shutdown' && <span className="hud-slot-x">♨</span>}
-      {!wf.enabled && wf.status === 'ok' && <span className="hud-slot-hold">HOLD</span>}
+      {wf.status === 'shed' && <span className="hud-slot-hold">PWR</span>}
+      {silence && <span className="hud-slot-hold">{silence.label}</span>}
       {override && <span className={`hud-slot-ovr ${override}`}>{override === 'hold' ? '◦' : '▲'}</span>}
     </div>
   );
@@ -311,7 +332,7 @@ export function BattleScene({
             ))}
           </div>
           <div className="hud-gun-blurb">
-            {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · HOLD = fire control withheld'}
+            {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · RANGE/ARC/HOT = why fire control holds · HOLD = your order'}
           </div>
         </div>
 

@@ -201,6 +201,27 @@ describe('manual order overrides (docs/08 §3): the player merge over the autopi
     expect(arrived).toBe(true);
   });
 
+  it('weapon frames name the fire-control gate: range when beyond reach, arc when faced away', () => {
+    // Spawned at 236 m, everything is beyond even the AC's 195 m despawn bound.
+    const far = new Battle({ builds: [muleGunline(), muleGunline()], seed: 7, spawnDistanceM: 236, timeoutS: 2 });
+    far.step();
+    const farGuns = far.latestFrame()!.mechs[0].weapons;
+    expect(farGuns.length).toBeGreaterThan(0);
+    for (const w of farGuns) expect(w.gate).toBe('range');
+
+    // Pinned perpendicular at the default 160 m spawn: the AC (60° arc) is in
+    // reach but out of arc; once the fight closes inside its band it clears.
+    const sideways = withManualOrders(autopilotController, () => ({
+      move: 'hold',
+      face: { mode: 'bearing', bearingRad: Math.PI / 2 },
+    }));
+    const battle = new Battle({ builds: [muleGunline(), muleGunline()], seed: 7, controllers: [sideways, autopilotController], timeoutS: 8 });
+    while (battle.step()) { /* run out */ }
+    const late = battle.frames.filter((f) => f.tSec > 4);
+    const acGates = late.map((f) => f.mechs[0].weapons.find((w) => w.instanceId === 'ac')!.gate);
+    expect(acGates.every((g) => g === 'arc')).toBe(true);
+  });
+
   it('auto-face on a manual waypoint aims at the waypoint, not the autopilot\'s flee point (dead guns)', () => {
     // A weaponless mech (as after losing its guns): the autopilot wants to
     // flee away from the enemy and would face that way. With a manual

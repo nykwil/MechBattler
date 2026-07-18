@@ -8,6 +8,9 @@ import { TICK_S, type Battle } from '@mechbattler/sim';
  * returned tSec advances with the sim clock and drives the shared scene.
  */
 export function useBattle(battle: Battle, { paused, speed }: { paused: boolean; speed: number }) {
+  // Prime one tick so a frame exists immediately — pausing at 0:00.0 must
+  // show the spawn state, not an empty scene.
+  if (battle.latestFrame() === null && !battle.finished) battle.step();
   const [tSec, setTSec] = useState(battle.timeS);
   const accRef = useRef(0);
 

@@ -206,6 +206,14 @@ export interface WeaponFrame {
   status: 'ok' | 'shed' | 'shutdown' | 'destroyed';
   /** Hottest cell of the part, °C. */
   tempC: number;
+  /**
+   * Which fire-control gate would silence this gun right now (docs/09 M2):
+   * target outside the mount arc, beyond the despawn bound, or the part at or
+   * past the 115 °C hold line. Physical facts only — the sim never knows
+   * whether the current hold is fire control or a commander (rule R6); the
+   * HUD combines this with its own override state. null = clear to fire.
+   */
+  gate: 'arc' | 'range' | 'heat' | null;
 }
 
 /** One mech's kinematic + status sample for a playback tick. */
@@ -1089,7 +1097,7 @@ export class Battle {
     if (this.recordFrames) {
       this.frames.push({
         tSec: this.tSec,
-        mechs: [this.sampleMechFrame(a, this.lastSnapshots[0]), this.sampleMechFrame(b, this.lastSnapshots[1])],
+        mechs: [this.sampleMechFrame(a, this.lastSnapshots[0], b), this.sampleMechFrame(b, this.lastSnapshots[1], a)],
       });
     }
 
@@ -1098,7 +1106,12 @@ export class Battle {
   }
 
   /** Samples the cockpit-visible state of one mech (HUD data, not sim state). */
-  private sampleMechFrame(c: Combatant, snap: SimSnapshot | null): MechFrame {
+  private sampleMechFrame(c: Combatant, snap: SimSnapshot | null, enemy: Combatant): MechFrame {
+    // Fire-control gate facts, mirroring the autopilot's own weapon check.
+    const toEnemy = sub(enemy.pos, c.pos);
+    const rangeToEnemy = len(toEnemy);
+    const bearingOffset = Math.abs(wrapAngle(Math.atan2(toEnemy.y, toEnemy.x) - c.facingRad));
+    const myTile = terrainAt(this.terrain, c.pos.x, c.pos.y);
     const weapons: WeaponFrame[] = [];
     for (const p of c.build.parts) {
       const def = getPart(p.partId);
@@ -1114,13 +1127,23 @@ export class Battle {
         else if (def.draw?.chargedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1);
         else if (def.draw?.capFedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1);
       }
+      const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
+      let gate: WeaponFrame['gate'] = null;
+      if (!destroyed) {
+        const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+        const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
+        if (rangeToEnemy > despawnRange) gate = 'range';
+        else if (bearingOffset > halfArc) gate = 'arc';
+        else if (tempC >= 115) gate = 'heat';
+      }
       weapons.push({
         instanceId: p.instanceId,
         partId: p.partId,
         readyFrac,
         enabled: c.weaponsEnabled[p.instanceId] === true,
         status: destroyed ? 'destroyed' : rt.isShutdown ? 'shutdown' : rt.isShed ? 'shed' : 'ok',
-        tempC: snap ? c.hottestCellC(p.instanceId, snap) : 25,
+        tempC,
+        gate,
       });
     }
     let hottest = 25;
