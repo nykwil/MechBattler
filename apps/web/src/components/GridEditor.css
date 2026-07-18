@@ -16,17 +16,23 @@
 .grid-svg { display: block; }
 .grid-svg .cell-bg { fill: var(--bg-inset); stroke: var(--line-hairline); stroke-width: 1; }
 .grid-svg .cell-core { fill: var(--bg-panel-raised); stroke: var(--signal-amber-dim); stroke-width: 1.5; }
-.grid-svg .cell-part { stroke: rgba(0,0,0,0.35); stroke-width: 1; cursor: pointer; }
+.grid-svg .cell-part { stroke: none; cursor: pointer; }
+.grid-svg .part-outline {
+  fill: none;
+  stroke: rgba(0, 0, 0, 0.6);
+  stroke-width: 2;
+  pointer-events: none;
+}
 .grid-svg .cell-selected {
   fill: none;
   stroke: var(--signal-amber);
-  stroke-width: 2;
+  stroke-width: 2.5;
   pointer-events: none;
 }
 .grid-svg .cell-fault {
   fill: none;
   stroke: var(--signal-red);
-  stroke-width: 2;
+  stroke-width: 2.5;
   stroke-dasharray: 4 3;
   pointer-events: none;
   animation: fault-pulse 1.2s ease-in-out infinite;

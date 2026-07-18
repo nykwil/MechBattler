@@ -6,10 +6,10 @@
  */
 import type { Build, ChassisSpec } from './types.js';
 import { getPart } from './catalog.js';
-import { computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
+import { buildOccupancyMap, computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
 import { computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
 
-export type IssueSeverity = 'error' | 'warn';
+export type IssueSeverity = 'error' | 'warn' | 'hint';
 
 export interface BuildIssue {
   severity: IssueSeverity;
@@ -21,7 +21,11 @@ export interface BuildIssue {
     | 'overheats'
     | 'overloaded'
     | 'no-weapons'
-    | 'band-mismatch';
+    | 'band-mismatch'
+    | 'part-overheats'
+    | 'part-runs-hot'
+    | 'radiator-far'
+    | 'ammo-cookoff-risk';
   message: string;
   /** Parts to highlight on the grid, when the issue is part-specific. */
   instanceIds: string[];
@@ -132,6 +136,105 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
       message: 'Weapon envelopes are disjoint — the autopilot cannot pick a range that suits all guns',
       instanceIds: band.perWeapon.map((w) => w.instanceId),
     });
+  }
+
+  return issues;
+}
+
+/**
+ * Heat advice (rule R5/R8: "build X so that Y"): prescriptive, per-part
+ * guidance computed from the *predicted* cell temperatures (the workshop's
+ * always-on 60 s sustained-fire prediction). Where validateBuild() names
+ * global states, this names the specific hot part and the specific fix --
+ * teaching the heat model through the build at hand: heat only moves between
+ * touching parts, pipes move it 4x faster, radiators are the only exit.
+ */
+export function computeHeatAdvice(
+  chassis: ChassisSpec,
+  build: Build,
+  cellTempsC: Record<string, number>,
+): BuildIssue[] {
+  void chassis;
+  const issues: BuildIssue[] = [];
+  if (build.parts.length === 0) return issues;
+
+  const { cellsByInstance } = buildOccupancyMap(build.parts);
+  const shortName = (partId: string) => getPart(partId).name.split(' (')[0]!;
+
+  const radiatorCells: { x: number; y: number }[] = [];
+  const pipeCells = new Set<string>();
+  for (const p of build.parts) {
+    const def = getPart(p.partId);
+    const cells = cellsByInstance.get(p.instanceId) ?? [];
+    if (def.id === 'U-RAD') radiatorCells.push(...cells);
+    if (def.isHeatPipe) for (const c of cells) pipeCells.add(`${c.x},${c.y}`);
+  }
+
+  const peaks = build.parts
+    .map((p) => {
+      const cells = cellsByInstance.get(p.instanceId) ?? [];
+      const peak = Math.max(0, ...cells.map((c) => cellTempsC[`${c.x},${c.y}`] ?? 0));
+      return { p, cells, peak };
+    })
+    .sort((a, b) => b.peak - a.peak);
+
+  let hotHints = 0;
+  for (const { p, cells, peak } of peaks) {
+    const def = getPart(p.partId);
+    const name = shortName(p.partId);
+
+    if (def.id === 'U-AMMO' && peak >= 140) {
+      issues.push({
+        severity: 'warn',
+        code: 'ammo-cookoff-risk',
+        message: `${name} trends to ~${Math.round(peak)}°C — at 180°C it cooks off (40 splash damage). Move it away from hot parts, or leave an empty cell beside it: air gaps don't conduct heat`,
+        instanceIds: [p.instanceId],
+      });
+      continue;
+    }
+    if (def.id === 'U-RAD' || def.isHeatPipe || hotHints >= 2) continue;
+
+    if (peak >= 130) {
+      const touchesPipe = cells.some((c) =>
+        [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => pipeCells.has(`${c.x + dx!},${c.y + dy!}`)));
+      const fix = radiatorCells.length === 0
+        ? 'add a Gill radiator on a perimeter cell next to it — radiators are the only way heat leaves the mech'
+        : touchesPipe
+          ? 'its pipe path or radiator cannot keep up — add another Gill near it'
+          : 'run a chain of Sweat heat pipes from it to your Gill so the heat drains instead of pooling (pipes conduct 4× faster than structure)';
+      issues.push({
+        severity: 'warn',
+        code: 'part-overheats',
+        message: `${name} reaches ~${Math.round(peak)}°C under sustained fire and will shut down at 130°C — ${fix}`,
+        instanceIds: [p.instanceId],
+      });
+      hotHints++;
+    } else if (peak >= 100) {
+      issues.push({
+        severity: 'hint',
+        code: 'part-runs-hot',
+        message: `${name} levels off around ${Math.round(peak)}°C — above the 100°C warning line. It works, but one hot-running salvage quirk or lost radiator tips it into shutdown; a Sweat pipe path to a Gill buys margin`,
+        instanceIds: [p.instanceId],
+      });
+      hotHints++;
+    }
+  }
+
+  // Distance teaching: a radiator that heat can't reach is decoration.
+  const hottest = peaks[0];
+  if (hottest && hottest.peak >= 100 && radiatorCells.length > 0 && !getPart(hottest.p.partId).isHeatPipe) {
+    const dist = Math.min(...hottest.cells.flatMap((c) =>
+      radiatorCells.map((r) => Math.abs(c.x - r.x) + Math.abs(c.y - r.y))));
+    const touchesPipe = hottest.cells.some((c) =>
+      [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => pipeCells.has(`${c.x + dx!},${c.y + dy!}`)));
+    if (dist >= 3 && !touchesPipe) {
+      issues.push({
+        severity: 'hint',
+        code: 'radiator-far',
+        message: `Your nearest Gill is ${dist} cells from ${shortName(hottest.p.partId)} (your hottest part) — heat crawls through ordinary parts at 0.03 kW/°C, so it barely arrives. Bridge the gap with Sweat pipes, or move the radiator next door`,
+        instanceIds: [hottest.p.instanceId],
+      });
+    }
   }
 
   return issues;

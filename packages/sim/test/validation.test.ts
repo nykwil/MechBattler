@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Build, PlacedPart } from '../src/types.js';
 import { getChassis } from '../src/chassis.js';
-import { validateBuild } from '../src/validation.js';
+import { computeHeatAdvice, validateBuild } from '../src/validation.js';
 import { TEMPLATES } from '../src/templates.js';
 
 const chassis = getChassis('CH-5');
@@ -72,5 +72,51 @@ describe('build validation (docs/02 §2, warn-only philosophy)', () => {
 
   it('an empty build produces no issues', () => {
     expect(validateBuild(chassis, { chassisId: 'CH-5', parts: [], powerPriority: [] })).toEqual([]);
+  });
+});
+
+describe('heat advice (prescriptive, from predicted temps)', () => {
+  const laserBuild: Build = {
+    chassisId: 'CH-5',
+    parts: [
+      part('reactor', 'R-E25', 3, 1),
+      part('las', 'W-LAS', 1, 3), // (1,3),(2,3),(3,3)
+      part('rad', 'U-RAD', 1, 0), // (1,0),(2,0),(3,0) -- 3 cells from the laser
+    ],
+    powerPriority: [],
+  };
+  const temps = (laserPeak: number): Record<string, number> => ({
+    '1,3': laserPeak, '2,3': laserPeak - 5, '3,3': laserPeak - 8,
+    '1,0': 40, '2,0': 40, '3,0': 40, '3,1': 30, '4,1': 30, '3,2': 30, '4,2': 30,
+  });
+
+  it('a shutdown-bound part gets a pipe-path prescription', () => {
+    const advice = computeHeatAdvice(chassis, laserBuild, temps(145));
+    const hot = advice.find((i) => i.code === 'part-overheats');
+    expect(hot?.severity).toBe('warn');
+    expect(hot?.message).toContain('Sweat');
+    expect(hot?.instanceIds).toEqual(['las']);
+  });
+
+  it('a warm part gets a margin hint, and a far radiator gets a distance hint', () => {
+    const advice = computeHeatAdvice(chassis, laserBuild, temps(112));
+    expect(advice.some((i) => i.code === 'part-runs-hot')).toBe(true);
+    expect(advice.some((i) => i.code === 'radiator-far')).toBe(true);
+  });
+
+  it('hot ammo warns about cook-off with the air-gap teaching', () => {
+    const build: Build = {
+      chassisId: 'CH-5',
+      parts: [part('ammo', 'U-AMMO', 1, 3)],
+      powerPriority: [],
+    };
+    const advice = computeHeatAdvice(chassis, build, { '1,3': 150, '2,3': 150 });
+    const issue = advice.find((i) => i.code === 'ammo-cookoff-risk');
+    expect(issue?.severity).toBe('warn');
+    expect(issue?.message).toContain('air gap');
+  });
+
+  it('a cool build gets no advice', () => {
+    expect(computeHeatAdvice(chassis, laserBuild, temps(60))).toEqual([]);
   });
 });

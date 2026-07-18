@@ -13,6 +13,25 @@ import './GridEditor.css';
 
 const CELL = 30;
 
+/**
+ * SVG path tracing the outer boundary of a set of cells: every cell edge
+ * whose neighbor is not in the set. Cells of one part render as a single
+ * silhouette instead of disconnected tiles.
+ */
+function outlinePath(cells: { x: number; y: number }[]): string {
+  const inSet = new Set(cells.map((c) => `${c.x},${c.y}`));
+  const segments: string[] = [];
+  for (const { x, y } of cells) {
+    const px = x * CELL;
+    const py = y * CELL;
+    if (!inSet.has(`${x},${y - 1}`)) segments.push(`M${px},${py}h${CELL}`);
+    if (!inSet.has(`${x},${y + 1}`)) segments.push(`M${px},${py + CELL}h${CELL}`);
+    if (!inSet.has(`${x - 1},${y}`)) segments.push(`M${px},${py}v${CELL}`);
+    if (!inSet.has(`${x + 1},${y}`)) segments.push(`M${px + CELL},${py}v${CELL}`);
+  }
+  return segments.join('');
+}
+
 const REJECTION_TEXT: Record<string, string> = {
   'out-of-mask': 'off the chassis — parts never hang off the mask',
   overlap: 'cell already occupied',
@@ -62,19 +81,20 @@ export function GridEditor({
   const hoverPreview = hover && selectedPartId ? previewCells(hover.x, hover.y) : [];
   const hoverLegal = hover && selectedPartId ? checkCandidate(hover.x, hover.y) === null : false;
 
-  const selectedCells = useMemo(() => {
+  const selectedOutline = useMemo(() => {
     const placed = parts.find((p) => p.instanceId === selectedInstanceId);
-    return placed ? getOccupiedCells(placed, getPart(placed.partId)) : [];
+    return placed ? outlinePath(getOccupiedCells(placed, getPart(placed.partId))) : '';
   }, [parts, selectedInstanceId]);
 
-  const faultCells = useMemo(() => {
-    const cells: { x: number; y: number }[] = [];
-    for (const p of parts) {
-      if (!faultInstanceIds.has(p.instanceId)) continue;
-      cells.push(...getOccupiedCells(p, getPart(p.partId)));
-    }
-    return cells;
-  }, [parts, faultInstanceIds]);
+  const faultOutlines = useMemo(() => parts
+    .filter((p) => faultInstanceIds.has(p.instanceId))
+    .map((p) => outlinePath(getOccupiedCells(p, getPart(p.partId)))), [parts, faultInstanceIds]);
+
+  /** One boundary path per placed part, so multi-cell parts read as one piece. */
+  const partOutlines = useMemo(() => parts.map((p) => ({
+    instanceId: p.instanceId,
+    d: outlinePath(getOccupiedCells(p, getPart(p.partId))),
+  })), [parts]);
 
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < chassis.height; y++) {
@@ -124,28 +144,22 @@ export function GridEditor({
               <rect
                 key={`part-${x},${y}`}
                 className="cell-part"
-                x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
+                x={x * CELL} y={y * CELL} width={CELL} height={CELL}
                 fill={fill}
                 opacity={overlay === 'thermal' ? 1 : 0.85}
               />
             );
           })}
 
-          {faultCells.map(({ x, y }) => (
-            <rect
-              key={`fault-${x},${y}`}
-              className="cell-fault"
-              x={x * CELL + 1.5} y={y * CELL + 1.5} width={CELL - 3} height={CELL - 3}
-            />
+          {partOutlines.map(({ instanceId, d }) => (
+            <path key={`outline-${instanceId}`} className="part-outline" d={d} />
           ))}
 
-          {selectedCells.map(({ x, y }) => (
-            <rect
-              key={`sel-${x},${y}`}
-              className="cell-selected"
-              x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
-            />
+          {faultOutlines.map((d, i) => (
+            <path key={`fault-${i}`} className="cell-fault" d={d} />
           ))}
+
+          {selectedOutline && <path className="cell-selected" d={selectedOutline} />}
 
           {rejection && rejection.cells.map(({ x, y }) => (
             <rect

@@ -12,7 +12,9 @@ export function BuildWarnings({ issues }: { issues: BuildIssue[] }) {
     <div className="build-warnings">
       {issues.map((issue, i) => (
         <div key={i} className={`build-warning ${issue.severity}`}>
-          <span className="build-warning-badge">{issue.severity === 'error' ? 'FAULT' : 'WARN'}</span>
+          <span className="build-warning-badge">
+            {issue.severity === 'error' ? 'FAULT' : issue.severity === 'warn' ? 'WARN' : 'HINT'}
+          </span>
           <span>{issue.message}</span>
         </div>
       ))}

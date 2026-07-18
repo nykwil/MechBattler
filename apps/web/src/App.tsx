@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { computeHeatAdvice, runBattle, runTestBench, validateBuild, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -44,7 +44,13 @@ export default function App() {
     return runTestBench({ chassis, build, speedSetting: 'cruise', durationS: 60 }).cellTempsFinalC;
   }, [chassis, build, state.parts.length]);
 
-  const issues = useMemo(() => validateBuild(chassis, build), [chassis, build]);
+  const issues = useMemo(() => {
+    const base = validateBuild(chassis, build);
+    // Prescriptive heat advice from the always-on prediction ("build X so
+    // that Y") -- teaches the conduction model through the current build.
+    const advice = predictedTemps ? computeHeatAdvice(chassis, build, predictedTemps) : [];
+    return [...base, ...advice];
+  }, [chassis, build, predictedTemps]);
   const faultInstanceIds = useMemo(
     () => new Set(issues.filter((i) => i.severity === 'error').flatMap((i) => i.instanceIds)),
     [issues],

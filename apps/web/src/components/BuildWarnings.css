@@ -33,5 +33,12 @@
   padding: 1px 5px;
   border-radius: 3px;
 }
+.build-warning.hint {
+  border: 1px solid var(--signal-blue-dim);
+  background: rgba(90, 169, 199, 0.06);
+  color: var(--ink-secondary);
+}
+
 .build-warning.error .build-warning-badge { background: var(--signal-red); color: #1a0808; }
 .build-warning.warn .build-warning-badge { background: var(--signal-amber); color: #1a1206; }
+.build-warning.hint .build-warning-badge { background: var(--signal-blue); color: #0a161c; }
