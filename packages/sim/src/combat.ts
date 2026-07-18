@@ -779,13 +779,35 @@ export interface ManualOrders {
   /** A point order (logged as intent `direct`), or hold in place. */
   move?: { dest: Vec2 } | 'hold';
   throttle?: SpeedSetting;
+  /**
+   * Per-weapon fire-control override: `hold` withholds a gun the autopilot
+   * would fire; `force` frees one it would gate (arc/range/temperature — the
+   * sim's physical shutdown at 130°C still applies; that's physics, not fire
+   * control). Weapons absent from the map stay on auto.
+   */
+  weapons?: Record<string, 'hold' | 'force'>;
+  /** Forced facing: track target, face the direction of travel, or hold a bearing. */
+  face?: 'movement' | { mode: 'target' } | { mode: 'bearing'; bearingRad: number };
 }
 
-/** Wraps a controller so manual verb overrides replace its orders. */
-export function withManualOrders(base: Controller, manual: () => ManualOrders): Controller {
+/**
+ * Wraps a controller so manual verb overrides replace its orders. `onArrival`
+ * fires (each controller tick) while the mech stands within 2 m of a manual
+ * waypoint — the caller's hook for "on arrival, revert to auto" (docs/08 §2).
+ */
+export function withManualOrders(base: Controller, manual: () => ManualOrders, onArrival?: () => void): Controller {
   return (ctx) => {
     const m = manual();
+    if (m.move && m.move !== 'hold' && onArrival) {
+      const d = Math.hypot(ctx.self.pos.x - m.move.dest.x, ctx.self.pos.y - m.move.dest.y);
+      if (d < 2) onArrival();
+    }
     return base(ctx).map((o): MechOrder => {
+      if (o.verb === 'weapons' && m.weapons) {
+        const enabled = { ...o.enabled };
+        for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
+        return { verb: 'weapons', enabled };
+      }
       if (o.verb === 'move' && m.move) {
         return m.move === 'hold'
           ? { verb: 'move', intent: 'hold', dest: null }
@@ -798,6 +820,18 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders): 
         // stand fully still on a hold.
         if (m.move === 'hold') return { verb: 'throttle', setting: 'stationary' };
         if (m.move) return { verb: 'throttle', setting: 'cruise' };
+      }
+      if (o.verb === 'face' && m.face) {
+        if (m.face === 'movement') {
+          const speed = Math.hypot(ctx.self.vel.x, ctx.self.vel.y);
+          return {
+            verb: 'face', mode: 'bearing',
+            bearingRad: speed > 0.5 ? Math.atan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
+          };
+        }
+        return m.face.mode === 'target'
+          ? { verb: 'face', mode: 'target' }
+          : { verb: 'face', mode: 'bearing', bearingRad: m.face.bearingRad };
       }
       return o;
     });
@@ -1096,7 +1130,9 @@ export class Battle {
         ? Object.keys(order.enabled).filter((id) => order.enabled[id]).sort().join(',')
         : order.verb === 'move' ? order.intent
         : order.verb === 'throttle' ? order.setting
-        : order.mode === 'bearing' ? `bearing:${order.bearingRad.toFixed(2)}` : 'target';
+        // Half-radian buckets: a continuously tracked bearing (face-movement
+        // mode) is steering noise, not a new decision.
+        : order.mode === 'bearing' ? `bearing:${(Math.round(order.bearingRad * 2) / 2).toFixed(1)}` : 'target';
       if (this.lastOrderSig[mech][order.verb] !== sig) {
         this.lastOrderSig[mech][order.verb] = sig;
         this.events.push({ tSec: this.tSec, type: 'order', mech, order });

@@ -67,13 +67,18 @@ function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: s
   );
 }
 
+/** Command mode: a player's standing fire-control override on one gun. */
+export type WeaponOverride = 'hold' | 'force';
+
 function WeaponSlot({
-  wf, fired, compact, onHover,
+  wf, fired, compact, onHover, override, onClick,
 }: {
   wf: WeaponFrame;
   fired: boolean;
   compact?: boolean;
   onHover?: (partId: string | null) => void;
+  override?: WeaponOverride;
+  onClick?: () => void;
 }) {
   const def = getPart(wf.partId);
   const cls = [
@@ -82,11 +87,15 @@ function WeaponSlot({
     !wf.enabled && wf.status === 'ok' ? 'holdfire' : '',
     fired ? 'fired' : '',
     compact ? 'compact' : '',
+    override ? `ovr-${override}` : '',
+    onClick ? 'clickable' : '',
   ].filter(Boolean).join(' ');
+  const ovrText = override === 'hold' ? ' — manual: HOLD FIRE' : override === 'force' ? ' — manual: FORCE FIRE' : '';
   return (
     <div
       className={cls}
-      title={weaponBlurb(def)}
+      title={weaponBlurb(def) + ovrText + (onClick ? ' · click: auto → hold → force' : '')}
+      onClick={onClick}
       onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
     >
@@ -95,6 +104,7 @@ function WeaponSlot({
       {wf.status === 'destroyed' && <span className="hud-slot-x">✕</span>}
       {wf.status === 'shutdown' && <span className="hud-slot-x">♨</span>}
       {!wf.enabled && wf.status === 'ok' && <span className="hud-slot-hold">HOLD</span>}
+      {override && <span className={`hud-slot-ovr ${override}`}>{override === 'hold' ? '◦' : '▲'}</span>}
     </div>
   );
 }
@@ -121,13 +131,17 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick,
 }: {
   view: BattleView;
   tSec: number;
   names: [string, string];
   /** Command mode: left-click = point order at arena coords, right-click = revert to auto. */
   onArenaOrder?: (x: number, y: number, kind: 'move' | 'auto') => void;
+  /** Command mode: the player's standing per-gun overrides, shown on the slots. */
+  weaponOverrides?: Record<string, WeaponOverride>;
+  /** Command mode: click a gun slot to cycle auto → hold-fire → force-fire. */
+  onWeaponClick?: (instanceId: string) => void;
 }) {
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const frame = frameAt(view, tSec);
@@ -288,6 +302,8 @@ export function BattleScene({
                 key={wf.instanceId} wf={wf}
                 fired={firedIds.has(`0:${wf.instanceId}`)}
                 onHover={setHoveredWeapon}
+                override={weaponOverrides?.[wf.instanceId]}
+                onClick={onWeaponClick ? () => onWeaponClick(wf.instanceId) : undefined}
               />
             ))}
           </div>

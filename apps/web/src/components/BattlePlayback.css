@@ -147,6 +147,19 @@
   0%, 100% { box-shadow: 0 0 6px 0 rgba(214, 69, 69, 0.5) inset; }
   50% { box-shadow: 0 0 12px 2px rgba(214, 69, 69, 0.9) inset; }
 }
+.hud-slot.clickable { cursor: pointer; }
+.hud-slot.clickable:hover { border-color: var(--line-bright); }
+.hud-slot.ovr-hold { border-style: dashed; }
+.hud-slot.ovr-force { border-color: var(--signal-green); }
+.hud-slot-ovr {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font-size: 9px;
+  pointer-events: none;
+}
+.hud-slot-ovr.hold { color: var(--ink-faint); }
+.hud-slot-ovr.force { color: var(--signal-green); }
 .hud-slot-label {
   position: relative;
   font-size: 8.5px;

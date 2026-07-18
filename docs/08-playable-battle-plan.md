@@ -89,8 +89,13 @@ flow: run headless, open the replay) and **Command** (live). Both end at the sam
    `withManualOrders(base, () => ManualOrders)` so scripted tests drive the exact same
    path as the UI (rule R6); pinned tests: a held mech never moves, a waypoint order
    marches within 8 m of the point while weapons stay on fire control.
-3. **M3 — Weapons + face.** Gun-slot 3-state cycling (force-fire bypasses controller
-   gates), face cycling with bearing mode, the on-arrival revert trigger.
+3. **M3 — Weapons + face.** ✅ *shipped Jul 18 2026.* Gun slots cycle auto → hold-fire →
+   force-fire (force bypasses the autopilot's arc/range/temperature gate; the 130°C
+   physical shutdown still applies); the face chip cycles auto → target → movement →
+   bearing (an arena click aims the held bearing); "auto on arrival" on a waypoint
+   clears all manual state via `withManualOrders`'s `onArrival` hook. Face-movement's
+   continuously tracked bearing forced the order-log signature to bucket bearings at
+   0.5 rad so steering noise stays out of the ticker.
 4. **M4 — Report parity + polish.** Played battles open the normal report with full
    replay scrubbing (should be nearly free); keybindings (space = pause, 1-9 = gun
    slots, A = full auto); order feedback (click ripple at the waypoint).

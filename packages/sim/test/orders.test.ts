@@ -131,6 +131,75 @@ describe('manual order overrides (docs/08 §3): the player merge over the autopi
     // Weapons stayed under fire control: the held-back player still shot.
     expect(battle.events.some((e) => e.type === 'shot' && e.mech === 0)).toBe(true);
   });
+
+  it('weapon overrides: hold silences a gun the autopilot would fire; force frees a gated one', () => {
+    const build = muleGunline();
+    const gunIds = ['ac'];
+    // Hold-fire on every gun: the player never shoots for the whole battle.
+    const holdAll = withManualOrders(autopilotController, () => ({
+      weapons: Object.fromEntries(gunIds.map((id) => [id, 'hold' as const])),
+    }));
+    const held = new Battle({ builds: [build, muleGunline()], seed: 7, controllers: [holdAll, autopilotController], timeoutS: 30 });
+    while (held.step()) { /* run out */ }
+    expect(held.events.some((e) => e.type === 'shot' && e.mech === 0)).toBe(false);
+    expect(held.events.some((e) => e.type === 'shot' && e.mech === 1)).toBe(true);
+
+    // Force-fire while holding position at a ~236 m spawn — beyond the AC's
+    // despawn bound (~169 m), where the autopilot's range gate holds fire.
+    // Force overrides the gate (the shots just despawn; that's physics).
+    const autoHold = withManualOrders(autopilotController, () => ({ move: 'hold' }));
+    const forceHold = withManualOrders(autopilotController, () => ({
+      move: 'hold',
+      weapons: { ac: 'force' },
+    }));
+    const far = { spawnDistanceM: 236, timeoutS: 6 };
+    const gated = new Battle({ builds: [build, muleGunline()], seed: 7, controllers: [autoHold, autopilotController], ...far });
+    const forced = new Battle({ builds: [build, muleGunline()], seed: 7, controllers: [forceHold, autopilotController], ...far });
+    while (gated.step()) { /* run out */ }
+    while (forced.step()) { /* run out */ }
+    const shotsBefore = (b: Battle, t: number) => b.events.filter((e) => e.type === 'shot' && e.mech === 0 && e.tSec < t).length;
+    expect(shotsBefore(gated, 4)).toBe(0);
+    expect(shotsBefore(forced, 4)).toBeGreaterThan(0);
+  });
+
+  it('face overrides: a held bearing pins the facing; face-movement turns into the direction of travel', () => {
+    const bearing = Math.PI / 2;
+    const pinned = withManualOrders(autopilotController, () => ({
+      move: 'hold',
+      face: { mode: 'bearing', bearingRad: bearing },
+    }));
+    const battle = new Battle({ builds: [muleGunline(), muleGunline()], seed: 9, controllers: [pinned, autopilotController], timeoutS: 12 });
+    while (battle.step()) { /* run out */ }
+    const end = battle.latestFrame()!.mechs[0];
+    expect(end.faceMode).toBe('bearing');
+    const off = Math.abs(Math.atan2(Math.sin(end.facingRad - bearing), Math.cos(end.facingRad - bearing)));
+    expect(off).toBeLessThan(0.05);
+
+    // Face-movement while marching +x to a waypoint: facing settles along +x
+    // even though the enemy (the default face target) sits off-axis.
+    const marcher = withManualOrders(autopilotController, () => ({
+      move: { dest: { x: 100, y: 0 } },
+      face: 'movement',
+    }));
+    const march = new Battle({ builds: [muleGunline(), muleGunline()], seed: 9, controllers: [marcher, autopilotController], timeoutS: 8 });
+    while (march.step()) { /* run out */ }
+    const frames = march.frames.filter((f) => f.tSec > 3 && f.tSec < 7);
+    const m = frames[Math.floor(frames.length / 2)]!.mechs[0];
+    expect(m.faceMode).toBe('bearing');
+    expect(Math.abs(Math.atan2(Math.sin(m.facingRad), Math.cos(m.facingRad)))).toBeLessThan(0.4);
+  });
+
+  it('onArrival fires when the mech reaches a manual waypoint', () => {
+    let arrived = false;
+    const player = withManualOrders(
+      autopilotController,
+      () => (arrived ? {} : { move: { dest: { x: -40, y: 0 } } }),
+      () => { arrived = true; },
+    );
+    const battle = new Battle({ builds: [muleGunline(), muleGunline()], seed: 3, controllers: [player, autopilotController], timeoutS: 30 });
+    while (battle.step()) { /* run out */ }
+    expect(arrived).toBe(true);
+  });
 });
 
 describe('motion jitter (docs/03 §4): additive error punishes precision guns most', () => {
