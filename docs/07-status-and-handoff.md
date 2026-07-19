@@ -248,7 +248,9 @@ milestones): arc wedges + range sandbox + waypoint-facing fix, playable friction
 (per-slot RANGE/ARC/HOT vs player HOLD), the network-starved audit, the ⚡ Auto-wire
 baseline, and sandbox uptime attribution. Balancing explicitly deferred — building for
 feature-completeness and user experience first (user call, Jul 18 2026).
-**Next: Track A — run structure & economy.**
+**Next: Track A — run structure & economy, planned in `10-run-structure-plan.md`
+(M1 run shell → M2 wreck salvage → M3 repair/integrity → M4 enemy ladder → M5
+variants & quirks → M6 polish; economy numbers are config dials, balancing deferred).**
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
