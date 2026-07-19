@@ -122,7 +122,7 @@ export default function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (battle || live) return; // battle overlays own the keyboard
+      if (battle || live || wreck) return; // overlays own the keyboard
       if (e.key.toLowerCase() === 'r') rotate();
       if (e.key === 'Escape') {
         selectPart(null);
@@ -134,7 +134,7 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rotate, selectPart, selectInstance, remove, state.selectedInstanceId, battle, live]);
+  }, [rotate, selectPart, selectInstance, remove, state.selectedInstanceId, battle, live, wreck]);
 
   return (
     <div className="app-shell">

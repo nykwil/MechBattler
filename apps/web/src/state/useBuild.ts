@@ -96,17 +96,22 @@ function reducer(state: EditorState, action: Action): EditorState {
       const fresh = action.parts.filter((p) => !existing.has(p.instanceId));
       return fresh.length > 0 ? { ...state, parts: [...state.parts, ...fresh] } : state;
     }
-    case 'LOAD_BUILD':
+    case 'LOAD_BUILD': {
       // Run flow (docs/10 M1): replace the whole editor state with a build
-      // (starter kit or a restored run). nextSeq restarts at parts.length+1;
-      // PLACE ids are `${partId}-${seq}`, which never collides with template
-      // or wire-N instance ids.
+      // (starter kit or a restored run). nextSeq must clear every numeric
+      // `-N` suffix already in the build — a restored run carries editor-
+      // generated ids like 'W-MG-9', and reusing a seq would duplicate one.
+      const maxSeq = action.build.parts.reduce((max, p) => {
+        const m = /-(\d+)$/.exec(p.instanceId);
+        return m ? Math.max(max, Number(m[1])) : max;
+      }, 0);
       return {
         ...initialState(action.build.chassisId),
         parts: [...action.build.parts],
         powerPriority: [...action.build.powerPriority],
-        nextSeq: action.build.parts.length + 1,
+        nextSeq: Math.max(maxSeq, action.build.parts.length) + 1,
       };
+    }
     case 'REMOVE':
       return {
         ...state,

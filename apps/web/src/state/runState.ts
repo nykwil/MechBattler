@@ -41,7 +41,9 @@ export const STARTER_KITS = [
 export function kitBuild(templateId: string): Build {
   const t = TEMPLATES.find((x) => x.id === templateId);
   if (!t) throw new Error(`Unknown starter kit template: ${templateId}`);
-  return t.build;
+  // Deep copy: the run's build gets edited (and M3's repair mutates part
+  // integrity) — the shared template roster must never see any of it.
+  return structuredClone(t.build);
 }
 
 export interface RunData {
