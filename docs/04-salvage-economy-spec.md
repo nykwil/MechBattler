@@ -119,10 +119,13 @@ Core destroyed = run over, full stop. Within a run, knowledge and the wreck econ
 the whole game; across runs there is one carryover: **unlocks** (user call, Jul 19 2026,
 superseding the earlier no-meta stance).
 
-- **The general loop is unlocking chassis and parts.** Beating a mech that rides a
-  locked chassis unlocks that chassis; encountering/beating locked parts unlocks them.
-  Unlocks gate what future runs can *start with and buy* (starter kits, palette/shop
-  stock) — never what salvage can drop, so a run can still loot anything it defeats.
+- **The general loop is unlocking starting options.** Beating a mech that rides a locked
+  chassis unlocks that chassis; beating locked parts unlocks them as **starting parts**
+  (user call, Jul 19 2026). Unlocks shape how a run *begins* — the starting chassis and
+  the pool of parts a starting loadout can draw from — and nothing else: in-run
+  acquisition stays pure salvage economy, and a run can always loot anything it defeats.
+  End state: run start is "pick an unlocked chassis, outfit it from your unlocked
+  starting-part pool" (preset kits remain as suggested loadouts for new profiles).
 - **Unlocks are horizontal, not vertical** (user call, Jul 19 2026): an unlock widens
   the option space — new archetypes, new build puzzles — it must not be a power reward.
   In particular **bigger chassis are balanced sidegrades**: more grid room buys more

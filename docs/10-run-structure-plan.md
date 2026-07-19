@@ -98,9 +98,11 @@ unfamiliar frame is what unlocks it for future runs (M6, 04 §7).*
 ### M6 — Meta unlocks & run polish
 
 - **Unlock loop (04 §7, user call Jul 19 2026)**: a persistent profile (localStorage
-  beside the run save) tracks unlocked chassis and parts. Beating a mech riding a locked
-  chassis unlocks it; same loop for parts. Unlocks gate starter kits and shop stock,
-  never salvage. Wreck screen announces unlocks. All thresholds config dials.
+  beside the run save) tracks unlocked chassis and **starting parts**. Beating a mech
+  riding a locked chassis unlocks the chassis; beating locked parts unlocks them for
+  starting loadouts. Unlocks shape run start only (pick an unlocked chassis, outfit it
+  from the unlocked starting-part pool; preset kits stay as suggestions) — in-run
+  salvage is never gated. Wreck screen announces unlocks. All thresholds config dials.
   **Horizontal only**: unlocks add build diversity, not power — bigger chassis are
   balanced sidegrades (mass / target profile / speed / plumbing costs offset the room),
   so a veteran profile has more *kinds* of runs, not easier ones.
