@@ -13,6 +13,24 @@ export const RUN_LENGTH = 12;
 export const STARTING_SCRAP = 30;
 const STORAGE_KEY = 'mechbattler-run';
 
+// --- Economy dials (docs/04 §1-§2, §8 — tuning deferred by design) ----------
+export const PURSE_BASE = 20;
+export const PURSE_PER_NODE = 5;
+/** Destroyed (and left-behind) enemy parts auto-scrap at tier × this. */
+export const SCRAP_WRECK_MULT = 4;
+/** Selling a part you own pays tier × this. */
+export const SCRAP_SELL_MULT = 8;
+/** Loot integrity loses a further uniform 0..this on extraction. */
+export const EXTRACTION_WEAR_MAX = 0.2;
+export const BENCH_CAP = 8;
+
+/** An unplaced salvaged part riding in the bench pool (docs/04 §2). */
+export interface BenchPart {
+  partId: string;
+  /** 0-1; scales HP when placed (04 §3). */
+  integrity: number;
+}
+
 /** Starter kits (docs/04 §6) drawn from the sim's template roster. */
 export const STARTER_KITS = [
   { templateId: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast, cool, shallow — twin MGs on a scout frame.' },
@@ -33,6 +51,7 @@ export interface RunData {
   scrap: number;
   fightsWon: number;
   kitName: string;
+  benchPool: BenchPart[];
 }
 
 export type RunPhase =
@@ -62,7 +81,10 @@ interface StoredRun {
 function load(): StoredRun | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as StoredRun) : null;
+    if (!raw) return null;
+    const stored = JSON.parse(raw) as StoredRun;
+    stored.data.benchPool ??= []; // runs saved before M2 lack the pool
+    return stored;
   } catch {
     return null;
   }
@@ -80,18 +102,34 @@ export function useRun() {
         scrap: STARTING_SCRAP,
         fightsWon: 0,
         kitName,
+        benchPool: [],
       },
     });
   }, []);
 
-  const won = useCallback((): void => {
+  /** Settle a won node: bank purse + wreck scrap, pocket the loot, advance. */
+  const won = useCallback((scrapGained = 0, loot: BenchPart[] = []): void => {
     setRun((r) => {
       if (r.phase !== 'active') return r;
-      const data = { ...r.data, fightsWon: r.data.fightsWon + 1 };
+      const data = {
+        ...r.data,
+        fightsWon: r.data.fightsWon + 1,
+        scrap: r.data.scrap + scrapGained,
+        benchPool: [...r.data.benchPool, ...loot].slice(0, BENCH_CAP),
+      };
       if (data.nodeIndex >= RUN_LENGTH) {
         return { phase: 'over', data, cause: 'Completed the ladder', victorious: true };
       }
       return { phase: 'active', data: { ...data, nodeIndex: data.nodeIndex + 1 } };
+    });
+  }, []);
+
+  /** Sell a bench-pool part for tier × SCRAP_SELL_MULT (docs/04 §1). */
+  const sellBench = useCallback((index: number, value: number): void => {
+    setRun((r) => {
+      if (r.phase !== 'active') return r;
+      const benchPool = r.data.benchPool.filter((_, i) => i !== index);
+      return { phase: 'active', data: { ...r.data, benchPool, scrap: r.data.scrap + value } };
     });
   }, []);
 
@@ -128,5 +166,5 @@ export function useRun() {
     }
   }, []);
 
-  return { run, start, won, lost, abandon, persistBuild, restored, clearRestored: () => setRestored(null) };
+  return { run, start, won, lost, abandon, sellBench, persistBuild, restored, clearRestored: () => setRestored(null) };
 }

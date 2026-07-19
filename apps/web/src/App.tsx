@@ -10,7 +10,8 @@ import { PartInspector } from './components/PartInspector.js';
 import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
-import { kitBuild, useRun } from './state/runState.js';
+import { WreckScreen } from './components/WreckScreen.js';
+import { kitBuild, PURSE_BASE, PURSE_PER_NODE, useRun } from './state/runState.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
@@ -37,9 +38,11 @@ export default function App() {
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
-  const { run, start, won, lost, abandon, persistBuild, restored, clearRestored } = useRun();
+  const { run, start, won, lost, abandon, sellBench, persistBuild, restored, clearRestored } = useRun();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
+  /** A won run fight awaiting its salvage screen (docs/10 M2). */
+  const [wreck, setWreck] = useState<{ report: BattleReport; opponent: OpponentDef; nodeIndex: number } | null>(null);
 
   // Restore a reloaded run's build into the editor, once.
   useEffect(() => {
@@ -50,10 +53,12 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [restored]);
 
-  // The run's build snapshot follows every edit (and clears when no run).
+  // The run snapshot follows every edit AND every run-data change (scrap,
+  // bench, node) — depending on `run` itself, not just the phase, is what
+  // keeps a post-salvage reload honest.
   useEffect(() => {
     persistBuild(build);
-  }, [build, run.phase, persistBuild]);
+  }, [build, run, persistBuild]);
 
   const startKit = useCallback((templateId: string, kitName: string) => {
     loadBuild(kitBuild(templateId));
@@ -220,6 +225,7 @@ export default function App() {
               onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
               onAbandon={abandon}
               onNewRun={abandon}
+              onSellBench={sellBench}
             />
           </div>
           {run.phase === 'none' && (
@@ -244,7 +250,21 @@ export default function App() {
         />
       )}
 
-      {battle && !live && (
+      {wreck && run.phase === 'active' && (
+        <WreckScreen
+          report={wreck.report}
+          enemyBuild={wreck.opponent.build}
+          opponentName={wreck.opponent.name}
+          purse={PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex}
+          benchUsed={run.data.benchPool.length}
+          onFinish={(scrapGained, loot) => {
+            won(scrapGained, loot);
+            setWreck(null);
+          }}
+        />
+      )}
+
+      {battle && !live && !wreck && (
         <BattleReportScreen
           report={battle.report}
           opponent={battle.opponent}
@@ -256,8 +276,10 @@ export default function App() {
             // (mission-kill, judges) keep the node — pick again or refit.
             if (runFightRef.current) {
               runFightRef.current = false;
-              if (battle.report.winner === 0) won();
-              else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
+              if (battle.report.winner === 0 && run.phase === 'active') {
+                // Salvage settles the node (docs/04 §2) before the ladder advances.
+                setWreck({ report: battle.report, opponent: battle.opponent, nodeIndex: run.data.nodeIndex });
+              } else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
                 lost(`Core destroyed by ${battle.opponent.name}`);
               }
             }

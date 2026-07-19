@@ -279,6 +279,15 @@ heat-penalty ramp, physics/IK presentation, async PvP.
 
 ## Loose ends & ideas worth mining (captured, undecided)
 
+- **Rare/unique salvage — tabled for a design discussion (user, Jul 18 2026)**: beyond
+  stat variants and quirks (04 §4), should rare fights drop *named unique parts* with
+  build-defining behaviors ("unique perks")? Design tension to resolve: rule R1 wants
+  every effect to be a physical parameter, and 06 already says the strongest support
+  parts should unlock strategies — so uniques are probably named, pre-rolled extreme
+  variant+quirk combos on the existing axes (legendary metal, not new rules text).
+  Candidate hooks: boss/elite-only drop tables, one-per-run uniqueness, intel telegraphs
+  ("carries the 'Widowmaker' railgun"). Discuss before Track A M5 lands quirks.
+
 - **RogueTech heat-escalation ladder**: before hard shutdown at 130°C, soft penalties could
   ramp (dispersion/speed degradation as cells heat). Our thresholds (02 §3) are cliff-edged;
   RogueTech's escalating-penalty scale reads well in play. Candidate 02 change — weigh

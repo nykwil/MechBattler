@@ -1,0 +1,96 @@
+.wreck-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 11, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+.wreck-panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--line-bright);
+  border-radius: var(--radius-md);
+  padding: 16px 18px;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+}
+.wreck-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.wreck-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0.08em;
+  color: var(--ink-primary);
+}
+.wreck-purse { font-family: var(--font-mono); font-size: 12px; color: var(--signal-amber); }
+
+.wreck-body { display: flex; gap: 16px; align-items: flex-start; }
+.wreck-grid { flex: none; }
+.wreck-cell { fill: var(--bg-inset); stroke: var(--line-hairline); stroke-width: 1; }
+.wreck-part.lootable { cursor: pointer; }
+.wreck-part.lootable:hover rect { filter: brightness(1.25); }
+.wreck-part.destroyed rect { opacity: 0.5; }
+.wreck-part.taken rect { stroke: var(--signal-green); stroke-width: 2; }
+.wreck-x {
+  fill: var(--signal-red);
+  font-size: 12px;
+  text-anchor: middle;
+  pointer-events: none;
+}
+
+.wreck-list { flex: 1; min-width: 240px; }
+.wreck-list-title {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+.wreck-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm, 4px);
+  padding: 3px 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+.wreck-row:hover { background: var(--bg-panel-raised); }
+.wreck-row.taken { color: var(--ink-primary); }
+.wreck-row.taken .wreck-row-mark { color: var(--signal-green); }
+.wreck-row-name { flex: 1; }
+.wreck-row-int { color: var(--signal-amber); }
+.wreck-row-scrap { width: 44px; text-align: right; color: var(--ink-faint); }
+.wreck-row.taken .wreck-row-scrap { color: var(--signal-green); }
+
+.wreck-destroyed {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line-hairline);
+}
+
+.wreck-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-top: 14px;
+}
+.wreck-total { font-family: var(--font-mono); font-size: 12px; color: var(--signal-amber); }

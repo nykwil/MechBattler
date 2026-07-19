@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import type { Build } from '@mechbattler/sim';
-import { nodeOpponents, RUN_LENGTH, STARTER_KITS, type RunPhase } from '../state/runState.js';
+import { getPart, type Build } from '@mechbattler/sim';
+import { nodeOpponents, BENCH_CAP, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type RunPhase } from '../state/runState.js';
 import type { OpponentDef } from '../lib/opponents.js';
 import type { FightMode } from './ArenaPanel.js';
 import './ArenaPanel.css';
@@ -12,7 +12,7 @@ import './RunPanel.css';
  * card styling so intel reads the same everywhere.
  */
 export function RunPanel({
-  run, build, onStartKit, onFight, onAbandon, onNewRun,
+  run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench,
 }: {
   run: RunPhase;
   build: Build;
@@ -20,6 +20,7 @@ export function RunPanel({
   onFight: (opponent: OpponentDef, mode: FightMode) => void;
   onAbandon: () => void;
   onNewRun: () => void;
+  onSellBench: (index: number, value: number) => void;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
@@ -112,6 +113,25 @@ export function RunPanel({
           Watch
         </button>
       </div>
+
+      {run.data.benchPool.length > 0 && (
+        <div className="run-bench">
+          <div className="run-bench-title">Bench pool ({run.data.benchPool.length}/{BENCH_CAP}) — salvage awaiting a refit or a sale</div>
+          {run.data.benchPool.map((b, i) => {
+            const def = getPart(b.partId);
+            const value = def.tier * SCRAP_SELL_MULT;
+            return (
+              <div key={`${b.partId}-${i}`} className="run-bench-row">
+                <span className="run-bench-name">{def.name}</span>
+                <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
+                <button type="button" className="run-bench-sell" onClick={() => onSellBench(i, value)} title="Scrap this part">
+                  sell +{value}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

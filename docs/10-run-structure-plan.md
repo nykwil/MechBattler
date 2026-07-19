@@ -39,7 +39,11 @@ The state machine, with the existing roster as placeholder opponents:
 - Workshop stays reachable between fights (repair/refit comes in M3; until then it's the
   existing editor operating on the run's build).
 
-### M2 — Purse & wreck salvage
+### M2 — Purse & wreck salvage ✅ *shipped Jul 18 2026 — WreckScreen (the wreck as its
+chassis grid, click to take, live totals), per-part loot integrity from real fight
+damage + seeded extraction wear, bench pool with sell; all rates are runState.ts config
+dials. Tabled for a design discussion before M5: rare/named unique parts ("unique
+perks") — captured in 07 Loose ends.*
 
 - Fight purse on victory: `20 + 5×tier`, elite ×1.5 (config).
 - **Wreck screen**: the enemy's actual chassis grid, per-part state from the battle
