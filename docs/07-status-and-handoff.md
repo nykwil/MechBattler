@@ -248,7 +248,7 @@ milestones): arc wedges + range sandbox + waypoint-facing fix, playable friction
 (per-slot RANGE/ARC/HOT vs player HOLD), the network-starved audit, the ⚡ Auto-wire
 baseline, and sandbox uptime attribution. Balancing explicitly deferred — building for
 feature-completeness and user experience first (user call, Jul 18 2026).
-**Track A — run structure & economy** (plan: `10-run-structure-plan.md`; economy numbers
+**Track A — run structure & economy** (plan: `archive/10-run-structure-plan.md`; economy numbers
 are config dials, balancing deferred): M1 run shell, M2 wreck salvage and M3
 repair/refit/integrity **shipped Jul 18 2026**. M3 landed: integrity-scaled part HP
 pinned in tests, `partsFinalHp` on MechReport (loot condition now includes heat and
