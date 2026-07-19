@@ -70,13 +70,18 @@ scrap (superseded by M4 scrapyard nodes).*
 
 ### M4 — Enemy ladder
 
+*Revised Jul 19 2026 (user call): **no bosses**, no mid-run chassis changes. The ladder
+is the budget curve alone — late nodes naturally field bigger frames, and beating an
+unfamiliar frame is what unlocks it for future runs (M6, 04 §7).*
+
 - Budget-driven opponents: tier budget `f(node)` = 8 → 30 (config), hand-authored
   templates (the sim's `templates.ts` roster) with randomized fill, seeded per node.
+  Bigger chassis enter as the budget allows (CH-5 mid-run, CH-7/CH-9 late).
 - Node flavors: standard / **elite** (guaranteed quirked high-tier part once M5 lands;
-  until then +budget) / **scrapyard** (scrap↔part conversion at poor rates, one reroll)
-  / **bosses** at 4, 8, 12 riding the next chassis up, with the pre-fight headline-weapon
-  warning and the chassis itself as a drop choice.
-- Intel cards gain the arena preview (spawn distance + terrain silhouette, 04 §5).
+  until then +budget) / **scrapyard** (scrap↔part conversion at poor rates, one reroll —
+  supersedes M3's palette-as-shop placeholder).
+- Intel cards gain the arena preview (spawn distance + terrain silhouette, 04 §5) and a
+  headline-weapon warning when the opponent rides a bigger chassis than yours.
 
 ### M5 — Variants & quirks
 
@@ -90,10 +95,14 @@ scrap (superseded by M4 scrapyard nodes).*
   Frankensteined = bench-slot/mass). Tooltip one-liners everywhere the part appears.
   Elites get built *with* quirked parts so intel telegraphs the inheritance.
 
-### M6 — Run polish
+### M6 — Meta unlocks & run polish
 
-Run-history memorial persistence (last N runs), judges-loss reduced salvage (04 §9),
-bench-pool transplant-mode question (04 §9), starter-kit rotation.
+- **Unlock loop (04 §7, user call Jul 19 2026)**: a persistent profile (localStorage
+  beside the run save) tracks unlocked chassis and parts. Beating a mech riding a locked
+  chassis unlocks it; same loop for parts. Unlocks gate starter kits and shop stock,
+  never salvage. Wreck screen announces unlocks. All thresholds config dials.
+- Run-history memorial persistence (last N runs), judges-loss reduced salvage (04 §9),
+  bench-pool transplant-mode question (04 §9), starter-kit rotation.
 
 ## 3. Order and effort
 
@@ -104,5 +113,5 @@ biggest sim surface — split variants from quirks if it drags); M6 mops up.
 ## 4. Explicitly out of scope
 
 Balancing pass on any number (Track C, after this ships — the 04 §8 dials exist as
-config), ammo system, turret mounts, meta-progression, multiplayer (00 backlog),
+config), ammo system, turret mounts, multiplayer (00 backlog),
 docs/08 M5 stretch items.

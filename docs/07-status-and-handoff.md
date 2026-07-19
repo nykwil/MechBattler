@@ -256,8 +256,11 @@ cook-off damage), partial/full repair (0.4 × tier per point), sell-a-placed-par
 bench-pool → grid placement ("fit") and unplace-back, grid integrity badges — plus a
 placeholder shop: during a run, catalog parts (and auto-wired conduits) are bought at
 tier × `SCRAP_BUY_MULT` (12 > sell 8, so the palette can't mint scrap; M4's scrapyard
-nodes supersede this). **Next: M4 enemy ladder → M5 variants & quirks (hold the tabled
-rare/unique-items discussion first — see Loose ends) → M6 polish.**
+nodes supersede this). Design revision (user call, Jul 19 2026): **no bosses and no
+mid-run chassis changes** — the ladder is the budget curve alone, and chassis/parts are
+**meta-unlocks** earned by beating them, gating future runs' starter kits and shop stock
+(04 §7, 10 M4/M6). **Next: M4 enemy ladder → M5 variants & quirks (hold the tabled
+rare/unique-items discussion first — see Loose ends) → M6 meta unlocks & polish.**
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
@@ -292,8 +295,9 @@ heat-penalty ramp, physics/IK presentation, async PvP.
   every effect to be a physical parameter, and 06 already says the strongest support
   parts should unlock strategies — so uniques are probably named, pre-rolled extreme
   variant+quirk combos on the existing axes (legendary metal, not new rules text).
-  Candidate hooks: boss/elite-only drop tables, one-per-run uniqueness, intel telegraphs
-  ("carries the 'Widowmaker' railgun"). Discuss before Track A M5 lands quirks.
+  Candidate hooks: elite-only drop tables (no bosses — cut Jul 19 2026), one-per-run
+  uniqueness, intel telegraphs ("carries the 'Widowmaker' railgun"). Discuss before
+  Track A M5 lands quirks.
 
 - **RogueTech heat-escalation ladder**: before hard shutdown at 130°C, soft penalties could
   ramp (dispersion/speed degradation as cells heat). Our thresholds (02 §3) are cliff-edged;

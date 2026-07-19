@@ -27,7 +27,10 @@ part sat and what state it's in (the wreck screen doubles as build-intel educati
 - Carry limit: loot any number of parts, but unplaced parts ride in the **bench pool**
   capped at 8 slots (multi-cell parts still 1 slot). Excess must be scrapped on the spot.
   Pressure to commit, not hoard.
-- Chassis: boss wrecks (and only boss wrecks) offer the chassis itself as a drop choice.
+- Chassis are **not** salvage: a run is locked to its starting chassis (user call, Jul 19
+  2026 — no mid-run frame swaps). Beating a mech riding a chassis you haven't unlocked
+  **unlocks that chassis for future runs** (§7 meta loop) — the wreck screen announces the
+  unlock instead of offering the frame.
 
 ## 3. Integrity and repair
 
@@ -80,8 +83,11 @@ Distribution: 70% no quirk; of quirked drops, weighted 2:1 flaws:gifts. Enemy el
 
 ## 5. Run structure
 
-A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents (bosses at nodes 4, 8,
-12 are mandatory but offer a pre-fight refit warning of the boss's headline weapon).
+A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents. No boss fights
+(user call, Jul 19 2026): the ladder has no scripted landmarks, just the budget curve —
+late-run opponents naturally ride bigger frames, and beating an unfamiliar frame is what
+unlocks it (§2, §7). A mech on a bigger chassis than yours still gets the pre-fight
+headline-weapon warning on its intel card.
 
 - **Intel is the draft**: each opponent card shows chassis silhouette (type + cell count),
   2 confirmed parts, purse, and a threat rating. Picking a fight *is* picking the parts
@@ -91,13 +97,13 @@ A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents (bosses 
   water-cooled build (backlog) hunts pond maps. Picking the fight is picking the
   battlefield *and* the loot — build-vs-terrain matchups become part of the draft.
 - Node flavors: standard; **elite** (+1 quirked high-tier part guaranteed, harder);
-  **scrapyard** (no fight: convert scrap ↔ parts at poor rates, one reroll); bosses.
+  **scrapyard** (no fight: convert scrap ↔ parts at poor rates, one reroll).
 - Enemy scaling: opponents are built with the same part catalog and rules as the player
   (budget = f(node): total part-tier budget 8 at node 1 → 30 at node 12). Enemies are
   hand-authored templates with randomized fill, not fully procedural, so fights stay
   readable and salvage stays deliberate.
-- Bosses ride the next chassis size up (node 4: CH-5; node 8: CH-7; node 12: CH-9), which is
-  exactly why their chassis is the drop.
+- The budget curve fields bigger chassis as the run deepens (roughly CH-5 by mid-run,
+  CH-7/CH-9 late) — chassis variety comes from the curve, not special nodes.
 
 ## 6. Run start
 
@@ -109,9 +115,18 @@ Pick 1 of 3 starter kits (chassis + parts + 30 scrap), e.g.:
 
 ## 7. Death and meta
 
-Core destroyed = run over, full stop. v1 has **no meta-progression unlocks** (backlog):
-the roguelike promise is that knowledge is the only carryover. A run-history screen (final
-mech portrait, cause of death, fights won) is cheap and satisfies the memorial urge.
+Core destroyed = run over, full stop. Within a run, knowledge and the wreck economy are
+the whole game; across runs there is one carryover: **unlocks** (user call, Jul 19 2026,
+superseding the earlier no-meta stance).
+
+- **The general loop is unlocking chassis and parts.** Beating a mech that rides a
+  locked chassis unlocks that chassis; encountering/beating locked parts unlocks them.
+  Unlocks gate what future runs can *start with and buy* (starter kits, palette/shop
+  stock) — never what salvage can drop, so a run can still loot anything it defeats.
+- Profile is one serializable object (localStorage beside the run save), all thresholds
+  config dials, tuning deferred. Which chassis/parts start locked is a balance question.
+- A run-history screen (final mech portrait, cause of death, fights won) is cheap and
+  satisfies the memorial urge.
 
 ## 8. Economy tuning dials (for the prototype's balance pass)
 
