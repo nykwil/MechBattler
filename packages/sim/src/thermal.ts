@@ -5,6 +5,7 @@
 import type { ChassisSpec, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { buildOccupancyMap, isPerimeterCell } from './grid.js';
+import { STATIC_CTX, effectiveMults } from './modifiers.js';
 
 export const AMBIENT_C = 25;
 export const CONDUCTION_K_NORMAL = 0.03;
@@ -91,6 +92,14 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[]): Th
     cellKeysByInstance.set(p.instanceId, keys);
   }
 
+  // Static conduction multipliers (docs/04 §4b, e.g. Insulated mount): an
+  // instance's modifier can dampen every edge touching its cells.
+  const conductionByInstance = new Map<string, number>();
+  for (const p of parts) {
+    const mult = effectiveMults(p, STATIC_CTX).conduction;
+    if (mult !== 1) conductionByInstance.set(p.instanceId, mult);
+  }
+
   const edges: ThermalEdge[] = [];
   const seen = new Set<string>();
   const deltas: [number, number][] = [[1, 0], [0, 1]]; // only need each undirected edge once
@@ -102,7 +111,10 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[]): Th
       const edgeId = `${cell.key}|${nk}`;
       if (seen.has(edgeId)) continue;
       seen.add(edgeId);
-      const k = cell.isHeatPipe || neighbor.isHeatPipe ? CONDUCTION_K_PIPE : CONDUCTION_K_NORMAL;
+      const base = cell.isHeatPipe || neighbor.isHeatPipe ? CONDUCTION_K_PIPE : CONDUCTION_K_NORMAL;
+      const k = base
+        * (conductionByInstance.get(cell.instanceId) ?? 1)
+        * (conductionByInstance.get(neighbor.instanceId) ?? 1);
       edges.push({ aKey: cell.key, bKey: nk, k });
     }
   }

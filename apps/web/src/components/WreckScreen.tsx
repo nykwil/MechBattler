@@ -3,6 +3,7 @@ import { getChassis, getOccupiedCells, type BattleReport, type Build } from '@me
 import { buildWreck, type WreckPart } from '../lib/wreck.js';
 import { BENCH_CAP, SCRAP_WRECK_MULT, type BenchPart } from '../state/runState.js';
 import { CATEGORY_COLOR } from '../lib/partVisuals.js';
+import { ModChips } from './ModChips.js';
 import './WreckScreen.css';
 
 const CELL = 22;
@@ -13,7 +14,7 @@ const CELL = 22;
  * everything destroyed, converts to scrap on the spot.
  */
 export function WreckScreen({
-  report, enemyBuild, opponentName, purse, benchUsed, onFinish,
+  report, enemyBuild, opponentName, purse, benchUsed, guaranteeMod, onFinish,
 }: {
   report: BattleReport;
   enemyBuild: Build;
@@ -21,10 +22,15 @@ export function WreckScreen({
   purse: number;
   /** Bench-pool slots already occupied before this salvage. */
   benchUsed: number;
+  /** First wreck of the run: one lootable part carries a mod (docs/04 §4b). */
+  guaranteeMod?: boolean;
   onFinish: (scrapGained: number, loot: BenchPart[]) => void;
 }) {
   const chassis = getChassis(enemyBuild.chassisId);
-  const wreck = useMemo(() => buildWreck(report, enemyBuild), [report, enemyBuild]);
+  const wreck = useMemo(
+    () => buildWreck(report, enemyBuild, { guaranteeMod }),
+    [report, enemyBuild, guaranteeMod],
+  );
   const [taken, setTaken] = useState<Set<string>>(() => new Set());
 
   const lootable = wreck.filter((w) => !w.destroyed);
@@ -48,7 +54,12 @@ export function WreckScreen({
   function finish() {
     const loot: BenchPart[] = lootable
       .filter((w) => taken.has(w.placed.instanceId))
-      .map((w) => ({ partId: w.placed.partId, integrity: Math.round(w.lootIntegrity! * 100) / 100 }));
+      .map((w) => ({
+        partId: w.placed.partId,
+        integrity: Math.round(w.lootIntegrity! * 100) / 100,
+        modifiers: w.modifiers.length > 0 ? w.modifiers : undefined,
+        variant: w.variant,
+      }));
     onFinish(total, loot);
   }
 
@@ -107,7 +118,9 @@ export function WreckScreen({
                   onClick={() => toggle(w)}
                 >
                   <span className="wreck-row-mark">{isTaken ? '▣' : '□'}</span>
-                  <span className="wreck-row-name">{w.def.name}</span>
+                  <span className="wreck-row-name">
+                    {w.def.name} <ModChips modifiers={w.modifiers} variant={w.variant} />
+                  </span>
                   <span className="wreck-row-int">{Math.round(w.lootIntegrity! * 100)}%</span>
                   <span className="wreck-row-scrap">{isTaken ? 'take' : `+${w.scrapValue}`}</span>
                 </button>

@@ -32,6 +32,7 @@ import {
   generateTerrain, terrainAt, FOREST_COVER_MULT, HILL_RANGE_MULT,
   TERRAIN_SPEED_MULT, WATER_RADIATOR_MULT, type TerrainGrid, type TerrainType,
 } from './terrain.js';
+import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
 
 export const CELL_SIZE_M = 0.5;
 export const TICK_S = 1 / 20;
@@ -325,7 +326,7 @@ export class Combatant {
     let partMass = 0;
     for (const p of build.parts) {
       const def = getPart(p.partId);
-      this.hpByInstance.set(p.instanceId, def.hp * p.integrity);
+      this.hpByInstance.set(p.instanceId, def.hp * p.integrity * effectiveMults(p, STATIC_CTX).hp);
       this.heatDamageSeen.set(p.instanceId, 0);
       partMass += def.massKg;
     }
@@ -345,6 +346,27 @@ export class Combatant {
   partHpFrac(instanceId: string, partId: string): number {
     if (!this.isPartFunctional(instanceId)) return 0;
     return (this.hpByInstance.get(instanceId) ?? 0) / Math.max(getPart(partId).hp, 1);
+  }
+
+  /** Dynamic modifier mults for one of this mech's parts (docs/04 §4b). */
+  partMults(instanceId: string, tile: TerrainType): Readonly<EffectiveMults> {
+    const p = this.build.parts.find((x) => x.instanceId === instanceId);
+    if (!p || (!p.modifiers?.length && !p.variant)) return NEUTRAL_MULTS;
+    return effectiveMults(p, { tempC: this.sim.meanCellC(instanceId), speedMps: len(this.vel), tile });
+  }
+
+  /**
+   * The mech's target-profile multiplier (docs/04 §4b, e.g. Hull-down): the
+   * product of functional parts' contributions, read against this mech's own
+   * physical state.
+   */
+  profileMult(tile: TerrainType): number {
+    let mult = 1;
+    for (const p of this.build.parts) {
+      if (!p.modifiers?.length || !this.isPartFunctional(p.instanceId)) continue;
+      mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps: len(this.vel), tile }).targetProfile;
+    }
+    return mult;
   }
 
   /** True if a functional U-TC1 is currently powered (not shed, not shut down). */
@@ -429,7 +451,7 @@ export class Combatant {
    * the travel line at 50%, wreck cells absorb 25%, empty mask holes pass
    * damage through untouched.
    */
-  applyRay(originWorld: Vec2, dirWorld: Vec2, damage: number): ShotResolution {
+  applyRay(originWorld: Vec2, dirWorld: Vec2, damage: number, carryFrac = 0.5): ShotResolution {
     const fwd = this.forward();
     const rgt = this.right();
     const rel = sub(originWorld, this.pos);
@@ -498,7 +520,7 @@ export class Combatant {
         const dealt = Math.min(this.coreHp, remaining);
         this.coreHp -= dealt;
         damaged.push({ instanceId: CORE_INSTANCE_ID, partId: CORE_INSTANCE_ID, damage: dealt });
-        remaining = this.coreHp <= 0 ? (remaining - dealt) * 0.5 : 0;
+        remaining = this.coreHp <= 0 ? (remaining - dealt) * carryFrac : 0;
         continue;
       }
 
@@ -518,7 +540,7 @@ export class Combatant {
       if (hp - dealt <= 0) {
         destroyedThisRay.add(occupant.instanceId);
         this.sim.destroyPart(occupant.instanceId);
-        remaining = (remaining - dealt) * 0.5; // overkill penetrates (docs/01 §5)
+        remaining = (remaining - dealt) * carryFrac; // overkill penetrates (docs/01 §5)
       } else {
         remaining = 0;
       }
@@ -1064,6 +1086,9 @@ export class Battle {
         weaponsEnabled: self.weaponsEnabled,
         speedSetting: self.speedSetting,
         radiatorMult: tile === 'water' ? WATER_RADIATOR_MULT : 1,
+        // Physical context for dynamic modifiers (docs/04 §4b).
+        speedMps: len(self.vel),
+        tile,
       };
       const snapshot = self.sim.step(dt, command);
       this.lastSnapshots[i] = snapshot;
@@ -1081,7 +1106,8 @@ export class Battle {
         self.sim.destroyPart(cook.instanceId);
         const part = self.build.parts.find((p) => p.instanceId === cook.instanceId)!;
         this.events.push({ tSec: this.tSec, type: 'part-destroyed', mech: i, instanceId: cook.instanceId, partId: part.partId, cause: 'cookoff' });
-        const per = neighbors.size > 0 ? 40 / neighbors.size : 0;
+        // Sacrificial casing (docs/04 §4b): a vented bin splashes nothing.
+        const per = neighbors.size > 0 ? (40 * effectiveMults(part, STATIC_CTX).cookoffSplash) / neighbors.size : 0;
         for (const [nid, npid] of neighbors) {
           if (self.damagePart(nid, per)) {
             this.events.push({ tSec: this.tSec, type: 'part-destroyed', mech: i, instanceId: nid, partId: npid, cause: 'cookoff' });
@@ -1226,16 +1252,20 @@ export class Battle {
     const shooterTile = terrainAt(this.terrain, self.pos.x, self.pos.y);
     const targetTile = terrainAt(this.terrain, enemy.pos.x, enemy.pos.y);
     const rangeMult = shooterTile === 'hill' ? HILL_RANGE_MULT : 1;
-    const halfWidthM = enemy.projectedHalfWidthM(losDir) * (targetTile === 'forest' ? FOREST_COVER_MULT : 1);
+    // Modifiers (docs/04 §4b): shooter's weapon mults + defender's profile.
+    const shooterM = self.partMults(instanceId, shooterTile);
+    const halfWidthM = enemy.projectedHalfWidthM(losDir)
+      * (targetTile === 'forest' ? FOREST_COVER_MULT : 1)
+      * enemy.profileMult(targetTile);
     const model = computeHitModel({
       rangeM: range,
-      sigmaRad: this.effectiveDispersionRad(self, def, aimBearing),
+      sigmaRad: this.effectiveDispersionRad(self, def, aimBearing, shooterM),
       lateralSpeedMps: enemy.lateralSpeedMps(losDir),
       lagS,
       projectileSpeed: weapon.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
-    const damagePerProjectile = weapon.damage * falloffAt(def, range / rangeMult);
+    const damagePerProjectile = weapon.damage * shooterM.damage * falloffAt(def, range / rangeMult);
 
     const stats = this.stats[i]!;
     for (let s = 0; s < salvo; s++) {
@@ -1253,7 +1283,10 @@ export class Battle {
         }
         const perp: Vec2 = { x: -losDir.y, y: losDir.x };
         const impact = add(enemy.pos, scale(perp, offsetM));
-        result = enemy.applyRay(self.pos, norm(sub(impact, self.pos)), damagePerProjectile);
+        result = enemy.applyRay(
+          self.pos, norm(sub(impact, self.pos)), damagePerProjectile,
+          Math.min(0.5 * shooterM.overkillCarry, 0.95), // Ram bore (docs/04 §4b)
+        );
       }
       const dealt = result.damaged.reduce((sum, d) => sum + d.damage, 0);
       if (result.hit) {
@@ -1287,8 +1320,8 @@ export class Battle {
   }
 
   /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
-  private effectiveDispersionRad(self: Combatant, def: PartDef, aimBearing: number): number {
-    let mrad = def.weapon!.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * len(self.vel);
+  private effectiveDispersionRad(self: Combatant, def: PartDef, aimBearing: number, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
+    let mrad = def.weapon!.dispersionMrad * m.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * len(self.vel) * m.moveJitter;
     if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1.3;
     const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
     const offset = Math.abs(wrapAngle(aimBearing - self.facingRad));

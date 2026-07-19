@@ -24,6 +24,8 @@ export interface OpponentDef {
   chassisLabel?: string;
   /** Highest-tier weapon name, for the intel headline warning. */
   headline?: string | null;
+  /** Elite mod carrier telegraph, e.g. "Tidecooler Gill" (docs/04 §4b). */
+  carries?: string;
 }
 
 function junkyardWidow(): Build {

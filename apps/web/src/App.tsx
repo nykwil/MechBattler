@@ -11,7 +11,7 @@ import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
-import { kitBuild, BENCH_CAP, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, useRun } from './state/runState.js';
+import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, useRun } from './state/runState.js';
 import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
@@ -29,7 +29,7 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 export default function App() {
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity,
+    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -42,7 +42,7 @@ export default function App() {
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
     run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
-    skipNode, rerollYard, persistBuild, restored, clearRestored,
+    skipNode, rerollYard, markYardMod, persistBuild, restored, clearRestored,
   } = useRun();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
@@ -62,13 +62,13 @@ export default function App() {
     selectPart(id);
   }, [selectPart]);
 
-  /** Arm a bench part: it places at its salvage integrity, once. */
+  /** Arm a bench part: it places with its full salvage state, once. */
   const fitBench = useCallback((index: number) => {
     if (run.phase !== 'active') return;
     const b = run.data.benchPool[index];
     if (!b) return;
     setPendingBench({ index, partId: b.partId });
-    selectPart(b.partId, b.integrity);
+    selectPart(b.partId, { integrity: b.integrity, modifiers: b.modifiers, variant: b.variant });
   }, [run, selectPart]);
 
   // Placement with the run economy in the loop (docs/10 M3): a bench part
@@ -108,7 +108,7 @@ export default function App() {
     onUnplace: (instanceId) => {
       const p = state.parts.find((x) => x.instanceId === instanceId);
       if (!p || benchUsed >= BENCH_CAP) return;
-      addBench({ partId: p.partId, integrity: p.integrity });
+      addBench({ partId: p.partId, integrity: p.integrity, modifiers: p.modifiers, variant: p.variant });
       remove(instanceId);
     },
   } : undefined;
@@ -322,6 +322,13 @@ export default function App() {
               }}
               onRerollYard={rerollYard}
               onSkipNode={() => { setPendingBench(null); skipNode(); }}
+              selectedPart={state.parts.find((p) => p.instanceId === state.selectedInstanceId) ?? null}
+              onApplyMod={(instanceId, modId) => {
+                if (runScrap < MACHINIST_MOD_COST) return;
+                addScrap(-MACHINIST_MOD_COST);
+                applyModifier(instanceId, modId);
+                markYardMod();
+              }}
             />
           </div>
           {run.phase === 'none' && (
@@ -353,6 +360,7 @@ export default function App() {
           opponentName={wreck.opponent.name}
           purse={Math.round((PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex) * (wreck.opponent.elite ? ELITE_PURSE_MULT : 1))}
           benchUsed={run.data.benchPool.length}
+          guaranteeMod={run.data.fightsWon === 0}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);
             setWreck(null);

@@ -110,3 +110,10 @@
 }
 .run-bench-sell:disabled { opacity: 0.4; cursor: default; }
 .fight-btn:disabled { opacity: 0.4; cursor: default; }
+
+.arena-card-carries {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--signal-amber);
+}

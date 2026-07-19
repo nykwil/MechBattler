@@ -3,6 +3,7 @@ import { computeConnectivity, getPart, type PlacedPart } from '@mechbattler/sim'
 import { CATEGORY_COLOR, CATEGORY_LABEL } from '../lib/partVisuals.js';
 import { repairCost, SCRAP_SELL_MULT } from '../state/runState.js';
 import { ChipRow, ShapePreview } from './PartVisual.js';
+import { ModChips } from './ModChips.js';
 import './PartInspector.css';
 
 /** Run-mode economy actions on a placed part (docs/10 M3). */
@@ -45,6 +46,11 @@ export function PartInspector({
       </div>
 
       <ChipRow def={def} />
+      {(placed.modifiers?.length || placed.variant) && (
+        <div style={{ marginTop: 6 }}>
+          <ModChips modifiers={placed.modifiers} variant={placed.variant} />
+        </div>
+      )}
 
       <div className="inspector-rows">
         <div className="inspector-row"><span>Mass</span><span>{def.massKg} kg</span></div>

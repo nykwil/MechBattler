@@ -6,7 +6,7 @@
  * fight — buy used parts at poor rates, one reroll). All numbers are dials;
  * tuning deferred (Track C).
  */
-import { generateOpponent, getChassis, getPart, headlineWeapon, Pcg32 } from '@mechbattler/sim';
+import { MODIFIERS, generateOpponent, getChassis, getPart, headlineWeapon, modifierIdsFor, Pcg32 } from '@mechbattler/sim';
 import { RUN_LENGTH, SCRAP_BUY_MULT } from '../state/runState.js';
 import type { OpponentDef } from './opponents.js';
 
@@ -67,6 +67,21 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): OpponentDef
       confirmed.push(`${def.id} ${def.name.split(' ')[0]}`);
     }
 
+    // Elite carriers (docs/04 §4b): the elite is *built with* a modded part,
+    // telegraphed on the card — kill the carrier, win the mod.
+    let carries: string | undefined;
+    if (elite) {
+      const carriers = real.filter((p) =>
+        modifierIdsFor(getPart(p.partId)).some((id) => MODIFIERS[id]!.kind === 'mod'));
+      if (carriers.length > 0) {
+        const carrier = carriers[Math.floor(rng.nextFloat() * carriers.length)]!;
+        const pool = modifierIdsFor(getPart(carrier.partId)).filter((id) => MODIFIERS[id]!.kind === 'mod');
+        const modId = pool[Math.floor(rng.nextFloat() * pool.length)]!;
+        carrier.modifiers = [...(carrier.modifiers ?? []), modId];
+        carries = `${MODIFIERS[modId]!.name} ${getPart(carrier.partId).name.split(' ')[0]}`;
+      }
+    }
+
     const chassis = getChassis(gen.build.chassisId);
     const epithet = EPITHETS[Math.floor(rng.nextFloat() * EPITHETS.length)]!;
     const spawnDistanceM = SPAWN_DISTANCES_M[Math.floor(rng.nextFloat() * SPAWN_DISTANCES_M.length)]!;
@@ -83,11 +98,26 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): OpponentDef
       spawnDistanceM,
       chassisLabel: `${chassis.name} · ${chassis.type}`,
       headline: headlineWeapon(gen.build)?.name ?? null,
+      carries,
     };
   });
 }
 
 // --- Scrapyard --------------------------------------------------------------
+
+/**
+ * The machinist's seeded mod offers at a scrapyard (docs/04 §4b): pick one,
+ * apply it to a part you own, once per yard.
+ */
+export function machinistOffers(runSeed: number, nodeIndex: number): string[] {
+  const rng = new Pcg32((runSeed * 977 + nodeIndex) ^ 0x3ac41);
+  const pool = Object.values(MODIFIERS).filter((m) => m.kind === 'mod').map((m) => m.id);
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(rng.nextFloat() * (i + 1));
+    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
+  }
+  return pool.slice(0, 3);
+}
 
 export interface YardOffer {
   partId: string;

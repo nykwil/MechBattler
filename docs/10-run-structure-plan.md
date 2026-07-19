@@ -88,7 +88,21 @@ unfamiliar frame is what unlocks it for future runs (M6, 04 §7).*
 - Intel cards gain the arena preview (spawn distance + terrain silhouette, 04 §5) and a
   headline-weapon warning when the opponent rides a bigger chassis than yours.
 
-### M5 — Variants & quirks
+### M5 — Variants, quirks & mods ✅ *shipped Jul 19 2026 — the modifier substrate
+(`sim/modifiers.ts`): variants, quirks and mods are all per-instance parameter
+modifiers; one registry entry per modifier (`appliesTo` predicate + pure `apply` over
+{temp, speed, terrain} context), every knob threaded through the sim once (cycle,
+damage, dispersion, move-jitter, overkill carry, draw, output, radiator, extra heat,
+conduction, cook-off splash, HP, target profile, shed order). Shipped: 7 quirks
+(Overvolted, Hot-running, Heat-loose, Cold-blooded, Lucky, Miswired, Leaky) + 8 mods
+(Fever cycle, Cold bore, Tidecooler, Gyrostabilized, Hull-down, Insulated mount, Ram
+bore, Sacrificial casing); loot rolls variant + quirk seeded per wreck; first-wreck
+guaranteed mod; elite mod carriers telegraphed on intel ("◆ carries a Tidecooler
+Gill"); machinist at scrapyards (one mod per yard, `MACHINIST_MOD_COST`); ModChips UI
+(chips + green/red variant deltas) on wreck rows, bench rows, inspector. Not yet (each
+needs one new knob): Sticky (order latency), Cold-soaked (thermal mass), Frankensteined
+(bench slots), Thermocouple skin (heat→charge), Surge gate (brownout immunity), Marsh
+pistons (terrain speed). 9 pinned substrate tests.*
 
 *(Design input, Jul 19 2026: the mods layer — 04 §4b — extends this milestone: machinist
 upgrades at scrapyards, elite mod carriers, first-wreck guaranteed mod. Split into M5a

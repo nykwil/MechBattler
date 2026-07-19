@@ -31,6 +31,8 @@ import {
   buildThermalModel,
   type ThermalModel,
 } from './thermal.js';
+import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
+import type { TerrainType } from './terrain.js';
 
 export type SpeedSetting = 'stationary' | 'creep' | 'cruise' | 'flank';
 
@@ -53,6 +55,9 @@ export interface SimCommand {
   speedSetting: SpeedSetting;
   /** Environmental radiator multiplier (e.g. wading through water, docs/03 §2). Default 1. */
   radiatorMult?: number;
+  /** Physical context for dynamic modifiers (docs/04 §4b). Defaults: 0, 'open'. */
+  speedMps?: number;
+  tile?: TerrainType;
 }
 
 export interface ShotEvent {
@@ -120,6 +125,8 @@ export class Simulation {
   private coreNetworkId: string | null;
   /** Load- and CoG-derated forward speed (docs/03 §3), shared with derivedStats.ts's workshop stats. */
   private loadScaledFwdMps: number;
+  /** Instances whose modifiers force them to shed first (docs/04 §4 Miswired). */
+  private shedFirstIds = new Set<string>();
 
   constructor(chassis: ChassisSpec, build: Build) {
     this.chassis = chassis;
@@ -148,8 +155,18 @@ export class Simulation {
       // full cycle (matters for long-cycle weapons like the rocket pod).
       if (def.category === 'weapon' && def.draw?.continuousKw && def.weapon) rt.cycleTimer = def.weapon.cycleS;
       this.runtime.set(p.instanceId, rt);
+      if (effectiveMults(p, STATIC_CTX).shedFirst) this.shedFirstIds.add(p.instanceId);
     }
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
+  }
+
+  /** Mean temperature of a part's cells, °C — the dynamic-modifier input. */
+  meanCellC(instanceId: string): number {
+    const keys = this.thermal.cellKeysByInstance.get(instanceId) ?? [];
+    if (keys.length === 0) return AMBIENT_C;
+    let sum = 0;
+    for (const k of keys) sum += this.thermal.cells.get(k)!.tempC;
+    return sum / keys.length;
   }
 
   isDestroyed(instanceId: string): boolean {
@@ -214,6 +231,18 @@ export class Simulation {
     const cookoffsThisTick: CookoffEvent[] = [];
     const heatDepositKj = new Map<string, number>(); // per cell key
 
+    // Dynamic modifier resolution (docs/04 §4b): per-instance effective
+    // multipliers against this tick's physical context. Unmodified parts hit
+    // the shared neutral fast path.
+    const speedMps = command.speedMps ?? 0;
+    const tile = command.tile ?? 'open';
+    const multsById = new Map<string, EffectiveMults>();
+    for (const p of this.parts) {
+      if (!p.modifiers?.length && !p.variant) continue;
+      multsById.set(p.instanceId, effectiveMults(p, { tempC: this.meanCellC(p.instanceId), speedMps, tile }));
+    }
+    const M = (id: string): Readonly<EffectiveMults> => multsById.get(id) ?? NEUTRAL_MULTS;
+
     const addHeat = (cellKeys: string[], totalKj: number) => {
       const per = totalKj / cellKeys.length;
       for (const k of cellKeys) heatDepositKj.set(k, (heatDepositKj.get(k) ?? 0) + per);
@@ -223,7 +252,7 @@ export class Simulation {
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
-      const target = def.reactor!.outputKw;
+      const target = def.reactor!.outputKw * M(p.instanceId).outputKw;
       const rate = def.reactor!.throttleLagS > 0 ? target / def.reactor!.throttleLagS : Infinity;
       const cur = this.reactorAvailableKw.get(p.instanceId) ?? 0;
       this.reactorAvailableKw.set(p.instanceId, Math.min(target, cur + rate * dtSec));
@@ -259,10 +288,10 @@ export class Simulation {
         rt.capDrawnKj += drawKj;
       }
       if (rt.capDrawnKj >= def.draw.capFedEnergyPerShotKj) {
-        shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage });
+        shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage * M(p.instanceId).damage });
         if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj);
         rt.capDrawnKj = 0;
-        rt.cooldownRemainingS = def.weapon!.cycleS;
+        rt.cooldownRemainingS = def.weapon!.cycleS * M(p.instanceId).cycleS;
       }
     }
 
@@ -290,13 +319,13 @@ export class Simulation {
       if (def.category === 'weapon') {
         const enabled = command.weaponsEnabled[p.instanceId] === true;
         if (enabled) {
-          if (def.draw?.continuousKw) kw = def.draw.continuousKw;
+          if (def.draw?.continuousKw) kw = def.draw.continuousKw * M(p.instanceId).drawKw;
           else if (def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS <= 0) {
-            kw = def.draw.maxChargeKw ?? 0;
+            kw = (def.draw.maxChargeKw ?? 0) * M(p.instanceId).drawKw;
           }
         }
       } else if (def.draw?.continuousKw) {
-        kw = def.draw.continuousKw; // always-on utility (targeting computer, servo booster)
+        kw = def.draw.continuousKw * M(p.instanceId).drawKw; // always-on utility (targeting computer, servo booster)
       }
       if (kw > 0) { requestedKw.set(p.instanceId, kw); networkOf.set(p.instanceId, networkId); }
       if (def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS > 0) rt.cooldownRemainingS -= dtSec;
@@ -320,9 +349,15 @@ export class Simulation {
       const totalBudgetKw = supplyKw + capBudgetKw;
 
       const candidateIds = [...requestedKw.keys()].filter((id) => networkOf.get(id) === net.networkId);
-      const priorityOrder = [
+      const ranked = [
         ...this.build.powerPriority.filter((id) => candidateIds.includes(id)),
         ...candidateIds.filter((id) => !this.build.powerPriority.includes(id)),
+      ];
+      // Miswired (docs/04 §4): forced to the back of the acceptance order —
+      // whatever the budget can't cover hits these first.
+      const priorityOrder = [
+        ...ranked.filter((id) => !this.shedFirstIds.has(id)),
+        ...ranked.filter((id) => this.shedFirstIds.has(id)),
       ];
 
       let runningTotal = 0;
@@ -387,21 +422,23 @@ export class Simulation {
       const rt = this.runtime.get(id)!;
       if (def.category !== 'weapon') continue;
 
+      const eff = M(id);
       if (def.draw?.continuousKw) {
+        const cycleS = def.weapon!.cycleS * eff.cycleS;
         rt.cycleTimer += dtSec;
-        while (rt.cycleTimer >= def.weapon!.cycleS) {
-          rt.cycleTimer -= def.weapon!.cycleS;
-          const totalDamage = def.weapon!.damage * (def.weapon!.salvoCount ?? 1);
+        while (rt.cycleTimer >= cycleS) {
+          rt.cycleTimer -= cycleS;
+          const totalDamage = def.weapon!.damage * eff.damage * (def.weapon!.salvoCount ?? 1);
           shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage });
           if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj);
         }
       } else if (def.draw?.chargedEnergyPerShotKj) {
         rt.chargeKj += kw * dtSec;
         if (rt.chargeKj >= def.draw.chargedEnergyPerShotKj) {
-          shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage: def.weapon!.damage });
+          shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage: def.weapon!.damage * eff.damage });
           if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj);
           rt.chargeKj = 0;
-          rt.cooldownRemainingS = def.weapon!.cycleS - (def.draw.minChargeS ?? 0);
+          rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
         }
       }
     }
@@ -417,6 +454,13 @@ export class Simulation {
         ? (utilization <= 0.5 ? def.reactor!.wasteHeatKw[0] : def.reactor!.wasteHeatKw[1])
         : def.reactor!.wasteHeatKw;
       addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, wasteKw * dtSec);
+    }
+
+    // --- 7b. Modifier heat (Hot-running, Leaky): extra emission while the
+    // part is connected and alive ---
+    for (const [id, m] of multsById) {
+      if (m.extraHeatKw <= 0 || this.isDestroyed(id) || !this.networkIdByInstance.has(id)) continue;
+      addHeat(this.thermal.cellKeysByInstance.get(id)!, m.extraHeatKw * dtSec);
     }
 
     // --- 8. Apply deposited heat ---
@@ -445,13 +489,14 @@ export class Simulation {
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
+      const radMult = M(p.instanceId).radiator;
       const keys = this.thermal.cellKeysByInstance.get(p.instanceId)!;
       const raws = keys.map((k) => {
         const cell = this.thermal.cells.get(k)!;
-        return { key: k, raw: Math.max(0, RADIATOR_K * (command.radiatorMult ?? 1) * (cell.tempC - AMBIENT_C)) };
+        return { key: k, raw: Math.max(0, RADIATOR_K * radMult * (command.radiatorMult ?? 1) * (cell.tempC - AMBIENT_C)) };
       });
       const rawTotal = raws.reduce((s, r) => s + r.raw, 0);
-      const factor = rawTotal > 0 ? Math.min(1, (RADIATOR_CAP_KW * ramAir) / rawTotal) : 0;
+      const factor = rawTotal > 0 ? Math.min(1, (RADIATOR_CAP_KW * radMult * ramAir) / rawTotal) : 0;
       for (const { key, raw } of raws) {
         const cell = this.thermal.cells.get(key)!;
         cell.tempC -= (raw * factor * ramAir * dtSec) / cell.thermalMassKjPerC;

@@ -261,9 +261,11 @@ mid-run chassis changes** — the ladder is the budget curve alone, and chassis/
 **meta-unlocks** earned by beating them, gating future runs' starter kits and shop stock
 (04 §7, 10 M4/M6). M4 enemy ladder **shipped Jul 19 2026**: budget-driven seeded
 opponents (sim `generateOpponent`), elites, scrapyard nodes, arena-preview intel cards
-with heavier-frame warnings; integrity-scaled sell prices. **Next: M5 variants & quirks
-(hold the tabled rare/unique-items discussion first — see Loose ends) → M6 meta unlocks
-& polish.**
+with heavier-frame warnings; integrity-scaled sell prices. M5 variants/quirks/mods
+**shipped Jul 19 2026** on one extensible substrate (`sim/modifiers.ts`, see 10 M5):
+loot rolls, first-wreck guaranteed mod, elite carriers, scrapyard machinist, ModChips
+UI. **Next: M6 meta unlocks & polish** (04 §7 unlock loop, run-history memorial),
+plus the six not-yet modifiers listed in 10 M5 as cheap follow-ons.
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

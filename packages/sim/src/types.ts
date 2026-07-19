@@ -121,6 +121,10 @@ export interface PlacedPart {
   rotation: Rotation;
   /** 0-1, salvage integrity. 1.0 = pristine. See docs/04 §3. */
   integrity: number;
+  /** Modifier ids (quirks/mods, docs/04 §4-§4b) riding this instance forever. */
+  modifiers?: string[];
+  /** Variant multipliers on catalog stats (docs/04 §4), e.g. { damage: 1.08 }. */
+  variant?: Partial<Record<'damage' | 'cycleS' | 'dispersionMrad' | 'hp', number>>;
 }
 
 export interface Build {

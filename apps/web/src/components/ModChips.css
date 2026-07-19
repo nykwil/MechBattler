@@ -1,0 +1,26 @@
+.mod-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  vertical-align: middle;
+}
+.mod-chip {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid;
+  cursor: help;
+}
+.mod-chip.mod { color: var(--signal-amber); border-color: var(--signal-amber); }
+.mod-chip.quirk-gift { color: var(--signal-green); border-color: color-mix(in srgb, var(--signal-green) 60%, transparent); }
+.mod-chip.quirk-flaw { color: var(--signal-red); border-color: color-mix(in srgb, var(--signal-red) 60%, transparent); }
+.variant-delta {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  padding: 0 3px;
+}
+.variant-delta.good { color: var(--signal-green); }
+.variant-delta.bad { color: var(--signal-red); }

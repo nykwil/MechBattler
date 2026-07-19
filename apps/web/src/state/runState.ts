@@ -42,7 +42,14 @@ export interface BenchPart {
   partId: string;
   /** 0-1; scales HP when placed (04 §3). */
   integrity: number;
+  /** Modifiers (quirks/mods, 04 §4-§4b) riding the part. */
+  modifiers?: string[];
+  /** Variant stat rolls (04 §4). */
+  variant?: Partial<Record<'damage' | 'cycleS' | 'dispersionMrad' | 'hp', number>>;
 }
+
+/** Scrap cost to have the machinist apply a mod at a scrapyard (docs/04 §4b). */
+export const MACHINIST_MOD_COST = 25;
 
 /** Starter kits (docs/04 §6) drawn from the sim's template roster. */
 export const STARTER_KITS = [
@@ -69,6 +76,8 @@ export interface RunData {
   benchPool: BenchPart[];
   /** This node's scrapyard reroll is spent (docs/10 M4; cleared on advance). */
   yardRerolled?: boolean;
+  /** This node's machinist application is spent (docs/04 §4b; cleared on advance). */
+  yardModApplied?: boolean;
 }
 
 export type RunPhase =
@@ -123,7 +132,7 @@ export function useRun() {
       if (data.nodeIndex >= RUN_LENGTH) {
         return { phase: 'over', data, cause: 'Completed the ladder', victorious: true };
       }
-      return { phase: 'active', data: { ...data, nodeIndex: data.nodeIndex + 1, yardRerolled: false } };
+      return { phase: 'active', data: { ...data, nodeIndex: data.nodeIndex + 1, yardRerolled: false, yardModApplied: false } };
     });
   }, []);
 
@@ -134,13 +143,18 @@ export function useRun() {
       if (r.data.nodeIndex >= RUN_LENGTH) {
         return { phase: 'over', data: r.data, cause: 'Completed the ladder', victorious: true };
       }
-      return { phase: 'active', data: { ...r.data, nodeIndex: r.data.nodeIndex + 1, yardRerolled: false } };
+      return { phase: 'active', data: { ...r.data, nodeIndex: r.data.nodeIndex + 1, yardRerolled: false, yardModApplied: false } };
     });
   }, []);
 
   /** Spend this node's one scrapyard reroll (docs/04 §5). */
   const rerollYard = useCallback((): void => {
     setRun((r) => (r.phase === 'active' ? { phase: 'active', data: { ...r.data, yardRerolled: true } } : r));
+  }, []);
+
+  /** Spend this node's one machinist application (docs/04 §4b). */
+  const markYardMod = useCallback((): void => {
+    setRun((r) => (r.phase === 'active' ? { phase: 'active', data: { ...r.data, yardModApplied: true } } : r));
   }, []);
 
   /** Sell a bench-pool part for tier × SCRAP_SELL_MULT (docs/04 §1). */
@@ -208,7 +222,7 @@ export function useRun() {
 
   return {
     run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
-    skipNode, rerollYard,
+    skipNode, rerollYard, markYardMod,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };
 }

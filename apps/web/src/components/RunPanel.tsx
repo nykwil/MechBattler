@@ -3,8 +3,10 @@ import {
   DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
   generateTerrain, getChassis, getPart, type Build, type TerrainType,
 } from '@mechbattler/sim';
-import { BENCH_CAP, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type RunPhase } from '../state/runState.js';
-import { ladderOpponents, nodeKind, scrapyardOffers, type YardOffer } from '../lib/ladder.js';
+import { BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type BenchPart, type RunPhase } from '../state/runState.js';
+import { ladderOpponents, machinistOffers, nodeKind, scrapyardOffers, type YardOffer } from '../lib/ladder.js';
+import { MODIFIERS, type PlacedPart } from '@mechbattler/sim';
+import { ModChips } from './ModChips.js';
 import type { OpponentDef } from '../lib/opponents.js';
 import type { FightMode } from './ArenaPanel.js';
 import './ArenaPanel.css';
@@ -47,7 +49,7 @@ function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spaw
  */
 export function RunPanel({
   run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
-  onBuyOffer, onRerollYard, onSkipNode,
+  onBuyOffer, onRerollYard, onSkipNode, selectedPart, onApplyMod,
 }: {
   run: RunPhase;
   build: Build;
@@ -64,6 +66,10 @@ export function RunPanel({
   onBuyOffer: (offer: YardOffer) => void;
   onRerollYard: () => void;
   onSkipNode: () => void;
+  // --- Machinist (docs/04 §4b) ----------------------------------------------
+  /** The part currently selected in the editor, if any. */
+  selectedPart: PlacedPart | null;
+  onApplyMod: (instanceId: string, modId: string) => void;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
@@ -154,6 +160,39 @@ export function RunPanel({
             </div>
           );
         })}
+        <div className="run-bench" style={{ marginTop: 10 }}>
+          <div className="run-bench-title">
+            The machinist — one mod, applied to a part you own ({MACHINIST_MOD_COST}⚙, once per yard)
+          </div>
+          {machinistOffers(run.data.seed, run.data.nodeIndex).map((modId) => {
+            const mod = MODIFIERS[modId]!;
+            const applicable = selectedPart !== null
+              && mod.appliesTo(getPart(selectedPart.partId))
+              && !selectedPart.modifiers?.includes(modId);
+            const cantAffordMod = run.data.scrap < MACHINIST_MOD_COST;
+            return (
+              <div key={modId} className="run-bench-row">
+                <span className="run-bench-name" title={mod.blurb}>
+                  <span className="mod-chip mod" style={{ marginRight: 6 }}>{mod.name}</span>
+                  {mod.blurb}
+                </span>
+                <button
+                  type="button"
+                  className="run-bench-sell"
+                  disabled={run.data.yardModApplied || !applicable || cantAffordMod}
+                  title={run.data.yardModApplied ? 'Already applied this yard'
+                    : selectedPart === null ? 'Select a placed part in the grid first'
+                    : !applicable ? 'Not applicable to the selected part'
+                    : cantAffordMod ? 'Not enough scrap' : `Apply to ${getPart(selectedPart.partId).name}`}
+                  onClick={() => selectedPart && onApplyMod(selectedPart.instanceId, modId)}
+                >
+                  {run.data.yardModApplied ? 'spent' : `apply −${MACHINIST_MOD_COST}`}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
         <div className="fight-row" style={{ marginTop: 10 }}>
           <button
             type="button"
@@ -206,6 +245,9 @@ export function RunPanel({
               {heavier && o.headline && (
                 <div className="arena-card-warning">⚠ heavier frame — headline: {o.headline}</div>
               )}
+              {o.carries && (
+                <div className="arena-card-carries">◆ carries a {o.carries}</div>
+              )}
             </button>
           );
         })}
@@ -234,7 +276,7 @@ export function RunPanel({
 }
 
 function benchSection(
-  benchPool: { partId: string; integrity: number }[],
+  benchPool: BenchPart[],
   onSellBench: (index: number, value: number) => void,
   onFitBench: (index: number) => void,
   fittingBenchIndex: number | null,
@@ -250,7 +292,9 @@ function benchSection(
         const value = Math.max(1, Math.round(def.tier * SCRAP_SELL_MULT * b.integrity));
         return (
           <div key={`${b.partId}-${i}`} className="run-bench-row">
-            <span className="run-bench-name">{def.name}</span>
+            <span className="run-bench-name">
+              {def.name} <ModChips modifiers={b.modifiers} variant={b.variant} />
+            </span>
             <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
             <button
               type="button"
