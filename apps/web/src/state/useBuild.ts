@@ -86,10 +86,15 @@ function reducer(state: EditorState, action: Action): EditorState {
         : state.powerPriority;
       return { ...state, parts: [...state.parts, candidate], powerPriority, nextSeq: state.nextSeq + 1 };
     }
-    case 'ADD_PARTS':
+    case 'ADD_PARTS': {
       // Sim-generated placements (auto-wire): already legal, appended as-is.
       // Conduits draw nothing, so the power priority list is untouched.
-      return { ...state, parts: [...state.parts, ...action.parts] };
+      // Idempotent by instanceId: a double-clicked auto-wire dispatches the
+      // same conduits twice from a stale closure — the rerun must be a no-op.
+      const existing = new Set(state.parts.map((p) => p.instanceId));
+      const fresh = action.parts.filter((p) => !existing.has(p.instanceId));
+      return fresh.length > 0 ? { ...state, parts: [...state.parts, ...fresh] } : state;
+    }
     case 'REMOVE':
       return {
         ...state,

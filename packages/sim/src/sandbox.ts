@@ -151,12 +151,15 @@ export function runRangeSandbox(options: {
         for (const wf of frame.mechs[0].weapons) {
           const row = rowByInstance.get(wf.instanceId);
           if (!row) continue;
+          // gate=null while disabled is the 4 Hz order-reissue lag (the gun is
+          // physically clear; fire control just hasn't ticked) — count it as
+          // up rather than inventing a spurious cause.
           const cause: SandboxDownCause | 'up' =
             wf.status === 'destroyed' ? 'destroyed'
               : wf.status === 'shutdown' ? 'shutdown'
                 : wf.status === 'shed' ? 'power'
                   : wf.enabled ? 'up'
-                    : wf.gate ?? 'heat';
+                    : wf.gate ?? 'up';
           if (cause === 'up') row.uptimeFrac += 1;
           else row.downFracs[cause] = (row.downFracs[cause] ?? 0) + 1;
         }

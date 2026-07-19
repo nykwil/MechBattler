@@ -235,14 +235,14 @@ player-controlled. Remaining polish (later): part-damage charring on the mech gl
 heat glow, projectile-flight theater for slow rounds.
 
 **The playable (live verb control) mode SHIPPED Jul 18 2026** — milestones M1–M4 of
-`08-playable-battle-plan.md` (live stepping with tactical pause, manual move/throttle/
+`archive/08-playable-battle-plan.md` (live stepping with tactical pause, manual move/throttle/
 weapons/face over the autopilot via `withManualOrders`, keybindings, report parity).
 The Fight button offers **Fight · Live** (command) and **Watch** (headless + replay).
 Still open from that plan: M5 stretch (enemy-intel limits on the live strip, waypoint
 queues, region triggers) and the "scripted player beats the autopilot in a matchup it
 loses" showcase test.
 
-**The UX & diagnostics pass SHIPPED Jul 18 2026** (`09-ux-diagnostics-plan.md`, all five
+**The UX & diagnostics pass SHIPPED Jul 18 2026** (`archive/09-ux-diagnostics-plan.md`, all five
 milestones): arc wedges + range sandbox + waypoint-facing fix, playable friction fixes
 (no stale report after abort, live 4×, same-seed rematch), not-firing legibility
 (per-slot RANGE/ARC/HOT vs player HOLD), the network-starved audit, the ⚡ Auto-wire
