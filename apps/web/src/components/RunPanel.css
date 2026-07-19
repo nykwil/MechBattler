@@ -90,3 +90,23 @@
 }
 
 .run-bench-sell.fitting { color: var(--signal-green); border-color: var(--signal-green); }
+
+.arena-card.elite { border-color: var(--signal-amber); }
+.arena-card-arena {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+}
+.arena-preview { border-radius: 3px; flex-shrink: 0; }
+.arena-card-warning {
+  margin-top: 5px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--signal-amber);
+}
+.run-bench-sell:disabled { opacity: 0.4; cursor: default; }
+.fight-btn:disabled { opacity: 0.4; cursor: default; }

@@ -13,6 +13,7 @@ import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import { kitBuild, BENCH_CAP, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, useRun } from './state/runState.js';
 import type { RunPartOps } from './components/PartInspector.js';
+import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
@@ -39,7 +40,10 @@ export default function App() {
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
-  const { run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench, persistBuild, restored, clearRestored } = useRun();
+  const {
+    run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
+    skipNode, rerollYard, persistBuild, restored, clearRestored,
+  } = useRun();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
   /** A won run fight awaiting its salvage screen (docs/10 M2). */
@@ -177,12 +181,14 @@ export default function App() {
     (opponent: OpponentDef, mode: FightMode, seed?: number) => {
       // A same-seed rematch (seed passed in) replays the exact battlefield
       // against the current build — a controlled experiment after a refit.
-      const s = seed ?? Math.floor(Math.random() * 0x7fffffff);
+      // Ladder opponents carry a fixed battleSeed (docs/10 M4): the scouted
+      // arena on the intel card is exactly the arena fought.
+      const s = seed ?? opponent.battleSeed ?? Math.floor(Math.random() * 0x7fffffff);
       // Drop any open report so aborting the new fight lands in the workshop,
       // not on the stale previous report (docs/09 M1).
       setBattle(null);
       if (mode === 'watch') {
-        const report = runBattle({ builds: [build, opponent.build], seed: s });
+        const report = runBattle({ builds: [build, opponent.build], seed: s, spawnDistanceM: opponent.spawnDistanceM });
         setBattle({ report, opponent, mode });
       } else {
         // Command mode steps the same Battle live (docs/08); the finished
@@ -309,6 +315,13 @@ export default function App() {
               onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
               onFitBench={fitBench}
               fittingBenchIndex={pendingBench?.index ?? null}
+              onBuyOffer={(o) => {
+                if (o.price > runScrap || benchUsed >= BENCH_CAP) return;
+                addScrap(-o.price);
+                addBench({ partId: o.partId, integrity: o.integrity });
+              }}
+              onRerollYard={rerollYard}
+              onSkipNode={() => { setPendingBench(null); skipNode(); }}
             />
           </div>
           {run.phase === 'none' && (
@@ -338,7 +351,7 @@ export default function App() {
           report={wreck.report}
           enemyBuild={wreck.opponent.build}
           opponentName={wreck.opponent.name}
-          purse={PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex}
+          purse={Math.round((PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex) * (wreck.opponent.elite ? ELITE_PURSE_MULT : 1))}
           benchUsed={run.data.benchPool.length}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);

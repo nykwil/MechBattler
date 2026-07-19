@@ -15,6 +15,15 @@ export interface OpponentDef {
   /** "Confirmed parts" shown on the intel card (docs/04 §5). */
   confirmed: string[];
   build: Build;
+  // --- Ladder extras (docs/10 M4; absent on the canned free-play roster) ----
+  /** Elite node flavor: bigger budget, purse × ELITE_PURSE_MULT. */
+  elite?: boolean;
+  /** Fixed battle seed — the scouted arena is the fought arena. */
+  battleSeed?: number;
+  spawnDistanceM?: number;
+  chassisLabel?: string;
+  /** Highest-tier weapon name, for the intel headline warning. */
+  headline?: string | null;
 }
 
 function junkyardWidow(): Build {

@@ -66,6 +66,7 @@ export function BattleLiveScreen({
   const [battle] = useState(() => new Battle({
     builds: [build, opponent.build],
     seed,
+    spawnDistanceM: opponent.spawnDistanceM,
     controllers: [
       withManualOrders(
         autopilotController,

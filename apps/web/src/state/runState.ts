@@ -6,8 +6,7 @@
  * deferred by design.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { Pcg32, TEMPLATES, type Build } from '@mechbattler/sim';
-import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
+import { TEMPLATES, type Build } from '@mechbattler/sim';
 
 export const RUN_LENGTH = 12;
 export const STARTING_SCRAP = 30;
@@ -68,26 +67,14 @@ export interface RunData {
   fightsWon: number;
   kitName: string;
   benchPool: BenchPart[];
+  /** This node's scrapyard reroll is spent (docs/10 M4; cleared on advance). */
+  yardRerolled?: boolean;
 }
 
 export type RunPhase =
   | { phase: 'none' }
   | { phase: 'active'; data: RunData }
   | { phase: 'over'; data: RunData; cause: string; victorious: boolean };
-
-/**
- * Scouted opponents for a node (docs/04 §5). M1 placeholder: a seeded pick of
- * 2–3 from the canned roster — the budget-driven ladder is M4.
- */
-export function nodeOpponents(seed: number, nodeIndex: number): OpponentDef[] {
-  const rng = new Pcg32(seed * 31 + nodeIndex);
-  const pool = [...OPPONENTS];
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(rng.nextFloat() * (i + 1));
-    [pool[i], pool[j]] = [pool[j]!, pool[i]!];
-  }
-  return pool.slice(0, 2 + (rng.nextFloat() < 0.5 ? 1 : 0));
-}
 
 interface StoredRun {
   data: RunData;
@@ -136,8 +123,24 @@ export function useRun() {
       if (data.nodeIndex >= RUN_LENGTH) {
         return { phase: 'over', data, cause: 'Completed the ladder', victorious: true };
       }
-      return { phase: 'active', data: { ...data, nodeIndex: data.nodeIndex + 1 } };
+      return { phase: 'active', data: { ...data, nodeIndex: data.nodeIndex + 1, yardRerolled: false } };
     });
+  }, []);
+
+  /** Leave a no-fight node (scrapyard): advance without a win or a purse. */
+  const skipNode = useCallback((): void => {
+    setRun((r) => {
+      if (r.phase !== 'active') return r;
+      if (r.data.nodeIndex >= RUN_LENGTH) {
+        return { phase: 'over', data: r.data, cause: 'Completed the ladder', victorious: true };
+      }
+      return { phase: 'active', data: { ...r.data, nodeIndex: r.data.nodeIndex + 1, yardRerolled: false } };
+    });
+  }, []);
+
+  /** Spend this node's one scrapyard reroll (docs/04 §5). */
+  const rerollYard = useCallback((): void => {
+    setRun((r) => (r.phase === 'active' ? { phase: 'active', data: { ...r.data, yardRerolled: true } } : r));
   }, []);
 
   /** Sell a bench-pool part for tier × SCRAP_SELL_MULT (docs/04 §1). */
@@ -205,6 +208,7 @@ export function useRun() {
 
   return {
     run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
+    skipNode, rerollYard,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };
 }

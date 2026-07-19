@@ -66,7 +66,8 @@ export function PartInspector({
         const partial = Math.min(1, placed.integrity + 0.1);
         const partialCost = repairCost(def.tier, placed.integrity, partial);
         const fullCost = repairCost(def.tier, placed.integrity, 1);
-        const sellValue = def.tier * SCRAP_SELL_MULT;
+        // Integrity-scaled, like the bench (pristine price is tier × mult).
+        const sellValue = Math.max(1, Math.round(def.tier * SCRAP_SELL_MULT * placed.integrity));
         return (
           <div className="inspector-run-ops">
             {placed.integrity < 1 && (

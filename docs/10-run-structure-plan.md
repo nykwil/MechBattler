@@ -68,7 +68,12 @@ scrap (superseded by M4 scrapyard nodes).*
   config) with a spend control; scrap-a-part button (tier×8). Placing from the bench pool
   and unplacing back to it respects the cap.
 
-### M4 — Enemy ladder
+### M4 — Enemy ladder ✅ *shipped Jul 19 2026 — sim `generateOpponent` (seeded template
+pick + budget fill + free auto-wiring, unreachable fill dropped, pinned tests); web
+`lib/ladder.ts` (budget 8→30 dials, elite +4 budget / purse ×1.5, 2 seeded scrapyard
+nodes with 4 offers + one reroll); intel cards show chassis, terrain/spawn arena preview
+from the fixed battle seed (scouted arena = fought arena), and a heavier-frame headline
+warning. Sell prices now scale with integrity (closes the buy-junk-sell-pristine mint).*
 
 *Revised Jul 19 2026 (user call): **no bosses**, no mid-run chassis changes. The ladder
 is the budget curve alone — late nodes naturally field bigger frames, and beating an

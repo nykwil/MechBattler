@@ -259,8 +259,11 @@ tier × `SCRAP_BUY_MULT` (12 > sell 8, so the palette can't mint scrap; M4's scr
 nodes supersede this). Design revision (user call, Jul 19 2026): **no bosses and no
 mid-run chassis changes** — the ladder is the budget curve alone, and chassis/parts are
 **meta-unlocks** earned by beating them, gating future runs' starter kits and shop stock
-(04 §7, 10 M4/M6). **Next: M4 enemy ladder → M5 variants & quirks (hold the tabled
-rare/unique-items discussion first — see Loose ends) → M6 meta unlocks & polish.**
+(04 §7, 10 M4/M6). M4 enemy ladder **shipped Jul 19 2026**: budget-driven seeded
+opponents (sim `generateOpponent`), elites, scrapyard nodes, arena-preview intel cards
+with heavier-frame warnings; integrity-scaled sell prices. **Next: M5 variants & quirks
+(hold the tabled rare/unique-items discussion first — see Loose ends) → M6 meta unlocks
+& polish.**
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

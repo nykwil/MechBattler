@@ -1,10 +1,44 @@
-import { useState } from 'react';
-import { getPart, type Build } from '@mechbattler/sim';
-import { nodeOpponents, BENCH_CAP, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type RunPhase } from '../state/runState.js';
+import { useMemo, useState } from 'react';
+import {
+  DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
+  generateTerrain, getChassis, getPart, type Build, type TerrainType,
+} from '@mechbattler/sim';
+import { BENCH_CAP, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type RunPhase } from '../state/runState.js';
+import { ladderOpponents, nodeKind, scrapyardOffers, type YardOffer } from '../lib/ladder.js';
 import type { OpponentDef } from '../lib/opponents.js';
 import type { FightMode } from './ArenaPanel.js';
 import './ArenaPanel.css';
 import './RunPanel.css';
+
+const TERRAIN_FILL: Record<TerrainType, string> = {
+  open: '#26292d', forest: '#2e4a2e', hill: '#4a4030', water: '#28405a',
+};
+
+/**
+ * The intel card's arena preview (docs/04 §5): terrain silhouette plus both
+ * spawn points, derived from the same battle seed the fight will use.
+ */
+function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spawnDistanceM: number }) {
+  const terrain = useMemo(
+    () => generateTerrain(battleSeed, DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M),
+    [battleSeed],
+  );
+  const cell = 3;
+  const w = terrain.cols * cell;
+  const h = terrain.rows * cell;
+  // Spawns sit on the length axis (x), centered: ±spawnDistance/2 from middle.
+  const sx = (d: number) => ((d + DEFAULT_ARENA_LENGTH_M / 2) / DEFAULT_ARENA_LENGTH_M) * w;
+  const sy = h / 2;
+  return (
+    <svg className="arena-preview" width={w} height={h} aria-label="arena preview">
+      {terrain.cells.map((row, ry) => row.map((t, cx) => (
+        <rect key={`${cx},${ry}`} x={cx * cell} y={ry * cell} width={cell} height={cell} fill={TERRAIN_FILL[t]} />
+      )))}
+      <circle cx={sx(-spawnDistanceM / 2)} cy={sy} r={2.2} fill="var(--signal-green)" />
+      <circle cx={sx(spawnDistanceM / 2)} cy={sy} r={2.2} fill="var(--signal-red)" />
+    </svg>
+  );
+}
 
 /**
  * The run shell (docs/10 M1): start-kit picker → node screen with scouted
@@ -13,6 +47,7 @@ import './RunPanel.css';
  */
 export function RunPanel({
   run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
+  onBuyOffer, onRerollYard, onSkipNode,
 }: {
   run: RunPhase;
   build: Build;
@@ -25,6 +60,10 @@ export function RunPanel({
   onFitBench: (index: number) => void;
   /** Bench index currently armed for placement, if any. */
   fittingBenchIndex: number | null;
+  // --- Scrapyard nodes (docs/10 M4) ----------------------------------------
+  onBuyOffer: (offer: YardOffer) => void;
+  onRerollYard: () => void;
+  onSkipNode: () => void;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
@@ -68,37 +107,108 @@ export function RunPanel({
     );
   }
 
-  const opponents = nodeOpponents(run.data.seed, run.data.nodeIndex);
-  const picked = opponents.find((o) => o.id === pickedId) ?? opponents[0]!;
+  const kind = nodeKind(run.data.seed, run.data.nodeIndex);
+  const playerCells = getChassis(build.chassisId).mask.flat().filter(Boolean).length;
   const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
   const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
 
-  return (
-    <div>
-      <div className="eyebrow" style={{ marginBottom: 6 }}>Run — node {run.data.nodeIndex} of {RUN_LENGTH}</div>
+  const header = (
+    <>
+      <div className="eyebrow" style={{ marginBottom: 6 }}>
+        Run — node {run.data.nodeIndex} of {RUN_LENGTH}{kind === 'scrapyard' ? ' · scrapyard' : ''}
+      </div>
       <div className="run-status">
         <span>{run.data.kitName}</span>
         <span className="run-scrap">{run.data.scrap} scrap</span>
         <span>{run.data.fightsWon}W</span>
         <button type="button" className="run-abandon" onClick={onAbandon} title="End this run (no memorial)">abandon</button>
       </div>
+    </>
+  );
+
+  if (kind === 'scrapyard') {
+    const offers = scrapyardOffers(run.data.seed, run.data.nodeIndex, run.data.yardRerolled ?? false);
+    const benchFull = run.data.benchPool.length >= BENCH_CAP;
+    return (
+      <div>
+        {header}
+        <div className="run-note" style={{ marginBottom: 8 }}>
+          No fight here — a scrapyard. Used parts at dealer prices, straight to your bench.
+        </div>
+        {offers.map((o, i) => {
+          const def = getPart(o.partId);
+          const cantAfford = o.price > run.data.scrap;
+          return (
+            <div key={`${o.partId}-${i}`} className="run-bench-row">
+              <span className="run-bench-name">{def.name}</span>
+              <span className="run-bench-int">{Math.round(o.integrity * 100)}%</span>
+              <button
+                type="button"
+                className="run-bench-sell"
+                disabled={cantAfford || benchFull}
+                title={benchFull ? 'Bench pool is full' : cantAfford ? 'Not enough scrap' : 'Buy to bench'}
+                onClick={() => onBuyOffer(o)}
+              >
+                buy −{o.price}
+              </button>
+            </div>
+          );
+        })}
+        <div className="fight-row" style={{ marginTop: 10 }}>
+          <button
+            type="button"
+            className="fight-btn watch"
+            disabled={run.data.yardRerolled}
+            onClick={onRerollYard}
+            title="One fresh set of offers per yard"
+          >
+            {run.data.yardRerolled ? 'Rerolled' : 'Reroll stock'}
+          </button>
+          <button type="button" className="fight-btn" onClick={onSkipNode}>
+            Move on
+          </button>
+        </div>
+        {benchSection(run.data.benchPool, onSellBench, onFitBench, fittingBenchIndex)}
+      </div>
+    );
+  }
+
+  const opponents = ladderOpponents(run.data.seed, run.data.nodeIndex);
+  const picked = opponents.find((o) => o.id === pickedId) ?? opponents[0]!;
+
+  return (
+    <div>
+      {header}
 
       <div className="arena-opponents">
-        {opponents.map((o) => (
-          <button
-            key={o.id}
-            type="button"
-            className={`arena-card${o.id === picked.id ? ' active' : ''}`}
-            onClick={() => setPickedId(o.id)}
-          >
-            <div className="arena-card-head">
-              <span className="arena-card-name">{o.name}</span>
-              <span className="arena-threat">{'▲'.repeat(o.threat)}</span>
-            </div>
-            <div className="arena-card-blurb">{o.blurb}</div>
-            <div className="arena-card-intel">confirmed: {o.confirmed.join(' · ')}</div>
-          </button>
-        ))}
+        {opponents.map((o) => {
+          const enemyCells = getChassis(o.build.chassisId).mask.flat().filter(Boolean).length;
+          const heavier = enemyCells > playerCells;
+          return (
+            <button
+              key={o.id}
+              type="button"
+              className={`arena-card${o.id === picked.id ? ' active' : ''}${o.elite ? ' elite' : ''}`}
+              onClick={() => setPickedId(o.id)}
+            >
+              <div className="arena-card-head">
+                <span className="arena-card-name">{o.name}</span>
+                <span className="arena-threat">{'▲'.repeat(o.threat)}</span>
+              </div>
+              <div className="arena-card-blurb">{o.blurb}</div>
+              <div className="arena-card-intel">{o.chassisLabel} · confirmed: {o.confirmed.join(' · ')}</div>
+              {o.battleSeed !== undefined && o.spawnDistanceM !== undefined && (
+                <div className="arena-card-arena">
+                  <ArenaPreview battleSeed={o.battleSeed} spawnDistanceM={o.spawnDistanceM} />
+                  <span>spawn {o.spawnDistanceM} m</span>
+                </div>
+              )}
+              {heavier && o.headline && (
+                <div className="arena-card-warning">⚠ heavier frame — headline: {o.headline}</div>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {(!hasWeapons || !hasReactor) && (
@@ -118,32 +228,44 @@ export function RunPanel({
         </button>
       </div>
 
-      {run.data.benchPool.length > 0 && (
-        <div className="run-bench">
-          <div className="run-bench-title">Bench pool ({run.data.benchPool.length}/{BENCH_CAP}) — salvage awaiting a refit or a sale</div>
-          {run.data.benchPool.map((b, i) => {
-            const def = getPart(b.partId);
-            const value = def.tier * SCRAP_SELL_MULT;
-            return (
-              <div key={`${b.partId}-${i}`} className="run-bench-row">
-                <span className="run-bench-name">{def.name}</span>
-                <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
-                <button
-                  type="button"
-                  className={`run-bench-sell${fittingBenchIndex === i ? ' fitting' : ''}`}
-                  onClick={() => onFitBench(i)}
-                  title="Place this part on the grid"
-                >
-                  {fittingBenchIndex === i ? 'placing…' : 'fit'}
-                </button>
-                <button type="button" className="run-bench-sell" onClick={() => onSellBench(i, value)} title="Scrap this part">
-                  sell +{value}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {benchSection(run.data.benchPool, onSellBench, onFitBench, fittingBenchIndex)}
+    </div>
+  );
+}
+
+function benchSection(
+  benchPool: { partId: string; integrity: number }[],
+  onSellBench: (index: number, value: number) => void,
+  onFitBench: (index: number) => void,
+  fittingBenchIndex: number | null,
+) {
+  if (benchPool.length === 0) return null;
+  return (
+    <div className="run-bench">
+      <div className="run-bench-title">Bench pool ({benchPool.length}/{BENCH_CAP}) — salvage awaiting a refit or a sale</div>
+      {benchPool.map((b, i) => {
+        const def = getPart(b.partId);
+        // Sell value scales with integrity (docs/04 §1's tier×8 is the
+        // pristine price) — otherwise buying junk and selling it mints scrap.
+        const value = Math.max(1, Math.round(def.tier * SCRAP_SELL_MULT * b.integrity));
+        return (
+          <div key={`${b.partId}-${i}`} className="run-bench-row">
+            <span className="run-bench-name">{def.name}</span>
+            <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
+            <button
+              type="button"
+              className={`run-bench-sell${fittingBenchIndex === i ? ' fitting' : ''}`}
+              onClick={() => onFitBench(i)}
+              title="Place this part on the grid"
+            >
+              {fittingBenchIndex === i ? 'placing…' : 'fit'}
+            </button>
+            <button type="button" className="run-bench-sell" onClick={() => onSellBench(i, value)} title="Scrap this part">
+              sell +{value}
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
