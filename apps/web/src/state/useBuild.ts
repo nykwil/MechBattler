@@ -35,6 +35,7 @@ type Action =
   | { type: 'PLACE'; x: number; y: number }
   | { type: 'REMOVE'; instanceId: string }
   | { type: 'ADD_PARTS'; parts: PlacedPart[] }
+  | { type: 'LOAD_BUILD'; build: Build }
   | { type: 'MOVE_PRIORITY'; instanceId: string; direction: -1 | 1 }
   | { type: 'SET_OVERLAY'; overlay: OverlayMode };
 
@@ -95,6 +96,17 @@ function reducer(state: EditorState, action: Action): EditorState {
       const fresh = action.parts.filter((p) => !existing.has(p.instanceId));
       return fresh.length > 0 ? { ...state, parts: [...state.parts, ...fresh] } : state;
     }
+    case 'LOAD_BUILD':
+      // Run flow (docs/10 M1): replace the whole editor state with a build
+      // (starter kit or a restored run). nextSeq restarts at parts.length+1;
+      // PLACE ids are `${partId}-${seq}`, which never collides with template
+      // or wire-N instance ids.
+      return {
+        ...initialState(action.build.chassisId),
+        parts: [...action.build.parts],
+        powerPriority: [...action.build.powerPriority],
+        nextSeq: action.build.parts.length + 1,
+      };
     case 'REMOVE':
       return {
         ...state,
@@ -159,6 +171,7 @@ export function useBuild(defaultChassisId: string) {
     place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
     remove: (instanceId: string) => dispatch({ type: 'REMOVE', instanceId }),
     addParts: (parts: PlacedPart[]) => dispatch({ type: 'ADD_PARTS', parts }),
+    loadBuild: (b: Build) => dispatch({ type: 'LOAD_BUILD', build: b }),
     movePriority: (instanceId: string, direction: -1 | 1) => dispatch({ type: 'MOVE_PRIORITY', instanceId, direction }),
     setOverlay: (overlay: OverlayMode) => dispatch({ type: 'SET_OVERLAY', overlay }),
     checkCandidate,

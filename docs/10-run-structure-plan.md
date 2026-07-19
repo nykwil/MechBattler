@@ -21,7 +21,9 @@ save-file / multiplayer build-lock format (00 backlog).
 
 ## 2. Milestones
 
-### M1 — Run shell
+### M1 — Run shell ✅ *shipped Jul 18 2026 — `useRun` (localStorage-persisted) +
+`RunPanel` (kit picker / node screen / memorial); outcome settles when the run-fight
+report closes; free-play arena remains available only outside a run.*
 
 The state machine, with the existing roster as placeholder opponents:
 

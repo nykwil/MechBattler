@@ -1,0 +1,54 @@
+.run-note {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  padding: 8px 10px;
+  border: 1px dashed var(--line-hairline);
+  border-radius: var(--radius-md);
+}
+
+.run-status {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+  margin-bottom: 10px;
+}
+.run-scrap { color: var(--signal-amber); font-weight: 600; }
+.run-abandon {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--ink-faint);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+}
+.run-abandon:hover { color: var(--signal-red); }
+
+.run-memorial {
+  text-align: center;
+  padding: 18px 12px;
+  border: 1px solid var(--signal-red);
+  border-radius: var(--radius-md);
+  margin-bottom: 10px;
+}
+.run-memorial.victorious { border-color: var(--signal-green); }
+.run-memorial-title {
+  font-family: var(--font-display);
+  font-size: 15px;
+  letter-spacing: 0.08em;
+  color: var(--signal-red);
+  margin-bottom: 8px;
+}
+.run-memorial.victorious .run-memorial-title { color: var(--signal-green); }
+.run-memorial-line {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--ink-secondary);
+  padding: 1px 0;
+}

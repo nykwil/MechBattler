@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { autoWire, computeHeatAdvice, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
@@ -9,6 +9,8 @@ import { TestBenchPanel } from './components/TestBenchPanel.js';
 import { PartInspector } from './components/PartInspector.js';
 import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
+import { RunPanel } from './components/RunPanel.js';
+import { kitBuild, useRun } from './state/runState.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
@@ -24,7 +26,7 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 export default function App() {
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, movePriority, setOverlay,
+    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -33,6 +35,31 @@ export default function App() {
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
+
+  // --- Run shell (docs/10 M1) ------------------------------------------------
+  const { run, start, won, lost, abandon, persistBuild, restored, clearRestored } = useRun();
+  /** Whether the open battle belongs to the run (vs free-play arena). */
+  const runFightRef = useRef(false);
+
+  // Restore a reloaded run's build into the editor, once.
+  useEffect(() => {
+    if (restored) {
+      loadBuild(restored);
+      clearRestored();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restored]);
+
+  // The run's build snapshot follows every edit (and clears when no run).
+  useEffect(() => {
+    persistBuild(build);
+  }, [build, run.phase, persistBuild]);
+
+  const startKit = useCallback((templateId: string, kitName: string) => {
+    loadBuild(kitBuild(templateId));
+    start(kitName);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start]);
 
   const autoWireNow = useCallback(() => {
     const { conduits } = autoWire(chassis, build);
@@ -186,8 +213,20 @@ export default function App() {
             <TestBenchPanel chassis={chassis} build={build} onResult={setBenchResult} />
           </div>
           <div className="section">
-            <ArenaPanel build={build} onFight={fight} />
+            <RunPanel
+              run={run}
+              build={build}
+              onStartKit={startKit}
+              onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
+              onAbandon={abandon}
+              onNewRun={abandon}
+            />
           </div>
+          {run.phase === 'none' && (
+            <div className="section">
+              <ArenaPanel build={build} onFight={(o, m) => { runFightRef.current = false; fight(o, m); }} />
+            </div>
+          )}
         </div>
       </div>
 
@@ -201,7 +240,7 @@ export default function App() {
             setBattle({ report, opponent: live.opponent, mode: 'command' });
             setLive(null);
           }}
-          onAbort={() => setLive(null)}
+          onAbort={() => { runFightRef.current = false; setLive(null); }}
         />
       )}
 
@@ -211,7 +250,19 @@ export default function App() {
           opponent={battle.opponent}
           onRematch={() => fight(battle.opponent, battle.mode)}
           onRematchSameSeed={() => fight(battle.opponent, battle.mode, battle.report.seed)}
-          onClose={() => setBattle(null)}
+          onClose={() => {
+            // A closed run-fight report settles the node (docs/10 M1): a win
+            // advances the ladder; losing the core ends the run. Other losses
+            // (mission-kill, judges) keep the node — pick again or refit.
+            if (runFightRef.current) {
+              runFightRef.current = false;
+              if (battle.report.winner === 0) won();
+              else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
+                lost(`Core destroyed by ${battle.opponent.name}`);
+              }
+            }
+            setBattle(null);
+          }}
         />
       )}
     </div>
