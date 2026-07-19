@@ -20,6 +20,8 @@ interface EditorState {
   powerPriority: string[];
   /** Palette part armed for placement. Mutually exclusive with selectedInstanceId. */
   selectedPartId: string | null;
+  /** Integrity the next placement lands with (1 from the palette; <1 from the bench pool). */
+  placeIntegrity: number;
   /** Placed part selected for inspection/removal. */
   selectedInstanceId: string | null;
   rotation: Rotation;
@@ -29,7 +31,8 @@ interface EditorState {
 
 type Action =
   | { type: 'SET_CHASSIS'; chassisId: string }
-  | { type: 'SELECT_PART'; partId: string | null }
+  | { type: 'SELECT_PART'; partId: string | null; integrity?: number }
+  | { type: 'SET_INTEGRITY'; instanceId: string; integrity: number }
   | { type: 'SELECT_INSTANCE'; instanceId: string | null }
   | { type: 'ROTATE' }
   | { type: 'PLACE'; x: number; y: number }
@@ -51,7 +54,7 @@ function nextRotation(r: Rotation): Rotation {
 function initialState(chassisId: string): EditorState {
   return {
     chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
-    selectedPartId: null, selectedInstanceId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+    selectedPartId: null, placeIntegrity: 1, selectedInstanceId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
   };
 }
 
@@ -60,7 +63,16 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'SET_CHASSIS':
       return initialState(action.chassisId);
     case 'SELECT_PART':
-      return { ...state, selectedPartId: action.partId, selectedInstanceId: null, rotation: 0 };
+      return {
+        ...state, selectedPartId: action.partId, placeIntegrity: action.integrity ?? 1,
+        selectedInstanceId: null, rotation: 0,
+      };
+    case 'SET_INTEGRITY':
+      return {
+        ...state,
+        parts: state.parts.map((p) =>
+          p.instanceId === action.instanceId ? { ...p, integrity: action.integrity } : p),
+      };
     case 'SELECT_INSTANCE':
       return {
         ...state,
@@ -78,7 +90,7 @@ function reducer(state: EditorState, action: Action): EditorState {
       const instanceId = `${state.selectedPartId}-${state.nextSeq}`;
       const candidate: PlacedPart = {
         instanceId, partId: state.selectedPartId,
-        origin: { x: action.x, y: action.y }, rotation: state.rotation, integrity: 1,
+        origin: { x: action.x, y: action.y }, rotation: state.rotation, integrity: state.placeIntegrity,
       };
       const error = checkPlacement(chassis, state.parts, candidate, partDef);
       if (error) return state;
@@ -170,7 +182,8 @@ export function useBuild(defaultChassisId: string) {
     state, chassis, build,
     chassisOptions: Object.values(CHASSIS),
     setChassis: (id: string) => dispatch({ type: 'SET_CHASSIS', chassisId: id }),
-    selectPart: (id: string | null) => dispatch({ type: 'SELECT_PART', partId: id }),
+    selectPart: (id: string | null, integrity?: number) => dispatch({ type: 'SELECT_PART', partId: id, integrity }),
+    setIntegrity: (instanceId: string, integrity: number) => dispatch({ type: 'SET_INTEGRITY', instanceId, integrity }),
     selectInstance: (id: string | null) => dispatch({ type: 'SELECT_INSTANCE', instanceId: id }),
     rotate: () => dispatch({ type: 'ROTATE' }),
     place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),

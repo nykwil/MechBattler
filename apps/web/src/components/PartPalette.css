@@ -107,3 +107,11 @@
   padding: 1px 5px;
   font-size: 10px;
 }
+
+.part-price {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--signal-amber);
+}
+.part-price.too-rich { color: var(--signal-red); }

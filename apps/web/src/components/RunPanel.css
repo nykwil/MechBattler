@@ -88,3 +88,5 @@
   color: var(--ink-secondary);
   padding: 1px 0;
 }
+
+.run-bench-sell.fitting { color: var(--signal-green); border-color: var(--signal-green); }

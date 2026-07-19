@@ -119,3 +119,15 @@
 .legend-swatch {
   width: 10px; height: 10px; border-radius: 2px;
 }
+
+.integrity-badge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  fill: var(--signal-amber);
+  text-anchor: middle;
+  dominant-baseline: central;
+  paint-order: stroke;
+  stroke: rgba(0, 0, 0, 0.75);
+  stroke-width: 2.5px;
+  pointer-events: none;
+}

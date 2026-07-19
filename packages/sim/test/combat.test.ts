@@ -237,3 +237,45 @@ describe('battles run to a decision (docs/03 §1)', () => {
     expect(shots.some((s) => s.type === 'shot' && s.hit)).toBe(true);
   });
 });
+
+describe('salvage integrity scales part HP (docs/04 §3, docs/10 M3)', () => {
+  it('a part placed at 40% integrity starts (and reports) at 40% of catalog HP', () => {
+    // The gunline shoots a weaponless mech: mech 0 takes no damage, so its
+    // final HP fractions are exactly its starting integrities.
+    const build = muleGunline();
+    const arm = build.parts.find((p) => p.instanceId === 'arm1')!;
+    arm.integrity = 0.4;
+    const report = runBattle({ builds: [build, weaponlessMule()], seed: 7 });
+    expect(report.winner).toBe(0);
+    const byId = new Map(report.mechs[0].partsFinalHp.map((p) => [p.instanceId, p.hpFrac]));
+    expect(byId.get('arm1')).toBeCloseTo(0.4, 5);
+    expect(byId.get('reactor')).toBeCloseTo(1, 5);
+    expect(byId.get('ac')).toBeCloseTo(1, 5);
+  });
+
+  it('a low-integrity part is destroyed earlier than its pristine twin', () => {
+    // Same seed, same battlefield, one dial turned: the armor plate that
+    // started at 5% integrity must fall strictly sooner.
+    const armDiedAt = (integrity: number) => {
+      const build = muleSkirmisher();
+      build.parts.find((p) => p.instanceId === 'arm1')!.integrity = integrity;
+      const report = runBattle({ builds: [muleGunline(), build], seed: 42 });
+      const ev = report.events.find((e) => e.type === 'part-destroyed' && e.mech === 1 && e.instanceId === 'arm1');
+      return ev ? ev.tSec : Infinity;
+    };
+    expect(armDiedAt(0.05)).toBeLessThan(armDiedAt(1));
+  });
+
+  it('partsFinalHp covers every part, is 0 for lost parts and in [0,1] for the rest', () => {
+    const report = runBattle({ builds: [muleGunline(), muleSkirmisher()], seed: 42 });
+    for (const mech of report.mechs) {
+      expect(mech.partsFinalHp.length).toBeGreaterThan(0);
+      const lost = new Set(mech.partsLost.map((p) => p.instanceId));
+      for (const p of mech.partsFinalHp) {
+        if (lost.has(p.instanceId)) expect(p.hpFrac).toBe(0);
+        expect(p.hpFrac).toBeGreaterThanOrEqual(0);
+        expect(p.hpFrac).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+});

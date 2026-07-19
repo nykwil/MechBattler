@@ -53,7 +53,14 @@ perks") — captured in 07 Loose ends.*
 - **Bench pool** cap 8 (multi-cell parts 1 slot): loot freely, scrap the overflow on the
   spot (tier×8).
 
-### M3 — Repair, refit, integrity
+### M3 — Repair, refit, integrity ✅ *shipped Jul 18 2026 — integrity-scaled HP pinned
+in tests; `MechReport.partsFinalHp` feeds loot condition (now covers heat + cook-off
+damage, closing the M2 review finding); inspector repair (+10% / full at
+`REPAIR_COST_PER_POINT` × tier), sell (tier×8), unplace-to-bench; bench "fit" places at
+salvage integrity; grid shows integrity badges. Added beyond plan: during a run the
+palette is a placeholder shop — fresh parts and auto-wired conduits cost tier ×
+`SCRAP_BUY_MULT` (12), priced on the part cards, so buy > sell and selling can't mint
+scrap (superseded by M4 scrapyard nodes).*
 
 - Sim: **integrity scales part HP** (04 §3 — function stays binary down to 1%). One-line
   hook in the combatant's HP table + a pinned test.

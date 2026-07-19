@@ -12,7 +12,7 @@ import './RunPanel.css';
  * card styling so intel reads the same everywhere.
  */
 export function RunPanel({
-  run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench,
+  run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
 }: {
   run: RunPhase;
   build: Build;
@@ -21,6 +21,10 @@ export function RunPanel({
   onAbandon: () => void;
   onNewRun: () => void;
   onSellBench: (index: number, value: number) => void;
+  /** Arm a bench part for grid placement (docs/10 M3). */
+  onFitBench: (index: number) => void;
+  /** Bench index currently armed for placement, if any. */
+  fittingBenchIndex: number | null;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
@@ -124,6 +128,14 @@ export function RunPanel({
               <div key={`${b.partId}-${i}`} className="run-bench-row">
                 <span className="run-bench-name">{def.name}</span>
                 <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
+                <button
+                  type="button"
+                  className={`run-bench-sell${fittingBenchIndex === i ? ' fitting' : ''}`}
+                  onClick={() => onFitBench(i)}
+                  title="Place this part on the grid"
+                >
+                  {fittingBenchIndex === i ? 'placing…' : 'fit'}
+                </button>
                 <button type="button" className="run-bench-sell" onClick={() => onSellBench(i, value)} title="Scrap this part">
                   sell +{value}
                 </button>

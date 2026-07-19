@@ -248,9 +248,16 @@ milestones): arc wedges + range sandbox + waypoint-facing fix, playable friction
 (per-slot RANGE/ARC/HOT vs player HOLD), the network-starved audit, the ⚡ Auto-wire
 baseline, and sandbox uptime attribution. Balancing explicitly deferred — building for
 feature-completeness and user experience first (user call, Jul 18 2026).
-**Next: Track A — run structure & economy, planned in `10-run-structure-plan.md`
-(M1 run shell → M2 wreck salvage → M3 repair/integrity → M4 enemy ladder → M5
-variants & quirks → M6 polish; economy numbers are config dials, balancing deferred).**
+**Track A — run structure & economy** (plan: `10-run-structure-plan.md`; economy numbers
+are config dials, balancing deferred): M1 run shell, M2 wreck salvage and M3
+repair/refit/integrity **shipped Jul 18 2026**. M3 landed: integrity-scaled part HP
+pinned in tests, `partsFinalHp` on MechReport (loot condition now includes heat and
+cook-off damage), partial/full repair (0.4 × tier per point), sell-a-placed-part,
+bench-pool → grid placement ("fit") and unplace-back, grid integrity badges — plus a
+placeholder shop: during a run, catalog parts (and auto-wired conduits) are bought at
+tier × `SCRAP_BUY_MULT` (12 > sell 8, so the palette can't mint scrap; M4's scrapyard
+nodes supersede this). **Next: M4 enemy ladder → M5 variants & quirks (hold the tabled
+rare/unique-items discussion first — see Loose ends) → M6 polish.**
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

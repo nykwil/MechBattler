@@ -85,3 +85,32 @@
   border-radius: 3px;
   padding: 0 4px;
 }
+
+.inspector-run-ops {
+  margin-top: 8px;
+  border-top: 1px solid var(--line-hairline);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.inspector-repair-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--ink-secondary);
+}
+.inspector-repair-row button {
+  background: none;
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.inspector-repair-row button:hover:not(:disabled) { color: var(--signal-amber); border-color: var(--signal-amber); }
+.inspector-repair-row button:disabled { opacity: 0.4; cursor: default; }

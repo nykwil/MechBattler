@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { autoWire, computeHeatAdvice, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { autoWire, computeHeatAdvice, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -11,7 +11,8 @@ import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
-import { kitBuild, PURSE_BASE, PURSE_PER_NODE, useRun } from './state/runState.js';
+import { kitBuild, BENCH_CAP, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, useRun } from './state/runState.js';
+import type { RunPartOps } from './components/PartInspector.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
@@ -27,7 +28,7 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 export default function App() {
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay,
+    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -38,11 +39,75 @@ export default function App() {
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
-  const { run, start, won, lost, abandon, sellBench, persistBuild, restored, clearRestored } = useRun();
+  const { run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench, persistBuild, restored, clearRestored } = useRun();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
   /** A won run fight awaiting its salvage screen (docs/10 M2). */
   const [wreck, setWreck] = useState<{ report: BattleReport; opponent: OpponentDef; nodeIndex: number } | null>(null);
+  /** Bench-pool part armed for grid placement (docs/10 M3). */
+  const [pendingBench, setPendingBench] = useState<{ index: number; partId: string } | null>(null);
+
+  const runActive = run.phase === 'active';
+  const runScrap = runActive ? run.data.scrap : 0;
+  const benchUsed = runActive ? run.data.benchPool.length : 0;
+
+  // Palette selection always drops any armed bench part — a fresh catalog
+  // part and a bench part can't both be on the cursor.
+  const selectPalettePart = useCallback((id: string | null) => {
+    setPendingBench(null);
+    selectPart(id);
+  }, [selectPart]);
+
+  /** Arm a bench part: it places at its salvage integrity, once. */
+  const fitBench = useCallback((index: number) => {
+    if (run.phase !== 'active') return;
+    const b = run.data.benchPool[index];
+    if (!b) return;
+    setPendingBench({ index, partId: b.partId });
+    selectPart(b.partId, b.integrity);
+  }, [run, selectPart]);
+
+  // Placement with the run economy in the loop (docs/10 M3): a bench part
+  // consumes its bench slot; a fresh catalog part is bought at tier ×
+  // SCRAP_BUY_MULT (> sell, so the palette can't mint scrap). Free play
+  // outside a run is unchanged.
+  const placeWithEconomy = useCallback((x: number, y: number) => {
+    if (!state.selectedPartId || checkCandidate(x, y) !== null) return;
+    if (pendingBench && pendingBench.partId === state.selectedPartId) {
+      takeBench(pendingBench.index);
+      setPendingBench(null);
+      place(x, y);
+      selectPart(null); // a bench part is one-of — disarm after placing
+      return;
+    }
+    if (runActive) {
+      const cost = getPart(state.selectedPartId).tier * SCRAP_BUY_MULT;
+      if (cost > runScrap) return;
+      addScrap(-cost);
+    }
+    place(x, y);
+  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runScrap, addScrap]);
+
+  /** Repair / sell / unplace controls on the part inspector during a run. */
+  const runOps: RunPartOps | undefined = runActive ? {
+    scrap: runScrap,
+    benchFull: benchUsed >= BENCH_CAP,
+    onRepair: (instanceId, toIntegrity, cost) => {
+      if (cost > runScrap) return;
+      addScrap(-cost);
+      setIntegrity(instanceId, toIntegrity);
+    },
+    onSell: (instanceId, value) => {
+      addScrap(value);
+      remove(instanceId);
+    },
+    onUnplace: (instanceId) => {
+      const p = state.parts.find((x) => x.instanceId === instanceId);
+      if (!p || benchUsed >= BENCH_CAP) return;
+      addBench({ partId: p.partId, integrity: p.integrity });
+      remove(instanceId);
+    },
+  } : undefined;
 
   // Restore a reloaded run's build into the editor, once.
   useEffect(() => {
@@ -61,6 +126,7 @@ export default function App() {
   }, [build, run, persistBuild]);
 
   const startKit = useCallback((templateId: string, kitName: string) => {
+    setPendingBench(null);
     loadBuild(kitBuild(templateId));
     start(kitName);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,10 +135,17 @@ export default function App() {
   const autoWireNow = useCallback(() => {
     const { conduits } = autoWire(chassis, build);
     if (conduits.length === 0) return;
+    // During a run the conduits are bought like any other part (docs/10 M3) —
+    // otherwise auto-wire + sell would mint scrap.
+    if (runActive) {
+      const cost = conduits.reduce((sum, c) => sum + getPart(c.partId).tier * SCRAP_BUY_MULT, 0);
+      if (cost > runScrap) return;
+      addScrap(-cost);
+    }
     addParts(conduits);
     setFlashIds(new Set(conduits.map((c) => c.instanceId)));
     setTimeout(() => setFlashIds(new Set()), 1700);
-  }, [chassis, build, addParts]);
+  }, [chassis, build, addParts, runActive, runScrap, addScrap]);
 
   useEffect(() => {
     setBenchResult(null);
@@ -125,6 +198,7 @@ export default function App() {
       if (battle || live || wreck) return; // overlays own the keyboard
       if (e.key.toLowerCase() === 'r') rotate();
       if (e.key === 'Escape') {
+        setPendingBench(null);
         selectPart(null);
         selectInstance(null);
       }
@@ -171,7 +245,13 @@ export default function App() {
 
       <div className="layout">
         <div className="panel">
-          <PartPalette selectedPartId={state.selectedPartId} onSelect={selectPart} onHover={setHoveredPartId} />
+          <PartPalette
+            selectedPartId={state.selectedPartId}
+            onSelect={selectPalettePart}
+            onHover={setHoveredPartId}
+            priceMult={runActive ? SCRAP_BUY_MULT : undefined}
+            scrap={runActive ? runScrap : undefined}
+          />
         </div>
 
         <div className="centerpane">
@@ -183,7 +263,7 @@ export default function App() {
             selectedInstanceId={state.selectedInstanceId}
             previewCells={previewCells}
             checkCandidate={checkCandidate}
-            onPlace={place}
+            onPlace={placeWithEconomy}
             onSelectInstance={selectInstance}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
             faultInstanceIds={faultInstanceIds}
@@ -205,6 +285,7 @@ export default function App() {
                 selectedInstanceId={state.selectedInstanceId}
                 onRemove={remove}
                 onDeselect={() => selectInstance(null)}
+                runOps={runOps}
               />
             </div>
           )}
@@ -225,7 +306,9 @@ export default function App() {
               onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
               onAbandon={abandon}
               onNewRun={abandon}
-              onSellBench={sellBench}
+              onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
+              onFitBench={fitBench}
+              fittingBenchIndex={pendingBench?.index ?? null}
             />
           </div>
           {run.phase === 'none' && (

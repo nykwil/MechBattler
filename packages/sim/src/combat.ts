@@ -252,6 +252,13 @@ export interface MechReport {
   shotsHit: number;
   damageDealt: number;
   partsLost: { instanceId: string; partId: string }[];
+  /**
+   * Every part's remaining HP as a fraction of its pristine catalog HP
+   * (0 = destroyed). Starts at the part's salvage integrity and reflects all
+   * damage sources — shots, heat, cook-off splash — so salvage reads final
+   * condition directly instead of re-tallying shot events (docs/04 §2).
+   */
+  partsFinalHp: { instanceId: string; partId: string; hpFrac: number }[];
   /** Functional part mass remaining / total part mass, for judges' decisions (docs/03 §1). */
   functionalMassFrac: number;
   coreHpRemaining: number;
@@ -332,6 +339,12 @@ export class Combatant {
 
   isPartFunctional(instanceId: string): boolean {
     return !this.sim.isDestroyed(instanceId);
+  }
+
+  /** Remaining HP / pristine catalog HP (0 when destroyed). */
+  partHpFrac(instanceId: string, partId: string): number {
+    if (!this.isPartFunctional(instanceId)) return 0;
+    return (this.hpByInstance.get(instanceId) ?? 0) / Math.max(getPart(partId).hp, 1);
   }
 
   /** True if a functional U-TC1 is currently powered (not shed, not shut down). */
@@ -1334,6 +1347,11 @@ export class Battle {
         capacitorMaxKj: buildCapacitorMaxKj(self.build),
         ...this.stats[i]!,
         partsLost,
+        partsFinalHp: self.build.parts.map((p) => ({
+          instanceId: p.instanceId,
+          partId: p.partId,
+          hpFrac: self.partHpFrac(p.instanceId, p.partId),
+        })),
         functionalMassFrac: self.functionalMassFrac(),
         coreHpRemaining: self.coreHp,
       };

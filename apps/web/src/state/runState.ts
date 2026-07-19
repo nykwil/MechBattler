@@ -20,9 +20,23 @@ export const PURSE_PER_NODE = 5;
 export const SCRAP_WRECK_MULT = 4;
 /** Selling a part you own pays tier × this. */
 export const SCRAP_SELL_MULT = 8;
+/**
+ * During a run, placing a fresh catalog part costs tier × this (> sell, so the
+ * palette can't mint scrap). Placeholder shop until M4's scrapyard nodes —
+ * wrecks are meant to be the real parts source (docs/04 §1).
+ */
+export const SCRAP_BUY_MULT = 12;
 /** Loot integrity loses a further uniform 0..this on extraction. */
 export const EXTRACTION_WEAR_MAX = 0.2;
 export const BENCH_CAP = 8;
+/** Repair costs this × tier per integrity point (1% = one point, docs/04 §3). */
+export const REPAIR_COST_PER_POINT = 0.4;
+
+/** Scrap cost to repair a part from one integrity to another (docs/04 §3). */
+export function repairCost(tier: number, fromIntegrity: number, toIntegrity: number): number {
+  const points = Math.max(0, toIntegrity - fromIntegrity) * 100;
+  return Math.ceil(points * REPAIR_COST_PER_POINT * tier);
+}
 
 /** An unplaced salvaged part riding in the bench pool (docs/04 §2). */
 export interface BenchPart {
@@ -135,6 +149,27 @@ export function useRun() {
     });
   }, []);
 
+  /** Spend (negative) or gain scrap — repair bills, part sales (docs/10 M3). */
+  const addScrap = useCallback((delta: number): void => {
+    setRun((r) => (r.phase === 'active'
+      ? { phase: 'active', data: { ...r.data, scrap: Math.max(0, r.data.scrap + delta) } }
+      : r));
+  }, []);
+
+  /** Park an unplaced part on the bench (unplace from the build, docs/10 M3). */
+  const addBench = useCallback((part: BenchPart): void => {
+    setRun((r) => (r.phase === 'active' && r.data.benchPool.length < BENCH_CAP
+      ? { phase: 'active', data: { ...r.data, benchPool: [...r.data.benchPool, part] } }
+      : r));
+  }, []);
+
+  /** Remove a bench part without payment (it was placed into the build). */
+  const takeBench = useCallback((index: number): void => {
+    setRun((r) => (r.phase === 'active'
+      ? { phase: 'active', data: { ...r.data, benchPool: r.data.benchPool.filter((_, i) => i !== index) } }
+      : r));
+  }, []);
+
   const lost = useCallback((cause: string): void => {
     setRun((r) => (r.phase === 'active' ? { phase: 'over', data: r.data, cause, victorious: false } : r));
   }, []);
@@ -168,5 +203,8 @@ export function useRun() {
     }
   }, []);
 
-  return { run, start, won, lost, abandon, sellBench, persistBuild, restored, clearRestored: () => setRestored(null) };
+  return {
+    run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
+    persistBuild, restored, clearRestored: () => setRestored(null),
+  };
 }

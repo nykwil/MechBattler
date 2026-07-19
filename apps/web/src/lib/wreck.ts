@@ -20,14 +20,9 @@ export interface WreckPart {
 export function buildWreck(report: BattleReport, enemyBuild: Build): WreckPart[] {
   const lost = new Set(report.mechs[1].partsLost.map((p) => p.instanceId));
 
-  // Damage taken per enemy part, from the shot events' penetration records.
-  const damageByInstance = new Map<string, number>();
-  for (const ev of report.events) {
-    if (ev.type !== 'shot' || ev.mech !== 0 || !ev.damaged) continue;
-    for (const d of ev.damaged) {
-      damageByInstance.set(d.instanceId, (damageByInstance.get(d.instanceId) ?? 0) + d.damage);
-    }
-  }
+  // Final condition straight from the sim's HP table (report.partsFinalHp):
+  // covers shot damage, heat damage and the wreck's own cook-off splash alike.
+  const hpFracByInstance = new Map(report.mechs[1].partsFinalHp.map((p) => [p.instanceId, p.hpFrac]));
 
   const wearRng = new Pcg32(report.seed ^ 0x5a17a6e);
   return enemyBuild.parts.map((placed) => {
@@ -35,9 +30,8 @@ export function buildWreck(report: BattleReport, enemyBuild: Build): WreckPart[]
     const destroyed = lost.has(placed.instanceId);
     let lootIntegrity: number | null = null;
     if (!destroyed) {
-      const damageFrac = Math.min((damageByInstance.get(placed.instanceId) ?? 0) / Math.max(def.hp, 1), 1);
       const wear = wearRng.nextFloat() * EXTRACTION_WEAR_MAX;
-      lootIntegrity = Math.max(0.05, 1 - damageFrac - wear);
+      lootIntegrity = Math.max(0.05, (hpFracByInstance.get(placed.instanceId) ?? 1) - wear);
     } else {
       wearRng.nextFloat(); // keep the wear stream aligned with part order
     }

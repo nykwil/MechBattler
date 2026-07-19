@@ -11,12 +11,15 @@ function metaLine(def: PartDef): string {
 }
 
 export function PartPalette({
-  selectedPartId, onSelect, onHover,
+  selectedPartId, onSelect, onHover, priceMult, scrap,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
   /** Inventory hover preview (docs/01 §9): browsing is reading trade-offs. */
   onHover: (id: string | null) => void;
+  /** During a run, fresh parts cost tier × this scrap (docs/04 §1). */
+  priceMult?: number;
+  scrap?: number;
 }) {
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat, parts: Object.values(PARTS).filter((p) => p.category === cat),
@@ -42,7 +45,14 @@ export function PartPalette({
             >
               <ShapePreview def={def} />
               <div className="part-info">
-                <div className="part-name">{def.name}</div>
+                <div className="part-name">
+                  {def.name}
+                  {priceMult !== undefined && (
+                    <span className={`part-price${scrap !== undefined && def.tier * priceMult > scrap ? ' too-rich' : ''}`}>
+                      −{def.tier * priceMult}⚙
+                    </span>
+                  )}
+                </div>
                 <ChipRow def={def} />
                 <div className="part-meta">{metaLine(def)}</div>
               </div>

@@ -124,6 +124,19 @@ export function GridEditor({
     }];
   }), [parts]);
 
+  // Salvage integrity badges (docs/10 M3): a sub-100% part wears its number
+  // on the grid — half-broken salvage must read at a glance (R4).
+  const integrityBadges = useMemo(() => parts.flatMap((p) => {
+    if (p.integrity >= 1) return [];
+    const occ = getOccupiedCells(p, getPart(p.partId));
+    return [{
+      instanceId: p.instanceId,
+      x: (occ.reduce((s, c) => s + c.x, 0) / occ.length + 0.5) * CELL,
+      y: (occ.reduce((s, c) => s + c.y, 0) / occ.length + 0.5) * CELL,
+      pct: Math.round(p.integrity * 100),
+    }];
+  }), [parts]);
+
   const cells: { x: number; y: number }[] = [];
   for (let y = 0; y < chassis.height; y++) {
     for (let x = 0; x < chassis.width; x++) {
@@ -185,6 +198,12 @@ export function GridEditor({
 
           {overlay === 'parts' && weaponArcs.map(({ instanceId, d }) => (
             <path key={`arc-${instanceId}`} className="weapon-arc" d={d} />
+          ))}
+
+          {overlay === 'parts' && integrityBadges.map((b) => (
+            <text key={`int-${b.instanceId}`} className="integrity-badge" x={b.x} y={b.y}>
+              {b.pct}%
+            </text>
           ))}
 
           {faultOutlines.map((d, i) => (
