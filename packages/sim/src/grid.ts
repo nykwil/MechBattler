@@ -3,6 +3,7 @@
  */
 import type { CellOffset, ChassisSpec, PartDef, PlacedPart, Rotation } from './types.js';
 import { getPart } from './catalog.js';
+import { STATIC_CTX, effectiveMults } from './modifiers.js';
 
 export function rotateShape(shape: CellOffset[], rotation: Rotation): CellOffset[] {
   return shape.map(({ dx, dy }) => {
@@ -331,7 +332,8 @@ export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): Ma
   for (const p of parts) {
     const def = getPart(p.partId);
     const cells = getOccupiedCells(p, def);
-    const perCellMass = def.massKg / cells.length;
+    // Static mass modifiers (docs/04 §4b) scale the part's real mass.
+    const perCellMass = (def.massKg * effectiveMults(p, STATIC_CTX).massKg) / cells.length;
     for (const c of cells) {
       massKg += perCellMass;
       momentX += perCellMass * c.x;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { autoWire, computeHeatAdvice, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { autoWire, buildTierBudget, computeHeatAdvice, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
@@ -11,7 +11,8 @@ import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
-import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, useRun } from './state/runState.js';
+import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, START_BUDGET, useRun } from './state/runState.js';
+import { useProfile, type UnlockGains } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
@@ -41,19 +42,42 @@ export default function App() {
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
-    run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
+    run, start, startCustom, launch, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
     skipNode, rerollYard, markYardMod, persistBuild, restored, clearRestored,
   } = useRun();
+  const { profile, lockedPartIds, unlockFrom, history, pushHistory } = useProfile();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
   /** A won run fight awaiting its salvage screen (docs/10 M2). */
-  const [wreck, setWreck] = useState<{ report: BattleReport; opponent: OpponentDef; nodeIndex: number } | null>(null);
+  const [wreck, setWreck] = useState<{ report: BattleReport; opponent: OpponentDef; nodeIndex: number; unlocks: UnlockGains } | null>(null);
   /** Bench-pool part armed for grid placement (docs/10 M3). */
   const [pendingBench, setPendingBench] = useState<{ index: number; partId: string } | null>(null);
 
   const runActive = run.phase === 'active';
+  const runPrep = run.phase === 'prep';
   const runScrap = runActive ? run.data.scrap : 0;
   const benchUsed = runActive ? run.data.benchPool.length : 0;
+
+  // Memorial (docs/10 M6): a finished run is recorded once.
+  const historyPushedRef = useRef(false);
+  useEffect(() => {
+    if (run.phase === 'over' && !historyPushedRef.current) {
+      historyPushedRef.current = true;
+      pushHistory({
+        kitName: run.data.kitName, fightsWon: run.data.fightsWon,
+        cause: run.cause, victorious: run.victorious, endedAt: new Date().toISOString(),
+      });
+    }
+    if (run.phase !== 'over') historyPushedRef.current = false;
+  }, [run, pushHistory]);
+
+  /** Custom-frame start (docs/04 §7): bare unlocked chassis, then outfit. */
+  const startCustomFrame = useCallback((chassisId: string) => {
+    setPendingBench(null);
+    setChassis(chassisId); // resets the editor to an empty build
+    startCustom(`Custom ${getChassis(chassisId).name}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setChassis, startCustom]);
 
   // Palette selection always drops any armed bench part — a fresh catalog
   // part and a bench part can't both be on the cursor.
@@ -84,13 +108,22 @@ export default function App() {
       selectPart(null); // a bench part is one-of — disarm after placing
       return;
     }
+    if (runPrep) {
+      // Custom-frame outfitting (docs/04 §7): unlocked parts only, free but
+      // capped by the tier budget (wiring is exempt, like the enemy ladder).
+      const def = getPart(state.selectedPartId);
+      if (lockedPartIds.has(def.id)) return;
+      if (!def.isConduit && !def.isHeatPipe && buildTierBudget(build) + def.tier > START_BUDGET) return;
+      place(x, y);
+      return;
+    }
     if (runActive) {
       const cost = getPart(state.selectedPartId).tier * SCRAP_BUY_MULT;
       if (cost > runScrap) return;
       addScrap(-cost);
     }
     place(x, y);
-  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runScrap, addScrap]);
+  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, runScrap, addScrap, lockedPartIds, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
   const runOps: RunPartOps | undefined = runActive ? {
@@ -257,6 +290,7 @@ export default function App() {
             onHover={setHoveredPartId}
             priceMult={runActive ? SCRAP_BUY_MULT : undefined}
             scrap={runActive ? runScrap : undefined}
+            lockedPartIds={runPrep ? lockedPartIds : undefined}
           />
         </div>
 
@@ -329,6 +363,10 @@ export default function App() {
                 applyModifier(instanceId, modId);
                 markYardMod();
               }}
+              profile={profile}
+              history={history}
+              onStartCustom={startCustomFrame}
+              onLaunch={launch}
             />
           </div>
           {run.phase === 'none' && (
@@ -361,6 +399,7 @@ export default function App() {
           purse={Math.round((PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex) * (wreck.opponent.elite ? ELITE_PURSE_MULT : 1))}
           benchUsed={run.data.benchPool.length}
           guaranteeMod={run.data.fightsWon === 0}
+          unlocks={wreck.unlocks}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);
             setWreck(null);
@@ -381,8 +420,10 @@ export default function App() {
             if (runFightRef.current) {
               runFightRef.current = false;
               if (battle.report.winner === 0 && run.phase === 'active') {
-                // Salvage settles the node (docs/04 §2) before the ladder advances.
-                setWreck({ report: battle.report, opponent: battle.opponent, nodeIndex: run.data.nodeIndex });
+                // Salvage settles the node (docs/04 §2) before the ladder
+                // advances; beating the mech registers its unlocks (04 §7).
+                const unlocks = unlockFrom(battle.opponent.build);
+                setWreck({ report: battle.report, opponent: battle.opponent, nodeIndex: run.data.nodeIndex, unlocks });
               } else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
                 lost(`Core destroyed by ${battle.opponent.name}`);
               }

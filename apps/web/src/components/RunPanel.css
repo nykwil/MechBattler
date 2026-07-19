@@ -117,3 +117,13 @@
   font-size: 10px;
   color: var(--signal-amber);
 }
+
+.run-frames { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.run-frames .chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.run-scrap.over { color: var(--signal-red); }
+.run-history-cause {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-align: right;
+}

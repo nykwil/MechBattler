@@ -60,21 +60,29 @@ export interface EffectiveMults {
   conduction: number;
   /** 0 disables this part's cook-off splash to neighbors. */
   cookoffSplash: number;
+  /** Static: per-cell thermal mass multiplier (heats and cools slower). */
+  thermalMass: number;
   // Defense
   /** Static: HP multiplier (stacks with salvage integrity). */
   hp: number;
+  /** Static: part mass multiplier. */
+  massKg: number;
   /** This part's contribution to the mech's target profile (product). */
   targetProfile: number;
   /** Static: always sheds first in a brownout, ignoring priority. */
   shedFirst: boolean;
+  /** Static: weapon on/off orders take effect this many seconds late. */
+  orderLatencyS: number;
+  /** Static: while functional, the mech ignores terrain speed penalties. */
+  ignoreTerrainSlow: boolean;
 }
 
 export function neutralMults(): EffectiveMults {
   return {
     damage: 1, cycleS: 1, dispersionMrad: 1, moveJitter: 1, overkillCarry: 1,
     drawKw: 1, outputKw: 1,
-    radiator: 1, extraHeatKw: 0, conduction: 1, cookoffSplash: 1,
-    hp: 1, targetProfile: 1, shedFirst: false,
+    radiator: 1, extraHeatKw: 0, conduction: 1, cookoffSplash: 1, thermalMass: 1,
+    hp: 1, massKg: 1, targetProfile: 1, shedFirst: false, orderLatencyS: 0, ignoreTerrainSlow: false,
   };
 }
 
@@ -145,7 +153,25 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     appliesTo: (d) => Boolean(d.draw?.continuousKw),
     apply: (m, _ctx, def) => { m.extraHeatKw += (def.draw?.continuousKw ?? 0) * 0.2; },
   },
+  'sticky': {
+    id: 'sticky', name: 'Sticky', kind: 'quirk-flaw',
+    blurb: 'weapon on/off orders take effect 0.8 s late',
+    appliesTo: isWeapon,
+    apply: (m) => { m.orderLatencyS = Math.max(m.orderLatencyS, 0.8); },
+  },
+  'cold-soaked': {
+    id: 'cold-soaked', name: 'Cold-soaked', kind: 'quirk-flaw',
+    blurb: 'thermal mass ×2 — heats and cools slowly',
+    appliesTo: any,
+    apply: (m) => { m.thermalMass *= 2; },
+  },
   // --- Mods (docs/04 §4b) ---------------------------------------------------
+  'marsh-pistons': {
+    id: 'marsh-pistons', name: 'Marsh pistons', kind: 'mod',
+    blurb: 'no water/forest speed penalty while functional',
+    appliesTo: (d) => d.id === 'U-ACT',
+    apply: (m) => { m.ignoreTerrainSlow = true; },
+  },
   'fever-cycle': {
     id: 'fever-cycle', name: 'Fever cycle', kind: 'mod',
     blurb: 'fires faster the hotter its mount runs (−1% cycle per °C above 60)',

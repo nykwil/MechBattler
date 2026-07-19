@@ -118,7 +118,17 @@ variants/quirks and M5b mods if it drags.)*
   Frankensteined = bench-slot/mass). Tooltip one-liners everywhere the part appears.
   Elites get built *with* quirked parts so intel telegraphs the inheritance.
 
-### M6 — Meta unlocks & run polish
+### M6 — Meta unlocks & run polish ✅ *shipped Jul 19 2026 — persistent profile
+(`profileState.ts`, localStorage beside the run save): fresh profiles start with the
+starter kits' chassis (CH-2/CH-5) and parts + wiring; beating a mech unlocks whatever
+it rode or carried, announced on the wreck screen ("★ UNLOCKED: …"). **Custom-frame
+start**: pick an unlocked chassis → prep phase (palette shows 🔒 on locked parts,
+placements free within `START_BUDGET` tier, wiring exempt, prep survives reload) →
+launch. Run-history memorial (last `HISTORY_MAX` runs) on the start screen. Plus three
+more modifiers on the substrate: Sticky (weapon-toggle latency, new commandWeapons
+write path), Cold-soaked (thermal mass), Marsh pistons (terrain-slow immunity while
+functional). Still open: Frankensteined / Thermocouple skin / Surge gate modifiers,
+judges-loss reduced salvage, transplant-mode question, starter-kit rotation.*
 
 - **Unlock loop (04 §7, user call Jul 19 2026)**: a persistent profile (localStorage
   beside the run save) tracks unlocked chassis and **starting parts**. Beating a mech

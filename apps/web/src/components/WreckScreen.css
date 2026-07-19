@@ -94,3 +94,12 @@
   margin-top: 14px;
 }
 .wreck-total { font-family: var(--font-mono); font-size: 12px; color: var(--signal-amber); }
+
+.wreck-unlocks {
+  flex-basis: 100%;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--signal-green);
+  margin-top: 4px;
+}
+.wreck-head { flex-wrap: wrap; }

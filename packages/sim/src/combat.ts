@@ -313,6 +313,11 @@ export class Combatant {
   hpByInstance = new Map<string, number>();
   private heatDamageSeen = new Map<string, number>();
   private occupancy: ReturnType<typeof buildOccupancyMap>;
+  /** Weapon-toggle latency per instance (docs/04 §4 Sticky). */
+  private orderLatencyById = new Map<string, number>();
+  private pendingWeaponToggles = new Map<string, { value: boolean; atS: number }>();
+  /** Parts that, while functional, void terrain speed penalties (Marsh pistons). */
+  private terrainImmuneIds: string[] = [];
 
   constructor(build: Build, pos: Vec2, facingRad: number) {
     this.build = build;
@@ -326,11 +331,51 @@ export class Combatant {
     let partMass = 0;
     for (const p of build.parts) {
       const def = getPart(p.partId);
-      this.hpByInstance.set(p.instanceId, def.hp * p.integrity * effectiveMults(p, STATIC_CTX).hp);
+      const staticM = effectiveMults(p, STATIC_CTX);
+      this.hpByInstance.set(p.instanceId, def.hp * p.integrity * staticM.hp);
       this.heatDamageSeen.set(p.instanceId, 0);
-      partMass += def.massKg;
+      partMass += def.massKg * staticM.massKg;
+      if (staticM.orderLatencyS > 0) this.orderLatencyById.set(p.instanceId, staticM.orderLatencyS);
+      if (staticM.ignoreTerrainSlow) this.terrainImmuneIds.push(p.instanceId);
     }
     this.totalPartMassKg = partMass;
+  }
+
+  /**
+   * Weapon-toggle write path with Sticky latency (docs/04 §4): a changed
+   * toggle on a latent weapon holds the old state and lands `latency` later.
+   */
+  commandWeapons(enabled: Record<string, boolean>, tSec: number): void {
+    const next = { ...enabled };
+    for (const [id, latency] of this.orderLatencyById) {
+      const want = next[id] === true;
+      const cur = this.weaponsEnabled[id] === true;
+      if (want !== cur) {
+        const pending = this.pendingWeaponToggles.get(id);
+        if (!pending || pending.value !== want) {
+          this.pendingWeaponToggles.set(id, { value: want, atS: tSec + latency });
+        }
+        next[id] = cur;
+      } else {
+        this.pendingWeaponToggles.delete(id);
+      }
+    }
+    this.weaponsEnabled = next;
+  }
+
+  /** Lands due Sticky toggles. Called every tick by the battle loop. */
+  flushPendingToggles(tSec: number): void {
+    for (const [id, pending] of this.pendingWeaponToggles) {
+      if (tSec >= pending.atS) {
+        this.weaponsEnabled[id] = pending.value;
+        this.pendingWeaponToggles.delete(id);
+      }
+    }
+  }
+
+  /** True while a functional part voids terrain slowdowns (Marsh pistons). */
+  ignoresTerrainSlow(): boolean {
+    return this.terrainImmuneIds.some((id) => this.isPartFunctional(id));
   }
 
   get massT(): number { return this.sim.massT; }
@@ -897,10 +942,10 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
 }
 
 /** Applies one order to a combatant's control state. The single write path for all verbs. */
-export function applyOrder(self: Combatant, order: MechOrder): void {
+export function applyOrder(self: Combatant, order: MechOrder, tSec = 0): void {
   switch (order.verb) {
     case 'weapons':
-      self.weaponsEnabled = { ...order.enabled };
+      self.commandWeapons(order.enabled, tSec);
       break;
     case 'move':
       self.moveIntent = order.intent;
@@ -1081,6 +1126,7 @@ export class Battle {
     for (const i of [0, 1] as const) {
       const self = this.combatants[i];
       const enemy = this.combatants[(1 - i) as 0 | 1];
+      self.flushPendingToggles(this.tSec); // land due Sticky toggles (docs/04 §4)
       const tile = terrainAt(this.terrain, self.pos.x, self.pos.y);
       const command: SimCommand = {
         weaponsEnabled: self.weaponsEnabled,
@@ -1125,7 +1171,9 @@ export class Battle {
     for (const i of [0, 1] as const) {
       const locomotionShed = this.lastSnapshots[i]?.shedInstanceIds.includes(CORE_INSTANCE_ID) ?? false;
       const c = this.combatants[i];
-      const speedMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
+      // Marsh pistons (docs/04 §4b): a functional immune part voids the slow.
+      const baseMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
+      const speedMult = baseMult < 1 && c.ignoresTerrainSlow() ? 1 : baseMult;
       integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult);
       if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
       else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
@@ -1210,7 +1258,7 @@ export class Battle {
    */
   issueOrders(mech: 0 | 1, orders: MechOrder[]): void {
     for (const order of orders) {
-      applyOrder(this.combatants[mech], order);
+      applyOrder(this.combatants[mech], order, this.tSec);
       const sig = order.verb === 'weapons'
         ? Object.keys(order.enabled).filter((id) => order.enabled[id]).sort().join(',')
         : order.verb === 'move' ? order.intent

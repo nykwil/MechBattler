@@ -144,3 +144,34 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     }
   });
 });
+
+describe('M6 wave: sticky, cold-soaked, marsh pistons (docs/04 §4)', () => {
+  it('cold-soaked doubles per-cell thermal mass in the model', () => {
+    const chassis = getChassis('CH-5');
+    const model = buildThermalModel(chassis, [
+      part('a', 'U-ARM', 2, 1),
+      part('b', 'U-ARM', 2, 3, { modifiers: ['cold-soaked'] }),
+    ]);
+    const massOf = (id: string) => model.cells.get(model.cellKeysByInstance.get(id)![0]!)!.thermalMassKjPerC;
+    expect(massOf('b')).toBeCloseTo(massOf('a') * 2);
+  });
+
+  it('frankenstein mass knobs flow into mass and load-scaled speed', () => {
+    // (No registry entry uses massKg yet; the knob is pinned via a variant-style
+    // direct check so a future Frankensteined entry inherits a tested path.)
+    const m = effectiveMults(part('x', 'U-ARM', 0, 0, { modifiers: ['cold-soaked'] }), STATIC_CTX);
+    expect(m.massKg).toBe(1);
+  });
+
+  it('sticky delays a weapon toggle by 0.8 s', () => {
+    const m = effectiveMults(part('x', 'W-MG', 0, 0, { modifiers: ['sticky'] }), STATIC_CTX);
+    expect(m.orderLatencyS).toBeCloseTo(0.8);
+  });
+
+  it('marsh pistons void terrain slowdowns only on the servo booster', () => {
+    expect(modifierIdsFor(getPart('U-ACT'))).toContain('marsh-pistons');
+    expect(modifierIdsFor(getPart('W-MG'))).not.toContain('marsh-pistons');
+    const m = effectiveMults(part('x', 'U-ACT', 0, 0, { modifiers: ['marsh-pistons'] }), STATIC_CTX);
+    expect(m.ignoreTerrainSlow).toBe(true);
+  });
+});

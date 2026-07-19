@@ -115,3 +115,5 @@
   color: var(--signal-amber);
 }
 .part-price.too-rich { color: var(--signal-red); }
+
+.part-row.locked { opacity: 0.45; cursor: not-allowed; }

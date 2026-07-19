@@ -264,8 +264,13 @@ opponents (sim `generateOpponent`), elites, scrapyard nodes, arena-preview intel
 with heavier-frame warnings; integrity-scaled sell prices. M5 variants/quirks/mods
 **shipped Jul 19 2026** on one extensible substrate (`sim/modifiers.ts`, see 10 M5):
 loot rolls, first-wreck guaranteed mod, elite carriers, scrapyard machinist, ModChips
-UI. **Next: M6 meta unlocks & polish** (04 §7 unlock loop, run-history memorial),
-plus the six not-yet modifiers listed in 10 M5 as cheap follow-ons.
+UI. M6 meta unlocks & polish **shipped Jul 19 2026**: persistent profile, unlock-on-
+victory with wreck-screen announcements, custom-frame prep starts (START_BUDGET,
+locked-part palette), run-history memorial, + Sticky/Cold-soaked/Marsh-pistons
+modifiers. **Track A (docs/10) is complete, M1–M6.** Remaining threads: three
+modifiers (Frankensteined, Thermocouple skin, Surge gate), 04 §9 open questions,
+starter-kit rotation — then Track C balancing (deferred, user call) and the 00
+backlog (multiplayer lock-in, ammo, turrets).
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

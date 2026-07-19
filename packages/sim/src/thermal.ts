@@ -72,7 +72,8 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[]): Th
     const def = getPart(p.partId);
     const cellCoords = cellsByInstance.get(p.instanceId)!;
     const keys: string[] = [];
-    const thermalMass = def.thermalMassPerCell ?? 1.0;
+    // Cold-soaked etc. (docs/04 §4): static thermal-mass multiplier.
+    const thermalMass = (def.thermalMassPerCell ?? 1.0) * effectiveMults(p, STATIC_CTX).thermalMass;
     for (const c of cellCoords) {
       const k = key(c.x, c.y);
       keys.push(k);

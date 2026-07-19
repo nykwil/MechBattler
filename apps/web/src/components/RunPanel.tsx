@@ -3,7 +3,9 @@ import {
   DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
   generateTerrain, getChassis, getPart, type Build, type TerrainType,
 } from '@mechbattler/sim';
-import { BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, STARTER_KITS, type BenchPart, type RunPhase } from '../state/runState.js';
+import { BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET, STARTER_KITS, type BenchPart, type RunPhase } from '../state/runState.js';
+import type { Profile, RunRecord } from '../state/profileState.js';
+import { CHASSIS, buildTierBudget } from '@mechbattler/sim';
 import { ladderOpponents, machinistOffers, nodeKind, scrapyardOffers, type YardOffer } from '../lib/ladder.js';
 import { MODIFIERS, type PlacedPart } from '@mechbattler/sim';
 import { ModChips } from './ModChips.js';
@@ -50,6 +52,7 @@ function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spaw
 export function RunPanel({
   run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
   onBuyOffer, onRerollYard, onSkipNode, selectedPart, onApplyMod,
+  profile, history, onStartCustom, onLaunch,
 }: {
   run: RunPhase;
   build: Build;
@@ -70,6 +73,11 @@ export function RunPanel({
   /** The part currently selected in the editor, if any. */
   selectedPart: PlacedPart | null;
   onApplyMod: (instanceId: string, modId: string) => void;
+  // --- Meta profile (docs/04 §7, docs/10 M6) --------------------------------
+  profile: Profile;
+  history: RunRecord[];
+  onStartCustom: (chassisId: string) => void;
+  onLaunch: () => void;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
 
@@ -91,6 +99,71 @@ export function RunPanel({
           One mech, {RUN_LENGTH} fights, permadeath on a core kill. The kit is a starting
           point — everything on it can be rebuilt.
         </div>
+
+        <div className="run-bench">
+          <div className="run-bench-title">Custom frame — outfit an unlocked chassis from your unlocked parts</div>
+          <div className="run-frames">
+            {Object.values(CHASSIS).map((c) => {
+              const unlocked = profile.unlockedChassis.includes(c.id);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className="chip"
+                  disabled={!unlocked}
+                  title={unlocked ? `${c.type} — outfit and launch` : 'Locked — beat a mech riding this frame to unlock it'}
+                  onClick={() => onStartCustom(c.id)}
+                >
+                  {unlocked ? c.name : `🔒 ${c.name}`}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {history.length > 0 && (
+          <div className="run-bench">
+            <div className="run-bench-title">Memorial — past runs</div>
+            {history.map((r, i) => (
+              <div key={i} className="run-bench-row">
+                <span className="run-bench-name">
+                  {r.victorious ? '☼' : '✕'} {r.kitName} · {r.fightsWon}W
+                </span>
+                <span className="run-history-cause">{r.cause}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  if (run.phase === 'prep') {
+    const used = buildTierBudget(build);
+    const hasPrepWeapon = build.parts.some((p) => p.partId.startsWith('W-'));
+    const hasPrepReactor = build.parts.some((p) => p.partId.startsWith('R-'));
+    const ready = used <= START_BUDGET && hasPrepWeapon && hasPrepReactor;
+    return (
+      <div>
+        <div className="eyebrow" style={{ marginBottom: 6 }}>Outfitting — {run.data.kitName}</div>
+        <div className="run-status">
+          <span>tier budget</span>
+          <span className={`run-scrap${used > START_BUDGET ? ' over' : ''}`}>{used} / {START_BUDGET}</span>
+          <button type="button" className="run-abandon" onClick={onAbandon}>abandon</button>
+        </div>
+        <div className="run-note" style={{ marginBottom: 8 }}>
+          Build the starting mech from unlocked parts (🔒 in the bin = not yet earned).
+          Wiring is free; everything else spends the tier budget. Launch when it fights.
+        </div>
+        {!ready && (
+          <div className="arena-warning">
+            {used > START_BUDGET ? `Over budget by ${used - START_BUDGET} tier.`
+              : !hasPrepReactor ? 'No reactor mounted.' : 'No weapons mounted.'}
+          </div>
+        )}
+        <button type="button" className="fight-btn" style={{ width: '100%', marginTop: 8 }} disabled={!ready} onClick={onLaunch}>
+          Launch the run
+        </button>
       </div>
     );
   }

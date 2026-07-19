@@ -50,6 +50,8 @@ export interface BenchPart {
 
 /** Scrap cost to have the machinist apply a mod at a scrapyard (docs/04 §4b). */
 export const MACHINIST_MOD_COST = 25;
+/** Tier budget for a custom-frame starting loadout (docs/04 §7; wiring free). */
+export const START_BUDGET = 14;
 
 /** Starter kits (docs/04 §6) drawn from the sim's template roster. */
 export const STARTER_KITS = [
@@ -82,12 +84,16 @@ export interface RunData {
 
 export type RunPhase =
   | { phase: 'none' }
+  /** Custom-frame outfitting (docs/04 §7): build from unlocked starting parts, then launch. */
+  | { phase: 'prep'; data: RunData }
   | { phase: 'active'; data: RunData }
   | { phase: 'over'; data: RunData; cause: string; victorious: boolean };
 
 interface StoredRun {
   data: RunData;
   build: Build;
+  /** True while still outfitting a custom frame (docs/04 §7). */
+  prep?: boolean;
 }
 
 function load(): StoredRun | null {
@@ -105,18 +111,26 @@ function load(): StoredRun | null {
 export function useRun() {
   const [run, setRun] = useState<RunPhase>({ phase: 'none' });
 
+  const freshData = (kitName: string): RunData => ({
+    seed: Math.floor(Math.random() * 0x7fffffff),
+    nodeIndex: 1,
+    scrap: STARTING_SCRAP,
+    fightsWon: 0,
+    kitName,
+    benchPool: [],
+  });
+
   const start = useCallback((kitName: string): void => {
-    setRun({
-      phase: 'active',
-      data: {
-        seed: Math.floor(Math.random() * 0x7fffffff),
-        nodeIndex: 1,
-        scrap: STARTING_SCRAP,
-        fightsWon: 0,
-        kitName,
-        benchPool: [],
-      },
-    });
+    setRun({ phase: 'active', data: freshData(kitName) });
+  }, []);
+
+  /** Start a custom-frame run: outfit within START_BUDGET, then launch. */
+  const startCustom = useCallback((name: string): void => {
+    setRun({ phase: 'prep', data: freshData(name) });
+  }, []);
+
+  const launch = useCallback((): void => {
+    setRun((r) => (r.phase === 'prep' ? { phase: 'active', data: r.data } : r));
   }, []);
 
   /** Settle a won node: bank purse + wreck scrap, pocket the loot, advance. */
@@ -199,9 +213,11 @@ export function useRun() {
   // persistBuild) survives reload; anything else clears the slot.
   const persistBuild = useCallback((build: Build): void => {
     setRun((r) => {
-      if (r.phase === 'active') {
+      if (r.phase === 'active' || r.phase === 'prep') {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify({ data: r.data, build } satisfies StoredRun));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(
+            { data: r.data, build, prep: r.phase === 'prep' || undefined } satisfies StoredRun,
+          ));
         } catch { /* storage full/blocked: the run just won't survive reload */ }
       } else {
         localStorage.removeItem(STORAGE_KEY);
@@ -215,13 +231,13 @@ export function useRun() {
   useEffect(() => {
     const stored = load();
     if (stored) {
-      setRun({ phase: 'active', data: stored.data });
+      setRun({ phase: stored.prep ? 'prep' : 'active', data: stored.data });
       setRestored(stored.build);
     }
   }, []);
 
   return {
-    run, start, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
+    run, start, startCustom, launch, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
     skipNode, rerollYard, markYardMod,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };

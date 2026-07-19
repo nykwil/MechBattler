@@ -11,7 +11,7 @@ function metaLine(def: PartDef): string {
 }
 
 export function PartPalette({
-  selectedPartId, onSelect, onHover, priceMult, scrap,
+  selectedPartId, onSelect, onHover, priceMult, scrap, lockedPartIds,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -20,6 +20,8 @@ export function PartPalette({
   /** During a run, fresh parts cost tier × this scrap (docs/04 §1). */
   priceMult?: number;
   scrap?: number;
+  /** Custom-frame prep (docs/04 §7): parts not yet unlocked for starting loadouts. */
+  lockedPartIds?: Set<string>;
 }) {
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat, parts: Object.values(PARTS).filter((p) => p.category === cat),
@@ -34,11 +36,15 @@ export function PartPalette({
             <span className="swatch" style={{ background: CATEGORY_COLOR[cat] }} />
             {CATEGORY_LABEL[cat]}
           </div>
-          {parts.map((def) => (
+          {parts.map((def) => {
+            const locked = lockedPartIds?.has(def.id) === true;
+            return (
             <button
               key={def.id}
               type="button"
-              className={`part-row${selectedPartId === def.id ? ' selected' : ''}`}
+              className={`part-row${selectedPartId === def.id ? ' selected' : ''}${locked ? ' locked' : ''}`}
+              disabled={locked}
+              title={locked ? 'Locked — beat a mech carrying one to unlock it for starting loadouts' : undefined}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
               onMouseEnter={() => onHover(def.id)}
               onMouseLeave={() => onHover(null)}
@@ -46,7 +52,7 @@ export function PartPalette({
               <ShapePreview def={def} />
               <div className="part-info">
                 <div className="part-name">
-                  {def.name}
+                  {locked && '🔒 '}{def.name}
                   {priceMult !== undefined && (
                     <span className={`part-price${scrap !== undefined && def.tier * priceMult > scrap ? ' too-rich' : ''}`}>
                       −{def.tier * priceMult}⚙
@@ -57,7 +63,8 @@ export function PartPalette({
                 <div className="part-meta">{metaLine(def)}</div>
               </div>
             </button>
-          ))}
+            );
+          })}
         </div>
       ))}
       <div className="rotate-hint">

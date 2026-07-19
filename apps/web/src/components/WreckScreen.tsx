@@ -14,7 +14,7 @@ const CELL = 22;
  * everything destroyed, converts to scrap on the spot.
  */
 export function WreckScreen({
-  report, enemyBuild, opponentName, purse, benchUsed, guaranteeMod, onFinish,
+  report, enemyBuild, opponentName, purse, benchUsed, guaranteeMod, unlocks, onFinish,
 }: {
   report: BattleReport;
   enemyBuild: Build;
@@ -24,6 +24,8 @@ export function WreckScreen({
   benchUsed: number;
   /** First wreck of the run: one lootable part carries a mod (docs/04 §4b). */
   guaranteeMod?: boolean;
+  /** Names newly unlocked for future starts by beating this mech (docs/04 §7). */
+  unlocks?: { chassis: string[]; parts: string[] };
   onFinish: (scrapGained: number, loot: BenchPart[]) => void;
 }) {
   const chassis = getChassis(enemyBuild.chassisId);
@@ -69,6 +71,11 @@ export function WreckScreen({
         <div className="wreck-head">
           <span className="wreck-title">SALVAGE — {opponentName.toUpperCase()} WRECK</span>
           <span className="wreck-purse">purse +{purse}</span>
+          {unlocks && (unlocks.chassis.length > 0 || unlocks.parts.length > 0) && (
+            <span className="wreck-unlocks" title="Available for future runs' starting loadouts">
+              ★ UNLOCKED: {[...unlocks.chassis.map((c) => `${c} frame`), ...unlocks.parts].join(' · ')}
+            </span>
+          )}
         </div>
 
         <div className="wreck-body">
