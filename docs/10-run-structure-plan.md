@@ -101,6 +101,9 @@ unfamiliar frame is what unlocks it for future runs (M6, 04 §7).*
   beside the run save) tracks unlocked chassis and parts. Beating a mech riding a locked
   chassis unlocks it; same loop for parts. Unlocks gate starter kits and shop stock,
   never salvage. Wreck screen announces unlocks. All thresholds config dials.
+  **Horizontal only**: unlocks add build diversity, not power — bigger chassis are
+  balanced sidegrades (mass / target profile / speed / plumbing costs offset the room),
+  so a veteran profile has more *kinds* of runs, not easier ones.
 - Run-history memorial persistence (last N runs), judges-loss reduced salvage (04 §9),
   bench-pool transplant-mode question (04 §9), starter-kit rotation.
 

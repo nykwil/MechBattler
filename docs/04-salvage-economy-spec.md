@@ -123,6 +123,11 @@ superseding the earlier no-meta stance).
   locked chassis unlocks that chassis; encountering/beating locked parts unlocks them.
   Unlocks gate what future runs can *start with and buy* (starter kits, palette/shop
   stock) — never what salvage can drop, so a run can still loot anything it defeats.
+- **Unlocks are horizontal, not vertical** (user call, Jul 19 2026): an unlock widens
+  the option space — new archetypes, new build puzzles — it must not be a power reward.
+  In particular **bigger chassis are balanced sidegrades**: more grid room buys more
+  mass, a bigger target profile, slower base speeds, longer conduit runs and deeper
+  heat plumbing. Playing more earns more *diversity*, never a stronger default.
 - Profile is one serializable object (localStorage beside the run save), all thresholds
   config dials, tuning deferred. Which chassis/parts start locked is a balance question.
 - A run-history screen (final mech portrait, cause of death, fights won) is cheap and
