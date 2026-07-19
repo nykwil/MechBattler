@@ -90,6 +90,10 @@ unfamiliar frame is what unlocks it for future runs (M6, 04 §7).*
 
 ### M5 — Variants & quirks
 
+*(Design input, Jul 19 2026: the mods layer — 04 §4b — extends this milestone: machinist
+upgrades at scrapyards, elite mod carriers, first-wreck guaranteed mod. Split into M5a
+variants/quirks and M5b mods if it drags.)*
+
 - **Stat variants**: looted parts roll ±10% on one or two headline stats (weighted
   near-baseline); part cards show green/red deltas vs stock. Sim: parts carry optional
   per-instance stat overrides (a physical-parameter change, R1-clean).

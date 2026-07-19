@@ -81,6 +81,63 @@ the same gauge everything else uses. They create the "run hot on purpose" build 
 Distribution: 70% no quirk; of quirked drops, weighted 2:1 flaws:gifts. Enemy elites are
 *built with* quirked parts, so intel (below) telegraphs what you'll inherit.
 
+### 4b. Mods — the build-identity layer (brainstorm, Jul 19 2026)
+
+The third axis, above variants and quirks: **mods** are rare, named, deliberately
+build-defining part modifications — the CCG/synergy layer (resolves the tabled
+"rare/unique parts" discussion from 07). Two acquisition paths, both scarce:
+
+1. **The machinist** (scrapyard nodes): pay scrap to apply one mod to a part you own —
+   one application per yard, chosen from a small seeded offer of 2–3 mods ("intel is the
+   draft" applies to upgrades too). This is the "upgrade what you have" path.
+2. **Found on enemies**: elites carry modded parts, telegraphed on the intel card
+   ("carries a Tidecooler Gill"). Kill the carrier without destroying the part to take
+   it. The mod rides the part instance forever.
+
+**First-match hook**: the first wreck of every run is guaranteed to contain one modded
+part (seeded). The player doesn't pick their identity — they inherit it and build around
+it. This is the run's opening prompt.
+
+**What makes a good mod** (the design bar every candidate must clear):
+
+- **R1: it is a parameter, not a rule.** A mod changes a number the sim already
+  simulates (a conductivity, a cycle time, a profile height, a terrain multiplier).
+  Never new rules text, never "when X happens, trigger Y".
+- **It references a system, never another mod.** Synergies must *emerge* from shared
+  physics (water is simulated once; two mods that both care about water combo without
+  either knowing it). Scripted two-card combos are forbidden — discovery is the product.
+- **It bends a trade-off, not a stat.** "+15% damage" is a variant, not a mod. A mod
+  relocates where a cost is paid: heat becomes fire rate, stillness becomes armor,
+  waste becomes charge. The build changes *shape* around it.
+- **The cost stays simulated.** Fever cycle's downside isn't "−X"; it's proximity to
+  the same 130 °C shutdown cliff everything else lives under. Real costs, same gauges.
+- **It is legible on existing instruments** (R4): the effect must be visible on the
+  thermal overlay, the range sandbox, the HUD gate labels, or the arena preview — a
+  one-liner tooltip plus a place to *watch it work*.
+- **It rewards a verb we have** (R2): picking fights (arena preview), positioning,
+  throttle/heat management, facing. Never a new button.
+
+**Candidate pool** (unpriced — tuning is Track C; grounding noted per idea):
+
+| Mod | Effect (physical grounding) |
+|---|---|
+| Tidecooler (radiator) | Water-tile dissipation bonus doubled — camp wet arenas |
+| Fever cycle (weapon) | Cycle time shrinks with mount-cell temperature — wants to ride 100–125 °C |
+| Cold bore (weapon) | Dispersion halved below ~40 °C — overcool deliberately, first shot kills |
+| Thermocouple skin (capacitor) | Trickle-charges from neighboring hot cells — wants the seat next to the reactor |
+| Insulated mount (any) | No heat conduction to grid neighbors — local placement freedom |
+| Gyrostabilized mount (weapon) | Own lateral speed costs half the usual tracking accuracy — orbit-and-hit |
+| Hull-down suspension (chassis servo) | Below ~0.5 m/s the chassis crouches: target profile −30% — stillness as a stance |
+| Ram bore (weapon) | Overkill penetration carries 75% instead of 50% — gut interiors |
+| Marsh pistons (servo) | No water/forest speed penalty — swamp monster with Tidecooler |
+| Sacrificial casing (ammo) | Cook-off vents outward, no neighbor splash |
+| Surge gate (weapon) | Fires from capacitor even while browned out — priority-immune |
+
+Open riffing questions: mod stacking (one mod per part feels right); do mods survive the
+part's destruction in any form; machinist pricing; whether "uniques" are just a mod +
+extreme variant + quirk pre-rolled under a proper name (current lean: yes — legendary
+metal, not new rules).
+
 ## 5. Run structure
 
 A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents. No boss fights

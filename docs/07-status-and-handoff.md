@@ -292,15 +292,13 @@ heat-penalty ramp, physics/IK presentation, async PvP.
 
 ## Loose ends & ideas worth mining (captured, undecided)
 
-- **Rare/unique salvage — tabled for a design discussion (user, Jul 18 2026)**: beyond
-  stat variants and quirks (04 §4), should rare fights drop *named unique parts* with
-  build-defining behaviors ("unique perks")? Design tension to resolve: rule R1 wants
-  every effect to be a physical parameter, and 06 already says the strongest support
-  parts should unlock strategies — so uniques are probably named, pre-rolled extreme
-  variant+quirk combos on the existing axes (legendary metal, not new rules text).
-  Candidate hooks: elite-only drop tables (no bosses — cut Jul 19 2026), one-per-run
-  uniqueness, intel telegraphs ("carries the 'Widowmaker' railgun"). Discuss before
-  Track A M5 lands quirks.
+- **Rare/unique salvage — brainstormed Jul 19 2026, now `04 §4b Mods`**: the
+  build-identity layer landed as a design doc — what makes a good mod (parameter not
+  rule, references systems never other mods, bends trade-offs, simulated costs, legible
+  on existing instruments), an 11-mod candidate pool, machinist upgrades at scrapyards,
+  elite carriers, and a guaranteed modded part in the first wreck. Still riffing:
+  stacking, machinist pricing, whether uniques = named pre-rolled mod+variant+quirk
+  (lean yes). Feeds Track A M5.
 
 - **RogueTech heat-escalation ladder**: before hard shutdown at 130°C, soft penalties could
   ramp (dispersion/speed degradation as cells heat). Our thresholds (02 §3) are cliff-edged;
