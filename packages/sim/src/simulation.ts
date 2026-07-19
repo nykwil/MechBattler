@@ -160,6 +160,16 @@ export class Simulation {
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
   }
 
+  /** Capacitor charge levels in build-parts order — for lockstep state hashing. */
+  capacitorLevels(): number[] {
+    const out: number[] = [];
+    for (const p of this.parts) {
+      const kj = this.capacitorStoredKj.get(p.instanceId);
+      if (kj !== undefined) out.push(kj);
+    }
+    return out;
+  }
+
   /** Mean temperature of a part's cells, °C — the dynamic-modifier input. */
   meanCellC(instanceId: string): number {
     const keys = this.thermal.cellKeysByInstance.get(instanceId) ?? [];

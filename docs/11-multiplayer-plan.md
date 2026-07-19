@@ -32,22 +32,28 @@ server-issued run seeds + transition validation (phase 2, out of scope here).
 
 ## 2. Milestones
 
-### M0 — Hygiene
-- Scope `adaptSeq` per call. Export `SIM_VERSION` plus a content hash over catalog +
-  chassis + modifier registry + dial constants; stamp it into locks, reports, replays.
+### M0 — Hygiene ✅ *shipped Jul 19 2026 — `adaptSeq` derives from the build (zero
+global mutable state in the sim); `version.ts` exports `SIM_VERSION` + `simContentHash()`
+(FNV-1a over catalog, chassis, templates, modifier registry incl. apply-function source,
+and the dial constants). Stamping happens where lock/replay formats are born (M2/M3).*
 
-### M1 — Deterministic math & state hashing
-- `sim/dmath.ts`: fixed software `sin/cos/atan2/exp/log` (minimax/fdlibm-style, exact
-  same doubles everywhere), `hypot(x,y)` = `sqrt(x*x + y*y)` (IEEE-exact at our
-  magnitudes). Swap all call sites; keep `sqrt/abs/min/max/floor/round` (specified).
-- `battleStateHash(battle)`: FNV/xxhash over the exact float bits of positions,
-  velocities, facing, HP tables, cell temps, capacitor charge, RNG state.
-- Tests: golden replay fixtures with pinned hashes in-repo (any engine or refactor that
-  diverges fails loudly); a test that greps the sim for raw `Math.` transcendentals.
+### M1 — Deterministic math & state hashing ✅ *shipped Jul 19 2026 — `dmath.ts`
+(dsin/dcos/datan/datan2/dexp/dlog/dhypot, built only from IEEE-exact ops: Cody-Waite
+range reduction + fixed Taylor sequences, exponent-bit 2^k; ~1e-13 of native, and the
+same doubles on every engine). All ~35 sim call sites swapped; `Battle.stateHash()`
+FNV-1a's the exact float bits of positions/velocities/facing/HP/cell temps/capacitor
+charge/RNG state (incl. the Box-Muller spare). Golden battle pinned in
+`determinism.test.ts` and **cross-verified bit-identical on Node, Chromium (V8) and
+Firefox (SpiderMonkey)**; a source-grep test bans engine transcendentals outside
+dmath.ts. Debug lesson worth keeping: vitest resolves a named import of a nonexistent
+export to `undefined` silently — two test files imported CORE_INSTANCE_ID from
+combat.js (not an export) and simulated subtly different battles; real ESM throws.*
 
 ### M2 — Lockstep protocol (sim-side, transport-agnostic)
-- Tick-stamped orders `{tick, mech, order}` with input delay k ticks (k≈5 = one 4 Hz
-  order period at 20 Hz); both sims apply order streams identically.
+- Tick-stamped orders `{tick, mech, order}` with input delay k ticks. **Player orders
+  run at full tick rate (20 Hz)** — the 4 Hz cadence is only the autopilot's decision
+  rate, not a protocol limit (user note, Jul 19 2026: 4 Hz is too slow for realtime
+  feel). k≈2–3 ticks (100–150 ms) hides typical RTT; tune by measurement.
 - Battle grows: apply-orders-at-tick entry point, periodic state-hash emission (every
   ~2 s) for desync detection, resync-by-replay (seed + builds + order log → any tick).
 - Replay format = `{SIM_VERSION, seed, builds, orderLog, finalHash}` — tiny, and it is

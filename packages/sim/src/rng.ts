@@ -4,6 +4,8 @@
  * deterministic and replayable).
  */
 
+import { dcos, dlog, dsin } from './dmath.js';
+
 const MULT = 6364136223846793005n;
 const MASK64 = (1n << 64n) - 1n;
 
@@ -33,6 +35,16 @@ export class Pcg32 {
     return this.nextUint32() / 4294967296;
   }
 
+  /** Internal state as two u32 words (hi, lo) — for lockstep state hashing (docs/11 M1). */
+  stateBits(): [number, number] {
+    return [Number((this.state >> 32n) & 0xffffffffn), Number(this.state & 0xffffffffn)];
+  }
+
+  /** The Box-Muller spare, as hashable state: [present flag, value]. */
+  spareState(): [number, number] {
+    return this.gaussianSpare === null ? [0, 0] : [1, this.gaussianSpare];
+  }
+
   /** Standard normal via Box-Muller (cached spare for determinism-friendly pairing). */
   gaussian(): number {
     if (this.gaussianSpare !== null) {
@@ -43,8 +55,8 @@ export class Pcg32 {
     let u1 = 0;
     do { u1 = this.nextFloat(); } while (u1 <= 1e-12);
     const u2 = this.nextFloat();
-    const mag = Math.sqrt(-2 * Math.log(u1));
-    this.gaussianSpare = mag * Math.sin(2 * Math.PI * u2);
-    return mag * Math.cos(2 * Math.PI * u2);
+    const mag = Math.sqrt(-2 * dlog(u1));
+    this.gaussianSpare = mag * dsin(2 * Math.PI * u2);
+    return mag * dcos(2 * Math.PI * u2);
   }
 }

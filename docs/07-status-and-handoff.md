@@ -272,8 +272,11 @@ modifiers (Frankensteined, Thermocouple skin, Surge gate), 04 §9 open questions
 starter-kit rotation — then Track C balancing (deferred, user call) and the 00
 backlog (ammo, turrets). **Track B — multiplayer** planned Jul 19 2026 in
 `11-multiplayer-plan.md` (user call: deterministic lockstep; audit found the sim
-already pure/headless/JSON-serializable — remaining work is deterministic math +
-state hashing, the lockstep protocol, a matchmaking relay, and the 00 lock-flow UI).
+already pure/headless/JSON-serializable). **M0+M1 shipped Jul 19 2026**: zero global
+sim state, SIM_VERSION + content hash, dmath deterministic transcendentals,
+Battle.stateHash, golden battle cross-verified bit-identical on V8 and SpiderMonkey.
+Next: M2 lockstep protocol (20 Hz player orders — 4 Hz is only the autopilot cadence)
+→ M3 matchmaking relay → M4 client.
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

@@ -14,6 +14,7 @@
  */
 import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
+import { dexp } from './dmath.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
@@ -157,7 +158,7 @@ function hitProbabilityAt(def: PartDef, r: number): number {
   if (sigmaM <= 0.01) return 1.0;
   // Fraction of a gaussian's mass falling within +-targetHalfWidth, approximated.
   const z = targetHalfWidth / sigmaM;
-  return clamp(1 - Math.exp(-1.6 * z), 0.02, 1.0);
+  return clamp(1 - dexp(-1.6 * z), 0.02, 1.0);
 }
 
 export function computeWeaponEnvelope(part: PlacedPart, def: PartDef): RangeEnvelope {

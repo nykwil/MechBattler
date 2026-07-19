@@ -4,6 +4,7 @@
 import type { CellOffset, ChassisSpec, PartDef, PlacedPart, Rotation } from './types.js';
 import { getPart } from './catalog.js';
 import { STATIC_CTX, effectiveMults } from './modifiers.js';
+import { dhypot } from './dmath.js';
 
 export function rotateShape(shape: CellOffset[], rotation: Rotation): CellOffset[] {
   return shape.map(({ dx, dy }) => {
@@ -323,7 +324,7 @@ export function computeLoadScaledSpeeds(chassis: ChassisSpec, massAndCoG: MassAn
 export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): MassAndCoG {
   const structuralMassKg = chassis.ratedMassT * 1000 * 0.3;
   const center = { x: (chassis.width - 1) / 2, y: (chassis.height - 1) / 2 };
-  const halfDiagonal = Math.hypot(chassis.width / 2, chassis.height / 2);
+  const halfDiagonal = dhypot(chassis.width / 2, chassis.height / 2);
 
   let massKg = structuralMassKg;
   let momentX = structuralMassKg * center.x;
@@ -342,7 +343,7 @@ export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): Ma
   }
 
   const cog = massKg > 0 ? { x: momentX / massKg, y: momentY / massKg } : center;
-  const offset = Math.hypot(cog.x - center.x, cog.y - center.y);
+  const offset = dhypot(cog.x - center.x, cog.y - center.y);
   return {
     totalMassT: massKg / 1000,
     cog,

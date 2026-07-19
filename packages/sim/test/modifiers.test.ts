@@ -8,7 +8,8 @@ import { getChassis } from '../src/chassis.js';
 import { buildThermalModel } from '../src/thermal.js';
 import { Simulation } from '../src/simulation.js';
 import { runTestBench } from '../src/derivedStats.js';
-import { runBattle, CORE_INSTANCE_ID } from '../src/combat.js';
+import { runBattle } from '../src/combat.js';
+import { CORE_INSTANCE_ID } from '../src/thermal.js';
 
 function part(instanceId: string, partId: string, x: number, y: number, extra: Partial<PlacedPart> = {}): PlacedPart {
   return { instanceId, partId, origin: { x, y }, rotation: 0, integrity: 1, ...extra };

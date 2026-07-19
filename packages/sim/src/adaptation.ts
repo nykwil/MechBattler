@@ -32,8 +32,19 @@ export interface AdaptationOp {
   apply(build: Build): Build | null;
 }
 
-let adaptSeq = 0;
-const freshId = (partId: string) => `adapt-${partId}-${++adaptSeq}`;
+/**
+ * Ids derive from the build being modified, not a module counter — the sim
+ * must hold zero global mutable state (docs/11 M0: server processes are
+ * shared, and lockstep replays must not depend on call history).
+ */
+function freshId(parts: PlacedPart[], partId: string): string {
+  let max = 0;
+  for (const p of parts) {
+    const m = /^adapt-.*-(\d+)$/.exec(p.instanceId);
+    if (m) max = Math.max(max, Number(m[1]));
+  }
+  return `adapt-${partId}-${max + 1}`;
+}
 
 function freeCells(build: Build, frontFirst: boolean): { x: number; y: number }[] {
   const chassis = getChassis(build.chassisId);
@@ -70,7 +81,7 @@ function addParts(build: Build, partId: string, count: number, opts: { frontFirs
     outer: for (const cell of freeCells({ ...build, parts }, opts.frontFirst ?? false)) {
       for (const rotation of [0, 90] as const) {
         const candidate: PlacedPart = {
-          instanceId: freshId(partId), partId, origin: cell, rotation, integrity: 1,
+          instanceId: freshId(parts, partId), partId, origin: cell, rotation, integrity: 1,
         };
         if (checkPlacement(chassis, parts, candidate, def) !== null) continue;
         if (opts.requireConnected) {

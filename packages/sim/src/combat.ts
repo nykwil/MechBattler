@@ -33,6 +33,7 @@ import {
   TERRAIN_SPEED_MULT, WATER_RADIATOR_MULT, type TerrainGrid, type TerrainType,
 } from './terrain.js';
 import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
+import { datan2, dcos, dexp, dhypot, dsin } from './dmath.js';
 
 export const CELL_SIZE_M = 0.5;
 export const TICK_S = 1 / 20;
@@ -85,7 +86,7 @@ export interface Vec2 { x: number; y: number }
 const add = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, y: a.y + b.y });
 const sub = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x - b.x, y: a.y - b.y });
 const scale = (a: Vec2, s: number): Vec2 => ({ x: a.x * s, y: a.y * s });
-const len = (a: Vec2): number => Math.hypot(a.x, a.y);
+const len = (a: Vec2): number => dhypot(a.x, a.y);
 const norm = (a: Vec2): Vec2 => { const l = len(a); return l > 1e-9 ? scale(a, 1 / l) : { x: 1, y: 0 }; };
 
 /** Abramowitz-Stegun 7.1.26 erf approximation (max error ~1.5e-7). */
@@ -93,7 +94,7 @@ function erf(x: number): number {
   const sign = x < 0 ? -1 : 1;
   const ax = Math.abs(x);
   const t = 1 / (1 + 0.3275911 * ax);
-  const y = 1 - (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) * Math.exp(-ax * ax);
+  const y = 1 - (((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) * t) * dexp(-ax * ax);
   return sign * y;
 }
 
@@ -131,7 +132,7 @@ export function computeHitModel(inputs: HitModelInputs): HitModel {
   const aimStalenessS = inputs.lagS + tofS;
   const dispersionM = inputs.sigmaRad * inputs.rangeM;
   const leadErrorM = inputs.lateralSpeedMps * aimStalenessS;
-  const sigmaM = Math.hypot(dispersionM, leadErrorM);
+  const sigmaM = dhypot(dispersionM, leadErrorM);
   const pHit = sigmaM < 1e-9 ? 1 : erf(inputs.targetHalfWidthM / (sigmaM * Math.SQRT2));
   return { pHit, sigmaM, aimStalenessS };
 }
@@ -380,8 +381,8 @@ export class Combatant {
 
   get massT(): number { return this.sim.massT; }
 
-  forward(): Vec2 { return { x: Math.cos(this.facingRad), y: Math.sin(this.facingRad) }; }
-  right(): Vec2 { return { x: Math.sin(this.facingRad), y: -Math.cos(this.facingRad) }; }
+  forward(): Vec2 { return { x: dcos(this.facingRad), y: dsin(this.facingRad) }; }
+  right(): Vec2 { return { x: dsin(this.facingRad), y: -dcos(this.facingRad) }; }
 
   isPartFunctional(instanceId: string): boolean {
     return !this.sim.isDestroyed(instanceId);
@@ -535,7 +536,7 @@ export class Combatant {
     let gy = cy - entryF / CELL_SIZE_M;
     const stepX = dR / CELL_SIZE_M;
     const stepY = -dF / CELL_SIZE_M;
-    const stepLen = Math.hypot(stepX, stepY);
+    const stepLen = dhypot(stepX, stepY);
     const sx = stepX / stepLen;
     const sy = stepY / stepLen;
 
@@ -802,8 +803,8 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       const orbitFlankU = exchangeAt(range, orbitSpeed('flank'), orbitSpeed('flank'));
       if (Math.max(orbitCruiseU, orbitFlankU) > holdU) {
         const stepRad = 0.35 * self.orbitDir;
-        const cosR = Math.cos(stepRad);
-        const sinR = Math.sin(stepRad);
+        const cosR = dcos(stepRad);
+        const sinR = dsin(stepRad);
         const fromEnemy = scale(dir, -range);
         move = {
           verb: 'move', intent: 'orbit',
@@ -821,7 +822,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   }
 
   // --- Verb 1: weapons on/off (arc + range + temperature) ---
-  const bearingToEnemy = Math.atan2(dir.y, dir.x);
+  const bearingToEnemy = datan2(dir.y, dir.x);
   const bearingOffset = Math.abs(wrapAngle(bearingToEnemy - self.facingRad));
   const enabled: Record<string, boolean> = {};
   for (const p of self.build.parts) {
@@ -839,12 +840,12 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   // otherwise face the direction of travel and use the (faster) forward speed.
   let face: Extract<MechOrder, { verb: 'face' }>;
   if (move.intent === 'flee') {
-    face = { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(-dir.y, -dir.x) };
+    face = { verb: 'face', mode: 'bearing', bearingRad: datan2(-dir.y, -dir.x) };
   } else if (maxReachM > 0 && range <= maxReachM) {
     face = { verb: 'face', mode: 'target' };
   } else if (move.dest) {
     const toDest = sub(move.dest, self.pos);
-    face = { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(toDest.y, toDest.x) };
+    face = { verb: 'face', mode: 'bearing', bearingRad: datan2(toDest.y, toDest.x) };
   } else {
     face = { verb: 'face', mode: 'target' };
   }
@@ -887,7 +888,7 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
   return (ctx) => {
     const m = manual();
     if (m.move && m.move !== 'hold' && onArrival) {
-      const d = Math.hypot(ctx.self.pos.x - m.move.dest.x, ctx.self.pos.y - m.move.dest.y);
+      const d = dhypot(ctx.self.pos.x - m.move.dest.x, ctx.self.pos.y - m.move.dest.y);
       if (d < 2) onArrival();
     }
     return base(ctx).map((o): MechOrder => {
@@ -912,10 +913,10 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
       if (o.verb === 'face') {
         if (m.face) {
           if (m.face === 'movement') {
-            const speed = Math.hypot(ctx.self.vel.x, ctx.self.vel.y);
+            const speed = dhypot(ctx.self.vel.x, ctx.self.vel.y);
             return {
               verb: 'face', mode: 'bearing',
-              bearingRad: speed > 0.5 ? Math.atan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
+              bearingRad: speed > 0.5 ? datan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
             };
           }
           return m.face.mode === 'target'
@@ -930,8 +931,8 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
         if (m.move && m.move !== 'hold' && o.mode === 'bearing') {
           const dx = m.move.dest.x - ctx.self.pos.x;
           const dy = m.move.dest.y - ctx.self.pos.y;
-          if (Math.hypot(dx, dy) > 2) {
-            return { verb: 'face', mode: 'bearing', bearingRad: Math.atan2(dy, dx) };
+          if (dhypot(dx, dy) > 2) {
+            return { verb: 'face', mode: 'bearing', bearingRad: datan2(dy, dx) };
           }
         }
         return o;
@@ -964,8 +965,8 @@ export function applyOrder(self: Combatant, order: MechOrder, tSec = 0): void {
 
 /** Max achievable speed moving at `angleOffRad` from facing: an ellipse through fwd/rev and strafe maxima. */
 function maxSpeedInDirection(speeds: LoadScaledSpeeds, angleOffRad: number): number {
-  const c = Math.cos(angleOffRad);
-  const s = Math.sin(angleOffRad);
+  const c = dcos(angleOffRad);
+  const s = dsin(angleOffRad);
   const axial = c >= 0 ? speeds.fwd : speeds.rev;
   const denom = Math.sqrt((c / Math.max(axial, 0.01)) ** 2 + (s / Math.max(speeds.strafe, 0.01)) ** 2);
   return denom > 1e-9 ? 1 / denom : 0;
@@ -977,7 +978,7 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
   // Verb 4: facing per the standing face order (autopilot default: track target).
   const desired = self.faceOrder.mode === 'bearing'
     ? self.faceOrder.bearingRad
-    : Math.atan2(enemy.pos.y - self.pos.y, enemy.pos.x - self.pos.x);
+    : datan2(enemy.pos.y - self.pos.y, enemy.pos.x - self.pos.x);
   const before = self.facingRad;
   if (tSec >= self.staggerUntilS) {
     const maxTurn = self.speeds.turnRateDegS * (Math.PI / 180) * dt;
@@ -993,7 +994,7 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
     const dist = len(toDest);
     if (dist > 0.5) {
       const dir = norm(toDest);
-      const angleOff = wrapAngle(Math.atan2(dir.y, dir.x) - self.facingRad);
+      const angleOff = wrapAngle(datan2(dir.y, dir.x) - self.facingRad);
       const maxV = maxSpeedInDirection(self.speeds, angleOff) * SPEED_FRACTION[self.speedSetting] * terrainSpeedMult;
       // Slow into the destination so we don't orbit it.
       const arrivalV = Math.sqrt(2 * accel * dist);
@@ -1090,8 +1091,8 @@ export class Battle {
     const posA: Vec2 = { x: -half, y: jitter() };
     const posB: Vec2 = { x: half, y: jitter() };
     this.combatants = [
-      new Combatant(options.builds[0], posA, Math.atan2(posB.y - posA.y, posB.x - posA.x)),
-      new Combatant(options.builds[1], posB, Math.atan2(posA.y - posB.y, posA.x - posB.x)),
+      new Combatant(options.builds[0], posA, datan2(posB.y - posA.y, posB.x - posA.x)),
+      new Combatant(options.builds[1], posB, datan2(posA.y - posB.y, posA.x - posB.x)),
     ];
   }
 
@@ -1197,7 +1198,7 @@ export class Battle {
     // Fire-control gate facts, mirroring the autopilot's own weapon check.
     const toEnemy = sub(enemy.pos, c.pos);
     const rangeToEnemy = len(toEnemy);
-    const bearingOffset = Math.abs(wrapAngle(Math.atan2(toEnemy.y, toEnemy.x) - c.facingRad));
+    const bearingOffset = Math.abs(wrapAngle(datan2(toEnemy.y, toEnemy.x) - c.facingRad));
     const myTile = terrainAt(this.terrain, c.pos.x, c.pos.y);
     const weapons: WeaponFrame[] = [];
     for (const p of c.build.parts) {
@@ -1292,7 +1293,7 @@ export class Battle {
     const salvo = weapon.salvoCount ?? 1;
     const toEnemy = sub(enemy.pos, self.pos);
     const range = len(toEnemy);
-    const aimBearing = Math.atan2(toEnemy.y, toEnemy.x);
+    const aimBearing = datan2(toEnemy.y, toEnemy.x);
     const losDir = norm(toEnemy);
     const lagS = self.hasPoweredTargetingComputer(this.lastSnapshots[i]) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
     // Terrain (docs/03 §2): a shooter on a hill fires down an extended
@@ -1363,7 +1364,7 @@ export class Battle {
     // Recoil shoves the shooter opposite the aim bearing (docs/03 §3).
     if (weapon.recoilKnS) {
       const dvMps = weapon.recoilKnS / self.massT;
-      self.vel = add(self.vel, scale({ x: Math.cos(aimBearing), y: Math.sin(aimBearing) }, -dvMps));
+      self.vel = add(self.vel, scale({ x: dcos(aimBearing), y: dsin(aimBearing) }, -dvMps));
     }
   }
 
@@ -1409,6 +1410,41 @@ export class Battle {
       const fb = b.functionalMassFrac();
       this.declare(Math.abs(fa - fb) < 1e-9 ? 'draw' : fa > fb ? 0 : 1, 'judges');
     }
+  }
+
+  /**
+   * FNV-1a over the exact float bits of all mutable battle state (docs/11
+   * M1): the lockstep desync detector. Two sims that agree here are in the
+   * same world; iteration orders are deterministic (parts arrays, Map
+   * insertion order from construction).
+   */
+  stateHash(): number {
+    const view = new DataView(new ArrayBuffer(8));
+    let h = 0x811c9dc5;
+    const mixByte = (b: number) => { h ^= b; h = Math.imul(h, 0x01000193); };
+    const f = (v: number) => {
+      view.setFloat64(0, v, true);
+      for (let i = 0; i < 8; i++) mixByte(view.getUint8(i));
+    };
+    const u = (v: number) => {
+      view.setUint32(0, v >>> 0, true);
+      for (let i = 0; i < 4; i++) mixByte(view.getUint8(i));
+    };
+
+    f(this.tSec);
+    u(this.tick);
+    for (const c of this.combatants) {
+      f(c.pos.x); f(c.pos.y); f(c.vel.x); f(c.vel.y);
+      f(c.facingRad); f(c.coreHp); f(c.lastTurnRateRadS);
+      for (const p of c.build.parts) f(c.hpByInstance.get(p.instanceId) ?? 0);
+      for (const cell of c.sim.thermal.cells.values()) f(cell.tempC);
+      for (const kj of c.sim.capacitorLevels()) f(kj);
+    }
+    const [hi, lo] = this.rng.stateBits();
+    u(hi); u(lo);
+    const [flag, spare] = this.rng.spareState();
+    u(flag); f(spare);
+    return h >>> 0;
   }
 
   private declare(winner: 0 | 1 | 'draw', reason: VictoryReason): void {
