@@ -270,7 +270,10 @@ locked-part palette), run-history memorial, + Sticky/Cold-soaked/Marsh-pistons
 modifiers. **Track A (docs/10) is complete, M1–M6.** Remaining threads: three
 modifiers (Frankensteined, Thermocouple skin, Surge gate), 04 §9 open questions,
 starter-kit rotation — then Track C balancing (deferred, user call) and the 00
-backlog (multiplayer lock-in, ammo, turrets).
+backlog (ammo, turrets). **Track B — multiplayer** planned Jul 19 2026 in
+`11-multiplayer-plan.md` (user call: deterministic lockstep; audit found the sim
+already pure/headless/JSON-serializable — remaining work is deterministic math +
+state hashing, the lockstep protocol, a matchmaking relay, and the 00 lock-flow UI).
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
