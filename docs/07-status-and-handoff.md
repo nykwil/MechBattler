@@ -278,8 +278,13 @@ Battle.stateHash, golden battle cross-verified bit-identical on V8 and SpiderMon
 **M2 shipped Jul 20 2026**: `lockstep.ts` (TickOrder/MatchReplay/LockstepBattle/
 replayMatch), 20 Hz manual orders via opt-in Battle lockstep mode + shared
 mergeManualOrders, tamper-catch via replay re-verification, order-driven match
-cross-verified engine-identical. Next: M3 matchmaking relay (websocket, queue/pair/
-relay/record, 00 lock-flow) → M4 client (queue/lock UI + networked BattleLiveScreen).
+cross-verified engine-identical. **Track B paused after the foundation (M0–M2, user call
+Jul 20 2026)** — the deterministic core is in the codebase and the **determinism contract
+that keeps future features multiplayer-safe lives in `11-multiplayer-plan.md` §3**
+(enforced by the grep guard in `determinism.test.ts`: no engine transcendentals, no
+wall-clock/entropy in the sim). The remaining server + client + ranked work is parked in
+**`12-multiplayer-backlog.md`**. A Jul 20 2026 audit confirmed the whole sim satisfies
+the contract today.
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

@@ -62,14 +62,20 @@ describe('dmath: deterministic transcendentals (docs/11 M1)', () => {
     expect(datan2(0, 1)).toBe(0);
   });
 
-  it('the sim never calls engine transcendentals outside dmath.ts', () => {
+  // The determinism contract, enforced (docs/11 §"Keeping it deterministic"):
+  // the sim must never reach for an engine-defined transcendental (use dmath)
+  // or any wall-clock / entropy source (all randomness is seeded Pcg32). A new
+  // feature that violates this fails here, not in production as a desync.
+  it('the sim uses no engine transcendentals or wall-clock/entropy sources', () => {
     const srcDir = join(__dirname, '../src');
-    const banned = /Math\.(sin|cos|tan|atan2?|asin|acos|exp|log(2|10|1p)?|hypot|pow|cbrt|expm1|sinh|cosh|tanh|random)\b/;
+    const transcendental = /Math\.(sin|cos|tan|atan2?|asin|acos|exp|log(2|10|1p)?|hypot|pow|cbrt|expm1|sinh|cosh|tanh|random)\b/;
+    const nondeterministic = /\b(Date\.now|performance\.now|process\.hrtime|new Date|crypto\.|getRandomValues)\b/;
     for (const file of readdirSync(srcDir).filter((f) => f.endsWith('.ts') && f !== 'dmath.ts')) {
       const hits = readFileSync(join(srcDir, file), 'utf8').split('\n')
-        .map((line, n) => ({ line, n: n + 1 }))
-        .filter(({ line }) => banned.test(line));
-      expect(hits, `${file} uses engine transcendentals`).toEqual([]);
+        .map((line, n) => ({ line: line.replace(/\/\/.*$/, ''), n: n + 1 })) // ignore comments
+        .filter(({ line }) => transcendental.test(line) || nondeterministic.test(line))
+        .map(({ n }) => `${file}:${n}`);
+      expect(hits, `${file} breaks the determinism contract`).toEqual([]);
     }
   });
 });

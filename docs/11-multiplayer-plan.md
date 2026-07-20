@@ -1,11 +1,17 @@
-# 11 — Multiplayer Plan: Deterministic Lockstep (Track B)
+# 11 — Multiplayer Foundation: Deterministic Lockstep (Track B)
 
-*Written Jul 19 2026 from the multiplayer-readiness audit. Architecture call (user):
-**lockstep on a fully deterministic battle system** — clients exchange builds + orders
-and each simulate the identical battle; the server is a matchmaker/relay/recorder, and
-determinism itself is the anti-cheat (matching state hashes = honest match; disputes =
-server re-simulation). Product concept per 00 backlog: a multiplayer roguelike ladder —
-build, queue *while still building*, grace period on match found, explicit build lock.*
+*Written Jul 19 2026 from the multiplayer-readiness audit; **foundation (M0–M2) shipped
+Jul 19–20 2026, then paused (user call)**. The rest lives in `12-multiplayer-backlog.md`.
+Architecture call (user): **lockstep on a fully deterministic battle system** — clients
+exchange builds + orders and each simulate the identical battle; the server is a
+matchmaker/relay/recorder, and determinism itself is the anti-cheat (matching state
+hashes = honest match; disputes = server re-simulation). Product concept per 00 backlog:
+a multiplayer roguelike ladder — build, queue while still building, grace period on match
+found, explicit build lock.*
+
+**What this doc is now:** the record of the shipped deterministic core, and — more
+importantly for day-to-day work — the **determinism contract (§3)** every future feature
+must hold for multiplayer to remain possible. Read §3 before adding sim behavior.
 
 ## 1. Audit findings (what R6 already bought)
 
@@ -25,10 +31,11 @@ implementation-defined — two different JS engines can drift over a 2,400-tick 
 Inventory: ~35 call sites in combat.ts / rng.ts / grid.ts / derivedStats.ts; `erf` is
 already a local polynomial (deterministic once `exp` is). Small, closable surface.
 
-**Misc**: `adaptation.ts` holds the sim's only global mutable state (`adaptSeq`) —
-offline-script-only today, must be call-scoped before server processes are shared.
-Client economy state (localStorage) is forgeable — fine unranked; ranked needs
-server-issued run seeds + transition validation (phase 2, out of scope here).
+**Misc (all resolved in M0–M2)**: `adaptation.ts`'s global `adaptSeq` counter is now
+call-scoped (derives ids from the build), so the sim has zero global mutable state bar a
+pure memoization cache. Client economy state (localStorage) is still forgeable — fine
+for unranked; ranked needs server-issued run seeds + transition validation, deferred to
+the backlog doc.
 
 ## 2. Milestones
 
@@ -72,22 +79,42 @@ k stays a client/relay concern — the sim only applies an order at the tick it 
 - Replay format = `{SIM_VERSION, seed, builds, orderLog, finalHash}` — tiny, and it is
   also the dispute evidence and the spectate stream.
 
-### M3 — Matchmaking service
-- Small Node service (websocket): account stub, queue, pairing, order relay, match
-  record storage. Server stores replays + final hashes; on hash mismatch it re-simulates
-  (its result is authoritative) and flags the diverging client.
-- The 00 lock-flow: queueing while editing; match found → visible grace period →
-  explicit **lock** (server snapshots the build, validates it, stamps SIM_VERSION).
+### Remaining milestones — paused Jul 20 2026 (user call)
 
-### M4 — Client
-- Online panel: queue/grace/lock UI around the existing workshop (matchmaking is a
-  layer around building, never an interruption — 00).
-- Networked battle = the existing BattleLiveScreen with the opponent's ManualOrders fed
-  from the relay instead of a local ref (`withManualOrders` is already the seam).
-  Spectating and post-match replays ride the same order stream.
+The foundation above (M0–M2) is the load-bearing part and it is **done and in the
+codebase**. The rest — the actual server, the online client, ranked integrity — is
+deferred to the backlog: **`12-multiplayer-backlog.md`** (M3 matchmaking relay, M4
+online client, ranked economy authority, and the open product questions). Nothing there
+requires changing the sim; it builds *around* the deterministic core this doc shipped.
 
-## 3. Explicitly out of scope
+## 3. Keeping it deterministic (the contract for all future features)
 
-Ranked economy authority (server-issued run seeds + transition validation), rewards/
-ladder design without runaway winners (00 open question), squads, cross-play with
-non-JS engines. Balancing remains Track C.
+This is the part that matters going forward. The multiplayer foundation stays valid as
+the game grows **only if the sim stays deterministic**. The invariants below are the
+contract; the first two are enforced by a test so a violation fails CI, not production.
+
+1. **No engine transcendentals in the sim.** Use `dmath` (`dsin/dcos/datan/datan2/dexp/
+   dlog/dhypot`), never `Math.sin/cos/tan/atan/atan2/asin/acos/exp/log/hypot/pow/cbrt`.
+   `Math.sqrt/abs/min/max/floor/ceil/round/trunc/sign/imul` and `+ − × ÷` are
+   IEEE-exact and fine. *Enforced by the grep test in `determinism.test.ts`.*
+2. **No wall-clock or entropy in the sim.** No `Date.now`, `performance.now`,
+   `new Date`, `crypto.*`, `process.hrtime`, `Math.random`. All randomness is a
+   `Pcg32` seeded from battle inputs (the battle/terrain/ladder seed). *Enforced by the
+   same grep test.*
+3. **Iterate deterministically.** State-affecting loops iterate arrays (e.g.
+   `build.parts`) or Maps whose insertion order is fixed at construction — never a
+   `Set`, nor `Object.keys` order, in a way that feeds sim state.
+4. **New tuning constants go into `simContentHash()`** (`version.ts`). A balance dial the
+   hash doesn't see means a locked build could meet a differently-tuned sim without a
+   forced version bump. Add the constant to the hash and **bump `SIM_VERSION`** on any
+   behavior change.
+5. **New mutable battle state should join `Battle.stateHash()`.** Desync is still
+   *detected* without it (divergence flows downstream into hashed positions/HP), but
+   hashing it directly makes detection immediate and disputes precise.
+6. **Keep the sim pure and headless** (rule R6): no DOM, no I/O, no imports outside
+   `packages/sim`. Builds and orders stay plain JSON so they serialize across the wire
+   unchanged.
+
+Follow these and any new part, quirk, mod, chassis, or mechanic is automatically
+lockstep-safe — the golden battle test and the grep guard catch regressions the moment
+they land. The audit on Jul 20 2026 confirmed the whole sim currently satisfies all six.
