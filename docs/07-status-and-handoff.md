@@ -275,8 +275,11 @@ backlog (ammo, turrets). **Track B — multiplayer** planned Jul 19 2026 in
 already pure/headless/JSON-serializable). **M0+M1 shipped Jul 19 2026**: zero global
 sim state, SIM_VERSION + content hash, dmath deterministic transcendentals,
 Battle.stateHash, golden battle cross-verified bit-identical on V8 and SpiderMonkey.
-Next: M2 lockstep protocol (20 Hz player orders — 4 Hz is only the autopilot cadence)
-→ M3 matchmaking relay → M4 client.
+**M2 shipped Jul 20 2026**: `lockstep.ts` (TickOrder/MatchReplay/LockstepBattle/
+replayMatch), 20 Hz manual orders via opt-in Battle lockstep mode + shared
+mergeManualOrders, tamper-catch via replay re-verification, order-driven match
+cross-verified engine-identical. Next: M3 matchmaking relay (websocket, queue/pair/
+relay/record, 00 lock-flow) → M4 client (queue/lock UI + networked BattleLiveScreen).
 
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as

@@ -170,6 +170,8 @@ export interface ControllerContext {
   snapshot: SimSnapshot | null;
   tSec: number;
   terrain: TerrainGrid;
+  /** The tick about to run (0-based). Added for lockstep cadence (docs/11 M2). */
+  tick: number;
 }
 
 /** Decides a mech's orders each command tick (4 Hz). The autopilot is one of these. */
@@ -891,55 +893,65 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders, o
       const d = dhypot(ctx.self.pos.x - m.move.dest.x, ctx.self.pos.y - m.move.dest.y);
       if (d < 2) onArrival();
     }
-    return base(ctx).map((o): MechOrder => {
-      if (o.verb === 'weapons' && m.weapons) {
-        const enabled = { ...o.enabled };
-        for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
-        return { verb: 'weapons', enabled };
-      }
-      if (o.verb === 'move' && m.move) {
-        return m.move === 'hold'
-          ? { verb: 'move', intent: 'hold', dest: null }
-          : { verb: 'move', intent: 'direct', dest: m.move.dest };
-      }
-      if (o.verb === 'throttle') {
-        if (m.throttle) return { verb: 'throttle', setting: m.throttle };
-        // With move manual but throttle on auto, the autopilot's setting was
-        // priced for its own destination: march to a waypoint at cruise, and
-        // stand fully still on a hold.
-        if (m.move === 'hold') return { verb: 'throttle', setting: 'stationary' };
-        if (m.move) return { verb: 'throttle', setting: 'cruise' };
-      }
-      if (o.verb === 'face') {
-        if (m.face) {
-          if (m.face === 'movement') {
-            const speed = dhypot(ctx.self.vel.x, ctx.self.vel.y);
-            return {
-              verb: 'face', mode: 'bearing',
-              bearingRad: speed > 0.5 ? datan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
-            };
-          }
-          return m.face.mode === 'target'
-            ? { verb: 'face', mode: 'target' }
-            : { verb: 'face', mode: 'bearing', bearingRad: m.face.bearingRad };
+    return mergeManualOrders(base(ctx), m, ctx);
+  };
+}
+
+/**
+ * Overlays a player's manual overrides on a base controller's orders (docs/08
+ * §3). Pure — the single merge path shared by the live command UI
+ * (`withManualOrders`) and the lockstep driver (docs/11 M2), so both produce
+ * identical orders from identical inputs.
+ */
+export function mergeManualOrders(baseOrders: MechOrder[], m: ManualOrders, ctx: ControllerContext): MechOrder[] {
+  return baseOrders.map((o): MechOrder => {
+    if (o.verb === 'weapons' && m.weapons) {
+      const enabled = { ...o.enabled };
+      for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
+      return { verb: 'weapons', enabled };
+    }
+    if (o.verb === 'move' && m.move) {
+      return m.move === 'hold'
+        ? { verb: 'move', intent: 'hold', dest: null }
+        : { verb: 'move', intent: 'direct', dest: m.move.dest };
+    }
+    if (o.verb === 'throttle') {
+      if (m.throttle) return { verb: 'throttle', setting: m.throttle };
+      // With move manual but throttle on auto, the autopilot's setting was
+      // priced for its own destination: march to a waypoint at cruise, and
+      // stand fully still on a hold.
+      if (m.move === 'hold') return { verb: 'throttle', setting: 'stationary' };
+      if (m.move) return { verb: 'throttle', setting: 'cruise' };
+    }
+    if (o.verb === 'face') {
+      if (m.face) {
+        if (m.face === 'movement') {
+          const speed = dhypot(ctx.self.vel.x, ctx.self.vel.y);
+          return {
+            verb: 'face', mode: 'bearing',
+            bearingRad: speed > 0.5 ? datan2(ctx.self.vel.y, ctx.self.vel.x) : ctx.self.facingRad,
+          };
         }
-        // Move is manual but face is on auto: when the autopilot chose
-        // travel-facing (mode bearing — no gun can reach, docs/03 §7.4), its
-        // bearing was aimed at its own destination, not the player's waypoint.
-        // Re-aim at the manual dest so the mech travels on its (faster)
-        // forward speed; target-tracking passes through untouched.
-        if (m.move && m.move !== 'hold' && o.mode === 'bearing') {
-          const dx = m.move.dest.x - ctx.self.pos.x;
-          const dy = m.move.dest.y - ctx.self.pos.y;
-          if (dhypot(dx, dy) > 2) {
-            return { verb: 'face', mode: 'bearing', bearingRad: datan2(dy, dx) };
-          }
+        return m.face.mode === 'target'
+          ? { verb: 'face', mode: 'target' }
+          : { verb: 'face', mode: 'bearing', bearingRad: m.face.bearingRad };
+      }
+      // Move is manual but face is on auto: when the autopilot chose
+      // travel-facing (mode bearing — no gun can reach, docs/03 §7.4), its
+      // bearing was aimed at its own destination, not the player's waypoint.
+      // Re-aim at the manual dest so the mech travels on its (faster)
+      // forward speed; target-tracking passes through untouched.
+      if (m.move && m.move !== 'hold' && o.mode === 'bearing') {
+        const dx = m.move.dest.x - ctx.self.pos.x;
+        const dy = m.move.dest.y - ctx.self.pos.y;
+        if (dhypot(dx, dy) > 2) {
+          return { verb: 'face', mode: 'bearing', bearingRad: datan2(dy, dx) };
         }
-        return o;
       }
       return o;
-    });
-  };
+    }
+    return o;
+  });
 }
 
 /** Applies one order to a combatant's control state. The single write path for all verbs. */
@@ -1041,6 +1053,13 @@ export interface BattleOptions {
    * instead of surrendering 3 s in; core-kill and timeout still end the battle.
    */
   suppressSurrender?: boolean;
+  /**
+   * Lockstep mode (docs/11 M2): the `controllers` are treated as raw autopilot
+   * bases refreshed at 4 Hz, while per-mech manual overrides set via
+   * `setManualOrders` merge on top and apply EVERY tick (20 Hz player
+   * responsiveness). Default false keeps the legacy 4-Hz controller path.
+   */
+  lockstep?: boolean;
 }
 
 export class Battle {
@@ -1057,6 +1076,11 @@ export class Battle {
   private readonly controllers: [Controller, Controller];
   private readonly recordFrames: boolean;
   private readonly suppressSurrender: boolean;
+  private readonly lockstepMode: boolean;
+  /** Lockstep: last 4-Hz autopilot decision per mech, re-merged with manual every tick. */
+  private baseOrders: [MechOrder[], MechOrder[]] = [[], []];
+  /** Lockstep: sticky per-mech manual overrides (null = full autopilot). */
+  private manual: [ManualOrders | null, ManualOrders | null] = [null, null];
   /** Per-tick playback samples; a live renderer reads the tail while the battle runs. */
   readonly frames: BattleFrame[] = [];
   /** Per-mech, per-verb signature of the last logged order, for change-only logging. */
@@ -1078,6 +1102,7 @@ export class Battle {
     this.controllers = options.controllers ?? [autopilotController, autopilotController];
     this.recordFrames = options.recordFrames ?? true;
     this.suppressSurrender = options.suppressSurrender ?? false;
+    this.lockstepMode = options.lockstep ?? false;
     this.arenaHalfLengthM = (options.arenaLengthM ?? DEFAULT_ARENA_LENGTH_M) / 2;
     this.arenaHalfWidthM = (options.arenaWidthM ?? DEFAULT_ARENA_WIDTH_M) / 2;
     this.terrain = options.terrain ?? generateTerrain(options.seed, this.arenaHalfLengthM * 2, this.arenaHalfWidthM * 2);
@@ -1101,6 +1126,18 @@ export class Battle {
   /** Sim seconds elapsed. */
   get timeS(): number { return this.tSec; }
 
+  /** The tick that the next `step()` will run (0-based). Lockstep order stamps key off this. */
+  get currentTick(): number { return this.tick; }
+
+  /**
+   * Set (or clear, with null) a mech's sticky manual override in lockstep mode
+   * (docs/11 M2). The override merges over the autopilot base and applies from
+   * the next step until replaced. No-op outside lockstep mode.
+   */
+  setManualOrders(mech: 0 | 1, orders: ManualOrders | null): void {
+    this.manual[mech] = orders;
+  }
+
   get arena(): { lengthM: number; widthM: number } {
     return { lengthM: this.arenaHalfLengthM * 2, widthM: this.arenaHalfWidthM * 2 };
   }
@@ -1115,11 +1152,29 @@ export class Battle {
     this.tSec += dt;
     const [a, b] = this.combatants;
 
-    // Controllers at 4 Hz (autopilot by default) issue orders through the
-    // same channel a player would.
-    if (this.tick % AUTOPILOT_PERIOD_TICKS === 0) {
-      this.issueOrders(0, this.controllers[0]({ self: a, enemy: b, snapshot: this.lastSnapshots[0], tSec: this.tSec, terrain: this.terrain }));
-      this.issueOrders(1, this.controllers[1]({ self: b, enemy: a, snapshot: this.lastSnapshots[1], tSec: this.tSec, terrain: this.terrain }));
+    const ctx = (i: 0 | 1): ControllerContext => ({
+      self: this.combatants[i], enemy: this.combatants[(1 - i) as 0 | 1],
+      snapshot: this.lastSnapshots[i], tSec: this.tSec, terrain: this.terrain, tick: this.tick,
+    });
+    if (!this.lockstepMode) {
+      // Legacy path: controllers (which may embed withManualOrders) decide and
+      // issue at 4 Hz through the same channel a player would.
+      if (this.tick % AUTOPILOT_PERIOD_TICKS === 0) {
+        this.issueOrders(0, this.controllers[0](ctx(0)));
+        this.issueOrders(1, this.controllers[1](ctx(1)));
+      }
+    } else {
+      // Lockstep (docs/11 M2): autopilot base refreshes at 4 Hz; per-mech
+      // manual overrides merge on top and issue EVERY tick, so player inputs
+      // land at the full 20 Hz — the 4 Hz cadence is strategy, not input lag.
+      if (this.tick % AUTOPILOT_PERIOD_TICKS === 0) {
+        this.baseOrders[0] = this.controllers[0](ctx(0));
+        this.baseOrders[1] = this.controllers[1](ctx(1));
+      }
+      for (const i of [0, 1] as const) {
+        const m = this.manual[i];
+        this.issueOrders(i, m ? mergeManualOrders(this.baseOrders[i], m, ctx(i)) : this.baseOrders[i]);
+      }
     }
     this.tick++;
 

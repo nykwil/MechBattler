@@ -49,8 +49,21 @@ dmath.ts. Debug lesson worth keeping: vitest resolves a named import of a nonexi
 export to `undefined` silently — two test files imported CORE_INSTANCE_ID from
 combat.js (not an export) and simulated subtly different battles; real ESM throws.*
 
-### M2 — Lockstep protocol (sim-side, transport-agnostic)
-- Tick-stamped orders `{tick, mech, order}` with input delay k ticks. **Player orders
+### M2 — Lockstep protocol (sim-side, transport-agnostic) ✅ *shipped Jul 20 2026 —
+`lockstep.ts`: `TickOrder {tick, mech, manual: ManualOrders|null}` (sticky per-mech
+snapshot, null = revert to autopilot), `MatchReplay` (config + SIM_VERSION + content
+hash + sorted order log + finalTick/finalHash — the wire log, dispute evidence and
+spectate stream in one). `LockstepBattle` drives a `Battle` from an ordered queue
+(out-of-order enqueue tolerated; an order for an already-run tick is rejected, not
+silently dropped). `replayMatch()` is the pure dispute resolver; `sealReplay()` seals a
+finished match. **Player orders apply every tick (20 Hz)**: opt-in `Battle` lockstep
+mode refreshes the autopilot base at 4 Hz but re-merges manual overrides every tick via
+the extracted `mergeManualOrders` (shared with the live `withManualOrders`). Default
+Battle path byte-identical (golden unchanged). Cross-verified: a full order-driven match
+replays to the same hash on Node, Chromium (V8) and Firefox (SpiderMonkey). Input delay
+k stays a client/relay concern — the sim only applies an order at the tick it carries.*
+
+- Tick-stamped orders `{tick, mech, manual}` with input delay k ticks. **Player orders
   run at full tick rate (20 Hz)** — the 4 Hz cadence is only the autopilot's decision
   rate, not a protocol limit (user note, Jul 19 2026: 4 Hz is too slow for realtime
   feel). k≈2–3 ticks (100–150 ms) hides typical RTT; tune by measurement.

@@ -16,5 +16,6 @@ export * from './ladder.js';
 export * from './modifiers.js';
 export * from './dmath.js';
 export * from './version.js';
+export * from './lockstep.js';
 export * from './adaptation.js';
 export * from './validation.js';
