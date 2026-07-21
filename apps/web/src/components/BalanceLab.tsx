@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEMPLATES, analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '@mechbattler/sim';
+import type { BalanceWorkerResponse } from '../workers/balance.worker.js';
 import './BalanceLab.css';
 
 const pct = (value: number) => `${Math.round(value * 100)}%`;
@@ -12,15 +13,37 @@ export function BalanceLab() {
       : null,
   );
   const [running, setRunning] = useState(false);
+  const [durationMs, setDurationMs] = useState<number | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [workerReady, setWorkerReady] = useState(false);
+  const workerRef = useRef<Worker | null>(null);
   const summary = useMemo(() => report ? analyzeRoundRobin(report) : null, [report]);
+
+  useEffect(() => {
+    const worker = new Worker(new URL('../workers/balance.worker.ts', import.meta.url), { type: 'module' });
+    workerRef.current = worker;
+    setWorkerReady(true);
+    worker.onmessage = (event: MessageEvent<BalanceWorkerResponse>) => {
+      setReport(event.data.report);
+      setDurationMs(event.data.durationMs);
+      setRunning(false);
+    };
+    worker.onerror = () => {
+      setError('The audit worker stopped unexpectedly. Reload and run the cohort again.');
+      setRunning(false);
+    };
+    return () => {
+      worker.terminate();
+      workerRef.current = null;
+    };
+  }, []);
 
   const runAudit = () => {
     setRunning(true);
     setReport(null);
-    window.setTimeout(() => {
-      setReport(runRoundRobin(TEMPLATES, { seedsPerPair: seeds, baseSeed: 1 }));
-      setRunning(false);
-    }, 40);
+    setDurationMs(null);
+    setError(null);
+    workerRef.current?.postMessage({ seeds });
   };
 
   const download = () => {
@@ -51,7 +74,7 @@ export function BalanceLab() {
               <option value={10}>10 · evidence pass</option>
             </select>
           </label>
-          <button type="button" className="lab-run" onClick={runAudit} disabled={running}>
+          <button type="button" className="lab-run" onClick={runAudit} disabled={running || !workerReady}>
             {running ? `Simulating ${TEMPLATES.length * (TEMPLATES.length - 1) / 2 * seeds} battles…` : 'Run roster audit'}
           </button>
           {report && <button type="button" className="lab-export" onClick={download}>Export JSON evidence</button>}
@@ -86,10 +109,12 @@ export function BalanceLab() {
         </section>
       )}
 
+      {error && <section className="lab-error" role="alert">{error}</section>}
+
       {report && summary && (
         <>
           <section className="lab-metrics">
-            <article><span>Battles</span><strong>{report.battles}</strong><small>{report.seedsPerPair} seeds × {report.matchups.length} pairs</small></article>
+            <article><span>Battles</span><strong>{report.battles}</strong><small>{report.seedsPerPair} seeds × {report.matchups.length} pairs{durationMs !== null ? ` · ${(durationMs / 1000).toFixed(1)}s` : ''}</small></article>
             <article><span>Healthy matchups</span><strong>{summary.healthyMatchups}/{summary.totalMatchups}</strong><small>inside the 35–65% guardrail</small></article>
             <article className={report.flagged.length ? 'metric-alert' : ''}><span>Dominant builds</span><strong>{report.flagged.length}</strong><small>above 70% overall</small></article>
             <article><span>Spread</span><strong>{pct((summary.strongestTemplate?.winRate ?? 0) - (summary.weakestTemplate?.winRate ?? 0))}</strong><small>strongest to weakest</small></article>

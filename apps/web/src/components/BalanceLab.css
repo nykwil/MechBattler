@@ -32,6 +32,7 @@
 .lab-running { min-height:360px; display:flex; align-items:center; justify-content:center; gap:16px; color:var(--ink-primary); border:1px solid var(--line-hairline); background:rgba(12,17,22,.82); }
 .lab-running div:last-child { display:grid; gap:4px; }
 .lab-running span { color:var(--ink-muted); font:11px var(--font-mono); }
+.lab-error { max-width:1280px; margin:0 auto 18px; padding:12px 16px; border:1px solid var(--signal-red); color:var(--signal-red); background:rgba(210,70,70,.08); font:11px var(--font-mono); }
 .lab-pulse { width:14px; height:14px; border-radius:50%; background:var(--signal-amber); box-shadow:0 0 0 0 rgba(224,164,67,.6); animation:labPulse 1.2s infinite; }
 @keyframes labPulse { 70% { box-shadow:0 0 0 14px rgba(224,164,67,0); } 100% { box-shadow:0 0 0 0 rgba(224,164,67,0); } }
 .lab-metrics { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; margin-bottom:18px; border:1px solid var(--line-hairline); background:var(--line-hairline); }
