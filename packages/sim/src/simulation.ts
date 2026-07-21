@@ -50,6 +50,11 @@ export const SPEED_SETTING_FRACTIONS: Record<SpeedSetting, number> = {
  */
 export const RAM_AIR_MAX_BONUS = 0.5;
 
+/** Thermocouple skin (docs/04 §4b): heat-pull rate (kW per °C above ambient) and
+ * the fraction of pulled heat that becomes charge (thermodynamic efficiency). */
+export const THERMOCOUPLE_K = 0.5;
+export const THERMOCOUPLE_EFFICIENCY = 0.5;
+
 export interface SimCommand {
   weaponsEnabled: Record<string, boolean>;
   speedSetting: SpeedSetting;
@@ -127,6 +132,10 @@ export class Simulation {
   private loadScaledFwdMps: number;
   /** Instances whose modifiers force them to shed first (docs/04 §4 Miswired). */
   private shedFirstIds = new Set<string>();
+  /** Instances with first claim on power — brownout-immune (docs/04 §4b Surge gate). */
+  private firstPriorityIds = new Set<string>();
+  /** Capacitor instances that harvest their cells' heat into charge (Thermocouple skin). */
+  private heatHarvestIds = new Set<string>();
 
   constructor(chassis: ChassisSpec, build: Build) {
     this.chassis = chassis;
@@ -155,7 +164,10 @@ export class Simulation {
       // full cycle (matters for long-cycle weapons like the rocket pod).
       if (def.category === 'weapon' && def.draw?.continuousKw && def.weapon) rt.cycleTimer = def.weapon.cycleS;
       this.runtime.set(p.instanceId, rt);
-      if (effectiveMults(p, STATIC_CTX).shedFirst) this.shedFirstIds.add(p.instanceId);
+      const staticM = effectiveMults(p, STATIC_CTX);
+      if (staticM.shedFirst) this.shedFirstIds.add(p.instanceId);
+      if (staticM.firstPriority) this.firstPriorityIds.add(p.instanceId);
+      if (staticM.harvestsHeat) this.heatHarvestIds.add(p.instanceId);
     }
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
   }
@@ -363,10 +375,12 @@ export class Simulation {
         ...this.build.powerPriority.filter((id) => candidateIds.includes(id)),
         ...candidateIds.filter((id) => !this.build.powerPriority.includes(id)),
       ];
-      // Miswired (docs/04 §4): forced to the back of the acceptance order —
-      // whatever the budget can't cover hits these first.
+      // Modifier-driven acceptance order (docs/04 §4/§4b): Surge gate takes
+      // first claim on the reactor+capacitor budget (brownout-immune until the
+      // caps actually empty); Miswired is forced to the back (shed first).
       const priorityOrder = [
-        ...ranked.filter((id) => !this.shedFirstIds.has(id)),
+        ...ranked.filter((id) => this.firstPriorityIds.has(id)),
+        ...ranked.filter((id) => !this.firstPriorityIds.has(id) && !this.shedFirstIds.has(id)),
         ...ranked.filter((id) => this.shedFirstIds.has(id)),
       ];
 
@@ -511,6 +525,25 @@ export class Simulation {
         const cell = this.thermal.cells.get(key)!;
         cell.tempC -= (raw * factor * ramAir * dtSec) / cell.thermalMassKjPerC;
       }
+    }
+
+    // --- 10b. Thermocouple skin (docs/04 §4b): a modded capacitor bleeds its
+    // own cells' heat-above-ambient back into charge at THERMOCOUPLE_EFFICIENCY.
+    // Conduction (§9) carries reactor/weapon waste heat into the cap's cells,
+    // so sitting it next to a hot reactor turns waste heat into ammo.
+    for (const id of this.heatHarvestIds) {
+      if (this.isDestroyed(id)) continue;
+      const capDef = getPart(this.parts.find((p) => p.instanceId === id)!.partId).capacitor!;
+      let stored = this.capacitorStoredKj.get(id) ?? 0;
+      for (const key of this.thermal.cellKeysByInstance.get(id)!) {
+        const cell = this.thermal.cells.get(key)!;
+        const above = cell.tempC - AMBIENT_C;
+        if (above <= 0) continue;
+        const pulledKj = THERMOCOUPLE_K * above * dtSec;
+        cell.tempC -= pulledKj / cell.thermalMassKjPerC;
+        stored = Math.min(capDef.storedKj, stored + pulledKj * THERMOCOUPLE_EFFICIENCY);
+      }
+      this.capacitorStoredKj.set(id, stored);
     }
 
     // --- 11. Threshold checks: shutdown / damage / cook-off ---

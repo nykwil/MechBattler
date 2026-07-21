@@ -157,11 +157,8 @@ describe('M6 wave: sticky, cold-soaked, marsh pistons (docs/04 §4)', () => {
     expect(massOf('b')).toBeCloseTo(massOf('a') * 2);
   });
 
-  it('frankenstein mass knobs flow into mass and load-scaled speed', () => {
-    // (No registry entry uses massKg yet; the knob is pinned via a variant-style
-    // direct check so a future Frankensteined entry inherits a tested path.)
-    const m = effectiveMults(part('x', 'U-ARM', 0, 0, { modifiers: ['cold-soaked'] }), STATIC_CTX);
-    expect(m.massKg).toBe(1);
+  it('frankensteined trims part mass by 10%', () => {
+    expect(effectiveMults(part('x', 'W-AC', 0, 0, { modifiers: ['frankensteined'] }), STATIC_CTX).massKg).toBeCloseTo(0.9);
   });
 
   it('sticky delays a weapon toggle by 0.8 s', () => {
@@ -174,5 +171,60 @@ describe('M6 wave: sticky, cold-soaked, marsh pistons (docs/04 §4)', () => {
     expect(modifierIdsFor(getPart('W-MG'))).not.toContain('marsh-pistons');
     const m = effectiveMults(part('x', 'U-ACT', 0, 0, { modifiers: ['marsh-pistons'] }), STATIC_CTX);
     expect(m.ignoreTerrainSlow).toBe(true);
+  });
+});
+
+describe('content-depth mods: surge gate, thermocouple skin (docs/04 §4b)', () => {
+  it('surge gate gives its weapon first claim while a plain twin sheds', () => {
+    // R-C40 cannot cover two lasers charging at 30 kW each. The surge-gate
+    // laser must take first claim while the plain twin sheds — the mirror of
+    // the Miswired test. Capacitors use the same acceptance order.
+    const build: Build = {
+      chassisId: 'CH-5',
+      parts: [
+        part('reactor', 'R-C40', 3, 1),
+        part('mg1', 'W-LAS', 1, 3, { modifiers: ['surge-gate'] }),
+        part('mg2', 'W-LAS', 2, 0),
+      ],
+      powerPriority: [CORE_INSTANCE_ID, 'mg2', 'mg1'], // mg1 last on paper — surge overrides
+    };
+    const sim = new Simulation(getChassis('CH-5'), build);
+    let mg1ShedCount = 0;
+    let mg2ShedCount = 0;
+    for (let t = 0; t < 400; t++) {
+      const shed = new Set(sim.step(1 / 20, { weaponsEnabled: { mg1: true, mg2: true }, speedSetting: 'stationary' }).shedInstanceIds);
+      if (shed.has('mg1')) mg1ShedCount++;
+      if (shed.has('mg2')) mg2ShedCount++;
+    }
+    expect(mg2ShedCount).toBeGreaterThan(0);        // the plain gun starves
+    expect(mg1ShedCount).toBeLessThan(mg2ShedCount); // the surge gun stays fed
+  });
+
+  it('thermocouple skin cools its own cells by bleeding heat into charge', () => {
+    // Identical reactor+capacitor builds; the thermocouple cap's cells must run
+    // cooler than a plain cap's because it is pulling heat out into charge.
+    const build = (thermo: boolean): Build => ({
+      chassisId: 'CH-5',
+      parts: [
+        part('reactor', 'R-C40', 3, 1), // combustion → real waste heat
+        part('cap', 'P-CAP', 3, 3, thermo ? { modifiers: ['thermocouple-skin'] } : {}),
+        part('con1', 'U-CON', 2, 1),
+        part('mg', 'W-MG', 1, 1),
+      ],
+      powerPriority: [CORE_INSTANCE_ID, 'mg'],
+    });
+    const capTemp = (thermo: boolean): number => {
+      const sim = new Simulation(getChassis('CH-5'), build(thermo));
+      for (let t = 0; t < 400; t++) sim.step(1 / 20, { weaponsEnabled: { mg: true }, speedSetting: 'stationary' });
+      return sim.meanCellC('cap');
+    };
+    expect(capTemp(true)).toBeLessThan(capTemp(false) - 1);
+  });
+
+  it('appliesTo gates the new mods to their part classes', () => {
+    expect(modifierIdsFor(getPart('W-AC'))).toContain('surge-gate');
+    expect(modifierIdsFor(getPart('P-CAP'))).toContain('thermocouple-skin');
+    expect(modifierIdsFor(getPart('P-CAP'))).not.toContain('surge-gate');
+    expect(modifierIdsFor(getPart('W-AC'))).not.toContain('thermocouple-skin');
   });
 });

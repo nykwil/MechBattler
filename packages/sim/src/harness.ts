@@ -42,6 +42,24 @@ export interface RoundRobinReport {
   flagged: string[];
 }
 
+export interface BalanceDiagnostic {
+  id: string;
+  severity: 'critical' | 'warning' | 'note';
+  title: string;
+  evidence: string;
+  recommendation: string;
+}
+
+export interface BalanceSummary {
+  healthyMatchups: number;
+  totalMatchups: number;
+  outOfBandMatchups: number;
+  dominantTemplates: string[];
+  weakestTemplate: TemplateStanding | null;
+  strongestTemplate: TemplateStanding | null;
+  diagnostics: BalanceDiagnostic[];
+}
+
 export const R4_WIN_RATE_FLAG = 0.7;
 /**
  * Fighting-game matchup band (docs/05 R10): stock-vs-stock, a matchup should
@@ -116,6 +134,80 @@ export function runRoundRobin(
     matchups,
     standings,
     flagged: standings.filter((s) => s.winRate > R4_WIN_RATE_FLAG).map((s) => s.id),
+  };
+}
+
+/** Converts raw outcomes into the same explainable tuning brief in UI and CI. */
+export function analyzeRoundRobin(report: RoundRobinReport): BalanceSummary {
+  const outliers = report.matchups.filter((m) => {
+    const total = m.aWins + m.bWins + m.draws;
+    const aRate = total > 0 ? m.aWins / total : 0.5;
+    return aRate < MATCHUP_BAND_LOW || aRate > MATCHUP_BAND_HIGH;
+  });
+  const strongestTemplate = report.standings[0] ?? null;
+  const weakestTemplate = report.standings[report.standings.length - 1] ?? null;
+  const diagnostics: BalanceDiagnostic[] = [];
+
+  for (const id of report.flagged) {
+    const standing = report.standings.find((s) => s.id === id)!;
+    diagnostics.push({
+      id: `dominant-${id}`,
+      severity: 'critical',
+      title: `${id} is globally dominant`,
+      evidence: `${Math.round(standing.winRate * 100)}% overall win rate across ${standing.wins + standing.losses + standing.draws} battles; the design ceiling is ${Math.round(R4_WIN_RATE_FLAG * 100)}%.`,
+      recommendation: 'Inspect its cheapest repeatable advantage before changing global combat rules; prefer a content or loadout adjustment.',
+    });
+  }
+
+  if (weakestTemplate && weakestTemplate.winRate < 0.3) {
+    diagnostics.push({
+      id: `weak-${weakestTemplate.id}`,
+      severity: 'warning',
+      title: `${weakestTemplate.id} lacks a reliable game plan`,
+      evidence: `${Math.round(weakestTemplate.winRate * 100)}% overall win rate on a tier budget of ${weakestTemplate.budget}.`,
+      recommendation: 'Read its battle losses for range access, power starvation, or heat collapse; strengthen the archetype kernel rather than adding generic stats.',
+    });
+  }
+
+  for (const matchup of [...outliers]
+    .sort((x, y) => {
+      const extremity = (m: MatchupResult) => {
+        const total = m.aWins + m.bWins + m.draws;
+        return Math.abs((total > 0 ? m.aWins / total : 0.5) - 0.5);
+      };
+      return extremity(y) - extremity(x);
+    })
+    .slice(0, 3)) {
+    const total = matchup.aWins + matchup.bWins + matchup.draws;
+    const aRate = total > 0 ? matchup.aWins / total : 0.5;
+    const winner = aRate >= 0.5 ? matchup.a : matchup.b;
+    const loser = aRate >= 0.5 ? matchup.b : matchup.a;
+    const winRate = Math.max(aRate, 1 - aRate);
+    diagnostics.push({
+      id: `polarized-${matchup.a}-${matchup.b}`,
+      severity: 'warning',
+      title: `${winner} hard-counters ${loser}`,
+      evidence: `${Math.round(winRate * 100)}% in the matchup; healthy stock matchups target ${Math.round(MATCHUP_BAND_LOW * 100)}–${Math.round(MATCHUP_BAND_HIGH * 100)}%.`,
+      recommendation: 'Run fitting-only adaptation next. If no legal refit reaches the band, tune the losing kernel or its access to the fight.',
+    });
+  }
+
+  if (diagnostics.length === 0) {
+    diagnostics.push({
+      id: 'healthy-roster', severity: 'note', title: 'No roster-level guardrail fired',
+      evidence: `All ${report.matchups.length} matchups and ${report.standings.length} standings satisfy the current thresholds.`,
+      recommendation: 'Increase the seed count and inspect battle-level telemetry before accepting the tuning pass.',
+    });
+  }
+
+  return {
+    healthyMatchups: report.matchups.length - outliers.length,
+    totalMatchups: report.matchups.length,
+    outOfBandMatchups: outliers.length,
+    dominantTemplates: [...report.flagged],
+    weakestTemplate,
+    strongestTemplate,
+    diagnostics,
   };
 }
 

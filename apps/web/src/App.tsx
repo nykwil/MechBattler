@@ -19,6 +19,7 @@ import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
+import { BalanceLab } from './components/BalanceLab.js';
 import './App.css';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -28,6 +29,9 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 ];
 
 export default function App() {
+  const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
+    new URLSearchParams(window.location.search).get('view') === 'balance' ? 'balance' : 'workshop',
+  );
   const {
     state, chassis, build, chassisOptions,
     setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
@@ -255,6 +259,11 @@ export default function App() {
         <div className="brand">
           MechBattler <span className="tag">Workshop</span>
         </div>
+        <nav className="workspace-nav" aria-label="Workspace">
+          <button type="button" className={workspace === 'workshop' ? 'active' : ''} onClick={() => setWorkspace('workshop')}>Workshop</button>
+          <button type="button" className={workspace === 'balance' ? 'active' : ''} onClick={() => setWorkspace('balance')}>Balance Lab</button>
+        </nav>
+        {workspace === 'workshop' && <>
         <div className="chassis-select">
           {chassisOptions.map((c) => (
             <button
@@ -280,9 +289,10 @@ export default function App() {
             </button>
           ))}
         </div>
+        </>}
       </header>
 
-      <div className="layout">
+      {workspace === 'balance' ? <BalanceLab /> : <div className="layout">
         <div className="panel">
           <PartPalette
             selectedPartId={state.selectedPartId}
@@ -375,7 +385,7 @@ export default function App() {
             </div>
           )}
         </div>
-      </div>
+      </div>}
 
       {live && (
         <BattleLiveScreen

@@ -3,7 +3,7 @@ import { TEMPLATES } from '../src/templates.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
 import { checkPlacement, computeConnectivity, computeCoreNetwork } from '../src/grid.js';
-import { runRoundRobin } from '../src/harness.js';
+import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '../src/harness.js';
 
 describe('template roster is layout-legal and fully powered', () => {
   for (const t of TEMPLATES) {
@@ -43,5 +43,27 @@ describe('round-robin harness (docs/05 R4)', () => {
     expect(m.aWins + m.bWins + m.draws).toBe(4);
     const total = a.standings.reduce((s, t) => s + t.wins + t.losses, 0);
     expect(total).toBe((m.aWins + m.bWins) * 2);
+  });
+
+  it('turns raw outcomes into an explainable tuning brief', () => {
+    const report: RoundRobinReport = {
+      seedsPerPair: 10,
+      battles: 10,
+      matchups: [{
+        a: 'alpha', b: 'beta', aWins: 9, bWins: 1, draws: 0, avgDurationS: 20,
+        reasons: { 'core-kill': 10, 'mission-kill': 0, judges: 0 },
+      }],
+      standings: [
+        { id: 'alpha', budget: 8, wins: 9, losses: 1, draws: 0, winRate: 0.9 },
+        { id: 'beta', budget: 8, wins: 1, losses: 9, draws: 0, winRate: 0.1 },
+      ],
+      flagged: ['alpha'],
+    };
+    const brief = analyzeRoundRobin(report);
+    expect(brief.healthyMatchups).toBe(0);
+    expect(brief.dominantTemplates).toEqual(['alpha']);
+    expect(brief.diagnostics.map((d) => d.id)).toEqual([
+      'dominant-alpha', 'weak-beta', 'polarized-alpha-beta',
+    ]);
   });
 });

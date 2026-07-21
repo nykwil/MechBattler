@@ -24,7 +24,9 @@ function part(instanceId: string, partId: string, x: number, y: number, rotation
  * twin-MG loadout forced a 16-cell scout to cross 60+ m of fire to reach its
  * 30-90 m band — HARD vs nearly everything in the adaptation sweep. Its
  * identity weapon is now the carbine (60-180 m: fight at range, speed as
- * defense) with one MG as close-in teeth; the bands overlap at 60-90 m.
+ * defense) with one MG as close-in teeth. The Build Week tuning pass removed
+ * one armor plate after the harness measured a 76% overall win rate: the
+ * scout keeps its hybrid identity but pays for losing its range advantage.
  */
 function vultureSkirmisher(): Build {
   const parts: PlacedPart[] = [
@@ -35,7 +37,6 @@ function vultureSkirmisher(): Build {
     part('mg', 'W-MG', 2, 0), // (2,0),(3,0)
     part('rad', 'U-RAD', 1, 3), // (1,3),(2,3),(3,3)
     part('arm1', 'U-ARM', 1, 0),
-    part('arm2', 'U-ARM', 1, 1),
   ];
   return { chassisId: 'CH-2', parts, powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg'] };
 }
@@ -120,11 +121,16 @@ function widowOrbiter(): Build {
     part('reactor', 'R-E25', 4, 1), // (4,1),(5,1),(4,2),(5,2)
     part('con1', 'U-CON', 4, 3),
     part('mg1', 'W-MG', 2, 1), // (2,1),(3,1)
-    part('mg2', 'W-MG', 5, 3, 90), // (5,3),(5,4)
+    // Build Week tuning pass: a carbine gives the orbiting chassis a way to
+    // establish its game plan before entering the MG band, replacing rather
+    // than stacking with the second MG. The baseline harness exposed a 24%
+    // overall win rate and repeated 0-100 matchups.
+    part('cb', 'W-CB', 2, 4),
+    part('con2', 'U-CON', 4, 4),
     part('arm1', 'U-ARM', 3, 0),
     part('arm2', 'U-ARM', 2, 5),
   ];
-  return { chassisId: 'CH-7', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
+  return { chassisId: 'CH-7', parts, powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg1'] };
 }
 
 /**

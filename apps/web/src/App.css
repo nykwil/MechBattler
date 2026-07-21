@@ -35,6 +35,24 @@
   text-transform: uppercase;
 }
 
+.workspace-nav {
+  display: flex;
+  align-self: stretch;
+  gap: 2px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line-hairline);
+}
+.workspace-nav button {
+  padding: 0 10px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ink-muted);
+  font: 11px var(--font-mono);
+}
+.workspace-nav button:hover { color: var(--ink-primary); }
+.workspace-nav button.active { color: var(--ink-primary); border-bottom-color: var(--signal-amber); }
+
 .chassis-select {
   display: flex;
   gap: 6px;

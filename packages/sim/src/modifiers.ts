@@ -71,6 +71,10 @@ export interface EffectiveMults {
   targetProfile: number;
   /** Static: always sheds first in a brownout, ignoring priority. */
   shedFirst: boolean;
+  /** Static: takes first claim on power (reactor+capacitor) — brownout-immune. */
+  firstPriority: boolean;
+  /** Static: a capacitor that converts its own cells' waste heat into charge. */
+  harvestsHeat: boolean;
   /** Static: weapon on/off orders take effect this many seconds late. */
   orderLatencyS: number;
   /** Static: while functional, the mech ignores terrain speed penalties. */
@@ -82,7 +86,8 @@ export function neutralMults(): EffectiveMults {
     damage: 1, cycleS: 1, dispersionMrad: 1, moveJitter: 1, overkillCarry: 1,
     drawKw: 1, outputKw: 1,
     radiator: 1, extraHeatKw: 0, conduction: 1, cookoffSplash: 1, thermalMass: 1,
-    hp: 1, massKg: 1, targetProfile: 1, shedFirst: false, orderLatencyS: 0, ignoreTerrainSlow: false,
+    hp: 1, massKg: 1, targetProfile: 1, shedFirst: false, firstPriority: false,
+    harvestsHeat: false, orderLatencyS: 0, ignoreTerrainSlow: false,
   };
 }
 
@@ -153,6 +158,12 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     appliesTo: (d) => Boolean(d.draw?.continuousKw),
     apply: (m, _ctx, def) => { m.extraHeatKw += (def.draw?.continuousKw ?? 0) * 0.2; },
   },
+  'frankensteined': {
+    id: 'frankensteined', name: 'Frankensteined', kind: 'quirk-gift',
+    blurb: '−10% mass, but hogs 2 bench slots',
+    appliesTo: any,
+    apply: (m) => { m.massKg *= 0.9; },
+  },
   'sticky': {
     id: 'sticky', name: 'Sticky', kind: 'quirk-flaw',
     blurb: 'weapon on/off orders take effect 0.8 s late',
@@ -220,6 +231,18 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     blurb: 'cook-off vents outward — no splash to neighbors',
     appliesTo: (d) => d.id === 'U-AMMO',
     apply: (m) => { m.cookoffSplash = 0; },
+  },
+  'surge-gate': {
+    id: 'surge-gate', name: 'Surge gate', kind: 'mod',
+    blurb: 'first claim on power — fires from capacitors even while browned out',
+    appliesTo: isWeapon,
+    apply: (m) => { m.firstPriority = true; },
+  },
+  'thermocouple-skin': {
+    id: 'thermocouple-skin', name: 'Thermocouple skin', kind: 'mod',
+    blurb: 'trickles its own waste heat back into charge — wants to sit by the reactor',
+    appliesTo: (d) => d.category === 'capacitor',
+    apply: (m) => { m.harvestsHeat = true; },
   },
 };
 
