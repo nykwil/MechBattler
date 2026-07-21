@@ -19,7 +19,7 @@
  * modifiers must derive them ctx-independently — dynamic effects belong on
  * the per-tick knobs (damage, cycleS, radiator, …).
  */
-import type { PartDef, PlacedPart } from './types.js';
+import type { Build, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import type { TerrainType } from './terrain.js';
 
@@ -103,6 +103,10 @@ export interface ModifierDef {
   kind: ModifierKind;
   /** One-liner surfaced everywhere the part appears (docs/04 §4). */
   blurb: string;
+  /** Explicit opportunity cost/downside for build-defining perks. */
+  tradeoff?: string;
+  /** High-leverage perks may be unique per build to prevent copy loops. */
+  maxCopiesPerBuild?: number;
   /** Which parts can carry this modifier (reuse across the catalog). */
   appliesTo: (def: PartDef) => boolean;
   /** Bend the mults. Pure; reads only `ctx` and `def`. */
@@ -179,22 +183,32 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   // --- Mods (docs/04 §4b) ---------------------------------------------------
   'marsh-pistons': {
     id: 'marsh-pistons', name: 'Marsh pistons', kind: 'mod',
-    blurb: 'no water/forest speed penalty while functional',
+    blurb: 'no water/forest speed penalty · servo draw ×1.5',
+    tradeoff: 'Consumes 6 kW instead of 4 kW and occupies the Stride fitting.',
+    maxCopiesPerBuild: 1,
     appliesTo: (d) => d.id === 'U-ACT',
-    apply: (m) => { m.ignoreTerrainSlow = true; },
+    apply: (m) => { m.ignoreTerrainSlow = true; m.drawKw *= 1.5; },
   },
   'fever-cycle': {
     id: 'fever-cycle', name: 'Fever cycle', kind: 'mod',
-    blurb: 'fires faster the hotter its mount runs (−1% cycle per °C above 60)',
+    blurb: 'hotter than 50 °C cycles faster · weapon draw ×1.25',
+    tradeoff: 'Pays 25% more power at every temperature and must sustain a hot firing rhythm.',
+    maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    // 60 °C → ×1.0, 100 °C → ×0.6, floor ×0.5 — riding the shutdown cliff.
-    apply: (m, ctx) => { m.cycleS *= Math.max(0.5, 1 - Math.max(0, ctx.tempC - 60) * 0.01); },
+    // 50 °C → ×1.0, 100 °C → ×0.5. The onset is above a cold weapon's
+    // normal operating band but reachable by a deliberately hot-running fit.
+    apply: (m, ctx) => {
+      m.drawKw *= 1.25;
+      m.cycleS *= Math.max(0.5, 1 - Math.max(0, ctx.tempC - 50) * 0.01);
+    },
   },
   'cold-bore': {
     id: 'cold-bore', name: 'Cold bore', kind: 'mod',
-    blurb: 'dispersion ×0.5 below 40 °C — the first shot is the kill shot',
+    blurb: 'dispersion ×0.5 below 40 °C · damage ×0.9 always',
+    tradeoff: 'Trades 10% damage for an overcooled opening accuracy window.',
+    maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    apply: (m, ctx) => { if (ctx.tempC < 40) m.dispersionMrad *= 0.5; },
+    apply: (m, ctx) => { m.damage *= 0.9; if (ctx.tempC < 40) m.dispersionMrad *= 0.5; },
   },
   'tidecooler': {
     id: 'tidecooler', name: 'Tidecooler', kind: 'mod',
@@ -204,15 +218,19 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'gyrostabilized': {
     id: 'gyrostabilized', name: 'Gyrostabilized', kind: 'mod',
-    blurb: 'own movement costs half the usual aim jitter',
+    blurb: 'own movement aim jitter ×0.5 · weapon mass ×1.25',
+    tradeoff: 'The reinforced mount adds 25% weapon mass and worsens load/CoG pressure.',
+    maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    apply: (m) => { m.moveJitter *= 0.5; },
+    apply: (m) => { m.moveJitter *= 0.5; m.massKg *= 1.25; },
   },
   'hull-down': {
     id: 'hull-down', name: 'Hull-down suspension', kind: 'mod',
-    blurb: 'below 0.5 m/s the chassis crouches: target profile ×0.7',
-    appliesTo: (d) => d.category === 'structural',
-    apply: (m, ctx) => { if (ctx.speedMps < 0.5) m.targetProfile *= 0.7; },
+    blurb: 'below 1.5 m/s target profile ×0.7 · servo mass ×1.25',
+    tradeoff: 'Requires a powered two-cell Stride and adds 25% servo mass; moving turns it off.',
+    maxCopiesPerBuild: 1,
+    appliesTo: (d) => d.id === 'U-ACT',
+    apply: (m, ctx) => { m.massKg *= 1.25; if (ctx.speedMps < 1.5) m.targetProfile *= 0.7; },
   },
   'insulated-mount': {
     id: 'insulated-mount', name: 'Insulated mount', kind: 'mod',
@@ -251,6 +269,51 @@ export type VariantStat = 'damage' | 'cycleS' | 'dispersionMrad' | 'hp';
 
 export function modifierIdsFor(def: PartDef): string[] {
   return Object.values(MODIFIERS).filter((mod) => mod.appliesTo(def)).map((mod) => mod.id);
+}
+
+export interface ModifierLoadoutIssue {
+  kind: 'unknown' | 'inapplicable' | 'multiple-mods-on-part' | 'copy-limit';
+  modifierId: string;
+  instanceId?: string;
+  message: string;
+}
+
+/**
+ * Build-level mod audit used by the diversity harness and machinist UI.
+ * Quirks may coexist with one mod; multiple mods on one part and copies above
+ * an explicit perk limit are rejected as automatic stacking loops.
+ */
+export function auditModifierLoadout(build: Build): ModifierLoadoutIssue[] {
+  const issues: ModifierLoadoutIssue[] = [];
+  const counts = new Map<string, number>();
+  for (const part of build.parts) {
+    const mods: string[] = [];
+    for (const id of part.modifiers ?? []) {
+      const def = MODIFIERS[id];
+      if (!def) {
+        issues.push({ kind: 'unknown', modifierId: id, instanceId: part.instanceId, message: `${part.instanceId} has unknown modifier ${id}` });
+        continue;
+      }
+      if (!def.appliesTo(getPart(part.partId))) {
+        issues.push({ kind: 'inapplicable', modifierId: id, instanceId: part.instanceId, message: `${def.name} does not apply to ${part.partId}` });
+      }
+      if (def.kind === 'mod') mods.push(id);
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    if (mods.length > 1) {
+      issues.push({
+        kind: 'multiple-mods-on-part', modifierId: mods.join(','), instanceId: part.instanceId,
+        message: `${part.instanceId} carries ${mods.length} mods; one mod per part is the build-identity limit`,
+      });
+    }
+  }
+  for (const [id, count] of counts) {
+    const limit = MODIFIERS[id]?.maxCopiesPerBuild;
+    if (limit !== undefined && count > limit) {
+      issues.push({ kind: 'copy-limit', modifierId: id, message: `${id} appears ${count} times; build limit is ${limit}` });
+    }
+  }
+  return issues;
 }
 
 /**

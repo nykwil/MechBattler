@@ -8,9 +8,11 @@ Deadline: **July 21, 2026 at 5:00 PM Pacific**.
 - [x] Judge-facing Balance Lab
 - [x] Real 280-battle before/after tuning evidence
 - [x] Final pass: 8 / 28 healthy, 37-point spread, Mule Skirmisher 50%
+- [x] Diversity stress: 4 / 4 chassis with 2+ identities, 4 / 4 perks with a niche, 0 dominant perk builds
+- [x] Representative 12-build / 330-battle perk cohort and stacking-abuse gate
 - [x] JSON evidence export
 - [x] Reproducible CLI workflow
-- [x] 139 simulation tests passing
+- [x] 153 simulation tests passing
 - [x] Simulation and production web builds passing
 - [x] Setup and testing instructions
 - [x] Codex/GPT-5.6 collaboration documented
@@ -38,7 +40,8 @@ Deadline: **July 21, 2026 at 5:00 PM Pacific**.
 npm install
 npm run sim:test
 npm run sim:balance -- 10
+npm run sim:diversity -- 5
 npm run web:build
 ```
 
-Expected: 139 tests pass; 280-battle audit completes with no dominance flag, 8 / 28 healthy matchups, 37-point spread, and Mule Skirmisher at 50%; production build succeeds.
+Expected: 153 tests pass; the canonical 280-battle audit completes with no dominance flag, 8 / 28 healthy matchups, 37-point spread, and Mule Skirmisher at 50%; the 330-battle diversity stress reports no dominant combination and no dead representative perks; production build succeeds.

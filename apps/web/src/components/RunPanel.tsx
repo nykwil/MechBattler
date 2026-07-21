@@ -239,15 +239,22 @@ export function RunPanel({
           </div>
           {machinistOffers(run.data.seed, run.data.nodeIndex).map((modId) => {
             const mod = MODIFIERS[modId]!;
+            const hasPartMod = selectedPart?.modifiers?.some((id) => MODIFIERS[id]?.kind === 'mod') ?? false;
+            const buildCopies = build.parts.reduce(
+              (count, part) => count + (part.modifiers?.filter((id) => id === modId).length ?? 0), 0,
+            );
+            const atCopyLimit = mod.maxCopiesPerBuild !== undefined && buildCopies >= mod.maxCopiesPerBuild;
             const applicable = selectedPart !== null
               && mod.appliesTo(getPart(selectedPart.partId))
-              && !selectedPart.modifiers?.includes(modId);
+              && !selectedPart.modifiers?.includes(modId)
+              && !hasPartMod
+              && !atCopyLimit;
             const cantAffordMod = run.data.scrap < MACHINIST_MOD_COST;
             return (
               <div key={modId} className="run-bench-row">
-                <span className="run-bench-name" title={mod.blurb}>
+                <span className="run-bench-name" title={[mod.blurb, mod.tradeoff].filter(Boolean).join(' Cost: ')}>
                   <span className="mod-chip mod" style={{ marginRight: 6 }}>{mod.name}</span>
-                  {mod.blurb}
+                  {mod.blurb}{mod.tradeoff ? ` Cost: ${mod.tradeoff}` : ''}
                 </span>
                 <button
                   type="button"
@@ -255,6 +262,8 @@ export function RunPanel({
                   disabled={run.data.yardModApplied || !applicable || cantAffordMod}
                   title={run.data.yardModApplied ? 'Already applied this yard'
                     : selectedPart === null ? 'Select a placed part in the grid first'
+                    : hasPartMod ? 'This part already carries its one permanent mod'
+                    : atCopyLimit ? `${mod.name} is limited to one copy per build`
                     : !applicable ? 'Not applicable to the selected part'
                     : cantAffordMod ? 'Not enough scrap' : `Apply to ${getPart(selectedPart.partId).name}`}
                   onClick={() => selectedPart && onApplyMod(selectedPart.instanceId, modId)}

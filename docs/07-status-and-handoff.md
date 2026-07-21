@@ -205,6 +205,32 @@ and 30–70; Gunline remains a documented 0–100 HARD counter. Bastion was deli
 unchanged because it still beats both sniper kernels 100–0, validating its specialist
 identity. No global simulation, autopilot, weapon, chassis, or terrain rules changed.
 
+## Final Build Week diversity pass — shipped Jul 21, 2026
+
+The final direction paused broad damage-number equalization and made coherent build
+diversity the gate. `npm run sim:diversity -- 5` runs the eight stock archetypes plus
+four representative perk builds through 330 deterministic battles, then compares every
+perk with its unmodified control against all eight canonical opponents on the same seeds.
+It exits non-zero for a >70% perk build, a dead representative perk, or a missed copy-loop
+rejection. CI runs this alongside the unchanged 10-seed stock audit.
+
+All four chassis now have at least two represented identities. The final stress found no
+dominant perk build and no dead representative perk: Cold Bore, Fever Cycle,
+Gyrostabilized, and Hull-down each gained 20–40 points in at least one matchup while their
+aggregate control deltas stayed between −7 and +3 points. Duplicate Fever is rejected by
+the one-copy rule; the editor also enforces one mod per part. Vulture's 16-cell grid leaves
+8–10 fitting cells after weapon/reactor kernels and 2–4 free cells after coherent fits—
+tight, but sufficient for multiple identities.
+
+Rejected screens included 90–100% empty-frame Bastion anchors (silhouette/empty-cell
+abuse), a Fever threshold above 60°C that activated only 2–3%, removing the Fever build's
+radiator, and single-opponent activation attribution. The accepted Fever onset is 50°C
+with a permanent 25% draw tax. Stride's previously dead documented +15% speed now applies
+only while connected, powered, and functional and never stacks multiplicatively. Modifier
+effects now feed both expected-DPS planning and shot resolution; no global damage, weapon,
+chassis, terrain, or autopilot constants changed. Full evidence is in
+`docs/submission/TUNING-REPORT.md`.
+
 ## Workshop: done vs. remaining (01 §9 checklist)
 
 **Done**: illegal-placement feedback (rejected clicks flash + name the reason), build
@@ -331,13 +357,11 @@ heat-penalty ramp, physics/IK presentation, async PvP.
 
 ## Loose ends & ideas worth mining (captured, undecided)
 
-- **Rare/unique salvage — brainstormed Jul 19 2026, now `04 §4b Mods`**: the
-  build-identity layer landed as a design doc — what makes a good mod (parameter not
-  rule, references systems never other mods, bends trade-offs, simulated costs, legible
-  on existing instruments), an 11-mod candidate pool, machinist upgrades at scrapyards,
-  elite carriers, and a guaranteed modded part in the first wreck. Still riffing:
-  stacking, machinist pricing, whether uniques = named pre-rolled mod+variant+quirk
-  (lean yes). Feeds Track A M5.
+- **Rare/unique salvage — `04 §4b Mods`**: the modifier substrate, machinist offers,
+  one-mod-per-part rule, copy limits, and four representative stress builds are now
+  implemented. Five costly identity levers passed the final stress; acquisition rarity,
+  machinist pricing, elite carriers, and whether uniques = named pre-rolled
+  mod+variant+quirk remain Track A M5 work.
 
 - **RogueTech heat-escalation ladder**: before hard shutdown at 130°C, soft penalties could
   ramp (dispersion/speed degradation as cells heat). Our thresholds (02 §3) are cliff-edged;

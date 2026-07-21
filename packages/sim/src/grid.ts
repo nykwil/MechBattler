@@ -321,6 +321,22 @@ export function computeLoadScaledSpeeds(chassis: ChassisSpec, massAndCoG: MassAn
   };
 }
 
+/**
+ * Best active chassis-speed utility. Speed boosters deliberately do not
+ * multiply: extra copies buy redundancy, never an exponential stacking loop.
+ */
+export function computePartSpeedMultiplier(
+  parts: PlacedPart[],
+  active: (part: PlacedPart) => boolean = () => true,
+): number {
+  let mult = 1;
+  for (const part of parts) {
+    if (!active(part)) continue;
+    mult = Math.max(mult, getPart(part.partId).speedMult ?? 1);
+  }
+  return mult;
+}
+
 export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): MassAndCoG {
   const structuralMassKg = chassis.ratedMassT * 1000 * 0.3;
   const center = { x: (chassis.width - 1) / 2, y: (chassis.height - 1) / 2 };

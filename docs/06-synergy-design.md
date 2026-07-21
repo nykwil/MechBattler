@@ -161,7 +161,8 @@ Negative interactions are half of legibility (rule R4):
 
 1. Every synergy above must be discoverable from visible numbers + overlays alone (no wiki
    required — the RogueTech "LIES" failure is the anti-goal).
-2. Target: ≥ 3 viable archetypes per chassis at any ladder tier (validate via
-   autopilot-vs-autopilot batch sims, same harness as the wiggle-war check in 03 §8).
+2. Submission gate: ≥ 2 coherent represented identities per chassis; long-term target:
+   ≥ 3 viable archetypes per chassis at each ladder tier. Validate coherent builds, not
+   arbitrary legal layouts, with deterministic control/perk cohorts.
 3. No dominant pairing: if one synergy appears in > 50% of winning batch-sim builds, re-price
    its parts (mass/cells/tier), don't rule-patch it (rule R1).

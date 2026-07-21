@@ -52,7 +52,7 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
   it('dynamic modifiers read only simulated context: temp, speed, terrain', () => {
     const fever = part('a', 'W-AC', 0, 0, { modifiers: ['fever-cycle'] });
     expect(effectiveMults(fever, { tempC: 25, speedMps: 0, tile: 'open' }).cycleS).toBe(1);
-    expect(effectiveMults(fever, { tempC: 100, speedMps: 0, tile: 'open' }).cycleS).toBeCloseTo(0.6);
+    expect(effectiveMults(fever, { tempC: 100, speedMps: 0, tile: 'open' }).cycleS).toBeCloseTo(0.5);
     expect(effectiveMults(fever, { tempC: 300, speedMps: 0, tile: 'open' }).cycleS).toBe(0.5); // floor
 
     const bore = part('b', 'W-AC', 0, 0, { modifiers: ['cold-bore'] });
@@ -63,9 +63,9 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     expect(effectiveMults(tide, { tempC: 25, speedMps: 0, tile: 'water' }).radiator).toBe(2);
     expect(effectiveMults(tide, { tempC: 25, speedMps: 0, tile: 'open' }).radiator).toBe(1);
 
-    const hull = part('d', 'U-ARM', 0, 0, { modifiers: ['hull-down'] });
+    const hull = part('d', 'U-ACT', 0, 0, { modifiers: ['hull-down'] });
     expect(effectiveMults(hull, { tempC: 25, speedMps: 0.1, tile: 'open' }).targetProfile).toBeCloseTo(0.7);
-    expect(effectiveMults(hull, { tempC: 25, speedMps: 3, tile: 'open' }).targetProfile).toBe(1);
+    expect(effectiveMults(hull, { tempC: 25, speedMps: 2, tile: 'open' }).targetProfile).toBe(1);
   });
 
   it('every registry entry applies cleanly to every part it claims', () => {

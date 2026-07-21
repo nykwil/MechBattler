@@ -15,7 +15,7 @@
 import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { dexp } from './dmath.js';
-import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
+import { computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
 
@@ -32,7 +32,15 @@ export interface SpeedProfile {
 export function computeSpeedProfile(chassis: ChassisSpec, build: Build): SpeedProfile {
   const massAndCoG = computeMassAndCoG(chassis, build.parts);
   const scaled = computeLoadScaledSpeeds(chassis, massAndCoG);
-  return { massT: massAndCoG.totalMassT, ...scaled };
+  const connected = computeConnectivity(build.parts).connectedInstanceIds;
+  const boost = computePartSpeedMultiplier(build.parts, (part) => connected.has(part.instanceId));
+  return {
+    massT: massAndCoG.totalMassT,
+    ...scaled,
+    fwd: scaled.fwd * boost,
+    strafe: scaled.strafe * boost,
+    rev: scaled.rev * boost,
+  };
 }
 
 function clamp(v: number, min: number, max: number): number {

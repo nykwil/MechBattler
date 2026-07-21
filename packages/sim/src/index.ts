@@ -19,3 +19,4 @@ export * from './version.js';
 export * from './lockstep.js';
 export * from './adaptation.js';
 export * from './validation.js';
+export * from './diversity.js';

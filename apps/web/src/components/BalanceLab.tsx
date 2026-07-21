@@ -83,14 +83,14 @@ export function BalanceLab() {
 
       <section className="pass-proof" aria-label="Recorded tuning pass">
         <div className="pass-proof-head">
-          <div><span>FINAL CONTROLLED PASS</span><strong>280 battles before + 280 after</strong></div>
-          <small>same seeds · same engine · fitting change only</small>
+          <div><span>FINAL DIVERSITY STRESS</span><strong>12 builds · 330 battles</strong></div>
+          <small>5 fixed seeds · matched control/perk cohorts · canonical safety rail preserved</small>
         </div>
         <div className="pass-proof-grid">
-          <article><span>Dominant builds</span><div><del>0</del><i>→</i><strong>0</strong></div></article>
-          <article><span>Healthy matchups</span><div><del>6</del><i>→</i><strong>8</strong><small>/ 28</small></div></article>
-          <article><span>Roster spread</span><div><del>40</del><i>→</i><strong>37</strong><small>pts</small></div></article>
-          <article><span>Mule Skirmisher</span><div><del>29%</del><i>→</i><strong>50%</strong></div></article>
+          <article><span>Dominant perk builds</span><div><strong>0</strong></div></article>
+          <article><span>Perks with a matchup niche</span><div><strong>4</strong><small>/ 4</small></div></article>
+          <article><span>Chassis with 2+ identities</span><div><strong>4</strong><small>/ 4</small></div></article>
+          <article><span>Vulture free cells</span><div><strong>2–4</strong><small>after coherent fits</small></div></article>
         </div>
       </section>
 

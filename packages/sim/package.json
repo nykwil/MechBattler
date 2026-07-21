@@ -11,7 +11,8 @@
     "build": "tsc -p tsconfig.json",
     "balance": "node --import tsx scripts/balance.ts",
     "demo": "node --import tsx scripts/tank-vs-sniper.ts",
-    "adapt": "node --import tsx scripts/adaptation.ts"
+    "adapt": "node --import tsx scripts/adaptation.ts",
+    "diversity": "node --import tsx scripts/diversity.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.1",

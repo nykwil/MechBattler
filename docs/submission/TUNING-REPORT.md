@@ -7,7 +7,7 @@
 - Controls: base seed 1, alternating spawn sides, identical engine and global combat rules before and after.
 - Screening: 5 seeds per pair for cheap roster experiments; targeted telemetry used seeds 9000–9004 for the same before/after matchups.
 - Guardrails: no build above 70% overall; stock matchup target 35–65%; no generalist below 30%.
-- Scope: fitting/content only. No weapon, chassis, terrain, simulation, or autopilot constants changed.
+- Stock-roster scope: fitting/content only. No weapon, chassis, terrain, simulation, or autopilot constants changed in the Mule pass. The later diversity stress is documented separately below.
 
 ## Frozen pre-final baseline
 
@@ -85,6 +85,92 @@ Mule Skirmisher's final row is 20% Vulture Skirmisher, 0% Mule Gunline, 50% Lase
 
 The roster retains multiple distinct viable plans: long-range Vulture kiting, combustion Gunline fire support, Widow orbiting, twin-MG Mule brawling, and high-budget railgun alpha. Bastion remains a specialist sniper counter rather than a generalist.
 
+## Final reframing: build diversity and perk stress
+
+The final submission pass deliberately stopped broad damage-number equalization. Arbitrary legal layouts do not need to be viable; the acceptance question became whether each chassis supports at least two coherent identities and whether rare perks create costly, situational build decisions without dominant stacks.
+
+### Method and fixed cohort
+
+- Representative roster: the 8 canonical templates plus 4 perk builds, all 66 unordered pairs, 5 deterministic seeds per pair, 330 battles, base seed 1.
+- Perk attribution: each perk build and its unmodified control fought all 8 canonical opponents on identical seeds. Activation was sampled over that complete cohort, not a selected favorable opponent.
+- Dominance gate: no representative build above 70% overall.
+- Dead-perk gate: the condition must be active for at least 5% of recorded frames and improve at least one fixed-seed matchup.
+- Stacking gate: one mod per part; high-leverage perks declare a per-build copy limit.
+- Canonical safety rail: the separate 10-seed/280-battle stock audit must remain unchanged and below the 70% dominance limit.
+
+Final deterministic stress result:
+
+| Perk identity | Control | Perk | Aggregate delta | Condition active | Best fixed matchup delta |
+|---|---:|---:|---:|---:|---:|
+| Vulture Cold Bore ambusher | 60% | 57% | −3 | 100% | +40 vs Mule Gunline |
+| Mule Fever Cycle laser boat | 45% | 40% | −5 | 15% | +20 vs Mule Skirmisher |
+| Widow gyrostabilized AC gunship | 70% | 63% | −7 | 84% | +20 vs Mule Skirmisher |
+| Bastion Hull-down suppression bunker | 50% | 53% | +3 | 25% | +20 vs Bastion Tank |
+
+Headline: 12 builds, 330 battles, 19 / 66 matchups inside 35–65%, no build above 70%, no dead representative perk, and the duplicate-Fever test rejected with `fever-cycle appears 2 times; build limit is 1`. The negative aggregate deltas are intentional evidence that these are not automatic upgrades; each pays for a matchup niche.
+
+Representative standings:
+
+| Build | Win rate | Record |
+|---|---:|---:|
+| Mule Gunline | 67% | 37–18–0 |
+| Widow Gyro Gunship | 64% | 35–20–0 |
+| Vulture Skirmisher | 56% | 31–24–0 |
+| Widow Orbiter | 56% | 31–24–0 |
+| Vulture Sniper | 55% | 30–24–1 |
+| Mule Skirmisher | 49% | 27–28–0 |
+| Railgun Mule | 47% | 26–29–0 |
+| Vulture Cold Bore | 44% | 24–30–1 |
+| Mule Fever Cycle | 44% | 24–31–0 |
+| Bastion Hull-down | 40% | 22–33–0 |
+| Mule Laser Boat | 38% | 21–34–0 |
+| Bastion Tank | 38% | 21–34–0 |
+
+### Accepted build-defining perks
+
+| Perk | Conditional payoff | Explicit cost or drawback |
+|---|---|---|
+| Cold Bore | Dispersion ×0.5 below 40°C | Damage ×0.9 at every temperature; the representative Vulture spends a cell on extra thermal mass. |
+| Fever Cycle | Cycle time accelerates above 50°C, scaling with heat | Weapon draw ×1.25 at every temperature; requires a Hot-running setup and risks thermal/power collapse. |
+| Gyrostabilized | Own-motion aim jitter ×0.5 | Weapon mass ×1.25, worsening chassis load and CoG pressure. |
+| Hull-down suspension | Target profile ×0.7 below 1.5 m/s | Requires a connected, powered two-cell Stride, adds 25% servo mass, and switches off while moving. |
+| Marsh pistons | Ignores water/forest speed penalties | Stride draw rises from 4 to 6 kW; unique per build. |
+
+The pass also repaired Stride's catalog contract: it previously occupied two cells and drew 4 kW while its documented +15% speed never entered derived stats or combat movement. The effect is now connected/powered/functional, capped at the best installed copy, and non-multiplicative. Dynamic modifier effects now feed the autopilot's expected-DPS calculation as well as shot resolution, so the planner no longer evaluates a different weapon than the arena resolves. These are substrate correctness fixes, not global damage, chassis, terrain, or autopilot-constant tuning.
+
+### Chassis identity and fitting audit
+
+| Chassis | Coherent identities represented |
+|---|---|
+| CH-2 Vulture | Hybrid range skirmisher; ram-air carbine sniper; overcooled Cold Bore ambusher |
+| CH-5 Mule | Combustion gunline; armored twin-MG brawler; hybrid laser boat; capacitor railgun; Fever redline laser |
+| CH-7 Widow | Carbine orbit skirmisher; gyrostabilized autocannon gunship |
+| CH-9 Bastion | Armored close siege specialist; Hull-down suppression bunker |
+
+All four chassis therefore clear the two-identity requirement. The small CH-2 has 16 usable cells. Its weapon-plus-reactor kernels leave 8–10 cells for fittings, while the coherent Vulture builds finish with only 2–4 free cells. That is tight enough to force meaningful choices without preventing a second or third identity. The railgun Mule is actually the tightest representative finished layout at one free cell.
+
+### Overlapping-part audit
+
+- Heat sink versus radiator is meaningful: one cell of burst thermal mass versus three perimeter cells of sustained dissipation.
+- Armor versus heat sink is meaningful: 60 HP and 150 kg of lane protection versus sixfold thermal mass at 60 kg.
+- Electric versus combustion reactor is meaningful: cool instant 25 kW versus hot lagged 40 kW at the same tier.
+- Machine gun versus autocannon is meaningful: cheap two-cell close saturation versus a six-cell midrange recoil platform with large damage packets.
+- Targeting computer versus Gyrostabilized is meaningful: target-motion tracking for 3 kW versus own-motion stability paid in weapon mass.
+- Carbine versus laser remains an overlap watch: both occupy precision bands, but the carbine pays tracking/recoil while the laser pays charge spikes, hitscan premium, and heat.
+- Ammo is a dead placeholder in the current simulation: it adds cook-off risk, but ballistics do not consume ammunition. It is not presented as a positive fitting choice until the ammo system lands.
+
+### Rejected diversity experiments
+
+| Experiment | Evidence | Decision |
+|---|---|---|
+| Empty-frame Bastion rail/AC anchors | Screened at 90–100% overall before the perk while Hull-down was active only about 3–4%. The large 56-cell silhouette influenced hit probability, but empty entry cells let shot rays pass through without paying real fitted mass or systems. | Rejected as chassis-specific empty-grid abuse, not a perk identity. Replaced with a densely fitted one-MG suppression bunker. |
+| Fever Cycle above 60°C | Only 2–3% activation across all canonical opponents; the carrier peaked near 67°C, so the advertised payoff was effectively dead. | Rejected threshold. The onset moved to 50°C while retaining the permanent 25% draw tax and heat-scaled payoff. |
+| Remove the Fever build's radiator | Activation remained about 3%; aggregate performance did not improve and one matchup regressed by 40 points. | Reverted. It removed coherent thermal plumbing without making the perk function. |
+| Single-opponent activation benchmark | It reported Fever at 0% and Hull-down near 5% even though both gained elsewhere. | Rejected as benchmark bias. Activation now covers every canonical opponent on fixed seeds. |
+| Duplicate Fever on both lasers | The combination invites a copy loop before rarity or cost can constrain it. | Rejected mechanically: the build-level audit and machinist UI enforce Fever's one-copy limit. |
+
+Powerful roguelike synergies remain welcome when setup, rarity, geometry, heat, power, mass, or a declared copy limit makes them interesting. The harness rejects automatic dominance and dead text; it does not flatten a rare payoff merely because one prepared matchup swings sharply.
+
 ## Remaining limitations
 
 - Only 8 / 28 stock matchups are inside the target band; polarization is still visible rather than averaged away.
@@ -92,6 +178,8 @@ The roster retains multiple distinct viable plans: long-range Vulture kiting, co
 - The final five-seed adaptation sweep reports 12 HARD directed matchups. Its separate base-9000 screening seeds expose seed sensitivity and are diagnostic, not a widened acceptance guardrail.
 - Bastion's 29% overall rate is intentionally bimodal. It should be judged by its 100–0 sniper-counter results and refit identity, not forced toward 50% overall.
 - Budgets still range from 8 to 29 among most archetypes; budget-matched confidence intervals remain future work.
+- The 12-build perk cohort is representative, not an exhaustive combinatorial search. Future content should expand it with generated legal fits and rarity-weighted acquisition paths.
+- U-AMMO is not a meaningful positive choice until ammunition consumption exists; W-CB versus W-LAS remains the closest catalog overlap.
 
 ## Reproduce
 
@@ -99,7 +187,8 @@ The roster retains multiple distinct viable plans: long-range Vulture kiting, co
 npm run sim:test
 npm run sim:build
 npm run sim:balance -- 10
+npm run sim:diversity -- 5
 npm run web:build
 ```
 
-Expected headline: 139 tests across 18 files, 280 battles, 0 dominance flags, 8 / 28 healthy matchups, 37-point spread, Mule Skirmisher 50%, and Bastion Tank 29%.
+Expected headline: 153 tests across 19 files; canonical 280 battles with 0 dominance flags, 8 / 28 healthy matchups, 37-point spread, Mule Skirmisher 50%, and Bastion Tank 29%; diversity 330 battles with 0 dominant combinations and 0 dead representative perks.

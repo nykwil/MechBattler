@@ -18,25 +18,25 @@
 
 “The audit applies explicit design guardrails: no build above seventy percent overall, and stock matchups target thirty-five to sixty-five percent. It identifies dominant builds, weak kernels, and hard counters, then recommends the next kind of experiment. The complete evidence can be exported as JSON or run in CI.”
 
-## 1:05–1:35 — Before and after
+## 1:05–1:38 — Before, after, and diversity stress
 
 **Visual:** Show the final tuning report table, then return to current standings.
 
-“The frozen 280-battle roster had only six healthy matchups and a twenty-nine-percent Mule brawler. Telemetry showed it was losing both short-range guns during the approach—not overheating. We rejected a radiator, a rocket, and an overweight overcorrection. Two front plates preserved the twin-machine-gun identity and moved the Mule to fifty percent. On the same seeds, healthy matchups rose to eight and roster spread narrowed from forty to thirty-seven points.”
+“The frozen 280-battle roster had six healthy matchups and a twenty-nine-percent Mule brawler. Telemetry showed it lost both short-range guns during the approach, so two front plates—not a damage buff—moved it to fifty percent. Then we stopped equalizing numbers and stress-tested diversity: twelve builds, three hundred thirty battles, four costly conditional perks, no dominant combination, and a positive niche for every perk. The harness rejected duplicate Fever stacking and empty-frame Bastion abuse.”
 
-## 1:35–2:05 — Prove it is a real game
+## 1:38–2:06 — Prove it is a real game
 
 **Visual:** Switch to Workshop. Show the physical grid, power overlay, brownout priority, and Test Bench. Start a battle or show its report.
 
 “These aren't abstract rows. In the Workshop, every component occupies physical cells. Power requires a connected route, heat conducts between cells, and the player decides what browns out first. The same build can be tested, fought, diagnosed, salvaged, and refitted.”
 
-## 2:05–2:28 — Codex collaboration
+## 2:06–2:29 — Codex collaboration
 
 **Visual:** Brief repository/test view or README collaboration section.
 
-“I set the product principles and made the key design calls. Codex with GPT-5.6 turned the specifications into the simulation, product, batch harness, diagnostics, and 139-test verification suite. Then we used those tools for the final pass: fitting search, battle telemetry, rejected experiments, deterministic verification, and deployment—not just code generation.”
+“I set the product principles and made the key design calls. Codex with GPT-5.6 turned the specifications into the simulation, product, batch and perk harnesses, diagnostics, and 153-test verification suite. Then we used those tools for fitting search, battle telemetry, rejected experiments, deterministic verification, and deployment—not just code generation.”
 
-## 2:28–2:35 — Close
+## 2:29–2:35 — Close
 
 **Visual:** Balance Lab matrix.
 

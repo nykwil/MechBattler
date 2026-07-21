@@ -16,7 +16,7 @@ export function ModChips({ modifiers, variant }: {
   return (
     <span className="mod-chips">
       {mods.map((m) => (
-        <span key={m.id} className={`mod-chip ${m.kind}`} title={m.blurb}>
+        <span key={m.id} className={`mod-chip ${m.kind}`} title={[m.blurb, m.tradeoff].filter(Boolean).join(' Cost: ')}>
           {m.name}
         </span>
       ))}

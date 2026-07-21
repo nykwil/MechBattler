@@ -23,7 +23,7 @@ import {
 } from './terrain.js';
 
 /** Bump on any behavior-affecting sim change (rules, math, formats). */
-export const SIM_VERSION = '1.1.0';
+export const SIM_VERSION = '1.2.0';
 
 /** FNV-1a 32-bit over a string; returned as 8 hex chars. */
 export function fnv1a(str: string): string {
@@ -46,7 +46,8 @@ let cached: string | null = null;
 export function simContentHash(): string {
   if (cached) return cached;
   const modifierFingerprint = Object.values(MODIFIERS).map((m) => ({
-    id: m.id, kind: m.kind, blurb: m.blurb, apply: m.apply.toString(),
+    id: m.id, kind: m.kind, blurb: m.blurb, tradeoff: m.tradeoff,
+    maxCopiesPerBuild: m.maxCopiesPerBuild, apply: m.apply.toString(),
   }));
   cached = fnv1a(JSON.stringify({
     PARTS, CHASSIS, TEMPLATES, modifierFingerprint,

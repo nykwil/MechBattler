@@ -51,6 +51,9 @@ export const PARTS: Record<string, PartDef> = {
     id: 'U-ACT', name: 'Stride (servo booster)', category: 'utility',
     shape: line(2), massKg: 160, hp: 25, tier: 2,
     draw: { continuousKw: 4 },
+    // One powered booster improves all translation speeds by 15%. Multiple
+    // copies add redundancy, not multiplicative speed (diversity guardrail).
+    speedMult: 1.15,
   },
 
   // --- Power (docs/02 §2) ---

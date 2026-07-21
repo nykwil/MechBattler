@@ -2,6 +2,7 @@ import { useCallback, useMemo, useReducer } from 'react';
 import {
   CHASSIS,
   CORE_INSTANCE_ID,
+  MODIFIERS,
   checkPlacement,
   getChassis,
   getOccupiedCells,
@@ -77,10 +78,18 @@ function reducer(state: EditorState, action: Action): EditorState {
       };
     case 'APPLY_MODIFIER':
       // Machinist (docs/04 §4b): one mod per part, permanent.
+      const incoming = MODIFIERS[action.modifierId];
+      if (!incoming) return state;
+      const buildCopies = state.parts.reduce(
+        (count, p) => count + (p.modifiers?.filter((id) => id === action.modifierId).length ?? 0), 0,
+      );
       return {
         ...state,
         parts: state.parts.map((p) =>
-          p.instanceId === action.instanceId && !p.modifiers?.includes(action.modifierId)
+          p.instanceId === action.instanceId &&
+            !p.modifiers?.includes(action.modifierId) &&
+            !(incoming.kind === 'mod' && p.modifiers?.some((id) => MODIFIERS[id]?.kind === 'mod')) &&
+            (incoming.maxCopiesPerBuild === undefined || buildCopies < incoming.maxCopiesPerBuild)
             ? { ...p, modifiers: [...(p.modifiers ?? []), action.modifierId] }
             : p),
       };

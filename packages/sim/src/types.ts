@@ -96,6 +96,8 @@ export interface PartDef {
   isHeatPipe?: boolean;
   /** Thermal mass override in kJ/degC for this part's cells (default 1.0/cell). */
   thermalMassPerCell?: number;
+  /** Chassis speed multiplier while this connected utility is functional and powered. */
+  speedMult?: number;
 }
 
 export interface ChassisSpec {

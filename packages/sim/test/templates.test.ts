@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { TEMPLATES } from '../src/templates.js';
+import { PERK_TEMPLATES } from '../src/diversity.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
 import { checkPlacement, computeConnectivity, computeCoreNetwork } from '../src/grid.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '../src/harness.js';
 
 describe('template roster is layout-legal and fully powered', () => {
-  for (const t of TEMPLATES) {
+  for (const t of [...TEMPLATES, ...PERK_TEMPLATES]) {
     it(`${t.id}: every part placement is legal`, () => {
       const chassis = getChassis(t.build.chassisId);
       const placed: typeof t.build.parts = [];

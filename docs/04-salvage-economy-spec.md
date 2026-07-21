@@ -81,7 +81,7 @@ the same gauge everything else uses. They create the "run hot on purpose" build 
 Distribution: 70% no quirk; of quirked drops, weighted 2:1 flaws:gifts. Enemy elites are
 *built with* quirked parts, so intel (below) telegraphs what you'll inherit.
 
-### 4b. Mods — the build-identity layer (brainstorm, Jul 19 2026)
+### 4b. Mods — the build-identity layer (implemented substrate; stress pass Jul 21 2026)
 
 The third axis, above variants and quirks: **mods** are rare, named, deliberately
 build-defining part modifications — the CCG/synergy layer (resolves the tabled
@@ -117,24 +117,29 @@ it. This is the run's opening prompt.
 - **It rewards a verb we have** (R2): picking fights (arena preview), positioning,
   throttle/heat management, facing. Never a new button.
 
-**Candidate pool** (unpriced — tuning is Track C; grounding noted per idea):
+**Catalog and stress status.** A part may carry quirks plus at most one mod. High-leverage
+mods can also declare a per-build copy limit; the machinist UI and deterministic loadout
+audit enforce both rules. Rarity/acquisition pricing remains Track C, but the representative
+effects below have explicit mechanical costs:
 
 | Mod | Effect (physical grounding) |
 |---|---|
 | Tidecooler (radiator) | Water-tile dissipation bonus doubled — camp wet arenas |
-| Fever cycle (weapon) | Cycle time shrinks with mount-cell temperature — wants to ride 100–125 °C |
-| Cold bore (weapon) | Dispersion halved below ~40 °C — overcool deliberately, first shot kills |
+| Fever cycle (weapon) | Above 50°C, cycle time shrinks with mount temperature; draw ×1.25 always; max one per build |
+| Cold bore (weapon) | Dispersion ×0.5 below 40°C; damage ×0.9 always; max one per build |
 | Thermocouple skin (capacitor) | Trickle-charges from neighboring hot cells — wants the seat next to the reactor |
 | Insulated mount (any) | No heat conduction to grid neighbors — local placement freedom |
-| Gyrostabilized mount (weapon) | Own lateral speed costs half the usual tracking accuracy — orbit-and-hit |
-| Hull-down suspension (chassis servo) | Below ~0.5 m/s the chassis crouches: target profile −30% — stillness as a stance |
+| Gyrostabilized mount (weapon) | Own-motion jitter ×0.5; weapon mass ×1.25; max one per build |
+| Hull-down suspension (Stride) | Below 1.5 m/s, target profile ×0.7; requires the powered two-cell servo and adds 25% servo mass; max one |
 | Ram bore (weapon) | Overkill penetration carries 75% instead of 50% — gut interiors |
-| Marsh pistons (servo) | No water/forest speed penalty — swamp monster with Tidecooler |
+| Marsh pistons (Stride) | No water/forest speed penalty; servo draw rises from 4 to 6 kW; max one per build |
 | Sacrificial casing (ammo) | Cook-off vents outward, no neighbor splash |
 | Surge gate (weapon) | Fires from capacitor even while browned out — priority-immune |
 
-Open riffing questions: mod stacking (one mod per part feels right); do mods survive the
-part's destruction in any form; machinist pricing; whether "uniques" are just a mod +
+The fixed diversity stress accepted Cold Bore, Fever Cycle, Gyrostabilized, Hull-down,
+and Marsh pistons as costly identity levers and rejected duplicate Fever stacking. The
+remaining open questions are whether mods survive the part's destruction in any form;
+machinist pricing; whether "uniques" are just a mod +
 extreme variant + quirk pre-rolled under a proper name (current lean: yes — legendary
 metal, not new rules).
 

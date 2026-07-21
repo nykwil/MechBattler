@@ -23,7 +23,7 @@
 import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
-import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, type LoadScaledSpeeds } from './grid.js';
+import { buildOccupancyMap, computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
 import { Simulation, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
@@ -321,6 +321,8 @@ export class Combatant {
   private pendingWeaponToggles = new Map<string, { value: boolean; atS: number }>();
   /** Parts that, while functional, void terrain speed penalties (Marsh pistons). */
   private terrainImmuneIds: string[] = [];
+  /** Powered Stride instances; the best one applies, copies never multiply. */
+  private speedBoosterIds: string[] = [];
 
   constructor(build: Build, pos: Vec2, facingRad: number) {
     this.build = build;
@@ -331,6 +333,7 @@ export class Combatant {
     this.pos = pos;
     this.facingRad = facingRad;
     this.occupancy = buildOccupancyMap(build.parts);
+    const connected = computeConnectivity(build.parts).connectedInstanceIds;
     let partMass = 0;
     for (const p of build.parts) {
       const def = getPart(p.partId);
@@ -339,7 +342,8 @@ export class Combatant {
       this.heatDamageSeen.set(p.instanceId, 0);
       partMass += def.massKg * staticM.massKg;
       if (staticM.orderLatencyS > 0) this.orderLatencyById.set(p.instanceId, staticM.orderLatencyS);
-      if (staticM.ignoreTerrainSlow) this.terrainImmuneIds.push(p.instanceId);
+      if (staticM.ignoreTerrainSlow && connected.has(p.instanceId)) this.terrainImmuneIds.push(p.instanceId);
+      if ((def.speedMult ?? 1) > 1 && connected.has(p.instanceId)) this.speedBoosterIds.push(p.instanceId);
     }
     this.totalPartMassKg = partMass;
   }
@@ -377,8 +381,32 @@ export class Combatant {
   }
 
   /** True while a functional part voids terrain slowdowns (Marsh pistons). */
-  ignoresTerrainSlow(): boolean {
-    return this.terrainImmuneIds.some((id) => this.isPartFunctional(id));
+  ignoresTerrainSlow(snapshot: SimSnapshot | null): boolean {
+    return this.terrainImmuneIds.some((id) =>
+      this.isPartFunctional(id) &&
+      (snapshot === null || (
+        !snapshot.shedInstanceIds.includes(id) &&
+        !snapshot.shutdownInstanceIds.includes(id)
+      )),
+    );
+  }
+
+  /** Load-scaled speeds with one functional, powered booster applied. */
+  activeSpeeds(snapshot: SimSnapshot | null): LoadScaledSpeeds {
+    const boost = computePartSpeedMultiplier(this.build.parts, (part) =>
+      this.speedBoosterIds.includes(part.instanceId) &&
+      this.isPartFunctional(part.instanceId) &&
+      (snapshot === null || (
+        !snapshot.shedInstanceIds.includes(part.instanceId) &&
+        !snapshot.shutdownInstanceIds.includes(part.instanceId)
+      )),
+    );
+    return boost === 1 ? this.speeds : {
+      ...this.speeds,
+      fwd: this.speeds.fwd * boost,
+      strafe: this.speeds.strafe * boost,
+      rev: this.speeds.rev * boost,
+    };
   }
 
   get massT(): number { return this.sim.massT; }
@@ -412,6 +440,8 @@ export class Combatant {
     let mult = 1;
     for (const p of this.build.parts) {
       if (!p.modifiers?.length || !this.isPartFunctional(p.instanceId)) continue;
+      const runtime = this.sim.instanceRuntime.get(p.instanceId);
+      if (runtime?.isShed || runtime?.isShutdown) continue;
       mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps: len(this.vel), tile }).targetProfile;
     }
     return mult;
@@ -634,6 +664,9 @@ export interface DpsTerrainMods {
   shooterRangeMult?: number;
   /** Target concealment: silhouette fraction visible (forest = 0.65). */
   targetCoverMult?: number;
+  /** Physical tiles let conditional modifiers use the same context in planning and resolution. */
+  shooterTile?: TerrainType;
+  targetTile?: TerrainType;
 }
 
 /**
@@ -653,22 +686,29 @@ export function estimateExpectedDps(
   const coverMult = mods.targetCoverMult ?? 1;
   const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
-  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M * coverMult;
+  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M * coverMult *
+    target.profileMult(mods.targetTile ?? 'open');
   let dps = 0;
   for (const p of shooter.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
     const w = def.weapon!;
     if (rangeM > w.falloff.rangeEnd * 1.3 * rangeMult) continue;
+    const m = effectiveMults(p, {
+      tempC: shooter.sim.meanCellC(p.instanceId),
+      speedMps: shooterSpeedMps,
+      tile: mods.shooterTile ?? 'open',
+    });
     const model = computeHitModel({
       rangeM,
-      sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * shooterSpeedMps) * 0.001,
+      sigmaRad: (w.dispersionMrad * m.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * shooterSpeedMps * m.moveJitter) * 0.001,
       lateralSpeedMps: targetLateralMps,
       lagS,
       projectileSpeed: w.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
-    dps += (model.pHit * w.damage * (w.salvoCount ?? 1) * falloffAt(def, rangeM / rangeMult)) / w.cycleS;
+    dps += (model.pHit * w.damage * m.damage * (w.salvoCount ?? 1) * falloffAt(def, rangeM / rangeMult)) /
+      (w.cycleS * m.cycleS);
   }
   return dps;
 }
@@ -678,6 +718,8 @@ export function terrainDpsMods(shooterTile: TerrainType, targetTile: TerrainType
   return {
     shooterRangeMult: shooterTile === 'hill' ? HILL_RANGE_MULT : 1,
     targetCoverMult: targetTile === 'forest' ? FOREST_COVER_MULT : 1,
+    shooterTile,
+    targetTile,
   };
 }
 
@@ -700,6 +742,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
 
   const myTile = terrainAt(terrain, self.pos.x, self.pos.y);
   const enemyTile = terrainAt(terrain, enemy.pos.x, enemy.pos.y);
+  const activeSpeeds = self.activeSpeeds(snapshot);
   // Overheating makes a coolant bath worth real dps in the scoring below.
   let hottestC = 25;
   if (snapshot) for (const t of Object.values(snapshot.cellTempsC)) if (t > hottestC) hottestC = t;
@@ -776,7 +819,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       const closing = range > bestR;
       // Transit throttle: speed costs my accuracy now — pay only what the
       // current range says it's worth. (Out of everyone's reach it's free.)
-      const transitSpeed = (s: SpeedSetting) => (closing ? self.speeds.fwd : self.speeds.rev) * SPEED_FRACTION[s];
+      const transitSpeed = (s: SpeedSetting) => (closing ? activeSpeeds.fwd : activeSpeeds.rev) * SPEED_FRACTION[s];
       setting = exchangeAt(range, transitSpeed('flank'), 0) >= exchangeAt(range, transitSpeed('cruise'), 0) ? 'flank' : 'cruise';
       if (closing) {
         move = { verb: 'move', intent: 'close', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
@@ -799,7 +842,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       // At the chosen range: stand for accuracy, or orbit to tax the enemy's
       // tracking? Crossing speed costs me jitter and them tracking error —
       // the exchange says whether my guns or theirs are more motion-tolerant.
-      const orbitSpeed = (s: SpeedSetting) => self.speeds.strafe * SPEED_FRACTION[s];
+      const orbitSpeed = (s: SpeedSetting) => activeSpeeds.strafe * SPEED_FRACTION[s];
       const holdU = exchangeAt(range, 0, 0);
       const orbitCruiseU = exchangeAt(range, orbitSpeed('cruise'), orbitSpeed('cruise'));
       const orbitFlankU = exchangeAt(range, orbitSpeed('flank'), orbitSpeed('flank'));
@@ -986,7 +1029,15 @@ function maxSpeedInDirection(speeds: LoadScaledSpeeds, angleOffRad: number): num
 
 const SPEED_FRACTION: Record<SpeedSetting, number> = { stationary: 0, creep: 0.3, cruise: 0.65, flank: 1.0 };
 
-function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: boolean, tSec: number, dt: number, terrainSpeedMult = 1): void {
+function integrateMovement(
+  self: Combatant,
+  enemy: Combatant,
+  locomotionShed: boolean,
+  tSec: number,
+  dt: number,
+  terrainSpeedMult = 1,
+  snapshot: SimSnapshot | null = null,
+): void {
   // Verb 4: facing per the standing face order (autopilot default: track target).
   const desired = self.faceOrder.mode === 'bearing'
     ? self.faceOrder.bearingRad
@@ -1000,6 +1051,7 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
   self.lastTurnRateRadS = wrapAngle(self.facingRad - before) / dt;
 
   const accel = self.chassis.accelMps2 * self.speeds.loadFactor;
+  const activeSpeeds = self.activeSpeeds(snapshot);
   let targetVel: Vec2 = { x: 0, y: 0 };
   if (self.destination && !locomotionShed) {
     const toDest = sub(self.destination, self.pos);
@@ -1007,7 +1059,7 @@ function integrateMovement(self: Combatant, enemy: Combatant, locomotionShed: bo
     if (dist > 0.5) {
       const dir = norm(toDest);
       const angleOff = wrapAngle(datan2(dir.y, dir.x) - self.facingRad);
-      const maxV = maxSpeedInDirection(self.speeds, angleOff) * SPEED_FRACTION[self.speedSetting] * terrainSpeedMult;
+      const maxV = maxSpeedInDirection(activeSpeeds, angleOff) * SPEED_FRACTION[self.speedSetting] * terrainSpeedMult;
       // Slow into the destination so we don't orbit it.
       const arrivalV = Math.sqrt(2 * accel * dist);
       targetVel = scale(dir, Math.min(maxV, arrivalV));
@@ -1229,8 +1281,8 @@ export class Battle {
       const c = this.combatants[i];
       // Marsh pistons (docs/04 §4b): a functional immune part voids the slow.
       const baseMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
-      const speedMult = baseMult < 1 && c.ignoresTerrainSlow() ? 1 : baseMult;
-      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult);
+      const speedMult = baseMult < 1 && c.ignoresTerrainSlow(this.lastSnapshots[i]) ? 1 : baseMult;
+      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult, this.lastSnapshots[i]);
       if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
       else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
       if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }

@@ -18,19 +18,21 @@ The included mech-building game is the proving ground. Every weapon, chassis, po
 
 No account, API key, installation, or sample data is required for the live demo.
 
-## Measured tuning result
+## Measured diversity result
 
-The final Build Week pass reran the frozen pre-final roster over the same 280-battle cohort and changed one fitting—not an archetype kernel or a global simulation rule.
+The final pass stopped chasing equal damage numbers and tested whether coherent builds create distinct choices. Four representative perk builds were added beside the eight canonical archetypes and run through a fixed 5-seed, 330-battle round robin. Each perk was also compared with its unmodified control against every canonical opponent on the same seeds.
 
-| Guardrail | Frozen pre-final | Final pass | Result |
-|---|---:|---:|---|
-| Builds above 70% overall | 0 | 0 | Dominance guardrail preserved |
-| Healthy matchups (35–65%) | 6 / 28 | 8 / 28 | +2 matchups (+33%) |
-| Strongest-to-weakest spread | 40 points | 37 points | 3 points narrower |
-| Mule Skirmisher | 29% | 50% | Two front armor plates added |
-| Bastion Tank | 29% | 29% | Specialist identity preserved |
+| Diversity guardrail | Final evidence |
+|---|---:|
+| Chassis with at least two coherent identities | 4 / 4 |
+| Perks with a positive matchup niche | 4 / 4 |
+| Perk builds above 70% overall | 0 |
+| Dead perks in the representative cohort | 0 |
+| Vulture free cells after coherent fittings | 2–4 |
 
-The two plates let the short-range Mule survive its approach without changing its twin-MG identity. Its stock fights against the Vulture Skirmisher and Widow Orbiter move from 0–100 to 20–80 and 30–70; the Gunline remains a documented 0–100 HARD counter. Bastion remains intentionally bimodal, beating both sniper kernels 100–0 while losing to the brawlers and generalists. This is not a claim that balance is “solved”: the remaining failures are visible, reproducible, and separated from intentional specialist behavior.
+The accepted perks are conditional trades, not flat upgrades: Cold Bore exchanges 10% damage for overcooled accuracy; Fever Cycle pays 25% more draw to accelerate above 50°C; Gyrostabilized adds 25% weapon mass to reduce movement jitter; Hull-down adds a powered two-cell Stride and mass for a smaller stationary profile. Their aggregate control deltas range from −7 to +3 points, but each earns a +20 or +40 point matchup niche. One Fever per build and one mod per part are enforced to block automatic stacking loops.
+
+The original 280-battle stock audit remains a safety rail and reproduces unchanged: 0 builds above 70%, 8 / 28 healthy matchups, 37-point spread, Mule Skirmisher 50%, and specialist Bastion 29%. Arbitrary legal layouts are not promised viability.
 
 See [the complete tuning report](docs/submission/TUNING-REPORT.md).
 
@@ -54,6 +56,7 @@ Run the headless workflow directly:
 ```bash
 npm run sim:balance -- 10
 npm run sim:adapt -- 10
+npm run sim:diversity -- 5
 ```
 
 The balance command runs every pair from both spawn sides. It exits non-zero when the 70% dominance guardrail fires, making the same workflow usable in CI.
@@ -63,15 +66,18 @@ The balance command runs every pair from both spawn sides. It exits non-zero whe
 ```bash
 npm run sim:test
 npm run sim:build
+npm run sim:balance -- 10
+npm run sim:diversity -- 5
 npm run web:build
 ```
 
-Current verified state: **139 tests passing across 18 files**, clean simulation build, and clean Vite production build.
+Current verified state: **153 tests passing across 19 files**, clean simulation build, unchanged canonical 280-battle safety rail, passing 330-battle diversity stress, and clean Vite production build.
 
 ## How it works
 
 - **One deterministic engine:** the game, test bench, live battle, replay, balance harness, and adaptation search share a pure TypeScript simulation.
 - **Seeded cohort testing:** every matchup runs from alternating spawn sides over the same seed set; rerunning identical content produces an identical verdict.
+- **Build-diversity stress:** representative perk/control pairs expose dead conditions, dominant combinations, copy loops, and chassis-specific abuse before rare content ships.
 - **Explainable guardrails:** the tool flags overall win rates above 70%, stock matchups outside 35–65%, weak archetype kernels, and budget context.
 - **Actionable diagnosis:** findings point designers toward content/loadout changes or fitting-only adaptation before suggesting global rule changes.
 - **Evidence export:** the web workflow exports the complete report and derived brief as JSON.
@@ -95,6 +101,7 @@ Codex accelerated:
 - Building batch balance, adaptation-search, replay-verification, and content diagnostics tooling.
 - Reading battle telemetry to isolate power starvation, heat collapse, range-access, and loadout-kernel failures.
 - Implementing and testing constrained tuning changes, then rerunning identical cohorts for before/after evidence.
+- Rejecting empty-frame silhouette abuse, unreachable heat thresholds, and cooling-strip overcorrections from battle-level telemetry.
 - Building the judge-facing Balance Lab and preparing reproducible submission materials.
 
 The dated Git history distinguishes work completed after the July 13 submission-period start. The `/feedback` Codex session ID for the primary build task is supplied in the Devpost entry.
@@ -105,7 +112,7 @@ The dated Git history distinguishes work completed after the July 13 submission-
 apps/web/                 React + Vite workshop, battles, and Balance Lab
 packages/sim/src/         Deterministic simulation and analysis library
 packages/sim/scripts/     Balance, adaptation, and matchup CLI workflows
-packages/sim/test/        139 behavioral and determinism tests
+packages/sim/test/        153 behavioral and determinism tests
 docs/                     Product and simulation design specifications
 docs/submission/          Tuning evidence, demo script, and Devpost copy
 ```
