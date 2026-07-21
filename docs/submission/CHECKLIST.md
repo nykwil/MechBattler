@@ -19,9 +19,9 @@ Deadline: **July 21, 2026 at 5:00 PM Pacific**.
 ## External actions — required before submission
 
 - [ ] Register/join the hackathon on Devpost
-- [ ] Create a public GitHub repository, or share a private repository with `testing@devpost.com` and `build-week-event@openai.com`
-- [ ] Deploy the Vite app to a free public URL
-- [ ] Add the deployment and repository URLs to README and Devpost
+- [x] Create a public GitHub repository: https://github.com/nykwil/MechBattler
+- [x] Deploy the Vite app: https://nykwil.github.io/MechBattler/
+- [x] Add the deployment and repository URLs to README and Devpost
 - [ ] Capture 3–5 clean screenshots, including Balance Lab results and Workshop
 - [ ] Record the demo using `DEMO-SCRIPT.md`
 - [ ] Upload the under-3-minute video publicly to YouTube

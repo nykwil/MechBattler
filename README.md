@@ -2,6 +2,8 @@
 
 **An explainable, deterministic game-content tuning workflow built with Codex and GPT-5.6.**
 
+**[Try the live Balance Lab](https://nykwil.github.io/MechBattler/)** · **[View the public repository](https://github.com/nykwil/MechBattler)**
+
 Game balance is usually a loop of hunches, spreadsheets, slow playtests, and changes that are hard to explain. MechBattler Balance Lab turns that loop into reproducible evidence: it runs seeded combat cohorts, identifies dominant content and hard counters, produces a ranked tuning brief, and exports the underlying results.
 
 The included mech-building game is the proving ground. Every weapon, chassis, power network, heat system, AI doctrine, and terrain interaction runs through the same pure TypeScript simulation used by the player-facing game.
@@ -14,7 +16,7 @@ The included mech-building game is the proving ground. Every weapon, chassis, po
 4. Export the complete report as JSON.
 5. Return to **Workshop** to build a mech, test its power and thermal behavior, then watch or command it in the arena.
 
-No account, API key, or sample data is required.
+No account, API key, installation, or sample data is required for the live demo.
 
 ## Measured tuning result
 

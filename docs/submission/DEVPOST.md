@@ -12,6 +12,11 @@ Codex turns deterministic game simulations into explainable, evidence-backed con
 
 Developer Tools
 
+## Links
+
+- Live project: https://nykwil.github.io/MechBattler/
+- Public repository: https://github.com/nykwil/MechBattler
+
 ## Inspiration
 
 Game balance is often driven by intuition, spreadsheets, and expensive manual playtests. Even when a team has telemetry, a win-rate number rarely explains what should change—or whether the problem is a stat, a loadout, an AI behavior, or a foundational rule. We wanted Codex to work like a systems-design collaborator: run controlled experiments, read the failures, make constrained changes, and prove what improved.
