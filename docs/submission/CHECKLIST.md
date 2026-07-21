@@ -7,6 +7,7 @@ Deadline: **July 21, 2026 at 5:00 PM Pacific**.
 - [x] Working web project
 - [x] Judge-facing Balance Lab
 - [x] Real 280-battle before/after tuning evidence
+- [x] Final pass: 8 / 28 healthy, 37-point spread, Mule Skirmisher 50%
 - [x] JSON evidence export
 - [x] Reproducible CLI workflow
 - [x] 139 simulation tests passing
@@ -40,4 +41,4 @@ npm run sim:balance -- 10
 npm run web:build
 ```
 
-Expected: 139 tests pass; 280-battle audit completes with no dominance flag; production build succeeds.
+Expected: 139 tests pass; 280-battle audit completes with no dominance flag, 8 / 28 healthy matchups, 37-point spread, and Mule Skirmisher at 50%; production build succeeds.

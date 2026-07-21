@@ -187,6 +187,24 @@ suit it) · railgun 43% · mule-skirm 41% · tank 29% · orbiter 24%. Losing ker
 rationally refuse engagements and run until cornered (walls end it) — the runaway rule
 (Track C5) will want a look at this.
 
+## Final Build Week balance pass — shipped Jul 21, 2026
+
+The frozen tag `build-week-pre-final-tuning` reproduced exactly at 10 seeds per pair:
+6 / 28 healthy matchups, 40-point roster spread, no build above 70%, Mule Skirmisher
+29%, and Bastion Tank 29%. Fitting search plus fixed-seed battle telemetry isolated the
+Mule's failure as range access: it lost both MGs before closing, with no heat shutdowns
+or brownout sheds. Radiator, rocket, one-plate, and overweight combination experiments
+were rejected.
+
+The accepted content-only change added two tier-1 front plates to Mule Skirmisher while
+preserving its twin-MG kernel. The identical 280-battle cohort finished at 8 / 28 healthy,
+37-point spread, and these standings: Vulture Skirmisher 66%, Mule Gunline 64%, Vulture
+Sniper 60%, Widow Orbiter 54%, Mule Skirmisher 50%, Railgun Mule 44%, Mule Laser Boat
+33%, Bastion Tank 29%. Mule's former 0–100 losses to Vulture and Widow softened to 20–80
+and 30–70; Gunline remains a documented 0–100 HARD counter. Bastion was deliberately
+unchanged because it still beats both sniper kernels 100–0, validating its specialist
+identity. No global simulation, autopilot, weapon, chassis, or terrain rules changed.
+
 ## Workshop: done vs. remaining (01 §9 checklist)
 
 **Done**: illegal-placement feedback (rejected clicks flash + name the reason), build

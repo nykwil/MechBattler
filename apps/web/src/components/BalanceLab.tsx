@@ -83,14 +83,14 @@ export function BalanceLab() {
 
       <section className="pass-proof" aria-label="Recorded tuning pass">
         <div className="pass-proof-head">
-          <div><span>RECORDED CONTROLLED PASS</span><strong>280 battles before + 280 after</strong></div>
-          <small>same seeds · same engine · content changes only</small>
+          <div><span>FINAL CONTROLLED PASS</span><strong>280 battles before + 280 after</strong></div>
+          <small>same seeds · same engine · fitting change only</small>
         </div>
         <div className="pass-proof-grid">
-          <article><span>Dominant builds</span><div><del>1</del><i>→</i><strong>0</strong></div></article>
-          <article><span>Healthy matchups</span><div><del>4</del><i>→</i><strong>6</strong><small>/ 28</small></div></article>
-          <article><span>Roster spread</span><div><del>52</del><i>→</i><strong>40</strong><small>pts</small></div></article>
-          <article><span>Widow Orbiter</span><div><del>24%</del><i>→</i><strong>64%</strong></div></article>
+          <article><span>Dominant builds</span><div><del>0</del><i>→</i><strong>0</strong></div></article>
+          <article><span>Healthy matchups</span><div><del>6</del><i>→</i><strong>8</strong><small>/ 28</small></div></article>
+          <article><span>Roster spread</span><div><del>40</del><i>→</i><strong>37</strong><small>pts</small></div></article>
+          <article><span>Mule Skirmisher</span><div><del>29%</del><i>→</i><strong>50%</strong></div></article>
         </div>
       </section>
 

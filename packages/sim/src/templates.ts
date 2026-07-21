@@ -54,7 +54,14 @@ function muleGunline(): Build {
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'ac'] };
 }
 
-/** CH-5 twin-MG brawler: cheap sustained fire, electric and cool. */
+/**
+ * CH-5 twin-MG brawler: cheap sustained fire, electric and cool. The final
+ * Build Week fitting pass added two front-row plates after fixed-seed battle
+ * telemetry showed range access -- not heat or power -- was the generalist's
+ * failure: it lost both MGs before closing against longer-ranged builds.
+ * Keeping the twin-MG keystone preserves its brawler identity; the two cheap
+ * plates are exactly the fitting-only recovery that docs/05 R10 calls for.
+ */
 function muleSkirmisher(): Build {
   const parts: PlacedPart[] = [
     part('reactor', 'R-E25', 3, 1),
@@ -64,6 +71,8 @@ function muleSkirmisher(): Build {
     part('mg2', 'W-MG', 1, 3, 90), // (1,3),(1,4)
     part('arm1', 'U-ARM', 2, 0),
     part('arm2', 'U-ARM', 3, 0),
+    part('arm3', 'U-ARM', 1, 0),
+    part('arm4', 'U-ARM', 4, 0),
   ];
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
 }

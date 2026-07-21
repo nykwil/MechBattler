@@ -44,7 +44,7 @@ The UI, CLI, tests, and game all call the same simulation and analysis functions
 
 We collaborated with Codex using GPT-5.6 throughout Build Week. The human role set product principles and made the high-level design calls: protect physical routing and brownout priority, preserve archetype identity, diagnose before tuning, and change content before global rules. Codex translated the specifications into a working simulation and product, built the batch harness and test suite, analyzed battle telemetry, implemented constrained experiments, and reran identical cohorts to validate each pass.
 
-For the final tuning pass, Codex identified a 76% Vulture Skirmisher and a 24% Widow Orbiter. Its first experiment intentionally tested the causal levers but overcorrected them to 20% and 71%, so the workflow rejected the pass. The accepted content-only adjustment landed them at 69% and 64%, eliminated the roster-level dominance flag, increased healthy matchups by 50%, and narrowed the roster spread by 12 points.
+The frozen pre-final roster reproduced at 6 / 28 healthy matchups, a 40-point spread, and no build above 70%. Codex then diagnosed the 29% Mule Skirmisher from battle telemetry: it was not overheating or browning out; it was losing both short-range guns before completing its approach. One plate was too small, a radiator addressed the wrong failure, a rocket reduced matchup health, and plates plus cooling crossed a locomotion power threshold and fired zero shots. The accepted fitting-only change added two front plates without touching the twin-MG kernel or global rules. On the final identical 280-battle cohort, Mule reached 50%, healthy matchups rose to 8 / 28, and spread narrowed to 37 points. Bastion stayed an intentional 29% specialist with 100–0 wins over both sniper kernels.
 
 The dated repository history distinguishes Build Week work, and the submission includes the `/feedback` session ID for the primary Codex task.
 
@@ -60,7 +60,7 @@ Another challenge was determinism across a complex simulation. We added seeded r
 - A web-based 56/140/280-battle balance audit
 - Shared explainable analysis across UI and CLI
 - Evidence export and CI-compatible dominance failure
-- A real content-tuning pass with a recorded rejected iteration
+- A real content-tuning pass with telemetry, fitting-only search, and recorded rejected iterations
 - 139 passing tests across 18 files
 - Deterministic lockstep and replay-verification foundation
 
@@ -70,7 +70,7 @@ Balance is not one number. Overall standings can hide hard counters, unequal con
 
 ## What's next
 
-- Run fitting-only adaptation automatically from each flagged matrix cell
+- Expose fitting-only adaptation directly from each flagged matrix cell
 - Compare saved tuning snapshots directly in the web UI
 - Attribute outcome changes to power, heat, range access, terrain, and damage lanes
 - Add budget-matched cohorts and confidence intervals

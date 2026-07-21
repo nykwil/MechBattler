@@ -20,9 +20,9 @@
 
 ## 1:05–1:35 — Before and after
 
-**Visual:** Show the tuning report table, then return to current standings.
+**Visual:** Show the final tuning report table, then return to current standings.
 
-“Our untuned 280-battle baseline found a seventy-six-percent Vulture and a twenty-four-percent Widow. Codex's first experiment overcorrected both, so we rejected it. The accepted content-only pass removed one Vulture armor plate and replaced one Widow machine gun with a routed carbine. That cleared the dominance flag, raised healthy matchups fifty percent, and narrowed roster spread by twelve points.”
+“The frozen 280-battle roster had only six healthy matchups and a twenty-nine-percent Mule brawler. Telemetry showed it was losing both short-range guns during the approach—not overheating. We rejected a radiator, a rocket, and an overweight overcorrection. Two front plates preserved the twin-machine-gun identity and moved the Mule to fifty percent. On the same seeds, healthy matchups rose to eight and roster spread narrowed from forty to thirty-seven points.”
 
 ## 1:35–2:05 — Prove it is a real game
 
@@ -34,7 +34,7 @@
 
 **Visual:** Brief repository/test view or README collaboration section.
 
-“I set the product principles and made the key design calls. Codex with GPT-5.6 turned the specifications into the simulation, product, batch harness, diagnostics, and 139-test verification suite. Then we used those tools together for the actual tuning pass—not just to generate code, but to run and reject experiments.”
+“I set the product principles and made the key design calls. Codex with GPT-5.6 turned the specifications into the simulation, product, batch harness, diagnostics, and 139-test verification suite. Then we used those tools for the final pass: fitting search, battle telemetry, rejected experiments, deterministic verification, and deployment—not just code generation.”
 
 ## 2:28–2:35 — Close
 

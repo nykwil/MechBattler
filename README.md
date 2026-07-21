@@ -20,17 +20,17 @@ No account, API key, installation, or sample data is required for the live demo.
 
 ## Measured tuning result
 
-The Build Week tuning pass intentionally changed roster content—not global simulation rules—and reran the same 280-battle cohort.
+The final Build Week pass reran the frozen pre-final roster over the same 280-battle cohort and changed one fitting—not an archetype kernel or a global simulation rule.
 
-| Guardrail | Untuned baseline | Tuned pass | Result |
+| Guardrail | Frozen pre-final | Final pass | Result |
 |---|---:|---:|---|
-| Builds above 70% overall | 1 | 0 | Dominance flag cleared |
-| Healthy matchups (35–65%) | 4 / 28 | 6 / 28 | +50% |
-| Strongest-to-weakest spread | 52 points | 40 points | 12 points narrower |
-| Vulture Skirmisher | 76% | 69% | One armor plate removed |
-| Widow Orbiter | 24% | 64% | Second MG replaced by a carbine + conduit |
+| Builds above 70% overall | 0 | 0 | Dominance guardrail preserved |
+| Healthy matchups (35–65%) | 6 / 28 | 8 / 28 | +2 matchups (+33%) |
+| Strongest-to-weakest spread | 40 points | 37 points | 3 points narrower |
+| Mule Skirmisher | 29% | 50% | Two front armor plates added |
+| Bastion Tank | 29% | 29% | Specialist identity preserved |
 
-This is a first tuning pass, not a claim that balance is “solved.” The matrix still exposes polarized matchups. That honesty is part of the workflow: remaining failures are visible, reproducible, and ready for fitting-only adaptation analysis instead of being averaged away.
+The two plates let the short-range Mule survive its approach without changing its twin-MG identity. Its stock fights against the Vulture Skirmisher and Widow Orbiter move from 0–100 to 20–80 and 30–70; the Gunline remains a documented 0–100 HARD counter. Bastion remains intentionally bimodal, beating both sniper kernels 100–0 while losing to the brawlers and generalists. This is not a claim that balance is “solved”: the remaining failures are visible, reproducible, and separated from intentional specialist behavior.
 
 See [the complete tuning report](docs/submission/TUNING-REPORT.md).
 
