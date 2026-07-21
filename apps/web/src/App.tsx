@@ -30,7 +30,7 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 
 export default function App() {
   const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
-    new URLSearchParams(window.location.search).get('view') === 'balance' ? 'balance' : 'workshop',
+    new URLSearchParams(window.location.search).get('view') === 'workshop' ? 'workshop' : 'balance',
   );
   const {
     state, chassis, build, chassisOptions,
@@ -257,7 +257,7 @@ export default function App() {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          MechBattler <span className="tag">Workshop</span>
+          MechBattler <span className="tag">{workspace === 'balance' ? 'Balance Lab' : 'Workshop'}</span>
         </div>
         <nav className="workspace-nav" aria-label="Workspace">
           <button type="button" className={workspace === 'workshop' ? 'active' : ''} onClick={() => setWorkspace('workshop')}>Workshop</button>
