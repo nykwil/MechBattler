@@ -1460,6 +1460,14 @@ export class Battle {
           enemy.staggerUntilS = this.tSec + 0.3;
           enemy.staggerDispersionUntilS = this.tSec + 1.0;
         }
+        // System-attacking effects (docs/07 Track C §4): a flamer cooks the
+        // struck cell; an ion cannon bleeds the enemy's stored charge. Both
+        // land in addition to the HP damage above and modify already-hashed
+        // sim state, so they stay lockstep-deterministic.
+        if (weapon.enemyHeatKj && result.entryCell) {
+          enemy.sim.depositHeatAtCell(`${result.entryCell.x},${result.entryCell.y}`, weapon.enemyHeatKj);
+        }
+        if (weapon.capDrainKj) enemy.sim.drainCapacitorChargeKj(weapon.capDrainKj);
       }
       this.events.push({
         tSec: this.tSec, type: 'shot', mech: i, instanceId, partId,

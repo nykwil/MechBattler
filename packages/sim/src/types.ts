@@ -73,6 +73,14 @@ export interface WeaponSpec {
   falloff: { rangeStart: number; rangeEnd: number; multAtEnd: number };
   mountArcDeg: number;
   recoilKnS?: number;
+  /**
+   * System-attacking effects (docs/07 Track C §4, R1-clean — watts and joules,
+   * not tags). Applied to the target on each hit, in addition to HP damage:
+   */
+  /** kJ of heat dumped into the struck enemy cell — attacks the thermal sim (flamer). */
+  enemyHeatKj?: number;
+  /** kJ of stored capacitor charge drained from the enemy — attacks the power sim (ion). */
+  capDrainKj?: number;
 }
 
 export interface PartDef {

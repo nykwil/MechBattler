@@ -182,6 +182,31 @@ export class Simulation {
     return out;
   }
 
+  /**
+   * Deposit heat into one cell by key (system-attacking weapons — the flamer,
+   * docs/07 Track C §4). No-op off-grid. Next tick's conduction/threshold pass
+   * picks it up like any other heat, so it can shut down or burn down the part.
+   */
+  depositHeatAtCell(cellKey: string, kj: number): void {
+    const cell = this.thermal.cells.get(cellKey);
+    if (cell) cell.tempC += kj / cell.thermalMassKjPerC;
+  }
+
+  /**
+   * Drain up to `kj` of stored capacitor charge, proportionally across banks
+   * (the ion cannon, docs/07 Track C §4). Returns the amount actually drained.
+   */
+  drainCapacitorChargeKj(kj: number): number {
+    let total = 0;
+    for (const v of this.capacitorStoredKj.values()) total += v;
+    if (total <= 0) return 0;
+    const frac = Math.min(1, kj / total);
+    for (const [id, stored] of this.capacitorStoredKj) {
+      this.capacitorStoredKj.set(id, stored - stored * frac);
+    }
+    return total * frac;
+  }
+
   /** Mean temperature of a part's cells, °C — the dynamic-modifier input. */
   meanCellC(instanceId: string): number {
     const keys = this.thermal.cellKeysByInstance.get(instanceId) ?? [];

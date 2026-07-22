@@ -82,6 +82,14 @@ export const PARTS: Record<string, PartDef> = {
     shape: line(2), massKg: 90, hp: 20, tier: 2,
     capacitor: { storedKj: 60, chargeKw: 20, dischargeKw: 80 },
   },
+  // The heavy sibling to the Jolt: over 3× the reserve (nearly a full railgun
+  // shot banked) but slow to fill and slow to dump. A big-alpha reservoir vs the
+  // Jolt's small-and-snappy buffer — the choice cap-fed builds never had.
+  'P-CAP2': {
+    id: 'P-CAP2', name: 'Reservoir (capacitor L)', category: 'capacitor',
+    shape: rect(2, 2), massKg: 320, hp: 35, tier: 3,
+    capacitor: { storedKj: 200, chargeKw: 25, dischargeKw: 60 },
+  },
 
   // --- Weapons (docs/03 §5, power draw docs/02 §2) ---
   'W-MG': {
@@ -172,6 +180,39 @@ export const PARTS: Record<string, PartDef> = {
       damage: 40, cycleS: 2.0, projectileSpeed: 400, dispersionMrad: 6.0,
       falloff: { rangeStart: 15, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 45,
       recoilKnS: 2,
+    },
+  },
+  // System-attacking weapons (docs/07 Track C §4): higher-tier tech that hits a
+  // simulated system, not just HP. Legible on existing gauges (enemy heat on the
+  // thermal overlay, enemy charge on the CAP gauge), so R4 holds with no new UI.
+  //
+  // Scald: a short-range flamer. Trivial HP damage, but each lick dumps heat
+  // into the struck cell — overwhelms a build's cooling into shutdown/burn-down.
+  // Runs the wielder hot too, and near-useless past bad breath range.
+  'W-SC': {
+    id: 'W-SC', name: 'Scald (flamer)', category: 'weapon',
+    shape: rect(2, 2), massKg: 280, hp: 30, tier: 3,
+    draw: { continuousKw: 5 },
+    heat: { heatPerShotKj: 3 },
+    weapon: {
+      damage: 3, cycleS: 0.4, projectileSpeed: 'hitscan', dispersionMrad: 3.0,
+      falloff: { rangeStart: 20, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 90,
+      enemyHeatKj: 6,
+    },
+  },
+  // Static: an ion cannon. Modest damage, but each hit bleeds the enemy's stored
+  // capacitor charge — starves railgun alphas and Surge-gate/Thermocouple builds
+  // of the reserve their identity depends on. A situational counter vs cap-light
+  // foes; a build-wrecker vs cap-heavy ones.
+  'W-ION': {
+    id: 'W-ION', name: 'Static (ion cannon)', category: 'weapon',
+    shape: line(3), massKg: 240, hp: 30, tier: 3,
+    draw: { chargedEnergyPerShotKj: 25, minChargeS: 0.8, maxChargeKw: 30 },
+    heat: { heatPerShotKj: 6 },
+    weapon: {
+      damage: 5, cycleS: 1.4, projectileSpeed: 'hitscan', dispersionMrad: 1.8,
+      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5 }, mountArcDeg: 60,
+      capDrainKj: 25,
     },
   },
 };

@@ -346,9 +346,17 @@ lock-in concept (00 backlog).
 2. Widow-orbiter kernel fix (7%) + budget brackets with elite templates + the weapon
    efficiency table (dps per tier-point / kW-draw / kW-heat / cell / kg).
 3. Servo-booster adaptation op (the light-mech fitting lever).
-4. System-attacking weapons: Scald flamer (deposits heat into enemy cells — attacks the
-   thermal sim) and Static ion (drains capacitors — attacks the power sim). Higher-tier
-   only; starter weapons stay simple scalars (R5).
+4. System-attacking weapons ✅ *shipped Jul 22 2026 (content pass)* — **Scald (W-SC)**
+   flamer deposits `enemyHeatKj` into the struck cell (attacks the thermal sim → cooks
+   builds into shutdown/burn-down); **Static (W-ION)** ion cannon `capDrainKj` bleeds the
+   enemy's stored charge (attacks the power sim → starves railgun/Surge/Thermocouple
+   builds). Both are new `WeaponSpec` fields applied on hit via `Simulation.depositHeatAt
+   Cell` / `drainCapacitorChargeKj` — R1-clean (watts + joules), lockstep-deterministic
+   (modify already-hashed state), legible on the existing HEAT/CAP gauges (R4, no new UI).
+   Also added **Reservoir (P-CAP2)**, a big-alpha capacitor (200 kJ, slow charge) opposite
+   the small/snappy Jolt — the choice cap-fed builds never had. Starter weapons stay simple
+   scalars (R5); these are tier-3. 7 tests; `SIM_VERSION` → 1.3.0. Not yet folded into
+   templates/elites or the balance cohort — tuning is a later pass.
 5. Turn-tail flight behavior + the runaway/comeback rule for residual bad matchups.
 
 **Deferred/backlog** (unchanged): manual four-verb order UI, turret mounts, terrain +
