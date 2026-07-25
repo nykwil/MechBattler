@@ -64,6 +64,10 @@ export function auditGameContent(): GameAudit {
     || GAME_CONTENT.run.balanceTargetWinRateMin >= GAME_CONTENT.run.balanceTargetWinRateMax) {
     errors.push('Balance target win-rate band is invalid');
   }
+  if (GAME_CONTENT.economy.chassisRecoveryBaseCost < 0
+    || GAME_CONTENT.economy.chassisRecoveryPerCell <= 0) {
+    errors.push('Chassis recovery costs must be non-negative with a positive per-cell rate');
+  }
   const enabled = new Set(GAME_CONTENT.enabledPartIds);
   const routed = new Map<string, string[]>();
   for (const id of GAME_CONTENT.initialPartIds) {

@@ -1,10 +1,11 @@
-import { TEMPLATES } from '@mechbattler/sim';
+import { TEMPLATES, getChassis } from '@mechbattler/sim';
 import { GAME_CONTENT } from './content.js';
 import {
   advanceRunNode,
   createRun,
   defeatRun,
   finalizeSalvage,
+  recoverWreck,
   repairOwnedPart,
   skipModService,
 } from './domain.js';
@@ -24,6 +25,7 @@ export interface RunBalanceOptions {
   checkpointDepths?: number[];
   maxRoundDepth?: number;
   sampleAllChoices?: boolean;
+  recoveryPolicy?: 'never' | 'larger-affordable';
 }
 
 export interface MatchBalanceRecord {
@@ -53,6 +55,7 @@ export interface RunBalanceReport {
     checkpointDepths: number[];
     maxRoundDepth: number;
     sampleAllChoices: boolean;
+    recoveryPolicy: 'never' | 'larger-affordable';
     progressionPolicy: string;
   };
   totals: {
@@ -64,6 +67,7 @@ export interface RunBalanceReport {
     playerWins: number;
     playerLosses: number;
     draws: number;
+    chassisRecoveries: number;
   };
   depths: Array<{
     roundDepth: number;
@@ -146,9 +150,18 @@ function digest(value: unknown): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
-/** Baseline automation policy: keep the current build, scrap all loot, repair installed parts when affordable. */
-function applyBaselineBetweenRoundPolicy(run: RunInstance): RunInstance {
-  let next = run.pendingSalvage ? finalizeSalvage(run, []) : run;
+/** Configurable deterministic policy keeps the intended path and recovery what-if comparable. */
+function applyBaselineBetweenRoundPolicy(
+  run: RunInstance,
+  recoveryPolicy: 'never' | 'larger-affordable',
+): RunInstance {
+  let next = run;
+  if (next.pendingSalvage && recoveryPolicy === 'larger-affordable') {
+    const currentCells = getChassis(next.mech.chassisId).mask.flat().filter(Boolean).length;
+    const wreckCells = getChassis(next.pendingSalvage.opponentChassisId).mask.flat().filter(Boolean).length;
+    if (wreckCells > currentCells) next = recoverWreck(next);
+  }
+  if (next.pendingSalvage) next = finalizeSalvage(next, []);
   if (next.pendingModService) next = skipModService(next);
   if (next.status !== 'active') return next;
   for (const part of [...next.mech.parts]) {
@@ -191,6 +204,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
     Math.min(GAME_CONTENT.run.length, options.maxRoundDepth ?? GAME_CONTENT.run.length),
   );
   const sampleAllChoices = options.sampleAllChoices ?? true;
+  const recoveryPolicy = options.recoveryPolicy ?? 'never';
   const checkpoints: RunCheckpoint[] = [];
   const matches: MatchInstance[] = [];
   const matchRecords: MatchBalanceRecord[] = [];
@@ -201,6 +215,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
   let coreLosses = 0;
   let attemptLimitLosses = 0;
   let runCount = 0;
+  let chassisRecoveries = 0;
 
   for (let templateIndex = 0; templateIndex < starterTemplateIds.length; templateIndex++) {
     const templateId = starterTemplateIds[templateIndex]!;
@@ -263,7 +278,11 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
           matchRecords.push(compactMatch(canonical, templateId));
         }
         const settlement = settleMatchInstance(run, canonical);
-        run = applyBaselineBetweenRoundPolicy(settlement.run);
+        const eventsBeforePolicy = settlement.run.events.length;
+        run = applyBaselineBetweenRoundPolicy(settlement.run, recoveryPolicy);
+        if (run.events.slice(eventsBeforePolicy).some((event) => event.type === 'chassis-recovery')) {
+          chassisRecoveries++;
+        }
 
         if (run.status === 'over') break;
         if (run.nodeIndex === node.index
@@ -339,6 +358,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
     playerWins: matchRecords.filter((match) => match.winner === 0).length,
     playerLosses: matchRecords.filter((match) => match.winner === 1).length,
     draws: matchRecords.filter((match) => match.winner === 'draw').length,
+    chassisRecoveries,
   };
   const reportWithoutDigest = {
     ok: errors.length === 0,
@@ -351,7 +371,8 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
       checkpointDepths,
       maxRoundDepth,
       sampleAllChoices,
-      progressionPolicy: 'first-winning-branch + current-build + scrap-all + installed-full-repair-when-affordable',
+      recoveryPolicy,
+      progressionPolicy: `first-winning-branch + ${recoveryPolicy === 'never' ? 'current-build' : 'recover-larger-when-affordable'} + scrap-all + installed-full-repair-when-affordable`,
     },
     totals,
     depths,

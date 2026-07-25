@@ -541,8 +541,18 @@ export default function App() {
         <WreckScreen
           pending={run.data.pendingSalvage}
           benchUsed={run.data.benchPool.length}
+          currentBuild={build}
+          currentScrap={run.data.scrap}
+          partProvenance={run.data.partProvenance}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);
+          }}
+          onRecover={(recovery) => {
+            setPendingBench(null);
+            selectPart(null);
+            selectInstance(null);
+            loadBuild(recovery.replacementBuild);
+            won(recovery.scrapDelta, recovery.stowedParts, recovery.replacementParts);
           }}
         />
       )}
@@ -573,6 +583,7 @@ export default function App() {
                 beginSalvage({
                   opponentName: battle.opponent.name,
                   opponentChassisId: battle.opponent.build.chassisId,
+                  opponentPowerPriority: [...battle.opponent.build.powerPriority],
                   purse,
                   candidates: createSalvageCandidates({
                     run: { seed: run.data.seed, nodeIndex: run.data.nodeIndex },

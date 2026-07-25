@@ -13,6 +13,7 @@ import {
   auditGameContent,
   buildToMech,
   challengeCompleted,
+  chassisRecoveryCost,
   createMatchInstance,
   createPristineDepthCheckpoints,
   createRun,
@@ -27,10 +28,12 @@ import {
   refitPart,
   repairOwnedPart,
   repairCost,
+  recoverWreck,
   restoreMatchInstance,
   restoreRunCheckpoint,
   runBalanceHarness,
   runCheckpointMatchHarness,
+  previewWreckRecovery,
   saveMech,
   savedMechErrors,
   serializeMatchInstance,
@@ -207,6 +210,68 @@ describe('run domain', () => {
     expect(next.bench).toHaveLength(8);
     expect(next.pendingModService?.afterWin).toBe(3);
     expect(finalizeSalvage(next, [])).toEqual(next);
+  });
+
+  it('makes whole-wreck chassis recovery an expensive atomic salvage alternative', () => {
+    const mule = TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!;
+    const base = { ...createRun({ seed: 42, kitName: 'Scout', build: template.build }), scrap: 200 };
+    const pending = settleBattle({
+      run: base,
+      report: report({
+        mechs: [
+          report().mechs[0],
+          { ...report().mechs[1], chassisId: mule.build.chassisId },
+        ],
+      }),
+      enemyBuild: mule.build,
+      opponentName: 'Mule',
+    });
+    const next = recoverWreck(pending);
+    expect(next.mech.chassisId).toBe('CH-5');
+    expect(next.mech.parts).toHaveLength(mule.build.parts.length);
+    expect(next.bench).toHaveLength(template.build.parts.length);
+    expect(next.scrap).toBe(200 + 25 - chassisRecoveryCost('CH-5'));
+    expect(next.pendingSalvage).toBeUndefined();
+    expect(next.events.at(-1)).toEqual(expect.objectContaining({
+      type: 'chassis-recovery',
+      fromChassisId: 'CH-2',
+      toChassisId: 'CH-5',
+    }));
+  });
+
+  it('previews deterministic old-build overflow and refuses unaffordable recovery', () => {
+    const mule = TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!;
+    const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
+    const pending = settleBattle({
+      run,
+      report: report({
+        mechs: [report().mechs[0], { ...report().mechs[1], chassisId: mule.build.chassisId }],
+      }),
+      enemyBuild: mule.build,
+      opponentName: 'Mule',
+    });
+    const fullBench = Array.from({ length: GAME_CONTENT.run.benchCap }, (_, index) => ({
+      id: `bench-${index}`,
+      partId: 'U-ARM',
+      integrity: 1,
+      provenance: { source: 'legacy' as const },
+    }));
+    const preview = previewWreckRecovery({
+      pending: pending.pendingSalvage!,
+      currentBuild: template.build,
+      currentScrap: 0,
+      benchUsed: fullBench.length,
+    });
+    expect(preview.stowedParts).toHaveLength(0);
+    expect(preview.scrappedParts).toHaveLength(template.build.parts.length);
+    expect(preview.overflowScrap).toBeGreaterThan(0);
+    const unaffordable = {
+      ...pending,
+      scrap: 0,
+      bench: [],
+      pendingSalvage: { ...pending.pendingSalvage!, purse: 0 },
+    };
+    expect(recoverWreck(unaffordable)).toEqual(unaffordable);
   });
 
   it('offers deterministic mods and applies one affordable applicable mod', () => {

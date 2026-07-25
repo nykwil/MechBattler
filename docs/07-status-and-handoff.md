@@ -353,6 +353,13 @@ a stable design. Campaign prep shows only unlocked equipment, active runs show o
 installed/benched equipment, and the full catalog remains exclusive to the explicitly
 labeled Sandbox. The duplicate run picker formerly embedded in Sandbox was removed.
 
+**Whole-wreck recovery follow-up (Jul 25 2026):** normal refit still cannot switch frames,
+but a victory salvage screen now offers a deliberately discouraged exception. Recovering
+the enemy frame costs `20 + 2 × chassis cells`, inherits only surviving wreck equipment,
+stows the current build up to the bench cap, and auto-scraps previewed overflow. The pure
+domain command, audit dials, two-step interaction test, and optional
+`game:balance -- 1 -- --recover-larger` counterfactual keep the choice automatable.
+
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
 mechanics (03 §5), heat/power as the real limits (02), support-part identities (06),

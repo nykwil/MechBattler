@@ -6,7 +6,8 @@ is a patchwork of half-repaired, quirky salvage — pristine builds should be un
 ## 1. Currency
 
 **Scrap** is the only currency. Sources: fight purse, scrapping parts. Sinks: repair,
-scrapyard parts, and milestone machinist services. Scrap is run-only.
+scrapyard parts, milestone machinist services, and exceptional whole-wreck chassis
+recovery. Scrap is run-only.
 
 - Fight purse: 20 scrap base, +5 per ladder tier, elite ×1.5.
 - Scrapping an intact part: tier × 8 × integrity (rounded); destroyed enemy parts
@@ -27,10 +28,14 @@ part sat and what state it's in (the wreck screen doubles as build-intel educati
 - Carry limit: loot any number of parts, but unplaced parts ride in the **bench pool**
   capped at 8 slots (multi-cell parts still 1 slot). Excess must be scrapped on the spot.
   Pressure to commit, not hoard.
-- Chassis are **not** salvage: a run is locked to its starting chassis (user call, Jul 19
-  2026 — no mid-run frame swaps). Beating a mech riding a chassis you haven't unlocked
-  **unlocks that chassis for future runs** (§7 meta loop) — the wreck screen announces the
-  unlock instead of offering the frame.
+- Normal refit cannot change chassis. The one exception is **whole-wreck recovery** on the
+  victory salvage screen (design revision, Jul 25 2026). Pay `20 + 2 × chassis cells`
+  scrap, take the defeated frame with only its surviving equipment and inherited damage,
+  and stow the old installed build into the 8-slot bench. Deterministic overflow is
+  auto-scrapped. The two-step warning labels this as a risky, inefficient alternative:
+  stripping selected parts into the current mech remains the intended growth path.
+- Beating a mech riding a chassis you haven't unlocked still unlocks that chassis for
+  future starting builds (§7 meta loop), independently of whether its wreck is recovered.
 
 ## 3. Integrity and repair
 
@@ -151,7 +156,8 @@ metal, not new rules).
 A run = **12 nodes**. At each node, choose 1 of 2–3 scouted opponents. No boss fights
 (user call, Jul 19 2026): the ladder has no scripted landmarks, just the budget curve —
 late-run opponents naturally ride bigger frames, and beating an unfamiliar frame is what
-unlocks it (§2, §7). A mech on a bigger chassis than yours still gets the pre-fight
+unlocks it (§2, §7). A recovered frame is an expensive salvage exception, not a node or
+free refit action. A mech on a bigger chassis than yours still gets the pre-fight
 headline-weapon warning on its intel card.
 
 - **Intel is the draft**: each opponent card shows chassis silhouette (type + cell count),
@@ -211,8 +217,9 @@ The three ratios that define the frankenstein pressure — expose all as config:
 
 ## 9. Open questions for prototype
 
-- Bench pool cap of 8: enough slack for chassis-transplant turns (01 §2) where everything
-  comes off at once? May need a transplant-mode exemption.
+- Whole-wreck recovery intentionally has no bench-cap exemption: current installed parts
+  fill free slots in stable build order and overflow auto-scraps, with the exact counts
+  previewed before confirmation.
 - Should scrapping quirked *gift* parts pay a premium (a reason to sell your Lucky gun)?
 - Judges'-decision losses (03 §1): should the loser still get reduced salvage to soften
   timeout frustration?

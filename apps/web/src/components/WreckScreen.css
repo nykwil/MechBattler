@@ -103,3 +103,46 @@
   margin-top: 4px;
 }
 .wreck-head { flex-wrap: wrap; }
+
+.wreck-recovery {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 18px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px dashed var(--signal-red);
+  background: color-mix(in srgb, var(--signal-red) 5%, transparent);
+}
+.wreck-recovery > div { display: grid; gap: 4px; }
+.wreck-recovery-kicker {
+  color: var(--signal-red);
+  font: 9px var(--font-mono);
+  letter-spacing: 0.12em;
+}
+.wreck-recovery strong { font: 600 13px var(--font-display); }
+.wreck-recovery p,
+.wreck-recovery small {
+  margin: 0;
+  color: var(--ink-secondary);
+  font: 10px/1.45 var(--font-mono);
+}
+.wreck-recovery small { color: var(--ink-faint); }
+.wreck-recovery button {
+  min-width: 150px;
+  padding: 9px 11px;
+  color: var(--ink-secondary);
+  background: transparent;
+  border: 1px solid var(--line-bright);
+  font: 10px var(--font-mono);
+}
+.wreck-recovery button.danger-confirm {
+  color: var(--signal-red);
+  border-color: var(--signal-red);
+}
+.wreck-recovery button:disabled { opacity: 0.4; }
+
+@media (max-width: 680px) {
+  .wreck-body { flex-direction: column; }
+  .wreck-recovery { grid-template-columns: 1fr; }
+}

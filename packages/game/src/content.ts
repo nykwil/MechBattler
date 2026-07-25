@@ -68,7 +68,7 @@ export const INITIAL_PART_IDS = ['R-E25', 'W-MG', 'W-CB', 'U-CON', 'U-PIPE', 'U-
 export const ENABLED_PART_IDS = Object.keys(PARTS).filter((id) => id !== 'U-AMMO');
 
 export const GAME_CONTENT: GameContent = {
-  schemaVersion: 2,
+  schemaVersion: 3,
   economy: {
     startingScrap: 30,
     purseBase: 20,
@@ -81,6 +81,8 @@ export const GAME_CONTENT: GameContent = {
     extractionWearMax: 0.2,
     repairCostPerPoint: 0.4,
     machinistBaseCost: 25,
+    chassisRecoveryBaseCost: 20,
+    chassisRecoveryPerCell: 2,
   },
   run: {
     length: 12,

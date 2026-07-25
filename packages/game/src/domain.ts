@@ -1,4 +1,5 @@
 import {
+  CORE_INSTANCE_ID,
   MODIFIERS,
   Pcg32,
   checkPlacement,
@@ -16,6 +17,7 @@ import {
   type InstalledPart,
   type MechInstance,
   type PartInstance,
+  type PartProvenance,
   type PendingSalvage,
   type PendingModService,
   type RunInstance,
@@ -175,6 +177,7 @@ export function createSalvageCandidates(args: {
     const modifiers = [...(placed.modifiers ?? []), ...(quirk && !placed.modifiers?.includes(quirk) ? [quirk] : [])];
     return {
       id: `salvage-${args.run.seed}-${args.run.nodeIndex}-${index}`,
+      sourceInstanceId: placed.instanceId,
       partId: placed.partId,
       integrity,
       modifiers: modifiers.length > 0 ? modifiers : undefined,
@@ -246,6 +249,7 @@ export function settleBattle(args: {
     pendingSalvage: {
       opponentName: args.opponentName,
       opponentChassisId: args.enemyBuild.chassisId,
+      opponentPowerPriority: [...args.enemyBuild.powerPriority],
       purse,
       candidates: createSalvageCandidates({
         run: settled,
@@ -258,6 +262,144 @@ export function settleBattle(args: {
       unlocks: args.unlocks,
       unlockIds: args.unlockIds,
     },
+  };
+}
+
+export function chassisRecoveryCost(chassisId: string): number {
+  const cells = getChassis(chassisId).mask.flat().filter(Boolean).length;
+  return GAME_CONTENT.economy.chassisRecoveryBaseCost
+    + cells * GAME_CONTENT.economy.chassisRecoveryPerCell;
+}
+
+function needsPowerPriority(partId: string): boolean {
+  const part = getPart(partId);
+  return Boolean(part.draw?.continuousKw || part.draw?.chargedEnergyPerShotKj || part.category === 'weapon');
+}
+
+/**
+ * Pure preview shared by the UI and reducer. Whole-wreck recovery keeps every
+ * surviving enemy placement, stows the old build up to the bench cap, and
+ * scraps deterministic overflow.
+ */
+export function previewWreckRecovery(args: {
+  pending: PendingSalvage;
+  currentBuild: Build;
+  currentScrap: number;
+  benchUsed: number;
+  partProvenance?: Record<string, PartProvenance>;
+}) {
+  const intact = args.pending.candidates.filter((candidate) => !candidate.destroyed);
+  const room = Math.max(0, GAME_CONTENT.run.benchCap - args.benchUsed);
+  const oldParts = args.currentBuild.parts.map((part): PartInstance => ({
+    id: part.instanceId,
+    partId: part.partId,
+    integrity: part.integrity,
+    modifiers: part.modifiers,
+    variant: part.variant,
+    provenance: args.partProvenance?.[part.instanceId] ?? { source: 'starter' },
+  }));
+  const stowedParts = oldParts.slice(0, room);
+  const scrappedParts = oldParts.slice(room);
+  const overflowScrap = scrappedParts.reduce(
+    (sum, part) => sum + Math.max(
+      1,
+      Math.round(getPart(part.partId).tier * GAME_CONTENT.economy.ownedScrapMultiplier * part.integrity),
+    ),
+    0,
+  );
+  const destroyedScrap = args.pending.candidates
+    .filter((candidate) => candidate.destroyed)
+    .reduce((sum, candidate) => sum + candidate.scrapValue, 0);
+  const cost = chassisRecoveryCost(args.pending.opponentChassisId);
+  const scrapDelta = args.pending.purse + destroyedScrap + overflowScrap - cost;
+  const sourceToWreck = new Map(intact.map((candidate) => [candidate.sourceInstanceId, candidate.id]));
+  const mappedPriority = (args.pending.opponentPowerPriority ?? [])
+    .map((id) => id === CORE_INSTANCE_ID ? CORE_INSTANCE_ID : sourceToWreck.get(id))
+    .filter((id): id is string => Boolean(id));
+  const powerPriority = [
+    ...mappedPriority,
+    ...intact
+      .filter((candidate) => needsPowerPriority(candidate.partId))
+      .map((candidate) => candidate.id)
+      .filter((id) => !mappedPriority.includes(id)),
+  ];
+  if (!powerPriority.includes(CORE_INSTANCE_ID)) powerPriority.unshift(CORE_INSTANCE_ID);
+  const replacementBuild: Build = {
+    chassisId: args.pending.opponentChassisId,
+    parts: intact.map((candidate) => ({
+      instanceId: candidate.id,
+      partId: candidate.partId,
+      integrity: candidate.integrity,
+      modifiers: candidate.modifiers,
+      variant: candidate.variant,
+      origin: { ...candidate.origin },
+      rotation: candidate.rotation,
+    })),
+    powerPriority,
+  };
+  return {
+    sameChassis: args.currentBuild.chassisId === args.pending.opponentChassisId,
+    cost,
+    destroyedScrap,
+    overflowScrap,
+    scrapDelta,
+    scrapAfter: args.currentScrap + scrapDelta,
+    affordable: args.currentScrap + scrapDelta >= 0,
+    stowedParts,
+    scrappedParts,
+    replacementBuild,
+    replacementParts: intact.map(({ destroyed: _destroyed, scrapValue: _scrapValue, ...part }) => part),
+  };
+}
+
+/** Settle the exceptional whole-wreck chassis switch in one atomic run command. */
+export function recoverWreck(run: RunInstance): RunInstance {
+  if (!run.pendingSalvage || run.mech.chassisId === run.pendingSalvage.opponentChassisId) return run;
+  const preview = previewWreckRecovery({
+    pending: run.pendingSalvage,
+    currentBuild: mechToBuild(run.mech),
+    currentScrap: run.scrap,
+    benchUsed: run.bench.length,
+    partProvenance: Object.fromEntries(run.mech.parts.map((part) => [part.id, part.provenance])),
+  });
+  if (!preview.affordable) return run;
+  const fightsWon = run.fightsWon + 1;
+  const serviceDue = fightsWon < GAME_CONTENT.run.length
+    && fightsWon % GAME_CONTENT.run.modServiceEveryWins === 0;
+  const complete = run.nodeIndex >= GAME_CONTENT.run.length;
+  const fromChassisId = run.mech.chassisId;
+  return {
+    ...run,
+    status: complete ? 'over' : 'active',
+    victorious: complete ? true : undefined,
+    cause: complete ? 'Completed the ladder' : undefined,
+    scrap: preview.scrapAfter,
+    fightsWon,
+    nodeIndex: complete ? run.nodeIndex : run.nodeIndex + 1,
+    mech: {
+      chassisId: preview.replacementBuild.chassisId,
+      parts: preview.replacementParts.map((part) => ({
+        ...part,
+        origin: { ...part.origin },
+        rotation: part.rotation,
+      })),
+      powerPriority: [...preview.replacementBuild.powerPriority],
+    },
+    bench: [...run.bench, ...preview.stowedParts],
+    pendingSalvage: undefined,
+    pendingModService: serviceDue
+      ? { afterWin: fightsWon, offerIds: modOffers(run.seed, fightsWon), applied: false }
+      : undefined,
+    yardRerolled: false,
+    events: [...run.events, {
+      type: 'chassis-recovery',
+      nodeIndex: run.nodeIndex,
+      fromChassisId,
+      toChassisId: preview.replacementBuild.chassisId,
+      cost: preview.cost,
+      stowedIds: preview.stowedParts.map((part) => part.id),
+      scrappedIds: preview.scrappedParts.map((part) => part.id),
+    }],
   };
 }
 

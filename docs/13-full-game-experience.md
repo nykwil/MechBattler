@@ -15,7 +15,8 @@ Balance Lab. `?view=workshop` and `?view=balance` remain direct links. Sandbox e
 disabled while a persistent run build is loaded.
 
 A run has 12 seeded nodes. A core kill ends it. Other losses retain player damage and
-leave the current node available for another attempt. Chassis cannot change after launch.
+leave the current node available for another attempt. Chassis cannot change through
+normal refit after launch; whole-wreck recovery is the single salvage-only exception.
 
 ## 2. State and transaction order
 
@@ -39,7 +40,8 @@ React/localStorage are adapters. Battles receive a normal sim `Build`; their
 1. Apply `partsFinalHp` to installed instances and remove destroyed parts.
 2. On a core loss, end the run. On other losses, return to refit without rewards.
 3. On a win, evaluate challenges/chassis discovery and show the enemy wreck.
-4. Bank the purse, move selected intact parts to the bench, and scrap everything else.
+4. Either move selected intact parts to the bench and scrap everything else, or pay for
+   exceptional whole-wreck recovery and replace the mech with the surviving enemy layout.
 5. After wins 3/6/9, resolve or skip one seeded machinist service.
 6. Advance to the next node and persist schema v2.
 
@@ -94,6 +96,7 @@ Scrap is run-only. Defaults live in `GAME_CONTENT`, not UI components:
 | Scrapyard price | `ceil(tier × 12 × integrity)` |
 | Repair | `ceil(points × tier × 0.4)` |
 | Machinist application | 25 |
+| Whole-wreck chassis recovery | `20 + 2 × chassis cells` |
 | Bench cap | 8 instances |
 
 Campaign equipment views never expose the unrestricted catalog. Prep lists only unlocked
@@ -102,6 +105,14 @@ bench. A run may install only its current equipment, owned bench instances, or s
 scrapyard purchases. Any enabled enemy part can be used as salvage even when it is locked
 for future starting builds. The explicitly labeled Workshop Sandbox retains the complete
 catalog for unrestricted testing.
+
+Whole-wreck recovery is intentionally not an upgrade shortcut. It is available only while
+settling a defeated mech, requires a two-step confirmation, inherits every surviving
+enemy part at wreck integrity, omits destroyed parts, and charges a chassis-size-scaled
+fee. The current installed build is stowed into remaining bench slots; deterministic
+overflow is auto-scrapped and previewed before confirmation. The payout and destroyed
+enemy debris apply before the fee. Recovery is rejected if the result would leave
+negative scrap or if both mechs use the same chassis.
 
 Machinist services occur every three victories, currently wins 3, 6, and 9. Each contains
 three seeded offers, permits one permanent mod on an applicable installed or benched
@@ -146,6 +157,7 @@ Run:
 npm run game:audit
 npm run game:test
 npm run game:balance -- 1
+npm run game:balance -- 1 -- --recover-larger
 npm run game:checkpoints -- 1
 npm run game:match-balance -- 1
 npm run web:test
@@ -157,6 +169,12 @@ and damage at configured round depths. `game:checkpoints` emits a reusable JSON 
 rounds 1/4/7/10/12. `game:match-balance` evaluates all single-match choices from that
 corpus; pass a corpus filename instead of a seed count to analyze captured player states.
 Both reports include stable digests and data-driven target-band warnings.
+
+The default progression policy never changes chassis, matching the intended
+improve-your-own-build loop. `--recover-larger` runs a deterministic counterfactual that
+recovers a larger wreck whenever settlement can afford it. This keeps recovery pricing
+and downstream run effects measurable without making that exceptional strategy the
+canonical baseline.
 
 ```bash
 npm run game:checkpoints -- 4 > run-checkpoints.json

@@ -195,7 +195,11 @@ export function useRun() {
   }, []);
 
   /** Settle a won node: bank purse + wreck scrap, pocket the loot, advance. */
-  const won = useCallback((scrapGained = 0, loot: BenchPart[] = []): void => {
+  const won = useCallback((
+    scrapGained = 0,
+    loot: BenchPart[] = [],
+    installedLoot: BenchPart[] = [],
+  ): void => {
     setRun((r) => {
       if (r.phase !== 'active') return r;
       const data = {
@@ -205,7 +209,7 @@ export function useRun() {
         benchPool: [...r.data.benchPool, ...loot].slice(0, BENCH_CAP),
         partProvenance: {
           ...r.data.partProvenance,
-          ...Object.fromEntries(loot.map((part) => [
+          ...Object.fromEntries([...loot, ...installedLoot].map((part) => [
             part.id,
             part.provenance ?? { source: 'salvage' as const, nodeIndex: r.data.nodeIndex },
           ])),

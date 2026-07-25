@@ -31,6 +31,8 @@ export interface MechInstance {
 }
 
 export interface SalvageCandidate extends PartInstance {
+  /** Original enemy id maps the wreck back to its battle power priority. */
+  sourceInstanceId?: string;
   /** Enemy-wreck placement retained so the actual defeated mech can be shown. */
   origin: { x: number; y: number };
   rotation: Rotation;
@@ -110,6 +112,8 @@ export interface RunCheckpoint {
 export interface PendingSalvage {
   opponentName: string;
   opponentChassisId: string;
+  /** Optional for compatibility with saves written before whole-wreck recovery. */
+  opponentPowerPriority?: string[];
   purse: number;
   candidates: SalvageCandidate[];
   unlocks?: {
@@ -138,6 +142,15 @@ export type RunEvent =
   | { type: 'scrap'; nodeIndex: number; partInstanceId: string; scrapGained: number }
   | { type: 'refit'; nodeIndex: number; partInstanceId: string; installed: boolean }
   | { type: 'scrapyard'; nodeIndex: number; partInstanceId: string; cost: number }
+  | {
+    type: 'chassis-recovery';
+    nodeIndex: number;
+    fromChassisId: string;
+    toChassisId: string;
+    cost: number;
+    stowedIds: string[];
+    scrappedIds: string[];
+  }
   | { type: 'mod'; nodeIndex: number; partInstanceId: string; modifierId: string }
   | { type: 'unlock'; challengeId: string; partIds: string[] };
 
@@ -234,6 +247,8 @@ export interface EconomyConfig {
   extractionWearMax: number;
   repairCostPerPoint: number;
   machinistBaseCost: number;
+  chassisRecoveryBaseCost: number;
+  chassisRecoveryPerCell: number;
 }
 
 export interface RunConfig {

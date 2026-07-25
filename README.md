@@ -77,7 +77,7 @@ npm run web:build
 npm run web:test
 ```
 
-Current verified state: **189 tests passing**, clean game/simulation builds, deterministic
+Current verified state: **192 tests passing**, clean game/simulation builds, deterministic
 run-depth and checkpoint-match balance reports, unchanged
 canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
 production build.
