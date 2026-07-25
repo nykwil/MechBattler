@@ -61,22 +61,24 @@ describe('game front door', () => {
     expect(screen.getByRole('button', { name: 'Workshop Sandbox' }).hasAttribute('disabled')).toBe(true);
   });
 
-  it('derives starter availability from profile content', () => {
-    const onStartKit = vi.fn();
+  it('loads saved mechs and only offers owned chassis for new builds', () => {
+    const onLoadMech = vi.fn();
     render(
       <NewRunScreen
         profile={defaultProfile()}
-        onStartKit={onStartKit}
-        onStartCustom={vi.fn()}
+        onLoadMech={onLoadMech}
+        onCreateMech={vi.fn()}
+        onDeleteMech={vi.fn()}
         onBack={vi.fn()}
       />,
     );
-    const vulture = screen.getByRole('button', { name: /Vulture Skirmisher/ });
-    const mule = screen.getByRole('button', { name: /Mule Gunline/ });
-    expect(vulture.hasAttribute('disabled')).toBe(false);
-    expect(mule.hasAttribute('disabled')).toBe(true);
-    fireEvent.click(vulture);
-    expect(onStartKit).toHaveBeenCalledWith('vulture-skirmisher', 'Vulture Skirmisher');
+    expect(screen.getByText('Vulture Skirmisher')).toBeTruthy();
+    expect(screen.queryByText('Mule Gunline')).toBeNull();
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button', { name: 'Load' }));
+    expect(onLoadMech).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'factory-vulture-skirmisher', name: 'Vulture Skirmisher' }),
+    );
   });
 
   it('shows declarative challenge progress and rewards', () => {

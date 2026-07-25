@@ -3,15 +3,18 @@
  * @mechbattler/game package; this hook only owns browser storage and React.
  */
 import { useCallback, useState } from 'react';
-import { CHASSIS, PARTS, getPart, type BattleReport, type Build } from '@mechbattler/sim';
+import { CHASSIS, getPart, type BattleReport, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
   applyChallengeProgress,
+  deleteSavedMech,
   defaultProfile,
   migrateProfile,
+  saveMech as saveProfileMech,
   summarizeBattleForChallenges,
   type PlayerProfile,
   type RunHistoryRecord,
+  type SavedMech,
 } from '@mechbattler/game';
 
 const PROFILE_KEY = 'mechbattler-profile-v2';
@@ -172,18 +175,28 @@ export function useProfile() {
     });
   }, []);
 
-  const lockedPartIds = new Set(
-    Object.keys(PARTS).filter((id) => !profile.unlockedPartIds.includes(id)),
-  );
+  const saveMech = useCallback((name: string, build: Build, id?: string): SavedMech => {
+    const result = saveProfileMech(profile, { id, name, build });
+    setProfile(result.profile);
+    save(result.profile);
+    return result.savedMech;
+  }, [profile]);
+
+  const removeSavedMech = useCallback((id: string): void => {
+    const next = deleteSavedMech(profile, id);
+    setProfile(next);
+    save(next);
+  }, [profile]);
 
   return {
     profile,
-    lockedPartIds,
     unlockChassisFrom,
     recordBattleProgress,
     recordBattleOutcome,
     history: profile.history,
     pushHistory,
+    saveMech,
+    removeSavedMech,
     resetProfile: () => {
       const next = defaultProfile();
       setProfile(next);

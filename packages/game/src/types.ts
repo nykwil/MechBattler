@@ -177,12 +177,23 @@ export interface RunHistoryRecord {
   unlockedPartIds?: string[];
 }
 
+/**
+ * A reusable starting-loadout blueprint. Saved mechs are profile data, not
+ * run inventory: loading one creates pristine part instances for a new run.
+ */
+export interface SavedMech {
+  id: string;
+  name: string;
+  build: Build;
+}
+
 export interface PlayerProfile {
   schemaVersion: typeof GAME_SAVE_VERSION;
   unlockedChassisIds: string[];
   unlockedPartIds: string[];
   completedChallengeIds: string[];
   grandfatheredPartIds: string[];
+  savedMechs: SavedMech[];
   history: RunHistoryRecord[];
 }
 

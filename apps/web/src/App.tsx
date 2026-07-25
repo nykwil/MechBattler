@@ -12,7 +12,7 @@ import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
-  kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE,
+  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE,
   START_BUDGET, repairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
@@ -24,7 +24,7 @@ import type { OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
-import { createSalvageCandidates, settleBuildDamage } from '@mechbattler/game';
+import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -55,14 +55,15 @@ export default function App() {
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
-    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
+    run, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markMilestoneMod, clearModService, persistBuild, restored, clearRestored,
   } = useRun();
-  const { profile, lockedPartIds, recordBattleOutcome, history, pushHistory } = useProfile();
+  const { profile, recordBattleOutcome, pushHistory, saveMech, removeSavedMech } = useProfile();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
   /** Bench-pool part armed for grid placement (docs/10 M3). */
   const [pendingBench, setPendingBench] = useState<{ index: number; partId: string } | null>(null);
+  const [editingSavedMechId, setEditingSavedMechId] = useState<string | null>(null);
 
   const runActive = run.phase === 'active';
   const salvageOpen = runActive && Boolean(run.data.pendingSalvage);
@@ -89,12 +90,23 @@ export default function App() {
   /** Custom-frame start (docs/04 §7): bare unlocked chassis, then outfit. */
   const startCustomFrame = useCallback((chassisId: string) => {
     setPendingBench(null);
+    setEditingSavedMechId(null);
     setChassis(chassisId); // resets the editor to an empty build
-    startCustom(`Custom ${getChassis(chassisId).name}`);
+    startCustom(`New ${getChassis(chassisId).name}`);
     setScreen('workspace');
     setWorkspace('workshop');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setChassis, startCustom]);
+
+  /** Load a reusable profile blueprint into prep without starting the run yet. */
+  const loadSavedMech = useCallback((savedMech: SavedMech) => {
+    setPendingBench(null);
+    setEditingSavedMechId(savedMech.id);
+    loadBuild(savedMech.build);
+    startCustom(savedMech.name);
+    setScreen('workspace');
+    setWorkspace('workshop');
+  }, [loadBuild, startCustom]);
 
   // Palette selection always drops any armed bench part — a fresh catalog
   // part and a bench part can't both be on the cursor.
@@ -134,7 +146,6 @@ export default function App() {
       // Custom-frame outfitting (docs/04 §7): unlocked parts only, free but
       // capped by the tier budget (wiring is exempt, like the enemy ladder).
       const def = getPart(state.selectedPartId);
-      if (lockedPartIds.has(def.id)) return;
       if (!def.isConduit && !def.isHeatPipe && buildTierBudget(build) + def.tier > START_BUDGET) return;
       place(x, y);
       return;
@@ -143,7 +154,7 @@ export default function App() {
     // from owned bench salvage or a seeded scrapyard offer.
     if (runActive) return;
     place(x, y);
-  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, lockedPartIds, build]);
+  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
   const runOps: RunPartOps | undefined = runActive ? {
@@ -189,15 +200,6 @@ export default function App() {
     persistBuild(build);
   }, [build, run, persistBuild]);
 
-  const startKit = useCallback((templateId: string, kitName: string) => {
-    setPendingBench(null);
-    loadBuild(kitBuild(templateId));
-    start(kitName);
-    setScreen('workspace');
-    setWorkspace('workshop');
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [start]);
-
   const autoWireNow = useCallback(() => {
     if (runActive) return;
     const { conduits } = autoWire(chassis, build);
@@ -232,6 +234,24 @@ export default function App() {
     () => new Set(issues.filter((i) => i.severity === 'error').flatMap((i) => i.instanceIds)),
     [issues],
   );
+  const palettePartIds = useMemo(() => {
+    if (run.phase === 'prep') return new Set(profile.unlockedPartIds);
+    if (run.phase === 'active') {
+      return new Set([
+        ...state.parts.map((part) => part.partId),
+        ...run.data.benchPool.map((part) => part.partId),
+      ]);
+    }
+    return undefined;
+  }, [runPrep, runActive, profile.unlockedPartIds, state.parts, run]);
+  const ownedPartCounts = useMemo(() => {
+    if (run.phase !== 'active') return undefined;
+    const counts = new Map<string, number>();
+    for (const part of [...state.parts, ...run.data.benchPool]) {
+      counts.set(part.partId, (counts.get(part.partId) ?? 0) + 1);
+    }
+    return counts;
+  }, [runActive, state.parts, run]);
 
   const fight = useCallback(
     (opponent: OpponentDef, mode: FightMode, seed?: number) => {
@@ -283,6 +303,7 @@ export default function App() {
           if ((run.phase === 'active' || run.phase === 'prep')
             && !window.confirm('Abandon the active run and start over?')) return;
           if (run.phase !== 'none') abandon();
+          setEditingSavedMechId(null);
           setScreen('new-run');
         }}
         onProfile={() => setScreen('profile')}
@@ -296,8 +317,13 @@ export default function App() {
     return (
       <NewRunScreen
         profile={profile}
-        onStartKit={startKit}
-        onStartCustom={startCustomFrame}
+        onLoadMech={loadSavedMech}
+        onCreateMech={startCustomFrame}
+        onDeleteMech={(id) => {
+          const savedMech = profile.savedMechs.find((candidate) => candidate.id === id);
+          if (!savedMech || !window.confirm(`Delete saved mech "${savedMech.name}"?`)) return;
+          removeSavedMech(id);
+        }}
         onBack={() => setScreen('title')}
       />
     );
@@ -353,8 +379,10 @@ export default function App() {
             selectedPartId={state.selectedPartId}
             onSelect={selectPalettePart}
             onHover={setHoveredPartId}
-            lockedPartIds={runPrep ? lockedPartIds : undefined}
+            visiblePartIds={palettePartIds}
+            ownedCounts={ownedPartCounts}
             readOnly={runActive}
+            label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
           />
         </div>
 
@@ -406,14 +434,14 @@ export default function App() {
             <RunPanel
               run={run}
               build={build}
-              onStartKit={startKit}
               onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
               onAbandon={() => {
                 if (!window.confirm('Abandon this run? Its mech, bench, and scrap will be lost.')) return;
                 abandon();
+                setEditingSavedMechId(null);
                 setScreen('title');
               }}
-              onNewRun={() => { abandon(); setScreen('new-run'); }}
+              onNewRun={() => { abandon(); setEditingSavedMechId(null); setScreen('new-run'); }}
               onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
               onFitBench={fitBench}
               fittingBenchIndex={pendingBench?.index ?? null}
@@ -478,10 +506,13 @@ export default function App() {
                 clearModService();
               }}
               onSkipModService={clearModService}
-              profile={profile}
-              history={history}
-              onStartCustom={startCustomFrame}
               onLaunch={launch}
+              editingSavedMechId={editingSavedMechId}
+              onSaveMech={(name) => {
+                const saved = saveMech(name, build, editingSavedMechId ?? undefined);
+                setEditingSavedMechId(saved.id);
+                renamePrep(saved.name);
+              }}
             />
           </div>
           {run.phase === 'none' && (

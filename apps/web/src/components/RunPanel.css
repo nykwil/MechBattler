@@ -6,6 +6,27 @@
   border: 1px dashed var(--line-hairline);
   border-radius: var(--radius-md);
 }
+.run-save-mech {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 7px;
+  margin: 8px 0;
+}
+.run-save-mech input {
+  min-width: 0;
+  padding: 8px 9px;
+  color: var(--ink-primary);
+  background: var(--bg-inset);
+  border: 1px solid var(--line-hairline);
+}
+.run-save-mech button {
+  padding: 8px 10px;
+  color: var(--ink-primary);
+  background: transparent;
+  border: 1px solid var(--line-bright);
+  font: 10px var(--font-mono);
+}
+.run-save-mech button:disabled { opacity: 0.4; }
 
 .run-status {
   display: flex;

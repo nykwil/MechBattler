@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
-  generateTerrain, getChassis, getPart, TEMPLATES, type Build, type TerrainType,
+  generateTerrain, getChassis, getPart, type Build, type TerrainType,
 } from '@mechbattler/sim';
 import {
   BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET,
-  STARTER_KITS, repairCost, type BenchPart, type RunPhase,
+  repairCost, type BenchPart, type RunPhase,
 } from '../state/runState.js';
-import type { Profile, RunRecord } from '../state/profileState.js';
-import { CHASSIS, buildTierBudget } from '@mechbattler/sim';
+import { buildTierBudget } from '@mechbattler/sim';
 import type { YardOffer } from '../lib/ladder.js';
 import { MODIFIERS } from '@mechbattler/sim';
 import { GAME_CONTENT } from '@mechbattler/game';
@@ -54,13 +53,12 @@ function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spaw
  * card styling so intel reads the same everywhere.
  */
 export function RunPanel({
-  run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
+  run, build, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
   onBuyOffer, onRerollYard, onSkipNode, modTargets, onApplyMilestoneMod, onSkipModService,
-  onRepairAll, onRepairBench, profile, history, onStartCustom, onLaunch,
+  onRepairAll, onRepairBench, onLaunch, onSaveMech, editingSavedMechId,
 }: {
   run: RunPhase;
   build: Build;
-  onStartKit: (templateId: string, kitName: string) => void;
   onFight: (opponent: OpponentDef, mode: FightMode) => void;
   onAbandon: () => void;
   onNewRun: () => void;
@@ -81,81 +79,29 @@ export function RunPanel({
   modTargets: Array<{ id: string; partId: string; label: string; modifiers?: string[] }>;
   onApplyMilestoneMod: (targetId: string, modId: string) => void;
   onSkipModService: () => void;
-  // --- Meta profile (docs/04 §7, docs/10 M6) --------------------------------
-  profile: Profile;
-  history: RunRecord[];
-  onStartCustom: (chassisId: string) => void;
   onLaunch: () => void;
+  /** Save the current prep build as a reusable profile blueprint. */
+  onSaveMech: (name: string) => void;
+  editingSavedMechId: string | null;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
   const [modTargetId, setModTargetId] = useState<string>('');
+  const [mechName, setMechName] = useState(run.phase === 'prep' ? run.data.kitName : '');
+
+  useEffect(() => {
+    if (run.phase === 'prep') setMechName(run.data.kitName);
+  }, [run.phase, run.phase === 'prep' ? run.data.kitName : '']);
 
   if (run.phase === 'none') {
     return (
       <div>
-        <div className="eyebrow" style={{ marginBottom: 10 }}>Start a run — pick your starter kit</div>
-        <div className="arena-opponents">
-          {STARTER_KITS.map((k) => {
-            const template = TEMPLATES.find((candidate) => candidate.id === k.templateId);
-            const unlocked = Boolean(template)
-              && profile.unlockedChassisIds.includes(template!.build.chassisId)
-              && template!.build.parts.every((part) => profile.unlockedPartIds.includes(part.partId));
-            return (
-            <button
-              key={k.templateId}
-              type="button"
-              className="arena-card"
-              disabled={!unlocked}
-              title={unlocked ? undefined : 'Complete challenges and defeat this frame to unlock the full kit'}
-              onClick={() => unlocked && onStartKit(k.templateId, k.name)}
-            >
-              <div className="arena-card-head">
-                <span className="arena-card-name">{unlocked ? k.name : `🔒 ${k.name}`}</span>
-              </div>
-              <div className="arena-card-blurb">{k.blurb}</div>
-            </button>
-            );
-          })}
-        </div>
+        <div className="eyebrow" style={{ marginBottom: 10 }}>No active run</div>
         <div className="run-note">
-          One mech, {RUN_LENGTH} fights, permadeath on a core kill. The kit is a starting
-          point — everything on it can be rebuilt.
+          Sandbox builds stay separate from the campaign. Start a run from your saved-mech garage.
         </div>
-
-        <div className="run-bench">
-          <div className="run-bench-title">Custom frame — outfit an unlocked chassis from your unlocked parts</div>
-          <div className="run-frames">
-            {Object.values(CHASSIS).map((c) => {
-              const unlocked = profile.unlockedChassisIds.includes(c.id);
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className="chip"
-                  disabled={!unlocked}
-                  title={unlocked ? `${c.type} — outfit and launch` : 'Locked — beat a mech riding this frame to unlock it'}
-                  onClick={() => onStartCustom(c.id)}
-                >
-                  {unlocked ? c.name : `🔒 ${c.name}`}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {history.length > 0 && (
-          <div className="run-bench">
-            <div className="run-bench-title">Memorial — past runs</div>
-            {history.map((r, i) => (
-              <div key={i} className="run-bench-row">
-                <span className="run-bench-name">
-                  {r.victorious ? '☼' : '✕'} {r.kitName} · {r.fightsWon}W
-                </span>
-                <span className="run-history-cause">{r.cause}</span>
-              </div>
-            ))}
-          </div>
-        )}
+        <button type="button" className="fight-btn" style={{ width: '100%', marginTop: 10 }} onClick={onNewRun}>
+          Open garage
+        </button>
       </div>
     );
   }
@@ -174,8 +120,23 @@ export function RunPanel({
           <button type="button" className="run-abandon" onClick={onAbandon}>abandon</button>
         </div>
         <div className="run-note" style={{ marginBottom: 8 }}>
-          Build the starting mech from unlocked parts (🔒 in the bin = not yet earned).
-          Wiring is free; everything else spends the tier budget. Launch when it fights.
+          The equipment bin contains only starting parts you own. Wiring is free; everything
+          else spends the tier budget. Save this blueprint for future runs or launch it now.
+        </div>
+        <div className="run-save-mech">
+          <input
+            aria-label="Mech name"
+            maxLength={40}
+            value={mechName}
+            onChange={(event) => setMechName(event.target.value)}
+          />
+          <button
+            type="button"
+            disabled={!mechName.trim()}
+            onClick={() => onSaveMech(mechName)}
+          >
+            {editingSavedMechId ? 'Save changes' : 'Save mech'}
+          </button>
         </div>
         {!ready && (
           <div className="arena-warning">

@@ -12,7 +12,8 @@ function metaLine(def: PartDef): string {
 }
 
 export function PartPalette({
-  selectedPartId, onSelect, onHover, priceMult, scrap, lockedPartIds, readOnly,
+  selectedPartId, onSelect, onHover, priceMult, scrap, visiblePartIds, ownedCounts,
+  readOnly, label = 'Salvage bin',
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -21,20 +22,25 @@ export function PartPalette({
   /** During a run, fresh parts cost tier × this scrap (docs/04 §1). */
   priceMult?: number;
   scrap?: number;
-  /** Custom-frame prep (docs/04 §7): parts not yet unlocked for starting loadouts. */
-  lockedPartIds?: Set<string>;
+  /** Limit game-facing inventory to equipment actually available in this context. */
+  visiblePartIds?: Set<string>;
+  /** Physical owned-copy counts, used during active runs. */
+  ownedCounts?: Map<string, number>;
   /** Active runs may only fit owned bench parts; the catalog is reference-only. */
   readOnly?: boolean;
+  label?: string;
 }) {
   const byCategory = CATEGORY_ORDER.map((cat) => ({
     cat, parts: Object.values(PARTS).filter(
-      (part) => part.category === cat && GAME_CONTENT.enabledPartIds.includes(part.id),
+      (part) => part.category === cat
+        && GAME_CONTENT.enabledPartIds.includes(part.id)
+        && (!visiblePartIds || visiblePartIds.has(part.id)),
     ),
-  }));
+  })).filter(({ parts }) => parts.length > 0);
 
   return (
     <div>
-      <div className="eyebrow" style={{ marginBottom: 10 }}>Salvage bin</div>
+      <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>
       {byCategory.map(({ cat, parts }) => (
         <div className="category" key={cat}>
           <div className="category-label" style={{ color: 'var(--ink-secondary)' }}>
@@ -42,16 +48,14 @@ export function PartPalette({
             {CATEGORY_LABEL[cat]}
           </div>
           {parts.map((def) => {
-            const locked = lockedPartIds?.has(def.id) === true;
-            const disabled = locked || readOnly;
+            const disabled = readOnly;
             return (
-            <button
-              key={def.id}
-              type="button"
-              className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
-              disabled={disabled}
-              title={locked ? 'Locked — complete its combat challenge to use it in starting loadouts'
-                : readOnly ? 'Active runs can fit only installed equipment and owned salvage' : undefined}
+              <button
+                key={def.id}
+                type="button"
+                className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
+                disabled={disabled}
+                title={readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
               onMouseEnter={() => onHover(def.id)}
               onMouseLeave={() => onHover(null)}
@@ -59,7 +63,10 @@ export function PartPalette({
               <ShapePreview def={def} />
               <div className="part-info">
                 <div className="part-name">
-                  {locked && '🔒 '}{def.name}
+                  {def.name}
+                  {ownedCounts?.has(def.id) && (
+                    <span className="part-price">×{ownedCounts.get(def.id)}</span>
+                  )}
                   {priceMult !== undefined && (
                     <span className={`part-price${scrap !== undefined && def.tier * priceMult > scrap ? ' too-rich' : ''}`}>
                       −{def.tier * priceMult}⚙
@@ -75,7 +82,7 @@ export function PartPalette({
         </div>
       ))}
       <div className="rotate-hint">
-        {readOnly ? 'Catalog reference — salvage and scrapyards are the in-run equipment sources.'
+        {readOnly ? 'Your installed equipment is on the mech; salvaged spares are on the run bench.'
           : <>Select a part, then click the grid to place it.<br />Press <kbd>R</kbd> to rotate before placing.</>}
       </div>
     </div>

@@ -6,7 +6,7 @@
  * deferred by design.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { TEMPLATES, getPart, type Build } from '@mechbattler/sim';
+import { getPart, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
   GAME_SAVE_VERSION,
@@ -70,17 +70,6 @@ export interface BenchPart {
 export const MACHINIST_MOD_COST = GAME_CONTENT.economy.machinistBaseCost;
 /** Tier budget for a custom-frame starting loadout (docs/04 §7; wiring free). */
 export const START_BUDGET = GAME_CONTENT.run.startingTierBudget;
-
-/** Starter kits (docs/04 §6) drawn from the sim's template roster. */
-export const STARTER_KITS = GAME_CONTENT.starterKits;
-
-export function kitBuild(templateId: string): Build {
-  const t = TEMPLATES.find((x) => x.id === templateId);
-  if (!t) throw new Error(`Unknown starter kit template: ${templateId}`);
-  // Deep copy: the run's build gets edited (and M3's repair mutates part
-  // integrity) — the shared template roster must never see any of it.
-  return structuredClone(t.build);
-}
 
 export interface RunData {
   seed: number;
@@ -193,6 +182,12 @@ export function useRun() {
   /** Start a custom-frame run: outfit within START_BUDGET, then launch. */
   const startCustom = useCallback((name: string): void => {
     setRun({ phase: 'prep', data: freshData(name) });
+  }, []);
+
+  const renamePrep = useCallback((name: string): void => {
+    setRun((r) => r.phase === 'prep'
+      ? { ...r, data: { ...r.data, kitName: name.trim().slice(0, 40) || r.data.kitName } }
+      : r);
   }, []);
 
   const launch = useCallback((): void => {
@@ -447,7 +442,7 @@ export function useRun() {
   }, []);
 
   return {
-    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
+    run, start, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markYardMod, markMilestoneMod, clearModService,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };

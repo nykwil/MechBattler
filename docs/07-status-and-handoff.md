@@ -346,6 +346,13 @@ run reach/economy, while `game:match-balance` measures isolated fight balance fr
 pristine or captured checkpoint corpora. Both emit deterministic JSON and target-band
 warnings, and both run in CI.
 
+**Garage/equipment-visibility follow-up (Jul 25 2026):** New Run is now a persistent
+saved-mech garage instead of a locked starter/frame catalog. Profiles store reusable
+pristine loadout blueprints; loading enters editable prep and saving creates or overwrites
+a stable design. Campaign prep shows only unlocked equipment, active runs show only
+installed/benched equipment, and the full catalog remains exclusive to the explicitly
+labeled Sandbox. The duplicate run picker formerly embedded in Sandbox was removed.
+
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
 mechanics (03 §5), heat/power as the real limits (02), support-part identities (06),

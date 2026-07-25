@@ -3,7 +3,6 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TEMPLATES } from '@mechbattler/sim';
 import {
   createRun,
-  defaultProfile,
   type PendingSalvage,
 } from '@mechbattler/game';
 import { WreckScreen } from './WreckScreen.js';
@@ -36,7 +35,6 @@ function renderRun(run: RunPhase, overrides: Partial<Parameters<typeof RunPanel>
   const props: Parameters<typeof RunPanel>[0] = {
     run,
     build: template.build,
-    onStartKit: vi.fn(),
     onFight: vi.fn(),
     onAbandon: vi.fn(),
     onNewRun: vi.fn(),
@@ -51,16 +49,27 @@ function renderRun(run: RunPhase, overrides: Partial<Parameters<typeof RunPanel>
     modTargets: [],
     onApplyMilestoneMod: vi.fn(),
     onSkipModService: vi.fn(),
-    profile: defaultProfile(),
-    history: [],
-    onStartCustom: vi.fn(),
     onLaunch: vi.fn(),
+    onSaveMech: vi.fn(),
+    editingSavedMechId: null,
     ...overrides,
   };
   return render(<RunPanel {...props} />);
 }
 
 describe('persistent run stages', () => {
+  it('saves a named mech blueprint during starting prep', () => {
+    const onSaveMech = vi.fn();
+    renderRun(
+      { phase: 'prep', data: runData() },
+      { onSaveMech, editingSavedMechId: null },
+    );
+    const name = screen.getByRole('textbox', { name: 'Mech name' });
+    fireEvent.change(name, { target: { value: 'Needle' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save mech' }));
+    expect(onSaveMech).toHaveBeenCalledWith('Needle');
+  });
+
   it('settles a stored wreck from purse and untaken-part values', () => {
     const pending: PendingSalvage = {
       opponentName: 'Target',

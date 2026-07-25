@@ -17,6 +17,7 @@ import {
   createPristineDepthCheckpoints,
   createRun,
   createRunCheckpoint,
+  deleteSavedMech,
   defaultProfile,
   finalizeSalvage,
   mechToBuild,
@@ -30,6 +31,8 @@ import {
   restoreRunCheckpoint,
   runBalanceHarness,
   runCheckpointMatchHarness,
+  saveMech,
+  savedMechErrors,
   serializeMatchInstance,
   serializeRunCheckpoint,
   settleBattle,
@@ -337,6 +340,15 @@ describe('migration', () => {
     expect(profile.unlockedPartIds).toEqual(expect.arrayContaining([...GAME_CONTENT.initialPartIds, 'W-RG']));
     expect(profile.grandfatheredPartIds).toEqual(['W-RG']);
     expect(profile.history).toHaveLength(1);
+    expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Vulture Skirmisher']);
+  });
+
+  it('migrates v2 profiles without a saved-mech collection', () => {
+    const current = defaultProfile();
+    const { savedMechs: _savedMechs, ...withoutGarage } = current;
+    const migrated = migrateProfile(withoutGarage);
+    expect(migrated.savedMechs).toHaveLength(1);
+    expect(savedMechErrors(migrated, migrated.savedMechs[0]!.build)).toEqual([]);
   });
 
   it('assigns stable ids to legacy bench parts', () => {
@@ -350,5 +362,31 @@ describe('migration', () => {
     });
     expect(migrated?.bench[0]?.id).toBe('legacy-bench-12-0');
     expect(migrated?.mech.parts[0]?.provenance.source).toBe('legacy');
+  });
+});
+
+describe('saved mech blueprints', () => {
+  it('saves, overwrites, and deletes legal owned loadouts without run damage or mods', () => {
+    const profile = defaultProfile();
+    const damaged: Build = {
+      ...template.build,
+      parts: template.build.parts.map((part, index) => index === 0
+        ? { ...part, integrity: 0.3, modifiers: ['cold-bore'], variant: { damage: 1.1 } }
+        : part),
+    };
+    const created = saveMech(profile, { name: '  Field Mouse  ', build: damaged });
+    expect(created.savedMech.name).toBe('Field Mouse');
+    expect(created.savedMech.build.parts[0]).toEqual(expect.objectContaining({ integrity: 1 }));
+    expect(created.savedMech.build.parts[0]?.modifiers).toBeUndefined();
+    expect(created.savedMech.build.parts[0]?.variant).toBeUndefined();
+    const replaced = saveMech(created.profile, {
+      id: created.savedMech.id,
+      name: 'Field Mouse II',
+      build: template.build,
+    });
+    expect(replaced.profile.savedMechs).toHaveLength(created.profile.savedMechs.length);
+    expect(replaced.savedMech.id).toBe(created.savedMech.id);
+    expect(deleteSavedMech(replaced.profile, replaced.savedMech.id).savedMechs)
+      .not.toContainEqual(expect.objectContaining({ id: replaced.savedMech.id }));
   });
 });

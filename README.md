@@ -10,7 +10,7 @@ The included mech-building game is the proving ground. Every weapon, chassis, po
 
 ## What judges can try
 
-1. Open the web app to the game-first title screen; start a run or resume a saved mech.
+1. Open the web app to the game-first title screen; load a saved mech from the garage or continue an active run.
 2. Run the 56-battle quick audit or increase the cohort to 140/280 battles.
 3. Inspect roster standings, the 35–65% matchup guardrail, dominant-build warnings, and ranked tuning recommendations.
 4. Export the complete report as JSON.
@@ -77,7 +77,7 @@ npm run web:build
 npm run web:test
 ```
 
-Current verified state: **185 tests passing**, clean game/simulation builds, deterministic
+Current verified state: **189 tests passing**, clean game/simulation builds, deterministic
 run-depth and checkpoint-match balance reports, unchanged
 canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
 production build.
@@ -119,9 +119,10 @@ The dated Git history distinguishes work completed after the July 13 submission-
 
 ```text
 apps/web/                 React + Vite workshop, battles, and Balance Lab
+packages/game/            Persistent run, profile, saved-mech, and balance domain
 packages/sim/src/         Deterministic simulation and analysis library
 packages/sim/scripts/     Balance, adaptation, and matchup CLI workflows
-packages/sim/test/        153 behavioral and determinism tests
+packages/sim/test/        160 behavioral and determinism tests
 docs/                     Product and simulation design specifications
 docs/submission/          Tuning evidence, demo script, and Devpost copy
 ```

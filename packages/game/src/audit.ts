@@ -1,5 +1,6 @@
 import { CHASSIS, PARTS, TEMPLATES, validateBuild } from '@mechbattler/sim';
 import { GAME_CONTENT } from './content.js';
+import { defaultProfile, savedMechErrors } from './persistence.js';
 
 export interface GameAudit {
   ok: boolean;
@@ -26,6 +27,13 @@ export interface GameAudit {
     legal: boolean;
     chassisId?: string;
     requiredPartIds: string[];
+    errors: string[];
+  }>;
+  defaultGarage: Array<{
+    id: string;
+    name: string;
+    chassisId: string;
+    legal: boolean;
     errors: string[];
   }>;
   challengeDefinitions: typeof GAME_CONTENT.challenges;
@@ -127,6 +135,19 @@ export function auditGameContent(): GameAudit {
       ],
     };
   });
+  const defaultGarageProfile = defaultProfile();
+  const defaultGarage = defaultGarageProfile.savedMechs.map((savedMech) => {
+    const garageErrors = savedMechErrors(defaultGarageProfile, savedMech.build);
+    for (const message of garageErrors) errors.push(`Default saved mech ${savedMech.id}: ${message}`);
+    return {
+      id: savedMech.id,
+      name: savedMech.name,
+      chassisId: savedMech.build.chassisId,
+      legal: garageErrors.length === 0,
+      errors: garageErrors,
+    };
+  });
+  if (defaultGarage.length === 0) errors.push('Fresh profiles have no legal saved mech');
   return {
     ok: errors.length === 0,
     errors,
@@ -147,6 +168,7 @@ export function auditGameContent(): GameAudit {
     },
     acquisitionReachability,
     starterLegality,
+    defaultGarage,
     challengeDefinitions: GAME_CONTENT.challenges,
     diagnostics: {
       impossibleContent: [...errors],

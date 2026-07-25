@@ -8,7 +8,7 @@ specs 01–03.
 
 The default route is the game, not the tuning tool:
 
-`Title → New/Continue → Starting loadout → Node intel → Battle → Report → Settlement → Salvage → Mod milestone → Refit`
+`Title → Garage → Load/create mech → Starting refit → Node intel → Battle → Report → Settlement → Salvage → Mod milestone → Refit`
 
 The title screen also exposes Profile & Unlocks, the free-play Workshop Sandbox, and the
 Balance Lab. `?view=workshop` and `?view=balance` remain direct links. Sandbox edits are
@@ -31,7 +31,7 @@ leave the current node available for another attempt. Chassis cannot change afte
 - `MechInstance`: chassis plus installed `PartInstance` placements and power priority.
 - `PartInstance`: stable id, catalog id, integrity, modifiers, variant, and provenance.
 - `PlayerProfile`: starting-part/chassis unlocks, completed challenges, grandfathered
-  legacy unlocks, and memorial history.
+  legacy unlocks, reusable saved-mech blueprints, and memorial history.
 
 React/localStorage are adapters. Battles receive a normal sim `Build`; their
 `BattleReport` is settled back into the run. Settlement always happens before rewards:
@@ -51,6 +51,20 @@ wreck or mod service. Opponents and both versions of scrapyard stock are generat
 and saved verbatim, so later content-generator changes cannot rewrite an existing run.
 Legacy run/profile/history records migrate forward, stable bench ids are synthesized
 deterministically, and existing unlocks are never revoked.
+
+### Garage and saved mechs
+
+New Run opens the profile garage, not a starter-kit/chassis catalog. It shows only saved
+mechs and owned chassis. Loading a saved mech enters the normal prep workshop before
+launch; creating one starts from an empty owned chassis. Prep may add only unlocked
+starting equipment and can save the current layout under a 40-character name. Saving
+overwrites the loaded blueprint or creates a new stable profile entry.
+
+Saved mechs are reusable blueprints rather than physical run inventory. Saving normalizes
+every part to pristine integrity and removes run-only variants and modifications. Loading
+therefore never carries damage, salvage, or mods between runs. A fresh/migrated profile is
+seeded with the first legal data-driven starter as its initial saved mech. The former
+duplicate starter/frame picker inside the Sandbox has been removed.
 
 ### Match and checkpoint invariants
 
@@ -82,9 +96,12 @@ Scrap is run-only. Defaults live in `GAME_CONTENT`, not UI components:
 | Machinist application | 25 |
 | Bench cap | 8 instances |
 
-The active-run catalog is reference-only. A run may install only its current equipment,
-owned bench instances, or seeded scrapyard purchases. Any enabled enemy part can be used
-as salvage even when it is locked for future starting builds.
+Campaign equipment views never expose the unrestricted catalog. Prep lists only unlocked
+starting equipment; an active run lists only equipment currently installed or on its
+bench. A run may install only its current equipment, owned bench instances, or seeded
+scrapyard purchases. Any enabled enemy part can be used as salvage even when it is locked
+for future starting builds. The explicitly labeled Workshop Sandbox retains the complete
+catalog for unrestricted testing.
 
 Machinist services occur every three victories, currently wins 3, 6, and 9. Each contains
 three seeded offers, permits one permanent mod on an applicable installed or benched
@@ -110,8 +127,10 @@ challenges and affect starting loadouts only:
 | Counterbattery | Win vs. a capacitor build and destroy a capacitor | `W-ION` |
 
 Every challenge is an `all`/`any` tree of serializable predicates evaluated from the
-battle summary. Starter-kit availability derives from the kit's actual chassis and parts.
-`U-AMMO` is explicitly disabled until ammunition becomes a positive functional system.
+battle summary. The initial saved-mech blueprint derives from the first starter whose
+actual chassis and parts are owned; starter definitions remain balance/automation content
+rather than a player-facing locked catalog. `U-AMMO` is explicitly disabled until
+ammunition becomes a positive functional system.
 
 ## 5. Data-driven iteration and verification
 
@@ -145,8 +164,9 @@ npm run game:match-balance -- run-checkpoints.json
 ```
 
 The audit prints stable JSON containing the unlock graph, acquisition reachability,
-starter legality, economy/run dials, serialized challenge definitions, and impossible or
-self-dependent diagnostics. It fails when content is missing, disabled content leaks, an
-enabled part lacks exactly one starting unlock route, an acquisition route is absent, or
-a starter build is illegal. CI runs both game-level balance layers before the existing
-simulation, balance, diversity, interaction-test, and production-build gates.
+starter/default-garage legality, economy/run dials, serialized challenge definitions, and
+impossible or self-dependent diagnostics. It fails when content is missing, disabled
+content leaks, an enabled part lacks exactly one starting unlock route, an acquisition
+route is absent, a starter build is illegal, or a fresh profile cannot load a legal saved
+mech. CI runs both game-level balance layers before the existing simulation, balance,
+diversity, interaction-test, and production-build gates.

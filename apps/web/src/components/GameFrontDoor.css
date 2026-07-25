@@ -97,6 +97,68 @@
   gap: 12px;
   margin-top: 28px;
 }
+.garage-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 28px;
+}
+.garage-card {
+  min-height: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 18px;
+  background: var(--bg-inset);
+  border: 1px solid var(--line-hairline);
+}
+.garage-card > strong { font: 600 17px var(--font-display); }
+.garage-card > span:not(.starter-status) { color: var(--ink-secondary); font-size: 12px; }
+.garage-card > small {
+  flex: 1;
+  color: var(--ink-faint);
+  font: 10px/1.5 var(--font-mono);
+}
+.garage-actions {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 8px;
+}
+.garage-actions .front-primary {
+  flex: 1;
+  justify-content: center;
+  padding: 9px 12px;
+}
+.garage-delete {
+  padding: 9px 10px;
+  color: var(--ink-faint);
+  background: transparent;
+  border: 1px solid var(--line-hairline);
+  font: 10px var(--font-mono);
+}
+.garage-empty {
+  grid-column: 1 / -1;
+  padding: 28px;
+  color: var(--ink-secondary);
+  border: 1px dashed var(--line-hairline);
+  text-align: center;
+}
+.garage-create {
+  display: grid;
+  grid-template-columns: auto minmax(220px, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+}
+.garage-create label { color: var(--ink-secondary); font: 10px var(--font-mono); }
+.garage-create select {
+  min-width: 0;
+  padding: 11px 12px;
+  color: var(--ink-primary);
+  background: var(--bg-inset);
+  border: 1px solid var(--line-hairline);
+}
+.garage-create .front-secondary { padding: 11px 16px; }
 .starter-card, .challenge-card {
   min-height: 170px;
   padding: 18px;
@@ -174,7 +236,8 @@
 
 @media (max-width: 760px) {
   .front-card { padding: 28px 20px; }
-  .starter-grid, .challenge-grid, .frame-grid { grid-template-columns: 1fr; }
+  .starter-grid, .challenge-grid, .frame-grid, .garage-grid { grid-template-columns: 1fr; }
+  .garage-create { grid-template-columns: 1fr; }
   .profile-summary { flex-direction: column; }
   .front-primary, .front-secondary { align-items: flex-start; flex-direction: column; }
 }

@@ -1,5 +1,6 @@
-import { CHASSIS, TEMPLATES, getChassis, getPart } from '@mechbattler/sim';
-import { GAME_CONTENT, type PlayerProfile } from '@mechbattler/game';
+import { useState } from 'react';
+import { CHASSIS, getChassis, getPart } from '@mechbattler/sim';
+import { GAME_CONTENT, type PlayerProfile, type SavedMech } from '@mechbattler/game';
 import type { RunPhase } from '../state/runState.js';
 import './GameFrontDoor.css';
 
@@ -43,7 +44,7 @@ export function TitleScreen({
           )}
           <button type="button" className={resumable ? 'front-secondary' : 'front-primary'} onClick={onNewRun}>
             New run
-            <small>Choose a starter or outfit an unlocked frame</small>
+            <small>Load a saved mech or build one</small>
           </button>
           <button type="button" className="front-secondary" onClick={onProfile}>
             Profile & unlocks
@@ -66,74 +67,88 @@ export function TitleScreen({
 
 export function NewRunScreen({
   profile,
-  onStartKit,
-  onStartCustom,
+  onLoadMech,
+  onCreateMech,
+  onDeleteMech,
   onBack,
 }: {
   profile: PlayerProfile;
-  onStartKit: (templateId: string, name: string) => void;
-  onStartCustom: (chassisId: string) => void;
+  onLoadMech: (savedMech: SavedMech) => void;
+  onCreateMech: (chassisId: string) => void;
+  onDeleteMech: (id: string) => void;
   onBack: () => void;
 }) {
+  const ownedChassis = Object.values(CHASSIS).filter(
+    (chassis) => profile.unlockedChassisIds.includes(chassis.id),
+  );
+  const [newChassisId, setNewChassisId] = useState(ownedChassis[0]?.id ?? '');
   return (
     <main className="front-door">
       <section className="front-card wide">
         <button type="button" className="front-back" onClick={onBack}>← Title</button>
-        <div className="front-kicker">NEW RUN</div>
-        <h2>Choose what survives the first fight</h2>
+        <div className="front-kicker">YOUR GARAGE</div>
+        <h2>Load a mech</h2>
         <p className="front-deck compact">
-          Starting access is permanent progression. Once the run begins, any enemy equipment
-          can be salvaged and used—whether its blueprint is unlocked or not.
+          Saved mechs are reusable starting blueprints. Loading one opens it in the workshop
+          before the run, so you can change it or launch as-is.
         </p>
-        <div className="starter-grid">
-          {GAME_CONTENT.starterKits.map((kit) => {
-            const template = TEMPLATES.find((candidate) => candidate.id === kit.templateId);
-            const missingParts = template?.build.parts
-              .map((part) => part.partId)
-              .filter((id, index, all) => all.indexOf(id) === index && !profile.unlockedPartIds.includes(id)) ?? [];
-            const chassisId = template?.build.chassisId ?? '';
-            const chassisUnlocked = profile.unlockedChassisIds.includes(chassisId);
-            const unlocked = Boolean(template) && chassisUnlocked && missingParts.length === 0;
+        <div className="garage-grid">
+          {profile.savedMechs.map((savedMech) => {
+            const partNames = savedMech.build.parts
+              .filter((part, index, all) =>
+                all.findIndex((candidate) => candidate.partId === part.partId) === index)
+              .map((part) => getPart(part.partId).name);
             return (
-              <button
-                key={kit.templateId}
-                type="button"
-                className={`starter-card${unlocked ? '' : ' locked'}`}
-                disabled={!unlocked}
-                onClick={() => onStartKit(kit.templateId, kit.name)}
-              >
-                <span className="starter-status">{unlocked ? 'READY' : 'LOCKED'}</span>
-                <strong>{kit.name}</strong>
-                <span>{kit.blurb}</span>
-                {!unlocked && (
-                  <small>
-                    {!chassisUnlocked && chassisId ? `Defeat a ${getChassis(chassisId).name}. ` : ''}
-                    {missingParts.length > 0 ? `Needs ${missingParts.map((id) => getPart(id).name).join(', ')}.` : ''}
-                  </small>
-                )}
-              </button>
+              <article key={savedMech.id} className="garage-card">
+                <span className="starter-status">SAVED MECH</span>
+                <strong>{savedMech.name}</strong>
+                <span>{getChassis(savedMech.build.chassisId).name}</span>
+                <small>{partNames.join(' · ') || 'Empty frame'}</small>
+                <div className="garage-actions">
+                  <button type="button" className="front-primary" onClick={() => onLoadMech(savedMech)}>
+                    Load
+                  </button>
+                  <button
+                    type="button"
+                    className="garage-delete"
+                    aria-label={`Delete ${savedMech.name}`}
+                    onClick={() => onDeleteMech(savedMech.id)}
+                  >
+                    delete
+                  </button>
+                </div>
+              </article>
             );
           })}
+          {profile.savedMechs.length === 0 && (
+            <div className="garage-empty">No saved mechs yet. Build your first one below.</div>
+          )}
         </div>
-        <div className="front-divider"><span>OR OUTFIT A FRAME</span></div>
-        <div className="frame-grid">
-          {Object.values(CHASSIS).map((chassis) => {
-            const unlocked = profile.unlockedChassisIds.includes(chassis.id);
-            return (
-              <button
-                key={chassis.id}
-                type="button"
-                className={unlocked ? '' : 'locked'}
-                disabled={!unlocked}
-                onClick={() => onStartCustom(chassis.id)}
-              >
-                <strong>{unlocked ? chassis.name : `🔒 ${chassis.name}`}</strong>
-                <span>{chassis.type}</span>
-                <small>{unlocked ? 'Build from unlocked starting parts' : 'Defeat this chassis during a run'}</small>
-              </button>
-            );
-          })}
+        <div className="front-divider"><span>BUILD A NEW MECH</span></div>
+        <div className="garage-create">
+          <label htmlFor="new-mech-chassis">Owned chassis</label>
+          <select
+            id="new-mech-chassis"
+            value={newChassisId}
+            onChange={(event) => setNewChassisId(event.target.value)}
+          >
+            {ownedChassis.map((chassis) => (
+              <option key={chassis.id} value={chassis.id}>{chassis.name} · {chassis.type}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            className="front-secondary"
+            disabled={!newChassisId}
+            onClick={() => onCreateMech(newChassisId)}
+          >
+            Build new mech
+          </button>
         </div>
+        <p className="front-footnote">
+          This garage shows only chassis and starting equipment you have unlocked. Salvage found
+          during a run remains run-only.
+        </p>
       </section>
     </main>
   );
