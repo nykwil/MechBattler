@@ -70,7 +70,16 @@ function shuffled<T>(items: T[], rng: Pcg32): T[] {
   return a;
 }
 
-export function generateOpponent({ budget, seed }: { budget: number; seed: number }): GeneratedOpponent {
+export function generateOpponent({
+  budget,
+  seed,
+  fillPartIds = FILL_POOL,
+}: {
+  budget: number;
+  seed: number;
+  /** Run content may supply a tagged pool; omission preserves the canonical cohort. */
+  fillPartIds?: readonly string[];
+}): GeneratedOpponent {
   const rng = new Pcg32(seed);
 
   // Template: the biggest bases that fit the budget (window of 3 tiers off the
@@ -102,7 +111,7 @@ export function generateOpponent({ budget, seed }: { budget: number; seed: numbe
     }
   }
 
-  const pool = [...FILL_POOL];
+  const pool = [...fillPartIds];
   while (remaining > 0 && pool.length > 0) {
     const affordable = pool.filter((id) => {
       const def = getPart(id);

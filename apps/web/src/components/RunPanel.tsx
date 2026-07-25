@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import {
   DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
-  generateTerrain, getChassis, getPart, type Build, type TerrainType,
+  generateTerrain, getChassis, getPart, TEMPLATES, type Build, type TerrainType,
 } from '@mechbattler/sim';
 import { BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET, STARTER_KITS, type BenchPart, type RunPhase } from '../state/runState.js';
 import type { Profile, RunRecord } from '../state/profileState.js';
 import { CHASSIS, buildTierBudget } from '@mechbattler/sim';
-import { ladderOpponents, machinistOffers, nodeKind, scrapyardOffers, type YardOffer } from '../lib/ladder.js';
-import { MODIFIERS, type PlacedPart } from '@mechbattler/sim';
+import type { YardOffer } from '../lib/ladder.js';
+import { MODIFIERS } from '@mechbattler/sim';
+import { GAME_CONTENT } from '@mechbattler/game';
 import { ModChips } from './ModChips.js';
 import type { OpponentDef } from '../lib/opponents.js';
 import type { FightMode } from './ArenaPanel.js';
@@ -51,7 +52,7 @@ function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spaw
  */
 export function RunPanel({
   run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
-  onBuyOffer, onRerollYard, onSkipNode, selectedPart, onApplyMod,
+  onBuyOffer, onRerollYard, onSkipNode, modTargets, onApplyMilestoneMod, onSkipModService,
   profile, history, onStartCustom, onLaunch,
 }: {
   run: RunPhase;
@@ -69,10 +70,10 @@ export function RunPanel({
   onBuyOffer: (offer: YardOffer) => void;
   onRerollYard: () => void;
   onSkipNode: () => void;
-  // --- Machinist (docs/04 §4b) ----------------------------------------------
-  /** The part currently selected in the editor, if any. */
-  selectedPart: PlacedPart | null;
-  onApplyMod: (instanceId: string, modId: string) => void;
+  // --- Milestone machinist ---------------------------------------------------
+  modTargets: Array<{ id: string; partId: string; label: string; modifiers?: string[] }>;
+  onApplyMilestoneMod: (targetId: string, modId: string) => void;
+  onSkipModService: () => void;
   // --- Meta profile (docs/04 §7, docs/10 M6) --------------------------------
   profile: Profile;
   history: RunRecord[];
@@ -80,20 +81,34 @@ export function RunPanel({
   onLaunch: () => void;
 }) {
   const [pickedId, setPickedId] = useState<string | null>(null);
+  const [modTargetId, setModTargetId] = useState<string>('');
 
   if (run.phase === 'none') {
     return (
       <div>
         <div className="eyebrow" style={{ marginBottom: 10 }}>Start a run — pick your starter kit</div>
         <div className="arena-opponents">
-          {STARTER_KITS.map((k) => (
-            <button key={k.templateId} type="button" className="arena-card" onClick={() => onStartKit(k.templateId, k.name)}>
+          {STARTER_KITS.map((k) => {
+            const template = TEMPLATES.find((candidate) => candidate.id === k.templateId);
+            const unlocked = Boolean(template)
+              && profile.unlockedChassisIds.includes(template!.build.chassisId)
+              && template!.build.parts.every((part) => profile.unlockedPartIds.includes(part.partId));
+            return (
+            <button
+              key={k.templateId}
+              type="button"
+              className="arena-card"
+              disabled={!unlocked}
+              title={unlocked ? undefined : 'Complete challenges and defeat this frame to unlock the full kit'}
+              onClick={() => unlocked && onStartKit(k.templateId, k.name)}
+            >
               <div className="arena-card-head">
-                <span className="arena-card-name">{k.name}</span>
+                <span className="arena-card-name">{unlocked ? k.name : `🔒 ${k.name}`}</span>
               </div>
               <div className="arena-card-blurb">{k.blurb}</div>
             </button>
-          ))}
+            );
+          })}
         </div>
         <div className="run-note">
           One mech, {RUN_LENGTH} fights, permadeath on a core kill. The kit is a starting
@@ -104,7 +119,7 @@ export function RunPanel({
           <div className="run-bench-title">Custom frame — outfit an unlocked chassis from your unlocked parts</div>
           <div className="run-frames">
             {Object.values(CHASSIS).map((c) => {
-              const unlocked = profile.unlockedChassis.includes(c.id);
+              const unlocked = profile.unlockedChassisIds.includes(c.id);
               return (
                 <button
                   key={c.id}
@@ -178,6 +193,18 @@ export function RunPanel({
           <div className="run-memorial-title">{run.victorious ? '☼ LADDER CLEARED' : '✕ CORE DESTROYED'}</div>
           <div className="run-memorial-line">{run.data.kitName} · {run.data.fightsWon} fight{run.data.fightsWon === 1 ? '' : 's'} won</div>
           <div className="run-memorial-line">{run.cause}</div>
+          {(run.data.earnedPartIds.length > 0
+            || run.data.earnedChassisIds.length > 0
+            || run.data.earnedChallengeIds.length > 0) && (
+            <div className="run-memorial-line">
+              Earned: {[
+                ...run.data.earnedChallengeIds.map((id) =>
+                  GAME_CONTENT.challenges.find((challenge) => challenge.id === id)?.name ?? id),
+                ...run.data.earnedChassisIds.map((id) => `${getChassis(id).name} frame`),
+                ...run.data.earnedPartIds.map((id) => getPart(id).name),
+              ].join(' · ')}
+            </div>
+          )}
         </div>
         <button type="button" className="fight-btn" style={{ width: '100%' }} onClick={onNewRun}>
           New run
@@ -186,7 +213,11 @@ export function RunPanel({
     );
   }
 
-  const kind = nodeKind(run.data.seed, run.data.nodeIndex);
+  const currentNode = run.data.generatedNodes.find((node) => node.index === run.data.nodeIndex);
+  if (!currentNode) {
+    return <div className="run-note">This save has no generated content for node {run.data.nodeIndex}.</div>;
+  }
+  const kind = currentNode.kind;
   const playerCells = getChassis(build.chassisId).mask.flat().filter(Boolean).length;
   const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
   const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
@@ -205,8 +236,69 @@ export function RunPanel({
     </>
   );
 
+  if (run.data.pendingModService && !run.data.pendingModService.applied) {
+    const chosenTargetId = modTargetId || modTargets[0]?.id || '';
+    const chosenTarget = modTargets.find((target) => target.id === chosenTargetId);
+    return (
+      <div>
+        {header}
+        <div className="run-memorial victorious">
+          <div className="run-memorial-title">◆ MACHINIST MILESTONE</div>
+          <div className="run-memorial-line">
+            Victory {run.data.pendingModService.afterWin}: choose one permanent modification for equipment you own.
+          </div>
+        </div>
+        <label className="run-bench-title" htmlFor="mod-target">Target equipment</label>
+        <select
+          id="mod-target"
+          className="run-target-select"
+          value={chosenTargetId}
+          onChange={(event) => setModTargetId(event.target.value)}
+        >
+          {modTargets.map((target) => (
+            <option key={target.id} value={target.id}>{target.label}</option>
+          ))}
+        </select>
+        <div className="run-bench" style={{ marginTop: 10 }}>
+          {run.data.pendingModService.offerIds.map((modId) => {
+            const mod = MODIFIERS[modId]!;
+            const existingMod = chosenTarget?.modifiers?.some((id) => MODIFIERS[id]?.kind === 'mod') ?? false;
+            const applicable = Boolean(chosenTarget) && mod.appliesTo(getPart(chosenTarget!.partId)) && !existingMod;
+            const copies = modTargets.reduce(
+              (count, target) => count + (target.modifiers?.filter((id) => id === modId).length ?? 0),
+              0,
+            );
+            const atLimit = mod.maxCopiesPerBuild !== undefined && copies >= mod.maxCopiesPerBuild;
+            const disabled = !applicable || atLimit || run.data.scrap < MACHINIST_MOD_COST;
+            return (
+              <div key={modId} className="run-bench-row">
+                <span className="run-bench-name">
+                  <span className="mod-chip mod" style={{ marginRight: 6 }}>{mod.name}</span>
+                  {mod.blurb}{mod.tradeoff ? ` Cost: ${mod.tradeoff}` : ''}
+                </span>
+                <button
+                  type="button"
+                  className="run-bench-sell"
+                  disabled={disabled}
+                  onClick={() => chosenTarget && onApplyMilestoneMod(chosenTarget.id, modId)}
+                >
+                  apply −{MACHINIST_MOD_COST}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+        <button type="button" className="fight-btn watch" style={{ width: '100%', marginTop: 10 }} onClick={onSkipModService}>
+          Skip this service
+        </button>
+      </div>
+    );
+  }
+
   if (kind === 'scrapyard') {
-    const offers = scrapyardOffers(run.data.seed, run.data.nodeIndex, run.data.yardRerolled ?? false);
+    const offers = run.data.yardRerolled
+      ? currentNode.scrapyardOffers?.reroll ?? []
+      : currentNode.scrapyardOffers?.initial ?? [];
     const benchFull = run.data.benchPool.length >= BENCH_CAP;
     return (
       <div>
@@ -233,48 +325,6 @@ export function RunPanel({
             </div>
           );
         })}
-        <div className="run-bench" style={{ marginTop: 10 }}>
-          <div className="run-bench-title">
-            The machinist — one mod, applied to a part you own ({MACHINIST_MOD_COST}⚙, once per yard)
-          </div>
-          {machinistOffers(run.data.seed, run.data.nodeIndex).map((modId) => {
-            const mod = MODIFIERS[modId]!;
-            const hasPartMod = selectedPart?.modifiers?.some((id) => MODIFIERS[id]?.kind === 'mod') ?? false;
-            const buildCopies = build.parts.reduce(
-              (count, part) => count + (part.modifiers?.filter((id) => id === modId).length ?? 0), 0,
-            );
-            const atCopyLimit = mod.maxCopiesPerBuild !== undefined && buildCopies >= mod.maxCopiesPerBuild;
-            const applicable = selectedPart !== null
-              && mod.appliesTo(getPart(selectedPart.partId))
-              && !selectedPart.modifiers?.includes(modId)
-              && !hasPartMod
-              && !atCopyLimit;
-            const cantAffordMod = run.data.scrap < MACHINIST_MOD_COST;
-            return (
-              <div key={modId} className="run-bench-row">
-                <span className="run-bench-name" title={[mod.blurb, mod.tradeoff].filter(Boolean).join(' Cost: ')}>
-                  <span className="mod-chip mod" style={{ marginRight: 6 }}>{mod.name}</span>
-                  {mod.blurb}{mod.tradeoff ? ` Cost: ${mod.tradeoff}` : ''}
-                </span>
-                <button
-                  type="button"
-                  className="run-bench-sell"
-                  disabled={run.data.yardModApplied || !applicable || cantAffordMod}
-                  title={run.data.yardModApplied ? 'Already applied this yard'
-                    : selectedPart === null ? 'Select a placed part in the grid first'
-                    : hasPartMod ? 'This part already carries its one permanent mod'
-                    : atCopyLimit ? `${mod.name} is limited to one copy per build`
-                    : !applicable ? 'Not applicable to the selected part'
-                    : cantAffordMod ? 'Not enough scrap' : `Apply to ${getPart(selectedPart.partId).name}`}
-                  onClick={() => selectedPart && onApplyMod(selectedPart.instanceId, modId)}
-                >
-                  {run.data.yardModApplied ? 'spent' : `apply −${MACHINIST_MOD_COST}`}
-                </button>
-              </div>
-            );
-          })}
-        </div>
-
         <div className="fight-row" style={{ marginTop: 10 }}>
           <button
             type="button"
@@ -294,7 +344,10 @@ export function RunPanel({
     );
   }
 
-  const opponents = ladderOpponents(run.data.seed, run.data.nodeIndex);
+  const opponents = currentNode.opponents ?? [];
+  if (opponents.length === 0) {
+    return <div className="run-note">This fight node has no generated opponents.</div>;
+  }
   const picked = opponents.find((o) => o.id === pickedId) ?? opponents[0]!;
 
   return (

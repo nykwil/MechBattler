@@ -24,9 +24,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run game:test
+      - run: npm run game:audit
+      - run: npm run game:build
       - run: npm run sim:test
+      - run: npm run sim:build
       - run: npm run sim:balance -- 10
       - run: npm run sim:diversity -- 5
+      - run: npm run web:test
       - run: npm run web:build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3

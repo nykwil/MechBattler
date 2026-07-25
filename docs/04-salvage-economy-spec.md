@@ -6,11 +6,11 @@ is a patchwork of half-repaired, quirky salvage — pristine builds should be un
 ## 1. Currency
 
 **Scrap** is the only currency. Sources: fight purse, scrapping parts. Sinks: repair,
-(rare) shop nodes.
+scrapyard parts, and milestone machinist services. Scrap is run-only.
 
 - Fight purse: 20 scrap base, +5 per ladder tier, elite ×1.5.
-- Scrapping a part: tier × 8 scrap (tiers in 01 §7). Destroyed enemy parts auto-convert to
-  scrap at half value.
+- Scrapping an intact part: tier × 8 × integrity (rounded); destroyed enemy parts
+  auto-convert at tier × 4.
 
 ## 2. Salvage drops
 
@@ -87,9 +87,9 @@ The third axis, above variants and quirks: **mods** are rare, named, deliberatel
 build-defining part modifications — the CCG/synergy layer (resolves the tabled
 "rare/unique parts" discussion from 07). Two acquisition paths, both scarce:
 
-1. **The machinist** (scrapyard nodes): pay scrap to apply one mod to a part you own —
-   one application per yard, chosen from a small seeded offer of 2–3 mods ("intel is the
-   draft" applies to upgrades too). This is the "upgrade what you have" path.
+1. **The machinist** (victory milestones): after wins 3/6/9, pay scrap to apply one mod
+   to an installed or benched part you own, chosen from three seeded offers. This is the
+   "upgrade what you have" path and makes round winnings feed build identity directly.
 2. **Found on enemies**: elites carry modded parts, telegraphed on the intel card
    ("carries a Tidecooler Gill"). Kill the carrier without destroying the part to take
    it. The mod rides the part instance forever.
@@ -182,8 +182,8 @@ the whole game; across runs there is one carryover: **unlocks** (user call, Jul 
 superseding the earlier no-meta stance).
 
 - **The general loop is unlocking starting options.** Beating a mech that rides a locked
-  chassis unlocks that chassis; beating locked parts unlocks them as **starting parts**
-  (user call, Jul 19 2026). Unlocks shape how a run *begins* — the starting chassis and
+  chassis unlocks that chassis; locked parts unlock through the combat challenges in
+  `13-full-game-experience.md` as **starting parts**. Unlocks shape how a run *begins* — the starting chassis and
   the pool of parts a starting loadout can draw from — and nothing else: in-run
   acquisition stays pure salvage economy, and a run can always loot anything it defeats.
   End state: run start is "pick an unlocked chassis, outfit it from your unlocked
@@ -193,10 +193,10 @@ superseding the earlier no-meta stance).
   In particular **bigger chassis are balanced sidegrades**: more grid room buys more
   mass, a bigger target profile, slower base speeds, longer conduit runs and deeper
   heat plumbing. Playing more earns more *diversity*, never a stronger default.
-- Profile is one serializable object (localStorage beside the run save), all thresholds
-  config dials, tuning deferred. Which chassis/parts start locked is a balance question.
-- A run-history screen (final mech portrait, cause of death, fights won) is cheap and
-  satisfies the memorial urge.
+- Profile and run are versioned serializable objects. All thresholds and challenge rules
+  are config data in `@mechbattler/game`; legacy unlocks migrate without being revoked.
+- The shipped memorial records the final mech, cause of death, fights won, and progression
+  earned during the run.
 
 ## 8. Economy tuning dials (for the prototype's balance pass)
 

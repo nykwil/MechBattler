@@ -330,6 +330,15 @@ wall-clock/entropy in the sim). The remaining server + client + ranked work is p
 **`12-multiplayer-backlog.md`**. A Jul 20 2026 audit confirmed the whole sim satisfies
 the contract today.
 
+**Full game experience pass shipped Jul 25 2026** (`13-full-game-experience.md`):
+the default route is now a title/new-run/profile flow; run/profile data have versioned
+headless contracts in `@mechbattler/game`; player equipment damage persists after every
+battle; destroyed player parts are removed; the active catalog is no longer an unlimited
+shop; intact wreck scrap scales with integrity; combat challenges unlock future starting
+parts; chassis remain defeat unlocks; and seeded machinist services occur after wins
+3/6/9. `game:audit` validates acquisition/unlock reachability and excludes the dead
+`U-AMMO` placeholder. Existing saves and unlocks migrate forward.
+
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
 mechanics (03 §5), heat/power as the real limits (02), support-part identities (06),

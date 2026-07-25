@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
-import { getChassis, getOccupiedCells, type BattleReport, type Build } from '@mechbattler/sim';
-import { buildWreck, type WreckPart } from '../lib/wreck.js';
-import { BENCH_CAP, SCRAP_WRECK_MULT, type BenchPart } from '../state/runState.js';
+import { useState } from 'react';
+import { getChassis, getOccupiedCells, getPart, type PlacedPart } from '@mechbattler/sim';
+import type { PendingSalvage, SalvageCandidate } from '@mechbattler/game';
+import { BENCH_CAP, type BenchPart } from '../state/runState.js';
 import { CATEGORY_COLOR } from '../lib/partVisuals.js';
 import { ModChips } from './ModChips.js';
 import './WreckScreen.css';
@@ -14,53 +14,47 @@ const CELL = 22;
  * everything destroyed, converts to scrap on the spot.
  */
 export function WreckScreen({
-  report, enemyBuild, opponentName, purse, benchUsed, guaranteeMod, unlocks, onFinish,
+  pending, benchUsed, onFinish,
 }: {
-  report: BattleReport;
-  enemyBuild: Build;
-  opponentName: string;
-  purse: number;
+  pending: PendingSalvage;
   /** Bench-pool slots already occupied before this salvage. */
   benchUsed: number;
-  /** First wreck of the run: one lootable part carries a mod (docs/04 §4b). */
-  guaranteeMod?: boolean;
-  /** Names newly unlocked for future starts by beating this mech (docs/04 §7). */
-  unlocks?: { chassis: string[]; parts: string[] };
   onFinish: (scrapGained: number, loot: BenchPart[]) => void;
 }) {
-  const chassis = getChassis(enemyBuild.chassisId);
-  const wreck = useMemo(
-    () => buildWreck(report, enemyBuild, { guaranteeMod }),
-    [report, enemyBuild, guaranteeMod],
-  );
+  const chassis = getChassis(pending.opponentChassisId);
+  const wreck = pending.candidates;
   const [taken, setTaken] = useState<Set<string>>(() => new Set());
 
-  const lootable = wreck.filter((w) => !w.destroyed);
-  const destroyed = wreck.filter((w) => w.destroyed);
+  const lootable = wreck.filter((candidate) => !candidate.destroyed);
+  const destroyed = wreck.filter((candidate) => candidate.destroyed);
   const benchFree = BENCH_CAP - benchUsed;
 
-  function toggle(w: WreckPart) {
-    if (w.destroyed) return;
+  function toggle(candidate: SalvageCandidate) {
+    if (candidate.destroyed) return;
     setTaken((prev) => {
       const next = new Set(prev);
-      if (next.has(w.placed.instanceId)) next.delete(w.placed.instanceId);
-      else if (next.size < benchFree) next.add(w.placed.instanceId);
+      if (next.has(candidate.id)) next.delete(candidate.id);
+      else if (next.size < benchFree) next.add(candidate.id);
       return next;
     });
   }
 
-  const destroyedScrap = destroyed.reduce((s, w) => s + w.scrapValue, 0);
-  const leftBehindScrap = lootable.filter((w) => !taken.has(w.placed.instanceId)).reduce((s, w) => s + w.scrapValue, 0);
-  const total = purse + destroyedScrap + leftBehindScrap;
+  const destroyedScrap = destroyed.reduce((sum, candidate) => sum + candidate.scrapValue, 0);
+  const leftBehindScrap = lootable
+    .filter((candidate) => !taken.has(candidate.id))
+    .reduce((sum, candidate) => sum + candidate.scrapValue, 0);
+  const total = pending.purse + destroyedScrap + leftBehindScrap;
 
   function finish() {
     const loot: BenchPart[] = lootable
-      .filter((w) => taken.has(w.placed.instanceId))
-      .map((w) => ({
-        partId: w.placed.partId,
-        integrity: Math.round(w.lootIntegrity! * 100) / 100,
-        modifiers: w.modifiers.length > 0 ? w.modifiers : undefined,
-        variant: w.variant,
+      .filter((candidate) => taken.has(candidate.id))
+      .map((candidate) => ({
+        id: candidate.id,
+        partId: candidate.partId,
+        integrity: Math.round(candidate.integrity * 100) / 100,
+        modifiers: candidate.modifiers,
+        variant: candidate.variant,
+        provenance: candidate.provenance,
       }));
     onFinish(total, loot);
   }
@@ -69,11 +63,15 @@ export function WreckScreen({
     <div className="wreck-overlay">
       <div className="wreck-panel">
         <div className="wreck-head">
-          <span className="wreck-title">SALVAGE — {opponentName.toUpperCase()} WRECK</span>
-          <span className="wreck-purse">purse +{purse}</span>
-          {unlocks && (unlocks.chassis.length > 0 || unlocks.parts.length > 0) && (
+          <span className="wreck-title">SALVAGE — {pending.opponentName.toUpperCase()} WRECK</span>
+          <span className="wreck-purse">purse +{pending.purse}</span>
+          {pending.unlocks && (pending.unlocks.chassis.length > 0 || pending.unlocks.parts.length > 0 || pending.unlocks.challenges.length > 0) && (
             <span className="wreck-unlocks" title="Available for future runs' starting loadouts">
-              ★ UNLOCKED: {[...unlocks.chassis.map((c) => `${c} frame`), ...unlocks.parts].join(' · ')}
+              ★ UNLOCKED: {[
+                ...pending.unlocks.challenges.map((challenge) => `${challenge} complete`),
+                ...pending.unlocks.chassis.map((name) => `${name} frame`),
+                ...pending.unlocks.parts,
+              ].join(' · ')}
             </span>
           )}
         </div>
@@ -87,23 +85,33 @@ export function WreckScreen({
                 ) : null,
               ),
             )}
-            {wreck.map((w) => {
-              const cells = getOccupiedCells(w.placed, w.def);
-              const isTaken = taken.has(w.placed.instanceId);
+            {wreck.map((candidate) => {
+              const definition = getPart(candidate.partId);
+              const placed: PlacedPart = {
+                instanceId: candidate.id,
+                partId: candidate.partId,
+                integrity: candidate.integrity,
+                modifiers: candidate.modifiers,
+                variant: candidate.variant,
+                origin: candidate.origin,
+                rotation: candidate.rotation,
+              };
+              const cells = getOccupiedCells(placed, definition);
+              const isTaken = taken.has(candidate.id);
               return (
                 <g
-                  key={w.placed.instanceId}
-                  className={`wreck-part${w.destroyed ? ' destroyed' : ' lootable'}${isTaken ? ' taken' : ''}`}
-                  onClick={() => toggle(w)}
+                  key={candidate.id}
+                  className={`wreck-part${candidate.destroyed ? ' destroyed' : ' lootable'}${isTaken ? ' taken' : ''}`}
+                  onClick={() => toggle(candidate)}
                 >
                   {cells.map((c) => (
                     <rect
                       key={`${c.x},${c.y}`}
                       x={c.x * CELL + 1} y={c.y * CELL + 1} width={CELL - 2} height={CELL - 2}
-                      fill={w.destroyed ? 'var(--bg-inset)' : CATEGORY_COLOR[w.def.category]}
+                      fill={candidate.destroyed ? 'var(--bg-inset)' : CATEGORY_COLOR[definition.category]}
                     />
                   ))}
-                  {w.destroyed && (
+                  {candidate.destroyed && (
                     <text x={(cells[0]!.x + 0.5) * CELL} y={(cells[0]!.y + 0.72) * CELL} className="wreck-x">✕</text>
                   )}
                 </g>
@@ -113,29 +121,30 @@ export function WreckScreen({
 
           <div className="wreck-list">
             <div className="wreck-list-title">
-              Take up to {benchFree} (bench {benchUsed}/{BENCH_CAP}) — the rest scraps at tier×{SCRAP_WRECK_MULT}
+              Take up to {benchFree} (bench {benchUsed}/{BENCH_CAP}) — intact scrap value scales with tier and integrity
             </div>
-            {lootable.map((w) => {
-              const isTaken = taken.has(w.placed.instanceId);
+            {lootable.map((candidate) => {
+              const definition = getPart(candidate.partId);
+              const isTaken = taken.has(candidate.id);
               return (
                 <button
-                  key={w.placed.instanceId}
+                  key={candidate.id}
                   type="button"
                   className={`wreck-row${isTaken ? ' taken' : ''}`}
-                  onClick={() => toggle(w)}
+                  onClick={() => toggle(candidate)}
                 >
                   <span className="wreck-row-mark">{isTaken ? '▣' : '□'}</span>
                   <span className="wreck-row-name">
-                    {w.def.name} <ModChips modifiers={w.modifiers} variant={w.variant} />
+                    {definition.name} <ModChips modifiers={candidate.modifiers ?? []} variant={candidate.variant} />
                   </span>
-                  <span className="wreck-row-int">{Math.round(w.lootIntegrity! * 100)}%</span>
-                  <span className="wreck-row-scrap">{isTaken ? 'take' : `+${w.scrapValue}`}</span>
+                  <span className="wreck-row-int">{Math.round(candidate.integrity * 100)}%</span>
+                  <span className="wreck-row-scrap">{isTaken ? 'take' : `+${candidate.scrapValue}`}</span>
                 </button>
               );
             })}
             {destroyed.length > 0 && (
               <div className="wreck-destroyed">
-                destroyed in the fight: {destroyed.map((w) => w.def.name.split(' (')[0]).join(', ')} → +{destroyedScrap}
+                destroyed in the fight: {destroyed.map((candidate) => getPart(candidate.partId).name.split(' (')[0]).join(', ')} → +{destroyedScrap}
               </div>
             )}
           </div>

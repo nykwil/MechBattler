@@ -7,38 +7,55 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { TEMPLATES, type Build } from '@mechbattler/sim';
+import {
+  GAME_CONTENT,
+  GAME_SAVE_VERSION,
+  buildToMech,
+  mechToBuild,
+  migrateRun,
+  modOffers,
+  generateRunNodes,
+  repairCost as domainRepairCost,
+  type GeneratedRunNode,
+  type PartProvenance,
+  type PendingSalvage,
+  type RunInstance,
+} from '@mechbattler/game';
 
-export const RUN_LENGTH = 12;
-export const STARTING_SCRAP = 30;
-const STORAGE_KEY = 'mechbattler-run';
+export const RUN_LENGTH = GAME_CONTENT.run.length;
+export const STARTING_SCRAP = GAME_CONTENT.economy.startingScrap;
+const STORAGE_KEY = 'mechbattler-run-v2';
+const LEGACY_STORAGE_KEY = 'mechbattler-run';
 
 // --- Economy dials (docs/04 §1-§2, §8 — tuning deferred by design) ----------
-export const PURSE_BASE = 20;
-export const PURSE_PER_NODE = 5;
+export const PURSE_BASE = GAME_CONTENT.economy.purseBase;
+export const PURSE_PER_NODE = GAME_CONTENT.economy.pursePerNode;
 /** Destroyed (and left-behind) enemy parts auto-scrap at tier × this. */
-export const SCRAP_WRECK_MULT = 4;
+export const SCRAP_WRECK_MULT = GAME_CONTENT.economy.destroyedScrapMultiplier;
+export const SCRAP_INTACT_MULT = GAME_CONTENT.economy.intactScrapMultiplier;
 /** Selling a part you own pays tier × this. */
-export const SCRAP_SELL_MULT = 8;
+export const SCRAP_SELL_MULT = GAME_CONTENT.economy.ownedScrapMultiplier;
 /**
  * During a run, placing a fresh catalog part costs tier × this (> sell, so the
  * palette can't mint scrap). Placeholder shop until M4's scrapyard nodes —
  * wrecks are meant to be the real parts source (docs/04 §1).
  */
-export const SCRAP_BUY_MULT = 12;
+export const SCRAP_BUY_MULT = GAME_CONTENT.economy.scrapyardBuyMultiplier;
 /** Loot integrity loses a further uniform 0..this on extraction. */
-export const EXTRACTION_WEAR_MAX = 0.2;
-export const BENCH_CAP = 8;
+export const EXTRACTION_WEAR_MAX = GAME_CONTENT.economy.extractionWearMax;
+export const BENCH_CAP = GAME_CONTENT.run.benchCap;
 /** Repair costs this × tier per integrity point (1% = one point, docs/04 §3). */
-export const REPAIR_COST_PER_POINT = 0.4;
+export const REPAIR_COST_PER_POINT = GAME_CONTENT.economy.repairCostPerPoint;
 
 /** Scrap cost to repair a part from one integrity to another (docs/04 §3). */
 export function repairCost(tier: number, fromIntegrity: number, toIntegrity: number): number {
-  const points = Math.max(0, toIntegrity - fromIntegrity) * 100;
-  return Math.ceil(points * REPAIR_COST_PER_POINT * tier);
+  return domainRepairCost(tier, fromIntegrity, toIntegrity);
 }
 
 /** An unplaced salvaged part riding in the bench pool (docs/04 §2). */
 export interface BenchPart {
+  /** Stable identity survives bench ↔ grid moves and reloads. */
+  id: string;
   partId: string;
   /** 0-1; scales HP when placed (04 §3). */
   integrity: number;
@@ -46,19 +63,16 @@ export interface BenchPart {
   modifiers?: string[];
   /** Variant stat rolls (04 §4). */
   variant?: Partial<Record<'damage' | 'cycleS' | 'dispersionMrad' | 'hp', number>>;
+  provenance?: PartProvenance;
 }
 
 /** Scrap cost to have the machinist apply a mod at a scrapyard (docs/04 §4b). */
-export const MACHINIST_MOD_COST = 25;
+export const MACHINIST_MOD_COST = GAME_CONTENT.economy.machinistBaseCost;
 /** Tier budget for a custom-frame starting loadout (docs/04 §7; wiring free). */
-export const START_BUDGET = 14;
+export const START_BUDGET = GAME_CONTENT.run.startingTierBudget;
 
 /** Starter kits (docs/04 §6) drawn from the sim's template roster. */
-export const STARTER_KITS = [
-  { templateId: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast, cool, shallow — twin MGs on a scout frame.' },
-  { templateId: 'mule-gunline', name: 'Mule Gunline', blurb: 'The tutorial-shaped build: one autocannon, one firing line.' },
-  { templateId: 'mule-laser-boat', name: 'Mule Tinkerer', blurb: 'Hybrid reactors and a heat-pipe highway — a heat puzzle from fight 1.' },
-] as const;
+export const STARTER_KITS = GAME_CONTENT.starterKits;
 
 export function kitBuild(templateId: string): Build {
   const t = TEMPLATES.find((x) => x.id === templateId);
@@ -75,7 +89,17 @@ export interface RunData {
   scrap: number;
   fightsWon: number;
   kitName: string;
+  generatedNodes: GeneratedRunNode[];
   benchPool: BenchPart[];
+  battlesCompleted: number;
+  earnedChassisIds: string[];
+  earnedPartIds: string[];
+  earnedChallengeIds: string[];
+  partProvenance: Record<string, PartProvenance>;
+  /** Seeded service earned every configured number of victories. */
+  pendingModService?: { afterWin: number; offerIds: string[]; applied: boolean };
+  /** Unresolved wreck transaction; persisted before the salvage overlay opens. */
+  pendingSalvage?: PendingSalvage;
   /** This node's scrapyard reroll is spent (docs/10 M4; cleared on advance). */
   yardRerolled?: boolean;
   /** This node's machinist application is spent (docs/04 §4b; cleared on advance). */
@@ -94,15 +118,48 @@ interface StoredRun {
   build: Build;
   /** True while still outfitting a custom frame (docs/04 §7). */
   prep?: boolean;
+  over?: { cause: string; victorious: boolean };
 }
 
 function load(): StoredRun | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
     if (!raw) return null;
-    const stored = JSON.parse(raw) as StoredRun;
-    stored.data.benchPool ??= []; // runs saved before M2 lack the pool
-    return stored;
+    const migrated = migrateRun(JSON.parse(raw));
+    if (!migrated) return null;
+    return {
+      data: {
+        seed: migrated.seed,
+        nodeIndex: migrated.nodeIndex,
+        scrap: migrated.scrap,
+        fightsWon: migrated.fightsWon,
+        battlesCompleted: migrated.battlesCompleted,
+        kitName: migrated.kitName,
+        earnedChassisIds: migrated.earnedChassisIds,
+        earnedPartIds: migrated.earnedPartIds,
+        earnedChallengeIds: migrated.earnedChallengeIds,
+        partProvenance: Object.fromEntries(
+          [...migrated.mech.parts, ...migrated.bench].map((part) => [part.id, part.provenance]),
+        ),
+        generatedNodes: migrated.generatedNodes,
+        benchPool: migrated.bench.map((part) => ({
+          id: part.id,
+          partId: part.partId,
+          integrity: part.integrity,
+          modifiers: part.modifiers,
+          variant: part.variant,
+          provenance: part.provenance,
+        })),
+        yardRerolled: migrated.yardRerolled,
+        pendingModService: migrated.pendingModService,
+        pendingSalvage: migrated.pendingSalvage,
+      },
+      build: mechToBuild(migrated.mech),
+      prep: migrated.status === 'prep',
+      over: migrated.status === 'over'
+        ? { cause: migrated.cause ?? 'Run ended', victorious: migrated.victorious ?? false }
+        : undefined,
+    };
   } catch {
     return null;
   }
@@ -111,14 +168,23 @@ function load(): StoredRun | null {
 export function useRun() {
   const [run, setRun] = useState<RunPhase>({ phase: 'none' });
 
-  const freshData = (kitName: string): RunData => ({
-    seed: Math.floor(Math.random() * 0x7fffffff),
-    nodeIndex: 1,
-    scrap: STARTING_SCRAP,
-    fightsWon: 0,
-    kitName,
-    benchPool: [],
-  });
+  const freshData = (kitName: string): RunData => {
+    const seed = Math.floor(Math.random() * 0x7fffffff);
+    return {
+      seed,
+      nodeIndex: 1,
+      scrap: STARTING_SCRAP,
+      fightsWon: 0,
+      kitName,
+      generatedNodes: generateRunNodes(seed),
+      benchPool: [],
+      battlesCompleted: 0,
+      earnedChassisIds: [],
+      earnedPartIds: [],
+      earnedChallengeIds: [],
+      partProvenance: {},
+    };
+  };
 
   const start = useCallback((kitName: string): void => {
     setRun({ phase: 'active', data: freshData(kitName) });
@@ -142,7 +208,24 @@ export function useRun() {
         fightsWon: r.data.fightsWon + 1,
         scrap: r.data.scrap + scrapGained,
         benchPool: [...r.data.benchPool, ...loot].slice(0, BENCH_CAP),
+        partProvenance: {
+          ...r.data.partProvenance,
+          ...Object.fromEntries(loot.map((part) => [
+            part.id,
+            part.provenance ?? { source: 'salvage' as const, nodeIndex: r.data.nodeIndex },
+          ])),
+        },
+        pendingSalvage: undefined,
       };
+      const serviceDue = data.fightsWon < RUN_LENGTH
+        && data.fightsWon % GAME_CONTENT.run.modServiceEveryWins === 0;
+      if (serviceDue) {
+        data.pendingModService = {
+          afterWin: data.fightsWon,
+          offerIds: modOffers(data.seed, data.fightsWon),
+          applied: false,
+        };
+      }
       if (data.nodeIndex >= RUN_LENGTH) {
         return { phase: 'over', data, cause: 'Completed the ladder', victorious: true };
       }
@@ -171,12 +254,36 @@ export function useRun() {
     setRun((r) => (r.phase === 'active' ? { phase: 'active', data: { ...r.data, yardModApplied: true } } : r));
   }, []);
 
+  const markMilestoneMod = useCallback((): void => {
+    setRun((r) => (r.phase === 'active' && r.data.pendingModService
+      ? {
+        phase: 'active',
+        data: {
+          ...r.data,
+          pendingModService: { ...r.data.pendingModService, applied: true },
+        },
+      }
+      : r));
+  }, []);
+
+  const clearModService = useCallback((): void => {
+    setRun((r) => (r.phase === 'active'
+      ? { phase: 'active', data: { ...r.data, pendingModService: undefined } }
+      : r));
+  }, []);
+
   /** Sell a bench-pool part for tier × SCRAP_SELL_MULT (docs/04 §1). */
   const sellBench = useCallback((index: number, value: number): void => {
     setRun((r) => {
       if (r.phase !== 'active') return r;
       const benchPool = r.data.benchPool.filter((_, i) => i !== index);
-      return { phase: 'active', data: { ...r.data, benchPool, scrap: r.data.scrap + value } };
+      const partProvenance = { ...r.data.partProvenance };
+      const sold = r.data.benchPool[index];
+      if (sold) delete partProvenance[sold.id];
+      return {
+        phase: 'active',
+        data: { ...r.data, benchPool, partProvenance, scrap: r.data.scrap + value },
+      };
     });
   }, []);
 
@@ -190,7 +297,17 @@ export function useRun() {
   /** Park an unplaced part on the bench (unplace from the build, docs/10 M3). */
   const addBench = useCallback((part: BenchPart): void => {
     setRun((r) => (r.phase === 'active' && r.data.benchPool.length < BENCH_CAP
-      ? { phase: 'active', data: { ...r.data, benchPool: [...r.data.benchPool, part] } }
+      ? {
+        phase: 'active',
+        data: {
+          ...r.data,
+          benchPool: [...r.data.benchPool, part],
+          partProvenance: {
+            ...r.data.partProvenance,
+            [part.id]: part.provenance ?? r.data.partProvenance[part.id] ?? { source: 'legacy' },
+          },
+        },
+      }
       : r));
   }, []);
 
@@ -201,26 +318,99 @@ export function useRun() {
       : r));
   }, []);
 
+  const applyBenchModifier = useCallback((index: number, modifierId: string): void => {
+    setRun((r) => {
+      if (r.phase !== 'active') return r;
+      const benchPool = r.data.benchPool.map((part, partIndex) => partIndex === index
+        ? { ...part, modifiers: [...(part.modifiers ?? []), modifierId] }
+        : part);
+      return { phase: 'active', data: { ...r.data, benchPool } };
+    });
+  }, []);
+
   const lost = useCallback((cause: string): void => {
     setRun((r) => (r.phase === 'active' ? { phase: 'over', data: r.data, cause, victorious: false } : r));
+  }, []);
+
+  const beginSalvage = useCallback((pendingSalvage: PendingSalvage): void => {
+    setRun((r) => (r.phase === 'active'
+      ? {
+        phase: 'active',
+        data: {
+          ...r.data,
+          pendingSalvage,
+          earnedChassisIds: [
+            ...new Set([...r.data.earnedChassisIds, ...(pendingSalvage.unlockIds?.chassis ?? [])]),
+          ],
+          earnedPartIds: [
+            ...new Set([...r.data.earnedPartIds, ...(pendingSalvage.unlockIds?.parts ?? [])]),
+          ],
+          earnedChallengeIds: [
+            ...new Set([...r.data.earnedChallengeIds, ...(pendingSalvage.unlockIds?.challenges ?? [])]),
+          ],
+        },
+      }
+      : r));
+  }, []);
+
+  const recordBattle = useCallback((): void => {
+    setRun((r) => (r.phase === 'active'
+      ? { phase: 'active', data: { ...r.data, battlesCompleted: r.data.battlesCompleted + 1 } }
+      : r));
   }, []);
 
   const abandon = useCallback((): void => {
     setRun({ phase: 'none' });
   }, []);
 
-  // Persistence: an active run (with its build, supplied by the caller via
-  // persistBuild) survives reload; anything else clears the slot.
+  // Persistence: the versioned domain shape is the save-file contract. The
+  // hook keeps its compatibility facade while the stored object is a proper
+  // RunInstance that can be consumed headlessly.
   const persistBuild = useCallback((build: Build): void => {
     setRun((r) => {
-      if (r.phase === 'active' || r.phase === 'prep') {
+      if (r.phase !== 'none') {
         try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(
-            { data: r.data, build, prep: r.phase === 'prep' || undefined } satisfies StoredRun,
-          ));
+          const mech = buildToMech(build);
+          mech.parts = mech.parts.map((part) => ({
+            ...part,
+            provenance: r.data.partProvenance[part.id] ?? part.provenance,
+          }));
+          const stored: RunInstance = {
+            schemaVersion: GAME_SAVE_VERSION,
+            id: `run-${r.data.seed.toString(16)}`,
+            seed: r.data.seed,
+            status: r.phase === 'prep' ? 'prep' : r.phase === 'over' ? 'over' : 'active',
+            nodeIndex: r.data.nodeIndex,
+            scrap: r.data.scrap,
+            fightsWon: r.data.fightsWon,
+            battlesCompleted: r.data.battlesCompleted,
+            kitName: r.data.kitName,
+            earnedChassisIds: r.data.earnedChassisIds,
+            earnedPartIds: r.data.earnedPartIds,
+            earnedChallengeIds: r.data.earnedChallengeIds,
+            generatedNodes: r.data.generatedNodes,
+            mech,
+            bench: r.data.benchPool.map((part) => ({
+              id: part.id,
+              partId: part.partId,
+              integrity: part.integrity,
+              modifiers: part.modifiers,
+              variant: part.variant,
+              provenance: part.provenance ?? r.data.partProvenance[part.id] ?? { source: 'legacy' },
+            })),
+            pendingSalvage: r.data.pendingSalvage,
+            pendingModService: r.data.pendingModService,
+            yardRerolled: r.data.yardRerolled,
+            cause: r.phase === 'over' ? r.cause : undefined,
+            victorious: r.phase === 'over' ? r.victorious : undefined,
+            events: [],
+          };
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
+          localStorage.removeItem(LEGACY_STORAGE_KEY);
         } catch { /* storage full/blocked: the run just won't survive reload */ }
       } else {
         localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(LEGACY_STORAGE_KEY);
       }
       return r;
     });
@@ -231,14 +421,16 @@ export function useRun() {
   useEffect(() => {
     const stored = load();
     if (stored) {
-      setRun({ phase: stored.prep ? 'prep' : 'active', data: stored.data });
+      setRun(stored.over
+        ? { phase: 'over', data: stored.data, cause: stored.over.cause, victorious: stored.over.victorious }
+        : { phase: stored.prep ? 'prep' : 'active', data: stored.data });
       setRestored(stored.build);
     }
   }, []);
 
   return {
-    run, start, startCustom, launch, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
-    skipNode, rerollYard, markYardMod,
+    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier,
+    skipNode, rerollYard, markYardMod, markMilestoneMod, clearModService,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };
 }

@@ -22,7 +22,7 @@ interface EditorState {
   /** Palette part armed for placement. Mutually exclusive with selectedInstanceId. */
   selectedPartId: string | null;
   /** What the next placement lands with (pristine from the palette; the bench pool passes salvage state). */
-  placeExtras: Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'>;
+  placeExtras: Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'> & { instanceId?: string };
   /** Placed part selected for inspection/removal. */
   selectedInstanceId: string | null;
   rotation: Rotation;
@@ -32,7 +32,7 @@ interface EditorState {
 
 type Action =
   | { type: 'SET_CHASSIS'; chassisId: string }
-  | { type: 'SELECT_PART'; partId: string | null; extras?: Partial<Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'>> }
+  | { type: 'SELECT_PART'; partId: string | null; extras?: Partial<Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'> & { instanceId: string }> }
   | { type: 'SET_INTEGRITY'; instanceId: string; integrity: number }
   | { type: 'APPLY_MODIFIER'; instanceId: string; modifierId: string }
   | { type: 'SELECT_INSTANCE'; instanceId: string | null }
@@ -107,17 +107,23 @@ function reducer(state: EditorState, action: Action): EditorState {
       if (!state.selectedPartId) return state;
       const chassis = getChassis(state.chassisId);
       const partDef = getPart(state.selectedPartId);
-      const instanceId = `${state.selectedPartId}-${state.nextSeq}`;
+      const instanceId = state.placeExtras.instanceId ?? `${state.selectedPartId}-${state.nextSeq}`;
+      const { instanceId: _preservedId, ...partExtras } = state.placeExtras;
       const candidate: PlacedPart = {
         instanceId, partId: state.selectedPartId,
-        origin: { x: action.x, y: action.y }, rotation: state.rotation, ...state.placeExtras,
+        origin: { x: action.x, y: action.y }, rotation: state.rotation, ...partExtras,
       };
       const error = checkPlacement(chassis, state.parts, candidate, partDef);
       if (error) return state;
       const powerPriority = drawsFromReactorPriority(state.selectedPartId)
         ? [...state.powerPriority, instanceId]
         : state.powerPriority;
-      return { ...state, parts: [...state.parts, candidate], powerPriority, nextSeq: state.nextSeq + 1 };
+      return {
+        ...state,
+        parts: [...state.parts, candidate],
+        powerPriority,
+        nextSeq: state.placeExtras.instanceId ? state.nextSeq : state.nextSeq + 1,
+      };
     }
     case 'ADD_PARTS': {
       // Sim-generated placements (auto-wire): already legal, appended as-is.
@@ -202,7 +208,10 @@ export function useBuild(defaultChassisId: string) {
     state, chassis, build,
     chassisOptions: Object.values(CHASSIS),
     setChassis: (id: string) => dispatch({ type: 'SET_CHASSIS', chassisId: id }),
-    selectPart: (id: string | null, extras?: Partial<Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'>>) =>
+    selectPart: (
+      id: string | null,
+      extras?: Partial<Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'> & { instanceId: string }>,
+    ) =>
       dispatch({ type: 'SELECT_PART', partId: id, extras }),
     setIntegrity: (instanceId: string, integrity: number) => dispatch({ type: 'SET_INTEGRITY', instanceId, integrity }),
     applyModifier: (instanceId: string, modifierId: string) => dispatch({ type: 'APPLY_MODIFIER', instanceId, modifierId }),

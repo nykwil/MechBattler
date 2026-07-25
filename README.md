@@ -10,11 +10,12 @@ The included mech-building game is the proving ground. Every weapon, chassis, po
 
 ## What judges can try
 
-1. Open the web app and choose **Balance Lab**.
+1. Open the web app to the game-first title screen; start a run or resume a saved mech.
 2. Run the 56-battle quick audit or increase the cohort to 140/280 battles.
 3. Inspect roster standings, the 35–65% matchup guardrail, dominant-build warnings, and ranked tuning recommendations.
 4. Export the complete report as JSON.
-5. Return to **Workshop** to build a mech, test its power and thermal behavior, then watch or command it in the arena.
+5. Use **Workshop Sandbox** for free building, or play the persistent salvage run with
+   combat-challenge unlocks and milestone modifications.
 
 No account, API key, installation, or sample data is required for the live demo.
 
@@ -65,13 +66,18 @@ The balance command runs every pair from both spawn sides. It exits non-zero whe
 
 ```bash
 npm run sim:test
+npm run game:test
+npm run game:audit
 npm run sim:build
 npm run sim:balance -- 10
 npm run sim:diversity -- 5
 npm run web:build
+npm run web:test
 ```
 
-Current verified state: **153 tests passing across 19 files**, clean simulation build, unchanged canonical 280-battle safety rail, passing 330-battle diversity stress, and clean Vite production build.
+Current verified state: **180 tests passing**, clean game/simulation builds, unchanged
+canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
+production build.
 
 ## How it works
 

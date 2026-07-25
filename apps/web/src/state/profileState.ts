@@ -1,104 +1,193 @@
 /**
- * The persistent player profile (docs/04 §7, docs/10 M6): the one carryover
- * across runs. Unlocks are horizontal — beating a mech riding a locked
- * chassis unlocks the chassis; beating locked parts unlocks them as
- * *starting* parts. Unlocks shape run start only (custom-frame prep, kit
- * availability); in-run acquisition is never gated. Plus the run-history
- * memorial (last N runs).
+ * Versioned persistent profile adapter. Progression rules live in the pure
+ * @mechbattler/game package; this hook only owns browser storage and React.
  */
 import { useCallback, useState } from 'react';
-import { CHASSIS, PARTS, TEMPLATES, getPart, type Build } from '@mechbattler/sim';
-import { STARTER_KITS } from './runState.js';
+import { CHASSIS, PARTS, getPart, type BattleReport, type Build } from '@mechbattler/sim';
+import {
+  GAME_CONTENT,
+  applyChallengeProgress,
+  defaultProfile,
+  migrateProfile,
+  summarizeBattleForChallenges,
+  type PlayerProfile,
+  type RunHistoryRecord,
+} from '@mechbattler/game';
 
-const PROFILE_KEY = 'mechbattler-profile';
-const HISTORY_KEY = 'mechbattler-history';
+const PROFILE_KEY = 'mechbattler-profile-v2';
+const LEGACY_PROFILE_KEY = 'mechbattler-profile';
+const LEGACY_HISTORY_KEY = 'mechbattler-history';
 export const HISTORY_MAX = 10;
 
-export interface Profile {
-  unlockedChassis: string[];
-  unlockedParts: string[];
-}
+export type Profile = PlayerProfile;
 
 export interface RunRecord {
+  /** Stable run identity keeps a restored memorial from being recorded twice. */
+  runId: string;
   kitName: string;
   fightsWon: number;
   cause: string;
   victorious: boolean;
-  endedAt: string; // ISO date
+  endedAt: string;
+  finalBuild?: Build;
+  unlockedPartIds?: string[];
 }
 
 export interface UnlockGains {
   /** Chassis names newly unlocked. */
   chassis: string[];
-  /** Part names newly unlocked. */
+  /** Part names newly unlocked by completed combat challenges. */
   parts: string[];
+  /** Challenge names newly completed. */
+  challenges: string[];
+  chassisIds: string[];
+  partIds: string[];
+  challengeIds: string[];
 }
 
-/** A fresh profile: the starter kits' chassis and parts, wiring always free. */
-export function defaultProfile(): Profile {
-  const chassis = new Set<string>();
-  const parts = new Set<string>(['U-CON', 'U-PIPE']);
-  for (const kit of STARTER_KITS) {
-    const t = TEMPLATES.find((x) => x.id === kit.templateId);
-    if (!t) continue;
-    chassis.add(t.build.chassisId);
-    for (const p of t.build.parts) parts.add(p.partId);
-  }
-  return { unlockedChassis: [...chassis], unlockedParts: [...parts] };
-}
-
-function loadJson<T>(key: string, fallback: T): T {
+function readJson(key: string): unknown {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T) : fallback;
+    return raw ? JSON.parse(raw) : null;
   } catch {
-    return fallback;
+    return null;
   }
+}
+
+function loadProfile(): PlayerProfile {
+  const current = readJson(PROFILE_KEY);
+  if (current) return migrateProfile(current);
+  return migrateProfile(readJson(LEGACY_PROFILE_KEY), readJson(LEGACY_HISTORY_KEY));
+}
+
+function save(profile: PlayerProfile): void {
+  try { localStorage.setItem(PROFILE_KEY, JSON.stringify(profile)); } catch { /* non-fatal */ }
 }
 
 export function useProfile() {
-  const [profile, setProfile] = useState<Profile>(() => loadJson(PROFILE_KEY, defaultProfile()));
-  const [history, setHistory] = useState<RunRecord[]>(() => loadJson(HISTORY_KEY, [] as RunRecord[]));
+  const [profile, setProfile] = useState<PlayerProfile>(loadProfile);
 
-  /**
-   * Register a beaten build: anything it rode or carried that the profile
-   * lacks becomes unlocked. Returns what's new (for the wreck-screen banner).
-   */
-  const unlockFrom = useCallback((build: Build): UnlockGains => {
-    // Computed against the current profile (event-handler context), not
-    // inside the state updater — StrictMode double-invokes updaters.
-    const gains: UnlockGains = { chassis: [], parts: [] };
-    const chassisSet = new Set(profile.unlockedChassis);
-    const partSet = new Set(profile.unlockedParts);
-    if (!chassisSet.has(build.chassisId)) {
-      chassisSet.add(build.chassisId);
-      gains.chassis.push(CHASSIS[build.chassisId]?.name ?? build.chassisId);
+  /** Chassis remain discovery unlocks: defeat a frame to earn it for future starts. */
+  const unlockChassisFrom = useCallback((build: Build): UnlockGains => {
+    const gains: UnlockGains = {
+      chassis: [], parts: [], challenges: [], chassisIds: [], partIds: [], challengeIds: [],
+    };
+    if (profile.unlockedChassisIds.includes(build.chassisId)) return gains;
+    const next = {
+      ...profile,
+      unlockedChassisIds: [...profile.unlockedChassisIds, build.chassisId],
+    };
+    gains.chassis.push(CHASSIS[build.chassisId]?.name ?? build.chassisId);
+    gains.chassisIds.push(build.chassisId);
+    setProfile(next);
+    save(next);
+    return gains;
+  }, [profile]);
+
+  /** Evaluate all declarative battle challenges exactly once. */
+  const recordBattleProgress = useCallback((report: BattleReport, enemyBuild: Build): UnlockGains => {
+    const summary = summarizeBattleForChallenges(report, enemyBuild);
+    const result = applyChallengeProgress(profile, GAME_CONTENT.challenges, summary);
+    const challengeNames = result.gains.challengeIds.map(
+      (id) => GAME_CONTENT.challenges.find((challenge) => challenge.id === id)?.name ?? id,
+    );
+    const gains: UnlockGains = {
+      chassis: [],
+      parts: result.gains.partIds.map((id) => getPart(id).name),
+      challenges: challengeNames,
+      chassisIds: [],
+      partIds: result.gains.partIds,
+      challengeIds: result.gains.challengeIds,
+    };
+    if (result.gains.challengeIds.length > 0) {
+      setProfile(result.profile);
+      save(result.profile);
     }
-    for (const p of build.parts) {
-      if (!partSet.has(p.partId)) {
-        partSet.add(p.partId);
-        gains.parts.push(getPart(p.partId).name);
-      }
+    return gains;
+  }, [profile]);
+
+  /** Atomic outcome registration avoids one unlock write overwriting another. */
+  const recordBattleOutcome = useCallback((report: BattleReport, enemyBuild: Build): UnlockGains => {
+    const challengeResult = applyChallengeProgress(
+      profile,
+      GAME_CONTENT.challenges,
+      summarizeBattleForChallenges(report, enemyBuild),
+    );
+    const chassisIds = new Set(challengeResult.profile.unlockedChassisIds);
+    const chassis: string[] = [];
+    if (report.winner === 0 && !chassisIds.has(enemyBuild.chassisId)) {
+      chassisIds.add(enemyBuild.chassisId);
+      chassis.push(CHASSIS[enemyBuild.chassisId]?.name ?? enemyBuild.chassisId);
     }
-    if (gains.chassis.length > 0 || gains.parts.length > 0) {
-      const next = { unlockedChassis: [...chassisSet], unlockedParts: [...partSet] };
+    const next = { ...challengeResult.profile, unlockedChassisIds: [...chassisIds] };
+    const gains: UnlockGains = {
+      chassis,
+      parts: challengeResult.gains.partIds.map((id) => getPart(id).name),
+      challenges: challengeResult.gains.challengeIds.map(
+        (id) => GAME_CONTENT.challenges.find((challenge) => challenge.id === id)?.name ?? id,
+      ),
+      chassisIds: chassis.length > 0 ? [enemyBuild.chassisId] : [],
+      partIds: challengeResult.gains.partIds,
+      challengeIds: challengeResult.gains.challengeIds,
+    };
+    if (gains.chassis.length > 0 || gains.parts.length > 0 || gains.challenges.length > 0) {
       setProfile(next);
-      try { localStorage.setItem(PROFILE_KEY, JSON.stringify(next)); } catch { /* non-fatal */ }
+      save(next);
     }
     return gains;
   }, [profile]);
 
   /** Append a finished run to the memorial (newest first, capped). */
   const pushHistory = useCallback((record: RunRecord): void => {
-    setHistory((prev) => {
-      const next = [record, ...prev].slice(0, HISTORY_MAX);
-      try { localStorage.setItem(HISTORY_KEY, JSON.stringify(next)); } catch { /* non-fatal */ }
+    setProfile((previous) => {
+      const historyRecord: RunHistoryRecord = {
+        runId: record.runId,
+        kitName: record.kitName,
+        fightsWon: record.fightsWon,
+        cause: record.cause,
+        victorious: record.victorious,
+        endedAt: record.endedAt,
+        finalMech: record.finalBuild ? {
+          chassisId: record.finalBuild.chassisId,
+          parts: record.finalBuild.parts.map((part) => ({
+            id: part.instanceId,
+            partId: part.partId,
+            integrity: part.integrity,
+            modifiers: part.modifiers,
+            variant: part.variant,
+            provenance: { source: 'legacy' },
+            origin: part.origin,
+            rotation: part.rotation,
+          })),
+          powerPriority: record.finalBuild.powerPriority,
+        } : undefined,
+        unlockedPartIds: record.unlockedPartIds,
+      };
+      if (previous.history.some((entry) => entry.runId === historyRecord.runId)) {
+        return previous;
+      }
+      const next = { ...previous, history: [historyRecord, ...previous.history].slice(0, HISTORY_MAX) };
+      save(next);
       return next;
     });
   }, []);
 
-  /** Part ids locked for starting loadouts (everything else in the catalog). */
-  const lockedPartIds = new Set(Object.keys(PARTS).filter((id) => !profile.unlockedParts.includes(id)));
+  const lockedPartIds = new Set(
+    Object.keys(PARTS).filter((id) => !profile.unlockedPartIds.includes(id)),
+  );
 
-  return { profile, lockedPartIds, unlockFrom, history, pushHistory };
+  return {
+    profile,
+    lockedPartIds,
+    unlockChassisFrom,
+    recordBattleProgress,
+    recordBattleOutcome,
+    history: profile.history,
+    pushHistory,
+    resetProfile: () => {
+      const next = defaultProfile();
+      setProfile(next);
+      save(next);
+    },
+  };
 }

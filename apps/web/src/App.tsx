@@ -11,8 +11,8 @@ import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
-import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, SCRAP_BUY_MULT, START_BUDGET, useRun } from './state/runState.js';
-import { useProfile, type UnlockGains } from './state/profileState.js';
+import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, START_BUDGET, useRun } from './state/runState.js';
+import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
@@ -20,6 +20,8 @@ import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
+import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
+import { createSalvageCandidates, settleBuildDamage } from '@mechbattler/game';
 import './App.css';
 
 const OVERLAYS: { id: OverlayMode; label: string }[] = [
@@ -29,8 +31,12 @@ const OVERLAYS: { id: OverlayMode; label: string }[] = [
 ];
 
 export default function App() {
+  const directView = new URLSearchParams(window.location.search).get('view');
+  const [screen, setScreen] = useState<'title' | 'new-run' | 'profile' | 'workspace'>(
+    directView === 'workshop' || directView === 'balance' ? 'workspace' : 'title',
+  );
   const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
-    new URLSearchParams(window.location.search).get('view') === 'workshop' ? 'workshop' : 'balance',
+    directView === 'balance' ? 'balance' : 'workshop',
   );
   const {
     state, chassis, build, chassisOptions,
@@ -46,18 +52,17 @@ export default function App() {
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
-    run, start, startCustom, launch, won, lost, abandon, sellBench, addScrap, addBench, takeBench,
-    skipNode, rerollYard, markYardMod, persistBuild, restored, clearRestored,
+    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier,
+    skipNode, rerollYard, markMilestoneMod, clearModService, persistBuild, restored, clearRestored,
   } = useRun();
-  const { profile, lockedPartIds, unlockFrom, history, pushHistory } = useProfile();
+  const { profile, lockedPartIds, recordBattleOutcome, history, pushHistory } = useProfile();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
-  /** A won run fight awaiting its salvage screen (docs/10 M2). */
-  const [wreck, setWreck] = useState<{ report: BattleReport; opponent: OpponentDef; nodeIndex: number; unlocks: UnlockGains } | null>(null);
   /** Bench-pool part armed for grid placement (docs/10 M3). */
   const [pendingBench, setPendingBench] = useState<{ index: number; partId: string } | null>(null);
 
   const runActive = run.phase === 'active';
+  const salvageOpen = runActive && Boolean(run.data.pendingSalvage);
   const runPrep = run.phase === 'prep';
   const runScrap = runActive ? run.data.scrap : 0;
   const benchUsed = runActive ? run.data.benchPool.length : 0;
@@ -65,21 +70,26 @@ export default function App() {
   // Memorial (docs/10 M6): a finished run is recorded once.
   const historyPushedRef = useRef(false);
   useEffect(() => {
-    if (run.phase === 'over' && !historyPushedRef.current) {
+    if (run.phase === 'over' && !restored && !historyPushedRef.current) {
       historyPushedRef.current = true;
       pushHistory({
+        runId: `run-${run.data.seed.toString(16)}`,
         kitName: run.data.kitName, fightsWon: run.data.fightsWon,
         cause: run.cause, victorious: run.victorious, endedAt: new Date().toISOString(),
+        finalBuild: build,
+        unlockedPartIds: run.data.earnedPartIds,
       });
     }
     if (run.phase !== 'over') historyPushedRef.current = false;
-  }, [run, pushHistory]);
+  }, [run, restored, build, pushHistory]);
 
   /** Custom-frame start (docs/04 §7): bare unlocked chassis, then outfit. */
   const startCustomFrame = useCallback((chassisId: string) => {
     setPendingBench(null);
     setChassis(chassisId); // resets the editor to an empty build
     startCustom(`Custom ${getChassis(chassisId).name}`);
+    setScreen('workspace');
+    setWorkspace('workshop');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [setChassis, startCustom]);
 
@@ -96,7 +106,12 @@ export default function App() {
     const b = run.data.benchPool[index];
     if (!b) return;
     setPendingBench({ index, partId: b.partId });
-    selectPart(b.partId, { integrity: b.integrity, modifiers: b.modifiers, variant: b.variant });
+    selectPart(b.partId, {
+      instanceId: b.id,
+      integrity: b.integrity,
+      modifiers: b.modifiers,
+      variant: b.variant,
+    });
   }, [run, selectPart]);
 
   // Placement with the run economy in the loop (docs/10 M3): a bench part
@@ -121,13 +136,11 @@ export default function App() {
       place(x, y);
       return;
     }
-    if (runActive) {
-      const cost = getPart(state.selectedPartId).tier * SCRAP_BUY_MULT;
-      if (cost > runScrap) return;
-      addScrap(-cost);
-    }
+    // Once a run launches, the catalog is reference-only. New equipment comes
+    // from owned bench salvage or a seeded scrapyard offer.
+    if (runActive) return;
     place(x, y);
-  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, runScrap, addScrap, lockedPartIds, build]);
+  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, lockedPartIds, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
   const runOps: RunPartOps | undefined = runActive ? {
@@ -145,7 +158,14 @@ export default function App() {
     onUnplace: (instanceId) => {
       const p = state.parts.find((x) => x.instanceId === instanceId);
       if (!p || benchUsed >= BENCH_CAP) return;
-      addBench({ partId: p.partId, integrity: p.integrity, modifiers: p.modifiers, variant: p.variant });
+      addBench({
+        id: p.instanceId,
+        partId: p.partId,
+        integrity: p.integrity,
+        modifiers: p.modifiers,
+        variant: p.variant,
+        provenance: run.data.partProvenance[p.instanceId],
+      });
       remove(instanceId);
     },
   } : undefined;
@@ -170,23 +190,19 @@ export default function App() {
     setPendingBench(null);
     loadBuild(kitBuild(templateId));
     start(kitName);
+    setScreen('workspace');
+    setWorkspace('workshop');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start]);
 
   const autoWireNow = useCallback(() => {
+    if (runActive) return;
     const { conduits } = autoWire(chassis, build);
     if (conduits.length === 0) return;
-    // During a run the conduits are bought like any other part (docs/10 M3) —
-    // otherwise auto-wire + sell would mint scrap.
-    if (runActive) {
-      const cost = conduits.reduce((sum, c) => sum + getPart(c.partId).tier * SCRAP_BUY_MULT, 0);
-      if (cost > runScrap) return;
-      addScrap(-cost);
-    }
     addParts(conduits);
     setFlashIds(new Set(conduits.map((c) => c.instanceId)));
     setTimeout(() => setFlashIds(new Set()), 1700);
-  }, [chassis, build, addParts, runActive, runScrap, addScrap]);
+  }, [chassis, build, addParts, runActive]);
 
   useEffect(() => {
     setBenchResult(null);
@@ -238,7 +254,8 @@ export default function App() {
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
-      if (battle || live || wreck) return; // overlays own the keyboard
+      if (screen !== 'workspace' || workspace !== 'workshop') return;
+      if (battle || live || salvageOpen) return; // overlays own the keyboard
       if (e.key.toLowerCase() === 'r') rotate();
       if (e.key === 'Escape') {
         setPendingBench(null);
@@ -251,7 +268,41 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rotate, selectPart, selectInstance, remove, state.selectedInstanceId, battle, live, wreck]);
+  }, [rotate, selectPart, selectInstance, remove, state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
+
+  if (screen === 'title') {
+    return (
+      <TitleScreen
+        run={run}
+        profile={profile}
+        onContinue={() => { setWorkspace('workshop'); setScreen('workspace'); }}
+        onNewRun={() => {
+          if ((run.phase === 'active' || run.phase === 'prep')
+            && !window.confirm('Abandon the active run and start over?')) return;
+          if (run.phase !== 'none') abandon();
+          setScreen('new-run');
+        }}
+        onProfile={() => setScreen('profile')}
+        onSandbox={() => { setWorkspace('workshop'); setScreen('workspace'); }}
+        onBalance={() => { setWorkspace('balance'); setScreen('workspace'); }}
+      />
+    );
+  }
+
+  if (screen === 'new-run') {
+    return (
+      <NewRunScreen
+        profile={profile}
+        onStartKit={startKit}
+        onStartCustom={startCustomFrame}
+        onBack={() => setScreen('title')}
+      />
+    );
+  }
+
+  if (screen === 'profile') {
+    return <ProfileScreen profile={profile} onBack={() => setScreen('title')} />;
+  }
 
   return (
     <div className="app-shell">
@@ -260,10 +311,11 @@ export default function App() {
           MechBattler <span className="tag">{workspace === 'balance' ? 'Balance Lab' : 'Workshop'}</span>
         </div>
         <nav className="workspace-nav" aria-label="Workspace">
+          <button type="button" onClick={() => setScreen('title')}>Title</button>
           <button type="button" className={workspace === 'workshop' ? 'active' : ''} onClick={() => setWorkspace('workshop')}>Workshop</button>
           <button type="button" className={workspace === 'balance' ? 'active' : ''} onClick={() => setWorkspace('balance')}>Balance Lab</button>
         </nav>
-        {workspace === 'workshop' && <>
+        {workspace === 'workshop' && !runActive && !runPrep && <>
         <div className="chassis-select">
           {chassisOptions.map((c) => (
             <button
@@ -298,9 +350,8 @@ export default function App() {
             selectedPartId={state.selectedPartId}
             onSelect={selectPalettePart}
             onHover={setHoveredPartId}
-            priceMult={runActive ? SCRAP_BUY_MULT : undefined}
-            scrap={runActive ? runScrap : undefined}
             lockedPartIds={runPrep ? lockedPartIds : undefined}
+            readOnly={runActive}
           />
         </div>
 
@@ -354,25 +405,56 @@ export default function App() {
               build={build}
               onStartKit={startKit}
               onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
-              onAbandon={abandon}
-              onNewRun={abandon}
+              onAbandon={() => {
+                if (!window.confirm('Abandon this run? Its mech, bench, and scrap will be lost.')) return;
+                abandon();
+                setScreen('title');
+              }}
+              onNewRun={() => { abandon(); setScreen('new-run'); }}
               onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
               onFitBench={fitBench}
               fittingBenchIndex={pendingBench?.index ?? null}
               onBuyOffer={(o) => {
                 if (o.price > runScrap || benchUsed >= BENCH_CAP) return;
                 addScrap(-o.price);
-                addBench({ partId: o.partId, integrity: o.integrity });
+                addBench({
+                  id: `yard-${run.phase === 'active' ? run.data.seed : 0}-${run.phase === 'active' ? run.data.nodeIndex : 0}-${o.partId}-${run.phase === 'active' ? run.data.benchPool.length : 0}`,
+                  partId: o.partId,
+                  integrity: o.integrity,
+                  provenance: {
+                    source: 'scrapyard',
+                    nodeIndex: run.phase === 'active' ? run.data.nodeIndex : undefined,
+                  },
+                });
               }}
               onRerollYard={rerollYard}
               onSkipNode={() => { setPendingBench(null); skipNode(); }}
-              selectedPart={state.parts.find((p) => p.instanceId === state.selectedInstanceId) ?? null}
-              onApplyMod={(instanceId, modId) => {
+              modTargets={[
+                ...state.parts.map((part) => ({
+                  id: `installed:${part.instanceId}`,
+                  partId: part.partId,
+                  label: `Installed · ${getPart(part.partId).name}`,
+                  modifiers: part.modifiers,
+                })),
+                ...(run.phase === 'active' ? run.data.benchPool.map((part, index) => ({
+                  id: `bench:${index}`,
+                  partId: part.partId,
+                  label: `Bench · ${getPart(part.partId).name} (${Math.round(part.integrity * 100)}%)`,
+                  modifiers: part.modifiers,
+                })) : []),
+              ]}
+              onApplyMilestoneMod={(targetId, modId) => {
                 if (runScrap < MACHINIST_MOD_COST) return;
                 addScrap(-MACHINIST_MOD_COST);
-                applyModifier(instanceId, modId);
-                markYardMod();
+                if (targetId.startsWith('installed:')) {
+                  applyModifier(targetId.slice('installed:'.length), modId);
+                } else if (targetId.startsWith('bench:')) {
+                  applyBenchModifier(Number(targetId.slice('bench:'.length)), modId);
+                }
+                markMilestoneMod();
+                clearModService();
               }}
+              onSkipModService={clearModService}
               profile={profile}
               history={history}
               onStartCustom={startCustomFrame}
@@ -401,23 +483,17 @@ export default function App() {
         />
       )}
 
-      {wreck && run.phase === 'active' && (
+      {run.phase === 'active' && run.data.pendingSalvage && (
         <WreckScreen
-          report={wreck.report}
-          enemyBuild={wreck.opponent.build}
-          opponentName={wreck.opponent.name}
-          purse={Math.round((PURSE_BASE + PURSE_PER_NODE * wreck.nodeIndex) * (wreck.opponent.elite ? ELITE_PURSE_MULT : 1))}
+          pending={run.data.pendingSalvage}
           benchUsed={run.data.benchPool.length}
-          guaranteeMod={run.data.fightsWon === 0}
-          unlocks={wreck.unlocks}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);
-            setWreck(null);
           }}
         />
       )}
 
-      {battle && !live && !wreck && (
+      {battle && !live && !salvageOpen && (
         <BattleReportScreen
           report={battle.report}
           opponent={battle.opponent}
@@ -429,11 +505,40 @@ export default function App() {
             // (mission-kill, judges) keep the node — pick again or refit.
             if (runFightRef.current) {
               runFightRef.current = false;
+              recordBattle();
+              const settledBuild = settleBuildDamage(build, battle.report);
+              loadBuild(settledBuild);
+              const unlocks = recordBattleOutcome(battle.report, battle.opponent.build);
               if (battle.report.winner === 0 && run.phase === 'active') {
                 // Salvage settles the node (docs/04 §2) before the ladder
                 // advances; beating the mech registers its unlocks (04 §7).
-                const unlocks = unlockFrom(battle.opponent.build);
-                setWreck({ report: battle.report, opponent: battle.opponent, nodeIndex: run.data.nodeIndex, unlocks });
+                const purse = Math.round(
+                  (PURSE_BASE + PURSE_PER_NODE * run.data.nodeIndex)
+                  * (battle.opponent.elite ? ELITE_PURSE_MULT : 1),
+                );
+                beginSalvage({
+                  opponentName: battle.opponent.name,
+                  opponentChassisId: battle.opponent.build.chassisId,
+                  purse,
+                  candidates: createSalvageCandidates({
+                    run: { seed: run.data.seed, nodeIndex: run.data.nodeIndex },
+                    report: battle.report,
+                    enemyBuild: battle.opponent.build,
+                    opponentName: battle.opponent.name,
+                    purse,
+                    guaranteeMod: run.data.fightsWon === 0,
+                  }),
+                  unlocks: {
+                    chassis: unlocks.chassis,
+                    parts: unlocks.parts,
+                    challenges: unlocks.challenges,
+                  },
+                  unlockIds: {
+                    chassis: unlocks.chassisIds,
+                    parts: unlocks.partIds,
+                    challenges: unlocks.challengeIds,
+                  },
+                });
               } else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
                 lost(`Core destroyed by ${battle.opponent.name}`);
               }

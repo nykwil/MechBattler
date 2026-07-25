@@ -1,4 +1,5 @@
 import { PARTS, type PartDef } from '@mechbattler/sim';
+import { GAME_CONTENT } from '@mechbattler/game';
 import { CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER } from '../lib/partVisuals.js';
 import { ChipRow, ShapePreview } from './PartVisual.js';
 import './PartPalette.css';
@@ -11,7 +12,7 @@ function metaLine(def: PartDef): string {
 }
 
 export function PartPalette({
-  selectedPartId, onSelect, onHover, priceMult, scrap, lockedPartIds,
+  selectedPartId, onSelect, onHover, priceMult, scrap, lockedPartIds, readOnly,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -22,9 +23,13 @@ export function PartPalette({
   scrap?: number;
   /** Custom-frame prep (docs/04 §7): parts not yet unlocked for starting loadouts. */
   lockedPartIds?: Set<string>;
+  /** Active runs may only fit owned bench parts; the catalog is reference-only. */
+  readOnly?: boolean;
 }) {
   const byCategory = CATEGORY_ORDER.map((cat) => ({
-    cat, parts: Object.values(PARTS).filter((p) => p.category === cat),
+    cat, parts: Object.values(PARTS).filter(
+      (part) => part.category === cat && GAME_CONTENT.enabledPartIds.includes(part.id),
+    ),
   }));
 
   return (
@@ -38,13 +43,15 @@ export function PartPalette({
           </div>
           {parts.map((def) => {
             const locked = lockedPartIds?.has(def.id) === true;
+            const disabled = locked || readOnly;
             return (
             <button
               key={def.id}
               type="button"
-              className={`part-row${selectedPartId === def.id ? ' selected' : ''}${locked ? ' locked' : ''}`}
-              disabled={locked}
-              title={locked ? 'Locked — beat a mech carrying one to unlock it for starting loadouts' : undefined}
+              className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
+              disabled={disabled}
+              title={locked ? 'Locked — complete its combat challenge to use it in starting loadouts'
+                : readOnly ? 'Active runs can fit only installed equipment and owned salvage' : undefined}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
               onMouseEnter={() => onHover(def.id)}
               onMouseLeave={() => onHover(null)}
@@ -68,8 +75,8 @@ export function PartPalette({
         </div>
       ))}
       <div className="rotate-hint">
-        Select a part, then click the grid to place it.<br />
-        Press <kbd>R</kbd> to rotate before placing.
+        {readOnly ? 'Catalog reference — salvage and scrapyards are the in-run equipment sources.'
+          : <>Select a part, then click the grid to place it.<br />Press <kbd>R</kbd> to rotate before placing.</>}
       </div>
     </div>
   );
