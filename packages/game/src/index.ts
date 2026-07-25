@@ -3,5 +3,7 @@ export * from './content.js';
 export * from './challenges.js';
 export * from './domain.js';
 export * from './nodes.js';
+export * from './matches.js';
+export * from './balance.js';
 export * from './persistence.js';
 export * from './audit.js';

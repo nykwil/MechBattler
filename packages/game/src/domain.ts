@@ -208,6 +208,7 @@ export function settleBattle(args: {
   enemyBuild: Build;
   opponentName: string;
   elite?: boolean;
+  matchId?: string;
   unlocks?: PendingSalvage['unlocks'];
   unlockIds?: PendingSalvage['unlockIds'];
 }): RunInstance {
@@ -217,6 +218,7 @@ export function settleBattle(args: {
     nodeIndex: args.run.nodeIndex,
     won: args.report.winner === 0,
     reason: args.report.reason,
+    matchId: args.matchId,
   };
   const settled = {
     ...damaged,

@@ -10,6 +10,9 @@
     "game:test": "npm run test --workspace=@mechbattler/game",
     "game:build": "npm run build --workspace=@mechbattler/game",
     "game:audit": "npm run audit --workspace=@mechbattler/game",
+    "game:balance": "npm run balance --workspace=@mechbattler/game",
+    "game:checkpoints": "npm run checkpoints --workspace=@mechbattler/game",
+    "game:match-balance": "npm run match-balance --workspace=@mechbattler/game",
     "sim:test": "npm run test --workspace=@mechbattler/sim",
     "sim:build": "npm run build --workspace=@mechbattler/sim",
     "web:dev": "npm run dev --workspace=@mechbattler/web",
@@ -18,6 +21,6 @@
     "sim:balance": "npm run balance --workspace=@mechbattler/sim",
     "sim:adapt": "npm run adapt --workspace=@mechbattler/sim",
     "sim:diversity": "npm run diversity --workspace=@mechbattler/sim",
-    "verify": "npm run game:test && npm run game:audit && npm run game:build && npm run sim:test && npm run sim:build && npm run sim:balance -- 10 && npm run sim:diversity -- 5 && npm run web:test && npm run web:build"
+    "verify": "npm run game:test && npm run game:audit && npm run game:build && npm run game:balance -- 1 && npm run game:match-balance -- 1 && npm run sim:test && npm run sim:build && npm run sim:balance -- 10 && npm run sim:diversity -- 5 && npm run web:test && npm run web:build"
   }
 }

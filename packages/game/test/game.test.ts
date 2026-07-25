@@ -13,7 +13,10 @@ import {
   auditGameContent,
   buildToMech,
   challengeCompleted,
+  createMatchInstance,
+  createPristineDepthCheckpoints,
   createRun,
+  createRunCheckpoint,
   defaultProfile,
   finalizeSalvage,
   mechToBuild,
@@ -23,8 +26,16 @@ import {
   refitPart,
   repairOwnedPart,
   repairCost,
+  restoreMatchInstance,
+  restoreRunCheckpoint,
+  runBalanceHarness,
+  runCheckpointMatchHarness,
+  serializeMatchInstance,
+  serializeRunCheckpoint,
   settleBattle,
+  settleMatchInstance,
   settlePlayerDamage,
+  simulateMatchInstance,
   type BattleChallengeSummary,
   type RunInstance,
 } from '../src/index.js';
@@ -251,6 +262,69 @@ describe('run domain', () => {
 
   it('keeps repair math as a configurable economy dial', () => {
     expect(repairCost(2, 0.45, 1)).toBe(44);
+  });
+});
+
+describe('match instances and round-depth checkpoints', () => {
+  it('keeps a single match independent and settles it exactly once', () => {
+    const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
+    const opponent = run.generatedNodes[0]?.opponents?.[0];
+    expect(opponent).toBeTruthy();
+    const ready = createMatchInstance({ run, opponentChoiceId: opponent!.id });
+    expect(ready.playerBuild).not.toBe(mechToBuild(run.mech));
+    expect(run.battlesCompleted).toBe(0);
+
+    const resolved = simulateMatchInstance(ready);
+    expect(resolved.status).toBe('resolved');
+    expect(resolved.report?.frames).toEqual([]);
+    const restored = restoreMatchInstance(serializeMatchInstance(resolved));
+    expect(restored).toEqual(resolved);
+
+    const settlement = settleMatchInstance(run, restored);
+    expect(settlement.match.status).toBe('settled');
+    expect(settlement.run.battlesCompleted).toBe(1);
+    expect(settlement.run.events.find((event) => event.type === 'battle')?.matchId).toBe(ready.id);
+    expect(settleMatchInstance(settlement.run, settlement.match)).toEqual(settlement);
+  });
+
+  it('round-trips an isolated deterministic checkpoint at a round boundary', () => {
+    const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
+    const checkpoint = createRunCheckpoint({ run, label: 'balance-depth-1' });
+    const restored = restoreRunCheckpoint(serializeRunCheckpoint(checkpoint));
+    expect(restored).toEqual(checkpoint);
+    expect(restored.roundDepth).toBe(1);
+    restored.run.scrap = 999;
+    expect(checkpoint.run.scrap).toBe(GAME_CONTENT.economy.startingScrap);
+  });
+
+  it('produces deterministic depth cohorts without conflating matches and runs', () => {
+    const options = {
+      seedsPerKit: 1,
+      starterTemplateIds: ['vulture-skirmisher'],
+      checkpointDepths: [1, 2],
+      maxRoundDepth: 2,
+      sampleAllChoices: false,
+    };
+    const first = runBalanceHarness(options);
+    const second = runBalanceHarness(options);
+    expect(first.report).toEqual(second.report);
+    expect(first.report.ok).toBe(true);
+    expect(first.checkpoints.some((checkpoint) => checkpoint.roundDepth === 1)).toBe(true);
+    expect(first.matches.length).toBeGreaterThan(0);
+    expect(new Set(first.matches.map((match) => match.id)).size).toBe(first.matches.length);
+  });
+
+  it('can isolate match balance at saved early and late round depths', () => {
+    const checkpoints = createPristineDepthCheckpoints({
+      seedsPerKit: 1,
+      starterTemplateIds: ['vulture-skirmisher'],
+      checkpointDepths: [1, 12],
+    });
+    const result = runCheckpointMatchHarness(checkpoints);
+    expect(result.report.ok).toBe(true);
+    expect(result.report.depths.map((depth) => depth.roundDepth)).toEqual([1, 12]);
+    expect(result.report.depths.every((depth) => depth.matches > 0)).toBe(true);
+    expect(result.matches.every((match) => match.runId && match.report)).toBe(true);
   });
 });
 

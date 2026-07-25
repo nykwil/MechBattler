@@ -1,6 +1,8 @@
-import type { Build, PlacedPart, Rotation } from '@mechbattler/sim';
+import type { BattleReport, Build, PlacedPart, Rotation } from '@mechbattler/sim';
 
 export const GAME_SAVE_VERSION = 2;
+export const MATCH_SAVE_VERSION = 1;
+export const CHECKPOINT_SAVE_VERSION = 1;
 
 export interface PartProvenance {
   source: 'starter' | 'salvage' | 'scrapyard' | 'legacy';
@@ -67,6 +69,44 @@ export interface GeneratedRunNode {
   };
 }
 
+/**
+ * One battle is an independent, serializable aggregate. It snapshots both
+ * builds so match automation never depends on later run mutations.
+ */
+export interface MatchInstance {
+  schemaVersion: typeof MATCH_SAVE_VERSION;
+  id: string;
+  runId: string;
+  nodeIndex: number;
+  roundDepth: number;
+  attempt: number;
+  runEventOffset: number;
+  opponentChoiceId: string;
+  seed: number;
+  spawnDistanceM: number;
+  elite: boolean;
+  playerBuild: Build;
+  opponentBuild: Build;
+  opponentName: string;
+  status: 'ready' | 'resolved' | 'settled';
+  report?: BattleReport;
+}
+
+/** A deterministic save state suitable for replaying balance tests at a depth. */
+export interface RunCheckpoint {
+  schemaVersion: typeof CHECKPOINT_SAVE_VERSION;
+  id: string;
+  contentSchemaVersion: number;
+  runId: string;
+  roundDepth: number;
+  nodeIndex: number;
+  fightsWon: number;
+  battlesCompleted: number;
+  label: string;
+  run: RunInstance;
+  profile?: PlayerProfile;
+}
+
 export interface PendingSalvage {
   opponentName: string;
   opponentChassisId: string;
@@ -91,7 +131,7 @@ export interface PendingModService {
 }
 
 export type RunEvent =
-  | { type: 'battle'; nodeIndex: number; won: boolean; reason: string }
+  | { type: 'battle'; nodeIndex: number; won: boolean; reason: string; matchId?: string }
   | { type: 'part-lost'; nodeIndex: number; partId: string; partInstanceId: string }
   | { type: 'salvage'; nodeIndex: number; takenIds: string[]; scrapGained: number }
   | { type: 'repair'; nodeIndex: number; partInstanceId: string; integrity: number; cost: number }
@@ -199,6 +239,12 @@ export interface RunConfig {
   scrapyardOfferCount: number;
   scrapyardIntegrityMin: number;
   scrapyardIntegrityMax: number;
+  /** Round starts captured by the automated run-balance harness. */
+  balanceCheckpointDepths: number[];
+  /** Prevent non-core retry loops from making automated cohorts unbounded. */
+  balanceMaxAttemptsPerNode: number;
+  balanceTargetWinRateMin: number;
+  balanceTargetWinRateMax: number;
 }
 
 export interface GameContent {

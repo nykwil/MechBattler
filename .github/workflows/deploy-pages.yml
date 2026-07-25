@@ -27,6 +27,8 @@ jobs:
       - run: npm run game:test
       - run: npm run game:audit
       - run: npm run game:build
+      - run: npm run game:balance -- 1
+      - run: npm run game:match-balance -- 1
       - run: npm run sim:test
       - run: npm run sim:build
       - run: npm run sim:balance -- 10

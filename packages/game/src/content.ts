@@ -68,7 +68,7 @@ export const INITIAL_PART_IDS = ['R-E25', 'W-MG', 'W-CB', 'U-CON', 'U-PIPE', 'U-
 export const ENABLED_PART_IDS = Object.keys(PARTS).filter((id) => id !== 'U-AMMO');
 
 export const GAME_CONTENT: GameContent = {
-  schemaVersion: 1,
+  schemaVersion: 2,
   economy: {
     startingScrap: 30,
     purseBase: 20,
@@ -96,6 +96,10 @@ export const GAME_CONTENT: GameContent = {
     scrapyardOfferCount: 4,
     scrapyardIntegrityMin: 0.55,
     scrapyardIntegrityMax: 0.95,
+    balanceCheckpointDepths: [1, 4, 7, 10, 12],
+    balanceMaxAttemptsPerNode: 2,
+    balanceTargetWinRateMin: 0.35,
+    balanceTargetWinRateMax: 0.65,
   },
   enabledPartIds: ENABLED_PART_IDS,
   initialPartIds: INITIAL_PART_IDS,

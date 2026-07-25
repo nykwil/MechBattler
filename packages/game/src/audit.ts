@@ -42,6 +42,20 @@ export function auditGameContent(): GameAudit {
     ...TEMPLATES.flatMap((template) => template.build.parts.map((part) => part.partId)),
     ...GAME_CONTENT.enemyFillPartIds,
   ]);
+  if (GAME_CONTENT.run.balanceCheckpointDepths.some(
+    (depth) => !Number.isInteger(depth) || depth < 1 || depth > GAME_CONTENT.run.length,
+  )) {
+    errors.push('Balance checkpoint depths must be integer nodes within the run');
+  }
+  if (new Set(GAME_CONTENT.run.balanceCheckpointDepths).size
+    !== GAME_CONTENT.run.balanceCheckpointDepths.length) {
+    errors.push('Balance checkpoint depths must be unique');
+  }
+  if (GAME_CONTENT.run.balanceTargetWinRateMin < 0
+    || GAME_CONTENT.run.balanceTargetWinRateMax > 1
+    || GAME_CONTENT.run.balanceTargetWinRateMin >= GAME_CONTENT.run.balanceTargetWinRateMax) {
+    errors.push('Balance target win-rate band is invalid');
+  }
   const enabled = new Set(GAME_CONTENT.enabledPartIds);
   const routed = new Map<string, string[]>();
   for (const id of GAME_CONTENT.initialPartIds) {

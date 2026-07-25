@@ -339,6 +339,13 @@ parts; chassis remain defeat unlocks; and seeded machinist services occur after 
 3/6/9. `game:audit` validates acquisition/unlock reachability and excludes the dead
 `U-AMMO` placeholder. Existing saves and unlocks migrate forward.
 
+**Run-balance automation follow-up (Jul 25 2026):** a single fight is now a versioned
+`MatchInstance`, separate from `RunInstance`; stable `RunCheckpoint` fixtures can branch
+at configured round depths without cross-test mutation. `game:balance` measures natural
+run reach/economy, while `game:match-balance` measures isolated fight balance from
+pristine or captured checkpoint corpora. Both emit deterministic JSON and target-band
+warnings, and both run in CI.
+
 **Design-notes intake (Jul 18 2026)**: `mech_builder_prototype_design_notes.md` reviewed
 against the specs. Already covered: per-verb automation (03 §2, shipped), arcs as
 mechanics (03 §5), heat/power as the real limits (02), support-part identities (06),

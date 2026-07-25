@@ -68,6 +68,8 @@ The balance command runs every pair from both spawn sides. It exits non-zero whe
 npm run sim:test
 npm run game:test
 npm run game:audit
+npm run game:balance -- 1
+npm run game:match-balance -- 1
 npm run sim:build
 npm run sim:balance -- 10
 npm run sim:diversity -- 5
@@ -75,7 +77,8 @@ npm run web:build
 npm run web:test
 ```
 
-Current verified state: **181 tests passing**, clean game/simulation builds, unchanged
+Current verified state: **185 tests passing**, clean game/simulation builds, deterministic
+run-depth and checkpoint-match balance reports, unchanged
 canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
 production build.
 

@@ -23,6 +23,11 @@ leave the current node available for another attempt. Chassis cannot change afte
 
 - `RunInstance`: seed/id, phase, node, wallet, wins/battles, mech, bench, pending salvage,
   pending mod service, generated node choices, earned progression, and a compact event log.
+- `MatchInstance`: one immutable player/opponent build snapshot, battle seed, round depth,
+  attempt, lifecycle (`ready → resolved → settled`), and its own `BattleReport`. Matches
+  are stored and analyzed separately from the run that spawned them.
+- `RunCheckpoint`: a versioned deep-cloned run/profile save at a stable between-round
+  boundary. Its content version and round depth make it a reusable automation fixture.
 - `MechInstance`: chassis plus installed `PartInstance` placements and power priority.
 - `PartInstance`: stable id, catalog id, integrity, modifiers, variant, and provenance.
 - `PlayerProfile`: starting-part/chassis unlocks, completed challenges, grandfathered
@@ -46,6 +51,19 @@ wreck or mod service. Opponents and both versions of scrapyard stock are generat
 and saved verbatim, so later content-generator changes cannot rewrite an existing run.
 Legacy run/profile/history records migrate forward, stable bench ids are synthesized
 deterministically, and existing unlocks are never revoked.
+
+### Match and checkpoint invariants
+
+A match never owns or mutates a `RunInstance`. Creating one snapshots both builds and the
+scouted arena seed. Resolving it produces a report; settling it is a separate command that
+accepts only the exact run id, node, event offset, and player build revision that created
+the match. A resolved/settled match cannot award a purse twice.
+
+Checkpoints can only be captured with no pending salvage or mod transaction. Restore
+returns a deep clone, so branching hundreds of balance matches from one round-depth save
+cannot mutate the fixture or each other. Pristine synthetic checkpoints isolate the
+opponent difficulty curve; checkpoints captured from real runs include the actual
+salvage, damage, scrap, and modifications at that depth.
 
 ## 3. Economy and acquisition
 
@@ -108,12 +126,27 @@ Run:
 ```bash
 npm run game:audit
 npm run game:test
+npm run game:balance -- 1
+npm run game:checkpoints -- 1
+npm run game:match-balance -- 1
 npm run web:test
+```
+
+`game:balance` advances deterministic runs with a documented baseline policy and reports
+natural reach rate, scrap, integrity, part count, match win rate, core losses, duration,
+and damage at configured round depths. `game:checkpoints` emits a reusable JSON corpus at
+rounds 1/4/7/10/12. `game:match-balance` evaluates all single-match choices from that
+corpus; pass a corpus filename instead of a seed count to analyze captured player states.
+Both reports include stable digests and data-driven target-band warnings.
+
+```bash
+npm run game:checkpoints -- 4 > run-checkpoints.json
+npm run game:match-balance -- run-checkpoints.json
 ```
 
 The audit prints stable JSON containing the unlock graph, acquisition reachability,
 starter legality, economy/run dials, serialized challenge definitions, and impossible or
 self-dependent diagnostics. It fails when content is missing, disabled content leaks, an
 enabled part lacks exactly one starting unlock route, an acquisition route is absent, or
-a starter build is illegal. CI runs these checks before the existing simulation, balance,
-diversity, interaction-test, and production-build gates.
+a starter build is illegal. CI runs both game-level balance layers before the existing
+simulation, balance, diversity, interaction-test, and production-build gates.
