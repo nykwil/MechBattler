@@ -39,7 +39,9 @@ React/localStorage are adapters. Battles receive a normal sim `Build`; their
 6. Advance to the next node and persist schema v2.
 
 Core/chassis damage resets between encounters unless the core was destroyed; equipment
-integrity persists. Reloading preserves active/prep/over runs, including an unresolved
+integrity persists. Before every next fight—including after a non-core loss—the repair
+bay can spend run scrap on installed or benched equipment, either one part at a time or
+as a full repair. Reloading preserves active/prep/over runs, including an unresolved
 wreck or mod service. Opponents and both versions of scrapyard stock are generated once
 and saved verbatim, so later content-generator changes cannot rewrite an existing run.
 Legacy run/profile/history records migrate forward, stable bench ids are synthesized

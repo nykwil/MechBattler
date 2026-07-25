@@ -3,7 +3,10 @@ import {
   DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
   generateTerrain, getChassis, getPart, TEMPLATES, type Build, type TerrainType,
 } from '@mechbattler/sim';
-import { BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET, STARTER_KITS, type BenchPart, type RunPhase } from '../state/runState.js';
+import {
+  BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET,
+  STARTER_KITS, repairCost, type BenchPart, type RunPhase,
+} from '../state/runState.js';
 import type { Profile, RunRecord } from '../state/profileState.js';
 import { CHASSIS, buildTierBudget } from '@mechbattler/sim';
 import type { YardOffer } from '../lib/ladder.js';
@@ -53,7 +56,7 @@ function ArenaPreview({ battleSeed, spawnDistanceM }: { battleSeed: number; spaw
 export function RunPanel({
   run, build, onStartKit, onFight, onAbandon, onNewRun, onSellBench, onFitBench, fittingBenchIndex,
   onBuyOffer, onRerollYard, onSkipNode, modTargets, onApplyMilestoneMod, onSkipModService,
-  profile, history, onStartCustom, onLaunch,
+  onRepairAll, onRepairBench, profile, history, onStartCustom, onLaunch,
 }: {
   run: RunPhase;
   build: Build;
@@ -70,6 +73,10 @@ export function RunPanel({
   onBuyOffer: (offer: YardOffer) => void;
   onRerollYard: () => void;
   onSkipNode: () => void;
+  /** Repair all damaged installed and benched parts to full integrity. */
+  onRepairAll: () => void;
+  /** Repair one benched part to full integrity. */
+  onRepairBench: (index: number) => void;
   // --- Milestone machinist ---------------------------------------------------
   modTargets: Array<{ id: string; partId: string; label: string; modifiers?: string[] }>;
   onApplyMilestoneMod: (targetId: string, modId: string) => void;
@@ -221,6 +228,14 @@ export function RunPanel({
   const playerCells = getChassis(build.chassisId).mask.flat().filter(Boolean).length;
   const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
   const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
+  const damagedParts = [
+    ...build.parts.map((part) => ({ partId: part.partId, integrity: part.integrity })),
+    ...run.data.benchPool,
+  ].filter((part) => part.integrity < 1);
+  const fullRepairCost = damagedParts.reduce(
+    (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
+    0,
+  );
 
   const header = (
     <>
@@ -232,6 +247,24 @@ export function RunPanel({
         <span className="run-scrap">{run.data.scrap} scrap</span>
         <span>{run.data.fightsWon}W</span>
         <button type="button" className="run-abandon" onClick={onAbandon} title="End this run (no memorial)">abandon</button>
+      </div>
+      <div className="run-repair-bay">
+        <span>
+          Repair bay · {damagedParts.length > 0
+            ? `${damagedParts.length} damaged part${damagedParts.length === 1 ? '' : 's'}`
+            : 'all equipment field-ready'}
+        </span>
+        {fullRepairCost > 0 && (
+          <button
+            type="button"
+            className="run-bench-sell"
+            disabled={fullRepairCost > run.data.scrap}
+            title={fullRepairCost > run.data.scrap ? 'Not enough scrap for a full repair' : 'Repair installed and benched parts'}
+            onClick={onRepairAll}
+          >
+            repair all −{fullRepairCost}
+          </button>
+        )}
       </div>
     </>
   );
@@ -339,7 +372,14 @@ export function RunPanel({
             Move on
           </button>
         </div>
-        {benchSection(run.data.benchPool, onSellBench, onFitBench, fittingBenchIndex)}
+        {benchSection(
+          run.data.benchPool,
+          run.data.scrap,
+          onRepairBench,
+          onSellBench,
+          onFitBench,
+          fittingBenchIndex,
+        )}
       </div>
     );
   }
@@ -405,13 +445,22 @@ export function RunPanel({
         </button>
       </div>
 
-      {benchSection(run.data.benchPool, onSellBench, onFitBench, fittingBenchIndex)}
+      {benchSection(
+        run.data.benchPool,
+        run.data.scrap,
+        onRepairBench,
+        onSellBench,
+        onFitBench,
+        fittingBenchIndex,
+      )}
     </div>
   );
 }
 
 function benchSection(
   benchPool: BenchPart[],
+  scrap: number,
+  onRepairBench: (index: number) => void,
   onSellBench: (index: number, value: number) => void,
   onFitBench: (index: number) => void,
   fittingBenchIndex: number | null,
@@ -425,12 +474,24 @@ function benchSection(
         // Sell value scales with integrity (docs/04 §1's tier×8 is the
         // pristine price) — otherwise buying junk and selling it mints scrap.
         const value = Math.max(1, Math.round(def.tier * SCRAP_SELL_MULT * b.integrity));
+        const fullRepairCost = repairCost(def.tier, b.integrity, 1);
         return (
           <div key={`${b.partId}-${i}`} className="run-bench-row">
             <span className="run-bench-name">
               {def.name} <ModChips modifiers={b.modifiers} variant={b.variant} />
             </span>
             <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
+            {fullRepairCost > 0 && (
+              <button
+                type="button"
+                className="run-bench-sell"
+                disabled={fullRepairCost > scrap}
+                onClick={() => onRepairBench(i)}
+                title={fullRepairCost > scrap ? 'Not enough scrap' : 'Repair this benched part to full integrity'}
+              >
+                repair −{fullRepairCost}
+              </button>
+            )}
             <button
               type="button"
               className={`run-bench-sell${fittingBenchIndex === i ? ' fitting' : ''}`}

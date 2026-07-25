@@ -43,6 +43,9 @@ that healthy parts shrug off.
 - Worked math: repairing a tier-2 autocannon 45% → 100% costs 44 scrap vs. a ~25–35 scrap
   fight purse. You cannot afford to keep everything topped up; triage is the game.
 - Between fights there is no time pressure (v1). The pressure is purely scrap.
+- The repair bay is available before every encounter, including retries after non-core
+  losses and milestone/scrapyard stops. It repairs installed or benched equipment
+  individually, or all damaged owned equipment when the wallet covers the full bill.
 
 ## 4. Variants and quirks — two layers of salvage randomness
 

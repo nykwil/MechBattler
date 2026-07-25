@@ -6,7 +6,7 @@
  * deferred by design.
  */
 import { useCallback, useEffect, useState } from 'react';
-import { TEMPLATES, type Build } from '@mechbattler/sim';
+import { TEMPLATES, getPart, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
   GAME_SAVE_VERSION,
@@ -328,6 +328,24 @@ export function useRun() {
     });
   }, []);
 
+  /** Repair a benched instance between encounters using the same rate as installed parts. */
+  const repairBench = useCallback((index: number, toIntegrity = 1): void => {
+    setRun((r) => {
+      if (r.phase !== 'active') return r;
+      const part = r.data.benchPool[index];
+      if (!part) return r;
+      const integrity = Math.max(part.integrity, Math.min(1, toIntegrity));
+      const cost = domainRepairCost(getPart(part.partId).tier, part.integrity, integrity);
+      if (cost <= 0 || cost > r.data.scrap) return r;
+      const benchPool = r.data.benchPool.map((candidate, partIndex) =>
+        partIndex === index ? { ...candidate, integrity } : candidate);
+      return {
+        phase: 'active',
+        data: { ...r.data, benchPool, scrap: r.data.scrap - cost },
+      };
+    });
+  }, []);
+
   const lost = useCallback((cause: string): void => {
     setRun((r) => (r.phase === 'active' ? { phase: 'over', data: r.data, cause, victorious: false } : r));
   }, []);
@@ -429,7 +447,7 @@ export function useRun() {
   }, []);
 
   return {
-    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier,
+    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markYardMod, markMilestoneMod, clearModService,
     persistBuild, restored, clearRestored: () => setRestored(null),
   };

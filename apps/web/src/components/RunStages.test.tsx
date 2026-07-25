@@ -46,6 +46,8 @@ function renderRun(run: RunPhase, overrides: Partial<Parameters<typeof RunPanel>
     onBuyOffer: vi.fn(),
     onRerollYard: vi.fn(),
     onSkipNode: vi.fn(),
+    onRepairAll: vi.fn(),
+    onRepairBench: vi.fn(),
     modTargets: [],
     onApplyMilestoneMod: vi.fn(),
     onSkipModService: vi.fn(),
@@ -120,6 +122,34 @@ describe('persistent run stages', () => {
     expect(screen.getByText('◆ MACHINIST MILESTONE')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Skip this service' }));
     expect(onSkipModService).toHaveBeenCalledOnce();
+  });
+
+  it('offers paid repairs for installed and benched parts between rounds', () => {
+    const onRepairAll = vi.fn();
+    const onRepairBench = vi.fn();
+    const damagedBuild = {
+      ...template.build,
+      parts: template.build.parts.map((part, index) =>
+        index === 0 ? { ...part, integrity: 0.5 } : part),
+    };
+    const data = {
+      ...runData(),
+      scrap: 100,
+      benchPool: [{
+        id: 'bench-damaged',
+        partId: 'W-MG',
+        integrity: 0.5,
+        provenance: { source: 'salvage' as const },
+      }],
+    };
+    renderRun(
+      { phase: 'active', data },
+      { build: damagedBuild, onRepairAll, onRepairBench },
+    );
+    fireEvent.click(screen.getByRole('button', { name: /repair all/ }));
+    expect(onRepairAll).toHaveBeenCalledOnce();
+    fireEvent.click(screen.getByRole('button', { name: /^repair −/ }));
+    expect(onRepairBench).toHaveBeenCalledWith(0);
   });
 
   it('includes earned progression in the memorial', () => {

@@ -11,7 +11,10 @@ import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
-import { kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE, START_BUDGET, useRun } from './state/runState.js';
+import {
+  kitBuild, BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE,
+  START_BUDGET, repairCost, useRun,
+} from './state/runState.js';
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
@@ -52,7 +55,7 @@ export default function App() {
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
-    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier,
+    run, start, startCustom, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markMilestoneMod, clearModService, persistBuild, restored, clearRestored,
   } = useRun();
   const { profile, lockedPartIds, recordBattleOutcome, history, pushHistory } = useProfile();
@@ -429,6 +432,26 @@ export default function App() {
               }}
               onRerollYard={rerollYard}
               onSkipNode={() => { setPendingBench(null); skipNode(); }}
+              onRepairBench={repairBench}
+              onRepairAll={() => {
+                if (run.phase !== 'active') return;
+                const damagedInstalled = state.parts.filter((part) => part.integrity < 1);
+                const installedCost = damagedInstalled.reduce(
+                  (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
+                  0,
+                );
+                const damagedBench = run.data.benchPool
+                  .map((part, index) => ({ part, index }))
+                  .filter(({ part }) => part.integrity < 1);
+                const benchCost = damagedBench.reduce(
+                  (total, { part }) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
+                  0,
+                );
+                if (installedCost + benchCost > run.data.scrap) return;
+                if (installedCost > 0) addScrap(-installedCost);
+                for (const part of damagedInstalled) setIntegrity(part.instanceId, 1);
+                for (const { index } of damagedBench) repairBench(index, 1);
+              }}
               modTargets={[
                 ...state.parts.map((part) => ({
                   id: `installed:${part.instanceId}`,
