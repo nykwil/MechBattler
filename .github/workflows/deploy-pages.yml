@@ -35,6 +35,8 @@ jobs:
       - run: npm run sim:diversity -- 5
       - run: npm run web:test
       - run: npm run web:build
+      - run: npm run prototype:test
+      - run: npm run prototype:build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -52,6 +52,16 @@ Open the printed local URL. For a production build:
 npm run web:build
 ```
 
+Run the standalone 3D locomotion and payload-physics experiment:
+
+```bash
+npm run prototype:dev
+```
+
+It is intentionally separate from the deployed game. The lab converts real mech builds,
+part masses, placement, and weapon recoil into procedural biped/quad presentation without
+changing the deterministic combat simulation.
+
 Run the headless workflow directly:
 
 ```bash
@@ -75,9 +85,11 @@ npm run sim:balance -- 10
 npm run sim:diversity -- 5
 npm run web:build
 npm run web:test
+npm run prototype:test
+npm run prototype:build
 ```
 
-Current verified state: **192 tests passing**, clean game/simulation builds, deterministic
+Current verified state: **199 tests passing**, clean game/simulation/prototype builds, deterministic
 run-depth and checkpoint-match balance reports, unchanged
 canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
 production build.
@@ -119,6 +131,7 @@ The dated Git history distinguishes work completed after the July 13 submission-
 
 ```text
 apps/web/                 React + Vite workshop, battles, and Balance Lab
+apps/physics-prototype/   Standalone React Three Fiber IK and payload-physics lab
 packages/game/            Persistent run, profile, saved-mech, and balance domain
 packages/sim/src/         Deterministic simulation and analysis library
 packages/sim/scripts/     Balance, adaptation, and matchup CLI workflows
