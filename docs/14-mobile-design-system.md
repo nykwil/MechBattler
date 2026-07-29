@@ -561,13 +561,18 @@ have a mobile home yet, and not all of them deserve one:
   move-up/move-down control rather than a straight port.
 - **`BuildWarnings` list.** A count with no way to read the causes is not actionable.
 
-### Candidates to drop — needs your call
+### Deferred to the Bench page — backlog
 
-- **Burst DPS "(full capacitors, no heat yet)".** A best-case number true for the first second
-  of a fight. The bench range table measures the same weapons under real falloff and reports
-  *why* a weapon contributes nothing. Keeping both invites reading the flattering one.
-- **`TestBenchPanel` beyond the range table.** §8 already claims the range table as the useful
-  part. Whether the rest of the bench survives is open.
+Neither of these is dropped. Both belong on the Bench page (§15), a pre-match surface rather
+than something competing for room on the build screen. Backlogged, not scheduled:
+
+- **Burst DPS "(full capacitors, no heat yet)".** A best-case number true for roughly the first
+  second of a fight. It should not sit in a persistent readout where it reads as *the* damage
+  number — the bench range table measures the same weapons under real falloff and reports *why*
+  a weapon contributes nothing. On a page you visit deliberately, framed against the falloff
+  measurement, the optimistic figure is informative instead of misleading.
+- **`TestBenchPanel` beyond the range table.** §8 claims the range table for the readout sheet;
+  the rest of the bench moves to the Bench page.
 
 ### Explicitly out of scope
 
@@ -580,3 +585,30 @@ in fitting them to a phone. They keep their current layout at every width.
 Salvage (`WreckScreen`, already has a 680 px breakpoint), the scrapyard and run map, and the
 front door (`GameFrontDoor`, already at 760 px). All three are layout work the token system
 now covers, rather than new interaction problems.
+
+### Bench page — concept, backlog
+
+*Captured Jul 29 2026. Intent agreed, not designed.*
+
+A deliberate pre-match page — the place you go to **verify a build before committing to a
+fight**, rather than glancing at numbers while placing parts. It is the one mobile surface
+allowed to be dense, because you are standing still when you read it.
+
+Absorbs everything the build screen should not carry: run verification, detailed stats, and
+simulation against the coming opponent. Concretely, at least the drop candidates from §14
+(burst DPS, the non-range parts of `TestBenchPanel`) plus the thermal/power bench diagnostics.
+
+Why this is not just a phone port of `TestBenchPanel`:
+
+- **The opponent is known.** Intel (§8) already names threat, chassis, engagement range, and
+  confirmed parts. A bench that simulates against *this match* answers "does my build beat that"
+  rather than "what are my numbers" — the question a player actually has before a fight.
+- **The sim is deterministic and fast.** `packages/sim` runs headless battles in bulk; the
+  Balance Lab already drives hundreds. Running a handful against the actual opponent is cheap.
+- **It must call the sim, never restate it.** Every figure on this page is a measurement, not a
+  formula copied into the UI. See §13 on how the battle prototype went wrong here.
+
+Open questions: how many trials, whether results are seeded and reproducible or fresh each
+visit, whether a losing verification is allowed to block the fight or only warn, and how this
+relates to the existing desktop Sandbox (§14 records Sandbox as desktop-only — a mobile Bench
+page may make that split worth revisiting).
