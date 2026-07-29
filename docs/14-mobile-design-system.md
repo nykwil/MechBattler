@@ -598,17 +598,46 @@ Absorbs everything the build screen should not carry: run verification, detailed
 simulation against the coming opponent. Concretely, at least the drop candidates from §14
 (burst DPS, the non-range parts of `TestBenchPanel`) plus the thermal/power bench diagnostics.
 
-Why this is not just a phone port of `TestBenchPanel`:
+**The bench measures your build. It never predicts the outcome.** This is the page's defining
+constraint, and it reverses the first draft of this section.
 
-- **The opponent is known.** Intel (§8) already names threat, chassis, engagement range, and
-  confirmed parts. A bench that simulates against *this match* answers "does my build beat that"
-  rather than "what are my numbers" — the question a player actually has before a fight.
-- **The sim is deterministic and fast.** `packages/sim` runs headless battles in bulk; the
-  Balance Lab already drives hundreds. Running a handful against the actual opponent is cheap.
-- **It must call the sim, never restate it.** Every figure on this page is a measurement, not a
-  formula copied into the UI. See §13 on how the battle prototype went wrong here.
+That draft proposed simulating the coming match — "does my build beat that". It was wrong, and
+the reason generalises past this page:
 
-Open questions: how many trials, whether results are seeded and reproducible or fresh each
-visit, whether a losing verification is allowed to block the fight or only warn, and how this
-relates to the existing desktop Sandbox (§14 records Sandbox as desktop-only — a mobile Bench
-page may make that split worth revisiting).
+- **If you know you win, the fight is ceremony.** You would only ever press Fight on a
+  foregone conclusion, and watching a battle you have already resolved is not a game.
+- **If you know you lose, the game is a gate.** Give up, or reroll until the answer changes.
+- **It is worse here than in most games**, because `nodes.ts:41 ladderOpponents()` offers
+  *several* opponents per node and elites carry `eliteBudgetBonus`. That choice is meant to be
+  a risk/reward gamble — take the elite for better salvage, or the safe fight. An oracle
+  collapses it into a lookup: simulate all of them, pick the one you beat. The decision the
+  node exists to pose stops existing.
+- **Our architecture makes the oracle nearly free**, which is exactly why the rule has to be
+  explicit. The sim is deterministic and fast, and the Balance Lab already drives hundreds of
+  headless battles. Nothing stops us from answering the question. We decline to.
+
+So the bench answers *what does my mech do*, not *what happens next*:
+
+- Heat under sustained fire — what shuts down, how soon, and what it costs.
+- Power under load and brownout order, which is what `PowerPriorityList` (§14) controls.
+- Real falloff bands per weapon, and when one contributes nothing, **why** (`range`, `power`).
+- What is stranded, unpowered, or dead weight.
+
+Opponent-relative figures are allowed only where **intel already told you** — §8 gives threat,
+chassis, engagement range, confirmed parts, elite mod telegraph. Framing your measurements at
+their stated engagement band is fair; it uses knowledge the player has. Simulating the fight is
+not. Where intel is partial, the bench stays partial: a wrong expectation should come from
+incomplete scouting, which makes intel worth having, not from bad arithmetic.
+
+**Sandbox is the deliberate exception.** It sits outside a run, is explicitly labelled, and
+already exposes the full catalog — free simulation there costs nothing, because no run is at
+stake. The rule is about in-run play, and the app already draws this line: campaign prep shows
+only unlocked equipment, active runs only installed and benched. The bench inherits that line.
+
+Every figure must call `packages/sim` rather than restate it — see §13 for how the battle
+prototype went wrong here.
+
+Open questions: how much of the heat/power story fits before the page becomes the spreadsheet
+it is trying to replace, whether any aggregate score is safe or whether all aggregates drift
+toward being a win probability, and whether the desktop Sandbox should gain a mobile form now
+that the split has a rationale rather than just being untouched.
