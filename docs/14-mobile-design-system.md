@@ -504,11 +504,20 @@ The three reference artifacts are published and current:
 The component library also lives in the **MechBattler Mobile** Claude Design project (13
 components: five foundations, eight components).
 
-**The battle prototype's working source was lost** when its scratchpad was cleared. The published
-page still runs, but it can no longer be edited incrementally — further iteration means rebuilding
-it. This document is therefore the authoritative record of the battle design, not the prototype.
-Anything in the prototype not written down here should be treated as lost. If it is rebuilt, keep
-the source inside the repository.
+**The battle prototype's source was recovered (Jul 29 2026)** and now lives at
+`docs/prototypes/mobile-battle.html`. It was briefly believed lost when its scratchpad was
+cleared, but the published page was refetched and the authored source extracted from it — the
+prototype is hand-written HTML/CSS/JS with no build step, so what was recovered is the source,
+not compiled output. Only the platform's frame-runtime wrapper was stripped. It opens standalone
+in a browser and is editable again.
+
+Read it as a **presentation prototype, not a second engine.** It re-implements the sim by hand:
+`W` copies four weapons "verbatim from `catalog.ts`", and the movement/gunnery block is "ported
+from `combat.ts`" — the ellipse speed envelope, angular dispersion, tracking lag, Box-Muller
+lateral error. It is hardcoded to one chassis (CH-5 Mule) and four weapons (`W-AC`, `W-CB`,
+`W-MG`, `W-BR`), with no builder, run, salvage, or persistence. Those constants are a snapshot
+and will drift from `packages/sim`; the real implementation must call the sim rather than copy
+it. The prototype's value is the interaction and layout design, plus the two findings in §12.
 
 ## 14. Not yet designed
 
