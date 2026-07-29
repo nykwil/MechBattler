@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { fireEvent, render } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { getChassis } from '@mechbattler/sim';
 import { GridEditor } from './GridEditor.js';
@@ -9,18 +9,31 @@ import { GridEditor } from './GridEditor.js';
  * row counts, and a viewBox that lets the fixed CELL coordinate system scale to
  * whatever width that derivation produces.
  */
-function renderPlate(chassisId: string) {
+function renderPlate(
+  chassisId: string,
+  opts: {
+    ghost?: { x: number; y: number } | null;
+    onAim?: (x: number, y: number) => void;
+    onCommit?: () => void;
+    checkCandidate?: () => { reason: string } | null;
+  } = {},
+) {
   const chassis = getChassis(chassisId);
+  const { ghost = null, onAim, onCommit } = opts;
   const { container } = render(
     <GridEditor
       chassis={chassis}
       parts={[]}
       overlay="parts"
-      selectedPartId={null}
+      selectedPartId={ghost ? 'U-CON' : null}
       selectedInstanceId={null}
       previewCells={() => []}
-      checkCandidate={() => null}
-      onPlace={() => {}}
+      checkCandidate={opts.checkCandidate ?? (() => null)}
+      ghost={ghost}
+      onAim={onAim ?? (() => {})}
+      onCommit={onCommit ?? (() => {})}
+      onCancel={() => {}}
+      onRotate={() => {}}
       onSelectInstance={() => {}}
       thermalSnapshot={null}
       faultInstanceIds={new Set()}
@@ -65,5 +78,57 @@ describe('GridEditor plate sizing', () => {
     expect(rendered.length).toBeGreaterThan(0);
     expect(rendered.length).toBeLessThan(chassis.width * chassis.height);
     expect(hits.length).toBe(rendered.length);
+  });
+});
+
+describe('GridEditor tap-then-confirm placement (docs/14 §6)', () => {
+  it('aims instead of placing when an armed cell is tapped', () => {
+    const aimed: [number, number][] = [];
+    const committed: string[] = [];
+    const { container } = renderPlate('CH-5', {
+      ghost: { x: 0, y: 0 },
+      onAim: (x, y) => aimed.push([x, y]),
+      onCommit: () => committed.push('commit'),
+    });
+
+    const hits = container.querySelectorAll('.cell-hit');
+    fireEvent.click(hits[5]);
+
+    // A fingertip covers the target, so a tap must never commit by itself.
+    expect(aimed).toHaveLength(1);
+    expect(committed).toHaveLength(0);
+  });
+
+  it('offers exactly three armed controls and no nudge pad', () => {
+    const { container } = renderPlate('CH-5', { ghost: { x: 0, y: 0 } });
+    const labels = [...container.querySelectorAll('.plate-armed .plate-btn')]
+      .map((b) => b.textContent);
+
+    expect(labels).toEqual(['Cancel', 'Rotate', 'Place']);
+  });
+
+  it('shows no armed controls until something is armed', () => {
+    const { container } = renderPlate('CH-5');
+    expect(container.querySelector('.plate-armed')).toBeNull();
+  });
+
+  it('disables Place while illegal and names the reason above it', () => {
+    const { container } = renderPlate('CH-5', {
+      ghost: { x: 0, y: 0 },
+      checkCandidate: () => ({ reason: 'overlap' }),
+    });
+
+    const place = container.querySelector('.plate-btn-primary') as HTMLButtonElement;
+    expect(place.disabled).toBe(true);
+
+    // A disabled control must never be a mystery.
+    const reason = container.querySelector('.plate-armed-reason');
+    expect(reason?.textContent).toContain('cell already occupied');
+  });
+
+  it('enables Place once the ghost is legal', () => {
+    const { container } = renderPlate('CH-5', { ghost: { x: 0, y: 0 } });
+    const place = container.querySelector('.plate-btn-primary') as HTMLButtonElement;
+    expect(place.disabled).toBe(false);
   });
 });

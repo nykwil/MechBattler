@@ -43,7 +43,7 @@ export default function App() {
   );
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
+    setChassis, selectPart, selectInstance, rotate, aim, nudge, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -133,12 +133,15 @@ export default function App() {
   // consumes its bench slot; a fresh catalog part is bought at tier ×
   // SCRAP_BUY_MULT (> sell, so the palette can't mint scrap). Free play
   // outside a run is unchanged.
-  const placeWithEconomy = useCallback((x: number, y: number) => {
-    if (!state.selectedPartId || checkCandidate(x, y) !== null) return;
+  // docs/14 §6: commits whatever the ghost is currently aimed at. The economy
+  // gates are unchanged; only the trigger moved from a cell click to Place.
+  const placeWithEconomy = useCallback(() => {
+    if (!state.selectedPartId || !state.ghost) return;
+    if (checkCandidate(state.ghost.x, state.ghost.y) !== null) return;
     if (pendingBench && pendingBench.partId === state.selectedPartId) {
       takeBench(pendingBench.index);
       setPendingBench(null);
-      place(x, y);
+      place();
       selectPart(null); // a bench part is one-of — disarm after placing
       return;
     }
@@ -147,14 +150,14 @@ export default function App() {
       // capped by the tier budget (wiring is exempt, like the enemy ladder).
       const def = getPart(state.selectedPartId);
       if (!def.isConduit && !def.isHeatPipe && buildTierBudget(build) + def.tier > START_BUDGET) return;
-      place(x, y);
+      place();
       return;
     }
     // Once a run launches, the catalog is reference-only. New equipment comes
     // from owned bench salvage or a seeded scrapyard offer.
     if (runActive) return;
-    place(x, y);
-  }, [state.selectedPartId, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, build]);
+    place();
+  }, [state.selectedPartId, state.ghost, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
   const runOps: RunPartOps | undefined = runActive ? {
@@ -280,6 +283,24 @@ export default function App() {
       if (screen !== 'workspace' || workspace !== 'workshop') return;
       if (battle || live || salvageOpen) return; // overlays own the keyboard
       if (e.key.toLowerCase() === 'r') rotate();
+      // Arrow keys are the keyboard's cell tap and Enter is its Place, so touch,
+      // keyboard, and screen reader all drive one placement model (docs/14 §6).
+      if (state.selectedPartId) {
+        const nudges: Record<string, [number, number]> = {
+          ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+        };
+        const delta = nudges[e.key];
+        if (delta) {
+          e.preventDefault();
+          nudge(delta[0], delta[1]);
+          return;
+        }
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          placeWithEconomy();
+          return;
+        }
+      }
       if (e.key === 'Escape') {
         setPendingBench(null);
         selectPart(null);
@@ -291,7 +312,8 @@ export default function App() {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rotate, selectPart, selectInstance, remove, state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
+  }, [rotate, selectPart, selectInstance, remove, nudge, placeWithEconomy, state.selectedPartId,
+      state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
 
   if (screen === 'title') {
     return (
@@ -395,7 +417,11 @@ export default function App() {
             selectedInstanceId={state.selectedInstanceId}
             previewCells={previewCells}
             checkCandidate={checkCandidate}
-            onPlace={placeWithEconomy}
+            ghost={state.ghost}
+            onAim={aim}
+            onCommit={placeWithEconomy}
+            onCancel={() => selectPart(null)}
+            onRotate={rotate}
             onSelectInstance={selectInstance}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
             faultInstanceIds={faultInstanceIds}

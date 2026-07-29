@@ -167,3 +167,57 @@
   stroke-width: 2.5px;
   pointer-events: none;
 }
+
+/* Armed controls (docs/14 §6). A fixed reserve rather than a grown row: the
+   plate's cell size is derived from the viewport, so this bar appearing never
+   resizes the grid under the thumb. */
+.plate-armed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  align-items: stretch;
+  width: 100%;
+  max-width: 420px;
+}
+
+.plate-armed-reason {
+  margin: 0;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  letter-spacing: 0.04em;
+  color: var(--signal-red-text);
+}
+
+.plate-armed-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.4fr;
+  gap: var(--space-2);
+}
+
+.plate-btn {
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--line-bright);
+  border-radius: var(--radius-md);
+  color: var(--ink-primary);
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.plate-btn:hover:not(:disabled) { border-color: var(--signal-amber); }
+
+.plate-btn-primary {
+  background: var(--signal-amber);
+  border-color: var(--signal-amber);
+  color: var(--bg-inset);
+  font-weight: 600;
+}
+.plate-btn-primary:hover:not(:disabled) { border-color: var(--ink-primary); }
+
+.plate-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}

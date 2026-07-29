@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useMemo, type CSSProperties } from 'react';
 import {
   computeConnectivity,
   getOccupiedCells,
@@ -41,7 +41,8 @@ const REJECTION_TEXT: Record<string, string> = {
 
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
-  onPlace, onSelectInstance, thermalSnapshot, faultInstanceIds, flashInstanceIds, onAutoWire,
+  ghost, onAim, onCommit, onCancel, onRotate,
+  onSelectInstance, thermalSnapshot, faultInstanceIds, flashInstanceIds, onAutoWire,
 }: {
   chassis: ChassisSpec;
   parts: PlacedPart[];
@@ -50,7 +51,12 @@ export function GridEditor({
   selectedInstanceId: string | null;
   previewCells: (x: number, y: number) => { x: number; y: number }[];
   checkCandidate: (x: number, y: number) => { reason: string } | null;
-  onPlace: (x: number, y: number) => void;
+  /** Where the armed part's ghost sits; null when nothing is armed (docs/14 §6). */
+  ghost: { x: number; y: number } | null;
+  onAim: (x: number, y: number) => void;
+  onCommit: () => void;
+  onCancel: () => void;
+  onRotate: () => void;
   onSelectInstance: (instanceId: string | null) => void;
   thermalSnapshot: Record<string, number> | null;
   faultInstanceIds: Set<string>;
@@ -58,16 +64,6 @@ export function GridEditor({
   flashInstanceIds: Set<string>;
   onAutoWire: () => void;
 }) {
-  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
-  // Illegal-placement feedback (docs/07 gap #1): a rejected click flashes the
-  // attempted cells red and names the reason, instead of failing silently.
-  const [rejection, setRejection] = useState<{ cells: { x: number; y: number }[]; reason: string; at: number } | null>(null);
-
-  useEffect(() => {
-    if (!rejection) return;
-    const t = setTimeout(() => setRejection(null), 900);
-    return () => clearTimeout(t);
-  }, [rejection]);
 
   const occupancy = useMemo(() => {
     const map = new Map<string, { instanceId: string; partId: string }>();
@@ -81,8 +77,11 @@ export function GridEditor({
 
   const connectivity = useMemo(() => computeConnectivity(parts), [parts]);
 
-  const hoverPreview = hover && selectedPartId ? previewCells(hover.x, hover.y) : [];
-  const hoverLegal = hover && selectedPartId ? checkCandidate(hover.x, hover.y) === null : false;
+  // The ghost is the preview (docs/14 §6). A second pointer-following preview
+  // would put two candidate shapes on the plate at once.
+  const ghostPreview = ghost && selectedPartId ? previewCells(ghost.x, ghost.y) : [];
+  const ghostError = ghost && selectedPartId ? checkCandidate(ghost.x, ghost.y) : null;
+  const ghostLegal = Boolean(ghost && selectedPartId) && ghostError === null;
 
   const selectedOutline = useMemo(() => {
     const placed = parts.find((p) => p.instanceId === selectedInstanceId);
@@ -172,7 +171,6 @@ export function GridEditor({
           className="grid-svg"
           viewBox={`0 0 ${chassis.width * CELL} ${chassis.height * CELL}`}
           preserveAspectRatio="xMidYMid meet"
-          onMouseLeave={() => setHover(null)}
         >
           {cells.map(({ x, y }) => {
             const isCore = x === chassis.coreCell.x && y === chassis.coreCell.y;
@@ -223,18 +221,11 @@ export function GridEditor({
 
           {selectedOutline && <path className="cell-selected" d={selectedOutline} />}
 
-          {rejection && rejection.cells.map(({ x, y }) => (
-            <rect
-              key={`rej-${rejection.at}-${x},${y}`}
-              className="cell-rejected"
-              x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
-            />
-          ))}
 
-          {hoverPreview.map(({ x, y }) => (
+          {ghostPreview.map(({ x, y }) => (
             <rect
               key={`preview-${x},${y}`}
-              className={hoverLegal ? 'cell-preview-ok' : 'cell-preview-bad'}
+              className={ghostLegal ? 'cell-preview-ok' : 'cell-preview-bad'}
               x={x * CELL + 1} y={y * CELL + 1} width={CELL - 2} height={CELL - 2}
             />
           ))}
@@ -244,24 +235,51 @@ export function GridEditor({
               key={`hit-${x},${y}`}
               className="cell-hit"
               x={x * CELL} y={y * CELL} width={CELL} height={CELL}
-              onMouseEnter={() => setHover({ x, y })}
               onClick={() => {
-                const occ = occupancy.get(`${x},${y}`);
+                // Armed: a tap moves the ghost. Committing is a separate,
+                // explicit act, so a fingertip covering the target cannot
+                // place a part by accident (docs/14 §6).
                 if (selectedPartId) {
-                  const error = checkCandidate(x, y);
-                  if (error) {
-                    setRejection({ cells: previewCells(x, y), reason: REJECTION_TEXT[error.reason] ?? error.reason, at: Date.now() });
-                  } else {
-                    onPlace(x, y);
-                  }
-                } else {
-                  onSelectInstance(occ ? occ.instanceId : null);
+                  onAim(x, y);
+                  return;
                 }
+                const occ = occupancy.get(`${x},${y}`);
+                onSelectInstance(occ ? occ.instanceId : null);
               }}
             />
           ))}
         </svg>
       </div>
+
+      {/* Armed controls are exactly three: Cancel · Rotate · Place (docs/14 §6).
+          No nudge pad — tapping a cell already positions the ghost, so arrows
+          would be a second control doing one job, and fitting them broke
+          --tap-min in the very component that documents it. Arrow *keys* still
+          nudge, because a keyboard has no cell to tap. */}
+      {selectedPartId && ghost && (
+        <div className="plate-armed">
+          {/* A disabled control must never be a mystery: the reason sits
+              directly above Place, not in a toast that has already gone. */}
+          {ghostError && (
+            <p className="plate-armed-reason" role="status">
+              {REJECTION_TEXT[ghostError.reason] ?? ghostError.reason}
+            </p>
+          )}
+          <div className="plate-armed-actions">
+            <button type="button" className="plate-btn" onClick={onCancel}>Cancel</button>
+            <button type="button" className="plate-btn" onClick={onRotate}>Rotate</button>
+            <button
+              type="button"
+              className="plate-btn plate-btn-primary"
+              onClick={onCommit}
+              disabled={!ghostLegal}
+            >
+              Place
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="grid-caption">
         <span>{chassis.name} · {chassis.type}</span>
         <span>{cells.length} cells</span>
@@ -275,7 +293,6 @@ export function GridEditor({
           ⚡ Auto-wire
         </button>
       </div>
-      {rejection && <div className="grid-rejection">✕ {rejection.reason}</div>}
       <Legend overlay={overlay} />
     </div>
   );

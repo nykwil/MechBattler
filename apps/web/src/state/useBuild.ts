@@ -25,6 +25,13 @@ interface EditorState {
   placeExtras: Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'> & { instanceId?: string };
   /** Placed part selected for inspection/removal. */
   selectedInstanceId: string | null;
+  /**
+   * Where the armed part's ghost currently sits (docs/14 §6). Arming a part
+   * does not place it: the ghost is aimed by tapping a cell or nudging with the
+   * arrow keys, and only an explicit commit writes it into `parts`. Null exactly
+   * when nothing is armed.
+   */
+  ghost: { x: number; y: number } | null;
   rotation: Rotation;
   overlay: OverlayMode;
   nextSeq: number;
@@ -37,7 +44,9 @@ type Action =
   | { type: 'APPLY_MODIFIER'; instanceId: string; modifierId: string }
   | { type: 'SELECT_INSTANCE'; instanceId: string | null }
   | { type: 'ROTATE' }
-  | { type: 'PLACE'; x: number; y: number }
+  | { type: 'AIM'; x: number; y: number }
+  | { type: 'NUDGE'; dx: number; dy: number }
+  | { type: 'PLACE' }
   | { type: 'REMOVE'; instanceId: string }
   | { type: 'ADD_PARTS'; parts: PlacedPart[] }
   | { type: 'LOAD_BUILD'; build: Build }
@@ -53,10 +62,37 @@ function nextRotation(r: Rotation): Rotation {
   return ((r + 90) % 360) as Rotation;
 }
 
+/**
+ * Where a freshly armed part's ghost starts (docs/14 §6). Row-major first legal
+ * origin, so the ghost lands somewhere it can actually be committed and the
+ * Place button is live immediately. Falls back to the chassis origin when the
+ * build has no room left — the ghost still shows, and Place stays disabled with
+ * the reason, which is the honest state rather than refusing to arm.
+ */
+function defaultGhost(
+  chassisId: string,
+  parts: PlacedPart[],
+  partId: string,
+  rotation: Rotation,
+): { x: number; y: number } {
+  const chassis = getChassis(chassisId);
+  const partDef = getPart(partId);
+  for (let y = 0; y < chassis.height; y += 1) {
+    for (let x = 0; x < chassis.width; x += 1) {
+      const candidate: PlacedPart = {
+        instanceId: '__ghost__', partId, origin: { x, y }, rotation, integrity: 1,
+      };
+      if (checkPlacement(chassis, parts, candidate, partDef) === null) return { x, y };
+    }
+  }
+  return { x: 0, y: 0 };
+}
+
 function initialState(chassisId: string): EditorState {
   return {
     chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
-    selectedPartId: null, placeExtras: { integrity: 1 }, selectedInstanceId: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+    selectedPartId: null, placeExtras: { integrity: 1 }, selectedInstanceId: null,
+    ghost: null, rotation: 0, overlay: 'parts', nextSeq: 1,
   };
 }
 
@@ -69,6 +105,8 @@ function reducer(state: EditorState, action: Action): EditorState {
         ...state, selectedPartId: action.partId,
         placeExtras: { integrity: 1, ...action.extras },
         selectedInstanceId: null, rotation: 0,
+        // Arming shows a ghost; disarming clears it. docs/14 §6.
+        ghost: action.partId ? defaultGhost(state.chassisId, state.parts, action.partId, 0) : null,
       };
     case 'SET_INTEGRITY':
       return {
@@ -98,20 +136,39 @@ function reducer(state: EditorState, action: Action): EditorState {
         ...state,
         selectedInstanceId: state.selectedInstanceId === action.instanceId ? null : action.instanceId,
         selectedPartId: null,
+        ghost: null,
       };
     case 'ROTATE':
+      // The ghost holds its origin through a rotation, so Rotate reads as
+      // turning the part in place rather than moving it.
       return { ...state, rotation: nextRotation(state.rotation) };
+    case 'AIM':
+      if (!state.selectedPartId) return state;
+      return { ...state, ghost: { x: action.x, y: action.y } };
+    case 'NUDGE': {
+      // Arrow keys are the keyboard's equivalent of tapping a cell (docs/14 §6);
+      // a keyboard has no cell to tap, which is why no on-screen nudge pad exists.
+      if (!state.selectedPartId || !state.ghost) return state;
+      const chassis = getChassis(state.chassisId);
+      return {
+        ...state,
+        ghost: {
+          x: Math.min(Math.max(state.ghost.x + action.dx, 0), chassis.width - 1),
+          y: Math.min(Math.max(state.ghost.y + action.dy, 0), chassis.height - 1),
+        },
+      };
+    }
     case 'SET_OVERLAY':
       return { ...state, overlay: action.overlay };
     case 'PLACE': {
-      if (!state.selectedPartId) return state;
+      if (!state.selectedPartId || !state.ghost) return state;
       const chassis = getChassis(state.chassisId);
       const partDef = getPart(state.selectedPartId);
       const instanceId = state.placeExtras.instanceId ?? `${state.selectedPartId}-${state.nextSeq}`;
       const { instanceId: _preservedId, ...partExtras } = state.placeExtras;
       const candidate: PlacedPart = {
         instanceId, partId: state.selectedPartId,
-        origin: { x: action.x, y: action.y }, rotation: state.rotation, ...partExtras,
+        origin: { x: state.ghost.x, y: state.ghost.y }, rotation: state.rotation, ...partExtras,
       };
       const error = checkPlacement(chassis, state.parts, candidate, partDef);
       if (error) return state;
@@ -217,7 +274,9 @@ export function useBuild(defaultChassisId: string) {
     applyModifier: (instanceId: string, modifierId: string) => dispatch({ type: 'APPLY_MODIFIER', instanceId, modifierId }),
     selectInstance: (id: string | null) => dispatch({ type: 'SELECT_INSTANCE', instanceId: id }),
     rotate: () => dispatch({ type: 'ROTATE' }),
-    place: (x: number, y: number) => dispatch({ type: 'PLACE', x, y }),
+    aim: (x: number, y: number) => dispatch({ type: 'AIM', x, y }),
+    nudge: (dx: number, dy: number) => dispatch({ type: 'NUDGE', dx, dy }),
+    place: () => dispatch({ type: 'PLACE' }),
     remove: (instanceId: string) => dispatch({ type: 'REMOVE', instanceId }),
     addParts: (parts: PlacedPart[]) => dispatch({ type: 'ADD_PARTS', parts }),
     loadBuild: (b: Build) => dispatch({ type: 'LOAD_BUILD', build: b }),
