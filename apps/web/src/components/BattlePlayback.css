@@ -178,7 +178,7 @@
   justify-content: center;
   pointer-events: none;
 }
-.hud-slot-x { color: var(--signal-red); font-size: 14px; }
+.hud-slot-x { color: var(--signal-red-text); font-size: 14px; }
 .hud-slot.compact .hud-slot-x { font-size: 10px; }
 .hud-slot-hold {
   color: var(--ink-faint);
@@ -337,7 +337,7 @@
 }
 .playback-ticker-time { color: var(--ink-faint); flex: none; }
 .playback-ticker-row.good { color: var(--signal-green); }
-.playback-ticker-row.bad { color: var(--signal-red); }
+.playback-ticker-row.bad { color: var(--signal-red-text); }
 .playback-ticker-row.warn { color: var(--signal-amber); }
 .playback-ticker-row.order { color: var(--signal-blue); }
 .playback-ticker-row.victory { color: var(--ink-primary); font-weight: 700; }

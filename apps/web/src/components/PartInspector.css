@@ -37,7 +37,7 @@
 }
 .inspector-row span:last-child { color: var(--ink-primary); text-align: right; }
 .inspector-row .ok { color: var(--signal-green); }
-.inspector-row .bad { color: var(--signal-red); }
+.inspector-row .bad { color: var(--signal-red-text); }
 
 .inspector-actions {
   display: flex;

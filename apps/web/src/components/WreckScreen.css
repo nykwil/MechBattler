@@ -116,7 +116,7 @@
 }
 .wreck-recovery > div { display: grid; gap: 4px; }
 .wreck-recovery-kicker {
-  color: var(--signal-red);
+  color: var(--signal-red-text);
   font: 9px var(--font-mono);
   letter-spacing: 0.12em;
 }
@@ -137,7 +137,7 @@
   font: 10px var(--font-mono);
 }
 .wreck-recovery button.danger-confirm {
-  color: var(--signal-red);
+  color: var(--signal-red-text);
   border-color: var(--signal-red);
 }
 .wreck-recovery button:disabled { opacity: 0.4; }

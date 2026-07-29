@@ -39,7 +39,7 @@
   color: var(--ink-primary);
 }
 .report-banner.won .report-banner-title { color: var(--signal-green); }
-.report-banner.lost .report-banner-title { color: var(--signal-red); }
+.report-banner.lost .report-banner-title { color: var(--signal-red-text); }
 .report-banner.draw .report-banner-title { color: var(--signal-amber); }
 
 .report-banner-sub {
@@ -95,7 +95,7 @@
   color: var(--ink-secondary);
   padding: 1.5px 0;
 }
-.report-damage-row.destroyed { color: var(--signal-red); }
+.report-damage-row.destroyed { color: var(--signal-red-text); }
 .report-damage-empty {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -119,7 +119,7 @@
   color: var(--ink-secondary);
 }
 .report-event-time { color: var(--ink-faint); flex: none; }
-.report-event.bad { color: var(--signal-red); }
+.report-event.bad { color: var(--signal-red-text); }
 .report-event.warn { color: var(--signal-amber); }
 .report-event.good { color: var(--signal-green); }
 .report-event.victory {

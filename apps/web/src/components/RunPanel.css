@@ -49,7 +49,7 @@
   letter-spacing: 0.06em;
   cursor: pointer;
 }
-.run-abandon:hover { color: var(--signal-red); }
+.run-abandon:hover { color: var(--signal-red-text); }
 
 .run-bench {
   margin-top: 12px;
@@ -99,7 +99,7 @@
   font-family: var(--font-display);
   font-size: 15px;
   letter-spacing: 0.08em;
-  color: var(--signal-red);
+  color: var(--signal-red-text);
   margin-bottom: 8px;
 }
 .run-memorial.victorious .run-memorial-title { color: var(--signal-green); }
@@ -172,7 +172,7 @@
 
 .run-frames { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
 .run-frames .chip:disabled { opacity: 0.45; cursor: not-allowed; }
-.run-scrap.over { color: var(--signal-red); }
+.run-scrap.over { color: var(--signal-red-text); }
 .run-history-cause {
   font-family: var(--font-mono);
   font-size: 10px;

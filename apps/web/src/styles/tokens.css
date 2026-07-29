@@ -7,10 +7,18 @@
   --line-hairline: #2c313b;
   --line-bright: #3a4150;
 
+  --bg-deep: #08090c;
+  --surface-raised: #262b34;
+
   /* Text */
   --ink-primary: #e9e7e1;
   --ink-secondary: #9a9fab;
-  --ink-faint: #616774;
+  /* Was #616774, which failed WCAG AA on every ground (3.38/3.24/2.97/2.71) and
+     fell below even the 3:1 non-text minimum on --bg-panel-raised. This is the
+     smallest value clearing AA on all four (5.75/5.52/5.06/4.61); #767c8a and
+     #7d8492 still fail on raised. See docs/14 §4. */
+  --ink-faint: #868d9b;
+  --ink-muted: var(--ink-secondary);
 
   /* Signal colors -- each one means one thing, everywhere in the app */
   --signal-amber: #e8a23d;     /* hazard / selection / heat warning */
@@ -18,7 +26,8 @@
   --signal-blue: #5aa9c7;      /* power / schematic / conduit */
   --signal-blue-dim: #2f5666;
   --signal-green: #6fa85a;     /* connected / nominal */
-  --signal-red: #d64545;       /* overheat / brownout / illegal */
+  --signal-red: #d64545;       /* overheat / brownout / illegal -- fills, borders, fault LED */
+  --signal-red-text: #ea6a6a;  /* small red TEXT; --signal-red is 3.51 on raised, text needs 4.5 */
   --signal-red-dim: #5c2626;
 
   /* Type */
@@ -26,6 +35,48 @@
   --font-body: 'IBM Plex Sans', sans-serif;
   --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
 
+  /* Type scale -- 8 steps, no fractions. Tight at the bottom where instrument
+     data lives, opening up at the display end. Deliberately not a fixed ratio.
+     11px is the floor and only for mono. Body text starts at 13px. */
+  --text-2xs: 11px;
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-base: 15px;
+  --text-lg: 17px;
+  --text-xl: 20px;
+  --text-2xl: 26px;
+  --text-3xl: 34px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --tap-min: 44px;
+  --tap-comfortable: 48px;
+
+  /* Breakpoints. Replace the ad-hoc 680/760/900 already in the stylesheets.
+     Note: usable in calc() and container queries, NOT in @media, which cannot
+     read custom properties -- media queries must repeat the literal value. */
+  --bp-md: 768px;
+  --bp-lg: 1080px;
+
+  --z-plate: 0;
+  --z-readout: 10;
+  --z-sheet: 20;
+  --z-overlay: 30;
+  --z-toast: 40;
+
   --radius-sm: 3px;
   --radius-md: 5px;
+  --radius-lg: 12px;
+  --radius-full: 999px;
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-sheet: 280ms;
+  --ease-out: cubic-bezier(.32, .72, 0, 1);
 }

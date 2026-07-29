@@ -82,7 +82,7 @@
 .part-chip.energy { color: var(--signal-blue); }
 .part-chip.heat { color: var(--signal-amber); }
 .part-chip.cool { color: var(--signal-green); }
-.part-chip.dmg { color: var(--signal-red); }
+.part-chip.dmg { color: var(--signal-red-text); }
 .part-chip.note { color: var(--ink-secondary); }
 
 .part-meta {
@@ -114,6 +114,6 @@
   font-size: 10px;
   color: var(--signal-amber);
 }
-.part-price.too-rich { color: var(--signal-red); }
+.part-price.too-rich { color: var(--signal-red-text); }
 
 .part-row.locked { opacity: 0.45; cursor: not-allowed; }

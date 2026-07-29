@@ -98,7 +98,7 @@
 .grid-rejection {
   font-family: var(--font-mono);
   font-size: 11px;
-  color: var(--signal-red);
+  color: var(--signal-red-text);
   letter-spacing: 0.04em;
 }
 

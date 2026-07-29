@@ -51,7 +51,7 @@
   padding: 6px 8px;
 }
 .event-log .event-row { padding: 1px 0; }
-.event-log .event-row.bad { color: var(--signal-red); }
+.event-log .event-row.bad { color: var(--signal-red-text); }
 .event-log .event-row.warn { color: var(--signal-amber); }
 
 .placeholder {
@@ -117,7 +117,7 @@
 }
 .sandbox-target.active { color: var(--ink-primary); }
 .sandbox-target-box { font-size: 14px; line-height: 1; }
-.sandbox-target.active .sandbox-target-box { color: var(--signal-red); }
+.sandbox-target.active .sandbox-target-box { color: var(--signal-red-text); }
 .sandbox-target-range { font-size: 9.5px; }
 .sandbox-target-dps {
   font-size: 11px;

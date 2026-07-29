@@ -34,7 +34,7 @@
 }
 .arena-threat {
   font-size: 9px;
-  color: var(--signal-red);
+  color: var(--signal-red-text);
   letter-spacing: 2px;
 }
 .arena-card-blurb {

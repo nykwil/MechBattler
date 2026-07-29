@@ -25,7 +25,7 @@
   color: var(--ink-primary);
 }
 .stat-value.warn { color: var(--signal-amber); }
-.stat-value.bad { color: var(--signal-red); }
+.stat-value.bad { color: var(--signal-red-text); }
 .stat-value.good { color: var(--signal-green); }
 .stat-sub {
   font-family: var(--font-mono);
@@ -47,7 +47,7 @@
   color: var(--ink-primary);
 }
 .meter-value.good { color: var(--signal-green); }
-.meter-value.bad { color: var(--signal-red); }
+.meter-value.bad { color: var(--signal-red-text); }
 .meter-value.warn { color: var(--signal-amber); }
 
 .meter-track {
@@ -86,7 +86,7 @@
   opacity: 0.9;
 }
 .meter-preview-value.good { color: var(--signal-green); }
-.meter-preview-value.bad { color: var(--signal-red); }
+.meter-preview-value.bad { color: var(--signal-red-text); }
 
 .stat-preview {
   font-size: 12px;
