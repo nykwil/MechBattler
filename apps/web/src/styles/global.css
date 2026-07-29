@@ -13,9 +13,8 @@ body {
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.4;
-  background-image:
-    radial-gradient(circle at 15% 10%, rgba(90, 169, 199, 0.05), transparent 40%),
-    radial-gradient(circle at 85% 90%, rgba(232, 162, 61, 0.04), transparent 40%);
+  /* docs/14 §5: the body gradients went with the plate's glow and rim shadow --
+     decoration competing with the grid for attention. */
 }
 
 :focus-visible {

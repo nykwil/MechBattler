@@ -2,18 +2,53 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: var(--space-3);
 }
 
+/* The plate is the hero and earns it by size and position, not by effects.
+   docs/14 §5: no glow, no rim shadow -- the old inset ring and drop shadow
+   were the only pure decoration on the screen. */
 .grid-frame {
   background: var(--bg-panel);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 18px;
-  box-shadow: 0 0 0 1px rgba(0,0,0,0.4) inset, 0 20px 40px -20px rgba(0,0,0,0.6);
+  padding: var(--space-2);
+
+  /* Cell size is min(44px, availW / cols - 1), docs/14 §5. Width is always the
+     binding constraint, so height never enters.
+
+     availW is the plate area less this frame's padding and border. The doc's
+     table works from "24px plate-area padding, 16px plate padding, 2px border"
+     at 375px, which only reproduces its numbers if those are totals rather than
+     per-side -- hence 12px on .centerpane and 8px here on mobile. That lands the
+     table exactly: 375 - 24 - 16 - 2 = 333, so Bastion's 8 columns give 40.6px
+     and every other chassis caps at 44px.
+
+     Measured in cqw against .centerpane, not vw, so the desktop centre track
+     between the two rails is respected rather than assuming the plate owns the
+     viewport. Still a pure layout derivation -- nothing measures the action bar,
+     which grows a row when a part is armed and would otherwise resize every cell
+     at that moment, jumping the grid under the thumb.
+
+     Not floored: cells may land on a sub-pixel, the SVG scales smoothly, and the
+     doc's table states intent (44 where it fits) rather than a pixel contract. */
+  --plate-avail: calc(100cqw - var(--space-2) * 2 - 2px);
+  --plate-cell: min(var(--tap-min), calc(var(--plate-avail) / var(--cols) - 1px));
 }
 
-.grid-svg { display: block; }
+/* Desktop keeps its roomier frame; the cap means cells stay 44px either way. */
+@media (min-width: 768px) {
+  .grid-frame {
+    padding: var(--space-4);
+    --plate-avail: calc(100cqw - var(--space-4) * 2 - 2px);
+  }
+}
+
+.grid-svg {
+  display: block;
+  width: calc(var(--plate-cell) * var(--cols));
+  height: calc(var(--plate-cell) * var(--rows));
+}
 .grid-svg .cell-bg { fill: var(--bg-inset); stroke: var(--line-hairline); stroke-width: 1; }
 .grid-svg .cell-core { fill: var(--bg-panel-raised); stroke: var(--signal-amber-dim); stroke-width: 1.5; }
 .grid-svg .cell-part { stroke: none; cursor: pointer; }
@@ -61,9 +96,10 @@
 }
 .autowire-btn {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.04em;
-  padding: 3px 10px;
+  padding: var(--space-1) var(--space-3);
+  min-height: var(--tap-min);
   background: none;
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
@@ -88,32 +124,32 @@
 
 .grid-caption {
   display: flex;
-  gap: 18px;
+  gap: var(--space-4);
   align-items: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
 }
 
 .grid-rejection {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--signal-red-text);
   letter-spacing: 0.04em;
 }
 
 .legend {
   display: flex;
-  gap: 14px;
+  gap: var(--space-3);
   flex-wrap: wrap;
   justify-content: center;
 }
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
 }
 .legend-swatch {
@@ -122,7 +158,7 @@
 
 .integrity-badge {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   fill: var(--signal-amber);
   text-anchor: middle;
   dominant-baseline: central;

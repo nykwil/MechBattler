@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   computeConnectivity,
   getOccupiedCells,
@@ -160,11 +160,18 @@ export function GridEditor({
 
   return (
     <div className="grid-wrap">
-      <div className="grid-frame">
+      {/* --cols/--rows drive the cell size in CSS (docs/14 §5). CELL stays the
+          SVG coordinate unit so the boundary-path maths is unaffected; the
+          viewBox scales those units to whatever width the cell size resolves
+          to, which keeps sizing declarative and free of layout measurement. */}
+      <div
+        className="grid-frame"
+        style={{ '--cols': chassis.width, '--rows': chassis.height } as CSSProperties}
+      >
         <svg
           className="grid-svg"
-          width={chassis.width * CELL}
-          height={chassis.height * CELL}
+          viewBox={`0 0 ${chassis.width * CELL} ${chassis.height * CELL}`}
+          preserveAspectRatio="xMidYMid meet"
           onMouseLeave={() => setHover(null)}
         >
           {cells.map(({ x, y }) => {
