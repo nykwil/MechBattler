@@ -519,7 +519,63 @@ lateral error. It is hardcoded to one chassis (CH-5 Mule) and four weapons (`W-A
 and will drift from `packages/sim`; the real implementation must call the sim rather than copy
 it. The prototype's value is the interaction and layout design, plus the two findings in §12.
 
-## 14. Not yet designed
+## 14. Right-rail audit — what the mobile design must absorb
+
+*Added Jul 29 2026, before the desktop workshop layout is superseded.*
+
+**Decision: one version, not two.** The mobile design supersedes the current workshop UI rather
+than sitting beside it. Per §11 this is one responsive codebase — the three-rail desktop layout
+re-emerges above `--bp-md` from the mobile primitives, so nothing is lost at width. Maintaining
+two codepaths for the same screen was considered and rejected: every change would be made twice
+and they would drift, which is exactly how `docs/prototypes/mobile-battle.html` ended up with a
+hand-copied snapshot of `combat.ts`.
+
+Branch `desktop-ui-snapshot` pins the pre-mobile UI at `34d57b5` as a reference. It is a
+reading copy, not a maintained branch.
+
+The 360 px right rail (`App.tsx`, `.layout` third column) holds six sections. Not all of them
+have a mobile home yet, and not all of them deserve one:
+
+| Right-rail section | Mobile home today | Status |
+|---|---|---|
+| `BuildWarnings` | Readout bar announces fault *count* via `role="alert"` (§8) | **Gap** — the fault list itself has no home |
+| `PartInspector` | Selection sheet, detach (§7) | Covered |
+| `StatsPanel` — mass, heat, power | Readout bar: Core · Mass · Heat · Power (§8) | Covered |
+| `StatsPanel` — speed fwd/strafe/rev + turn rate | — | **Gap** |
+| `StatsPanel` — burst DPS | — | **Gap** |
+| `StatsPanel` — range bands, max range | Bench tab range table (§8) | Covered |
+| `PowerPriorityList` | — | **Gap** |
+| `TestBenchPanel` | Bench tab (§8) | Partly covered |
+| `RunPanel` — scrap, bench, offers, fight | — | **Gap** (see §15) |
+
+### Carry over
+
+- **Speed (fwd / strafe / rev + turn rate).** The speed envelope is an ellipse, not a scalar —
+  `combat.ts` derives max speed per heading from all three. A build that walks 6 m/s forward and
+  3 m/s in reverse plays nothing like one that is symmetric, and dispersion is speed-gated, so
+  this is a combat-relevant number, not trivia. Four values do not fit the 56 px readout bar;
+  they belong in the readout sheet next to mass.
+- **`PowerPriorityList`.** Decides what browns out first when supply fails. It is the only
+  control for that behaviour anywhere in the app — dropping it removes a mechanic, not a
+  display. Needs a mobile home; reorder by drag is a poor touch target, so this likely needs a
+  move-up/move-down control rather than a straight port.
+- **`BuildWarnings` list.** A count with no way to read the causes is not actionable.
+
+### Candidates to drop — needs your call
+
+- **Burst DPS "(full capacitors, no heat yet)".** A best-case number true for the first second
+  of a fight. The bench range table measures the same weapons under real falloff and reports
+  *why* a weapon contributes nothing. Keeping both invites reading the flattering one.
+- **`TestBenchPanel` beyond the range table.** §8 already claims the range table as the useful
+  part. Whether the rest of the bench survives is open.
+
+### Explicitly out of scope
+
+`BalanceLab` and Sandbox (`TestBenchPanel`'s sandbox mode) stay desktop-only and untouched.
+They are dense analysis instruments — matrices, standings, diagnostics — and there is no value
+in fitting them to a phone. They keep their current layout at every width.
+
+## 15. Not yet designed
 
 Salvage (`WreckScreen`, already has a 680 px breakpoint), the scrapyard and run map, and the
 front door (`GameFrontDoor`, already at 760 px). All three are layout work the token system
