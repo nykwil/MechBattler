@@ -16,11 +16,11 @@ export interface RunPartOps {
 }
 
 export function PartInspector({
-  parts, selectedInstanceId, onRemove, onDeselect, runOps,
+  parts, selectedInstanceId, onDetach, onDeselect, runOps,
 }: {
   parts: PlacedPart[];
   selectedInstanceId: string;
-  onRemove: (instanceId: string) => void;
+  onDetach: (instanceId: string) => void;
   onDeselect: () => void;
   runOps?: RunPartOps;
 }) {
@@ -113,8 +113,12 @@ export function PartInspector({
       })()}
 
       <div className="inspector-actions">
-        <button type="button" className="inspector-remove" onClick={() => onRemove(placed.instanceId)}>
-          {runOps ? 'Discard part' : 'Remove part'}
+        {/* docs/14 §7: a selected part offers exactly one placement action.
+            Detach lifts it into the placement state holding it -- move, rotate,
+            place -- and discarding from there is how a part is thrown away.
+            Deselect stays because it acts on the selection, not the part. */}
+        <button type="button" className="inspector-detach" onClick={() => onDetach(placed.instanceId)}>
+          Detach
         </button>
         <button type="button" className="inspector-close" onClick={onDeselect}>
           Deselect

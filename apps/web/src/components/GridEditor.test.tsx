@@ -13,13 +13,14 @@ function renderPlate(
   chassisId: string,
   opts: {
     ghost?: { x: number; y: number } | null;
+    detached?: boolean;
     onAim?: (x: number, y: number) => void;
     onCommit?: () => void;
     checkCandidate?: () => { reason: string } | null;
   } = {},
 ) {
   const chassis = getChassis(chassisId);
-  const { ghost = null, onAim, onCommit } = opts;
+  const { ghost = null, detached = false, onAim, onCommit } = opts;
   const { container } = render(
     <GridEditor
       chassis={chassis}
@@ -30,6 +31,7 @@ function renderPlate(
       previewCells={() => []}
       checkCandidate={opts.checkCandidate ?? (() => null)}
       ghost={ghost}
+      detached={detached}
       onAim={onAim ?? (() => {})}
       onCommit={onCommit ?? (() => {})}
       onCancel={() => {}}
@@ -130,5 +132,24 @@ describe('GridEditor tap-then-confirm placement (docs/14 §6)', () => {
     const { container } = renderPlate('CH-5', { ghost: { x: 0, y: 0 } });
     const place = container.querySelector('.plate-btn-primary') as HTMLButtonElement;
     expect(place.disabled).toBe(false);
+  });
+});
+
+describe('GridEditor detach affordances (docs/14 §7)', () => {
+  it('reads Discard, not Cancel, once the part is off the plate', () => {
+    const { container } = renderPlate('CH-5', { ghost: { x: 0, y: 0 }, detached: true });
+    const labels = [...container.querySelectorAll('.plate-armed .plate-btn')]
+      .map((b) => b.textContent);
+
+    // Backing out has nothing to return the part to, so the word changes.
+    expect(labels).toEqual(['Discard', 'Rotate', 'Place']);
+  });
+
+  it('gives Discard the danger style and Cancel none', () => {
+    const detachedPlate = renderPlate('CH-5', { ghost: { x: 0, y: 0 }, detached: true });
+    expect(detachedPlate.container.querySelector('.plate-btn-danger')).not.toBeNull();
+
+    const armedPlate = renderPlate('CH-5', { ghost: { x: 0, y: 0 } });
+    expect(armedPlate.container.querySelector('.plate-btn-danger')).toBeNull();
   });
 });

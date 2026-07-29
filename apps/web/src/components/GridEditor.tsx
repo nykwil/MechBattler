@@ -41,7 +41,7 @@ const REJECTION_TEXT: Record<string, string> = {
 
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
-  ghost, onAim, onCommit, onCancel, onRotate,
+  ghost, detached, onAim, onCommit, onCancel, onRotate,
   onSelectInstance, thermalSnapshot, faultInstanceIds, flashInstanceIds, onAutoWire,
 }: {
   chassis: ChassisSpec;
@@ -53,6 +53,8 @@ export function GridEditor({
   checkCandidate: (x: number, y: number) => { reason: string } | null;
   /** Where the armed part's ghost sits; null when nothing is armed (docs/14 §6). */
   ghost: { x: number; y: number } | null;
+  /** True while the armed part came off the plate (docs/14 §7). */
+  detached: boolean;
   onAim: (x: number, y: number) => void;
   onCommit: () => void;
   onCancel: () => void;
@@ -266,7 +268,16 @@ export function GridEditor({
             </p>
           )}
           <div className="plate-armed-actions">
-            <button type="button" className="plate-btn" onClick={onCancel}>Cancel</button>
+            {/* A detached part is already off the plate, so backing out has
+                nothing to return it to -- the control is Discard, and it takes
+                the danger style to say so (docs/14 §7). */}
+            <button
+              type="button"
+              className={detached ? 'plate-btn plate-btn-danger' : 'plate-btn'}
+              onClick={onCancel}
+            >
+              {detached ? 'Discard' : 'Cancel'}
+            </button>
             <button type="button" className="plate-btn" onClick={onRotate}>Rotate</button>
             <button
               type="button"

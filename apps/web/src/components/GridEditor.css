@@ -221,3 +221,10 @@
   opacity: 0.45;
   cursor: not-allowed;
 }
+
+/* Discard is destructive and unrecoverable, so it wears it (docs/14 §7). */
+.plate-btn-danger {
+  background: var(--signal-red-dim);
+  border-color: var(--signal-red);
+}
+.plate-btn-danger:hover:not(:disabled) { border-color: var(--signal-red-text); }

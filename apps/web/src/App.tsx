@@ -43,7 +43,7 @@ export default function App() {
   );
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, aim, nudge, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
+    setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -307,12 +307,14 @@ export default function App() {
         selectInstance(null);
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedInstanceId) {
-        remove(state.selectedInstanceId);
+        // docs/14 §7: remove-in-place does not exist. Delete detaches, and
+        // Discard (or Esc) from the armed state is what throws a part away.
+        detach(state.selectedInstanceId);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rotate, selectPart, selectInstance, remove, nudge, placeWithEconomy, state.selectedPartId,
+  }, [rotate, selectPart, selectInstance, detach, nudge, placeWithEconomy, state.selectedPartId,
       state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
 
   if (screen === 'title') {
@@ -418,6 +420,7 @@ export default function App() {
             previewCells={previewCells}
             checkCandidate={checkCandidate}
             ghost={state.ghost}
+            detached={state.detached !== null}
             onAim={aim}
             onCommit={placeWithEconomy}
             onCancel={() => selectPart(null)}
@@ -441,7 +444,7 @@ export default function App() {
               <PartInspector
                 parts={state.parts}
                 selectedInstanceId={state.selectedInstanceId}
-                onRemove={remove}
+                onDetach={detach}
                 onDeselect={() => selectInstance(null)}
                 runOps={runOps}
               />

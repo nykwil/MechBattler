@@ -44,21 +44,25 @@
   gap: 8px;
   margin-top: 10px;
 }
-.inspector-remove {
+/* Detach is not destructive -- it lifts the part into the placement state, and
+   discarding is a separate act from there (docs/14 §7). So it drops the danger
+   styling the old remove-in-place button carried. */
+.inspector-detach {
   flex: 1;
-  padding: 9px;
-  background: var(--signal-red-dim);
-  border: 1px solid var(--signal-red);
+  min-height: var(--tap-min);
+  padding: 0 var(--space-3);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--line-bright);
   color: var(--ink-primary);
   font-family: var(--font-display);
   font-weight: 600;
-  font-size: 12px;
+  font-size: var(--text-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   border-radius: var(--radius-md);
-  transition: filter 0.12s;
+  transition: border-color var(--dur-fast) var(--ease-out);
 }
-.inspector-remove:hover { filter: brightness(1.25); }
+.inspector-detach:hover { border-color: var(--signal-amber); }
 .inspector-close {
   flex: none;
   padding: 9px 12px;

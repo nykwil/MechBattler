@@ -32,6 +32,14 @@ interface EditorState {
    * when nothing is armed.
    */
   ghost: { x: number; y: number } | null;
+  /**
+   * Set while the armed part came off the plate via detach (docs/14 §7). The
+   * part keeps its identity across the round trip, so re-placing is a move
+   * rather than a copy, and backing out has nothing to return to -- which is why
+   * the armed bar reads Discard instead of Cancel. `priorityIndex` remembers
+   * where it sat in the brownout order so a move does not silently demote it.
+   */
+  detached: { instanceId: string; priorityIndex: number | null } | null;
   rotation: Rotation;
   overlay: OverlayMode;
   nextSeq: number;
@@ -44,6 +52,7 @@ type Action =
   | { type: 'APPLY_MODIFIER'; instanceId: string; modifierId: string }
   | { type: 'SELECT_INSTANCE'; instanceId: string | null }
   | { type: 'ROTATE' }
+  | { type: 'DETACH'; instanceId: string }
   | { type: 'AIM'; x: number; y: number }
   | { type: 'NUDGE'; dx: number; dy: number }
   | { type: 'PLACE' }
@@ -92,7 +101,7 @@ function initialState(chassisId: string): EditorState {
   return {
     chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
     selectedPartId: null, placeExtras: { integrity: 1 }, selectedInstanceId: null,
-    ghost: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+    ghost: null, detached: null, rotation: 0, overlay: 'parts', nextSeq: 1,
   };
 }
 
@@ -107,6 +116,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedInstanceId: null, rotation: 0,
         // Arming shows a ghost; disarming clears it. docs/14 §6.
         ghost: action.partId ? defaultGhost(state.chassisId, state.parts, action.partId, 0) : null,
+        detached: null,
       };
     case 'SET_INTEGRITY':
       return {
@@ -137,11 +147,42 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedInstanceId: state.selectedInstanceId === action.instanceId ? null : action.instanceId,
         selectedPartId: null,
         ghost: null,
+        detached: null,
       };
     case 'ROTATE':
       // The ghost holds its origin through a rotation, so Rotate reads as
       // turning the part in place rather than moving it.
       return { ...state, rotation: nextRotation(state.rotation) };
+    case 'DETACH': {
+      // Off the plate and into the placement state holding it: move, rotate,
+      // place. Rotate-in-place and remove-in-place do not exist, because
+      // detach-then-rotate and detach-then-discard already do both jobs in a
+      // state that has to exist anyway (docs/14 §7).
+      const placed = state.parts.find((p) => p.instanceId === action.instanceId);
+      if (!placed) return state;
+      const priorityIndex = state.powerPriority.indexOf(action.instanceId);
+      return {
+        ...state,
+        parts: state.parts.filter((p) => p.instanceId !== action.instanceId),
+        powerPriority: state.powerPriority.filter((id) => id !== action.instanceId),
+        selectedPartId: placed.partId,
+        // Integrity, modifiers, and variant ride along, and the preserved
+        // instanceId is what makes re-placing consume no new instance.
+        placeExtras: {
+          instanceId: placed.instanceId,
+          integrity: placed.integrity,
+          modifiers: placed.modifiers,
+          variant: placed.variant,
+        },
+        selectedInstanceId: null,
+        ghost: { x: placed.origin.x, y: placed.origin.y },
+        rotation: placed.rotation,
+        detached: {
+          instanceId: placed.instanceId,
+          priorityIndex: priorityIndex === -1 ? null : priorityIndex,
+        },
+      };
+    }
     case 'AIM':
       if (!state.selectedPartId) return state;
       return { ...state, ghost: { x: action.x, y: action.y } };
@@ -172,13 +213,26 @@ function reducer(state: EditorState, action: Action): EditorState {
       };
       const error = checkPlacement(chassis, state.parts, candidate, partDef);
       if (error) return state;
-      const powerPriority = drawsFromReactorPriority(state.selectedPartId)
-        ? [...state.powerPriority, instanceId]
-        : state.powerPriority;
+      let powerPriority = state.powerPriority;
+      if (drawsFromReactorPriority(state.selectedPartId)) {
+        const restoreAt = state.detached?.priorityIndex;
+        if (restoreAt !== null && restoreAt !== undefined) {
+          // A detach-and-replace is a move, so the part returns to its old rank
+          // rather than being demoted to the bottom of the brownout order.
+          powerPriority = [
+            ...state.powerPriority.slice(0, restoreAt),
+            instanceId,
+            ...state.powerPriority.slice(restoreAt),
+          ];
+        } else {
+          powerPriority = [...state.powerPriority, instanceId];
+        }
+      }
       return {
         ...state,
         parts: [...state.parts, candidate],
         powerPriority,
+        detached: null,
         nextSeq: state.placeExtras.instanceId ? state.nextSeq : state.nextSeq + 1,
       };
     }
@@ -274,6 +328,7 @@ export function useBuild(defaultChassisId: string) {
     applyModifier: (instanceId: string, modifierId: string) => dispatch({ type: 'APPLY_MODIFIER', instanceId, modifierId }),
     selectInstance: (id: string | null) => dispatch({ type: 'SELECT_INSTANCE', instanceId: id }),
     rotate: () => dispatch({ type: 'ROTATE' }),
+    detach: (instanceId: string) => dispatch({ type: 'DETACH', instanceId }),
     aim: (x: number, y: number) => dispatch({ type: 'AIM', x, y }),
     nudge: (dx: number, dy: number) => dispatch({ type: 'NUDGE', dx, dy }),
     place: () => dispatch({ type: 'PLACE' }),

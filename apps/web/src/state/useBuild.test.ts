@@ -79,3 +79,88 @@ describe('useBuild ghost placement', () => {
     expect(result.current.state.rotation).toBe(90);
   });
 });
+
+/**
+ * docs/14 §7 -- detach is one state, not two. The part comes off the plate and
+ * you are holding it, so a detach-and-replace must be a move rather than a copy.
+ */
+describe('useBuild detach', () => {
+  function placeAt(result: { current: ReturnType<typeof useBuild> }, partId: string, x: number, y: number) {
+    act(() => result.current.selectPart(partId));
+    act(() => result.current.aim(x, y));
+    act(() => result.current.place());
+  }
+
+  it('lifts the part off the plate and arms it', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    placeAt(result, 'U-CON', 2, 3);
+    const instanceId = result.current.state.parts[0].instanceId;
+
+    act(() => result.current.detach(instanceId));
+
+    expect(result.current.state.parts).toHaveLength(0);
+    expect(result.current.state.selectedPartId).toBe('U-CON');
+    expect(result.current.state.ghost).toEqual({ x: 2, y: 3 });
+    expect(result.current.state.detached?.instanceId).toBe(instanceId);
+  });
+
+  it('re-places as a move, consuming no new instance', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    placeAt(result, 'U-CON', 2, 3);
+    const instanceId = result.current.state.parts[0].instanceId;
+    const seqBefore = result.current.state.nextSeq;
+
+    act(() => result.current.detach(instanceId));
+    act(() => result.current.aim(1, 1));
+    act(() => result.current.place());
+
+    expect(result.current.state.parts).toHaveLength(1);
+    expect(result.current.state.parts[0].instanceId).toBe(instanceId);
+    expect(result.current.state.parts[0].origin).toEqual({ x: 1, y: 1 });
+    expect(result.current.state.nextSeq).toBe(seqBefore);
+    expect(result.current.state.detached).toBeNull();
+  });
+
+  it('carries integrity and modifiers across the round trip', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    placeAt(result, 'U-CON', 2, 3);
+    const instanceId = result.current.state.parts[0].instanceId;
+    act(() => result.current.setIntegrity(instanceId, 0.5));
+
+    act(() => result.current.detach(instanceId));
+    act(() => result.current.place());
+
+    expect(result.current.state.parts[0].integrity).toBe(0.5);
+  });
+
+  it('discarding a detached part leaves the plate without it', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    placeAt(result, 'U-CON', 2, 3);
+    const instanceId = result.current.state.parts[0].instanceId;
+
+    act(() => result.current.detach(instanceId));
+    act(() => result.current.selectPart(null)); // Discard / Esc
+
+    expect(result.current.state.parts).toHaveLength(0);
+    expect(result.current.state.detached).toBeNull();
+    expect(result.current.state.powerPriority).not.toContain(instanceId);
+  });
+
+  it('restores brownout rank rather than demoting a moved part', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    // Two power-drawing parts, so there is a rank order to disturb.
+    placeAt(result, 'W-AC', 1, 1);
+    placeAt(result, 'W-CB', 3, 1);
+    const first = result.current.state.parts[0].instanceId;
+    const rankBefore = result.current.state.powerPriority.indexOf(first);
+    expect(rankBefore).toBeGreaterThanOrEqual(0);
+
+    act(() => result.current.detach(first));
+    // Back to where it was: guaranteed legal, since detaching freed those cells.
+    act(() => result.current.aim(1, 1));
+    act(() => result.current.place());
+
+    // A move must not silently change what browns out first.
+    expect(result.current.state.powerPriority.indexOf(first)).toBe(rankBefore);
+  });
+});
