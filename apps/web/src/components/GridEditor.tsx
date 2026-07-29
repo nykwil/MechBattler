@@ -32,6 +32,18 @@ function outlinePath(cells: { x: number; y: number }[]): string {
   return segments.join('');
 }
 
+const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
+  { id: 'parts', label: 'Parts' },
+  { id: 'power', label: 'Power' },
+  { id: 'thermal', label: 'Heat' },
+];
+
+const PLATE_CAPTION: Record<OverlayMode, string> = {
+  parts: 'Colour is the part category.',
+  power: 'Green reaches the core · red is stranded · blue is the bus · grey draws nothing.',
+  thermal: 'Colour is cell temperature, coolest to hottest.',
+};
+
 const REJECTION_TEXT: Record<string, string> = {
   'out-of-mask': 'off the chassis — parts never hang off the mask',
   overlap: 'cell already occupied',
@@ -41,7 +53,7 @@ const REJECTION_TEXT: Record<string, string> = {
 
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
-  ghost, detached, onAim, onCommit, onCancel, onRotate,
+  ghost, detached, onAim, onCommit, onCancel, onRotate, onSetOverlay,
   onSelectInstance, thermalSnapshot, faultInstanceIds, flashInstanceIds, onAutoWire,
 }: {
   chassis: ChassisSpec;
@@ -59,6 +71,7 @@ export function GridEditor({
   onCommit: () => void;
   onCancel: () => void;
   onRotate: () => void;
+  onSetOverlay: (overlay: OverlayMode) => void;
   onSelectInstance: (instanceId: string | null) => void;
   thermalSnapshot: Record<string, number> | null;
   faultInstanceIds: Set<string>;
@@ -161,6 +174,23 @@ export function GridEditor({
 
   return (
     <div className="grid-wrap">
+      {/* Plate views (docs/14 §8): the three overlays the app already had, given
+          a permanent home. aria-pressed carries the state -- the old .chip.active
+          encoded it in colour alone. */}
+      <div className="plate-views" role="group" aria-label="Plate view">
+        {PLATE_VIEWS.map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            className={`plate-view${overlay === v.id ? ' active' : ''}`}
+            aria-pressed={overlay === v.id}
+            onClick={() => onSetOverlay(v.id)}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       {/* --cols/--rows drive the cell size in CSS (docs/14 §5). CELL stays the
           SVG coordinate unit so the boundary-path maths is unaffected; the
           viewBox scales those units to whatever width the cell size resolves
@@ -290,6 +320,10 @@ export function GridEditor({
           </div>
         </div>
       )}
+
+      {/* A legend you must remember is a legend that failed: the caption states
+          what the current colours mean, right under the plate (docs/14 §8). */}
+      <p className="plate-caption">{PLATE_CAPTION[overlay]}</p>
 
       <div className="grid-caption">
         <span>{chassis.name} · {chassis.type}</span>

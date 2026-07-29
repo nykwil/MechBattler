@@ -3,7 +3,7 @@
 }
 .category-label {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   margin-bottom: 6px;
@@ -19,8 +19,8 @@
   width: 100%;
   display: flex;
   align-items: flex-start;
-  gap: 9px;
-  padding: 7px 8px;
+  gap: var(--space-3);
+  padding: var(--space-2);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
@@ -28,6 +28,7 @@
   text-align: left;
   color: var(--ink-primary);
   transition: border-color 0.12s, background 0.12s;
+  min-height: 56px;
 }
 .part-row:hover { border-color: var(--line-bright); }
 .part-row.selected {
@@ -37,10 +38,10 @@
 
 /* True-scale shapes: --shape-cell is the one knob; every part uses it. */
 .part-shape-box {
-  --shape-cell: 6px;
+  --shape-cell: 9px;
   flex: none;
-  width: 22px; /* fits the widest part (3 cells) plus gaps */
-  min-height: 20px;
+  width: 32px; /* docs/14 §8; fits the widest part (3 cells) plus gaps */
+  min-height: 32px;
   display: flex;
   justify-content: center;
   padding-top: 2px;
@@ -60,7 +61,7 @@
   min-width: 0;
 }
 .part-name {
-  font-size: 12.5px;
+  font-size: var(--text-base);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -75,7 +76,7 @@
 }
 .part-chip {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
@@ -87,13 +88,13 @@
 
 .part-meta {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
 }
 
 .rotate-hint {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   margin-top: 10px;
   padding: 8px 10px;
@@ -105,13 +106,13 @@
   border: 1px solid var(--line-bright);
   border-radius: 3px;
   padding: 1px 5px;
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .part-price {
-  margin-left: 6px;
+  margin-left: var(--space-2);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-sm);
   color: var(--signal-amber);
 }
 .part-price.too-rich { color: var(--signal-red-text); }

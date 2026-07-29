@@ -36,6 +36,7 @@ function renderPlate(
       onCommit={onCommit ?? (() => {})}
       onCancel={() => {}}
       onRotate={() => {}}
+      onSetOverlay={() => {}}
       onSelectInstance={() => {}}
       thermalSnapshot={null}
       faultInstanceIds={new Set()}
@@ -68,11 +69,10 @@ describe('GridEditor plate sizing', () => {
   it('keeps every cell an independent tap target under the part outline', () => {
     const { chassis, container } = renderPlate('CH-5');
 
-    // §5: the single silhouette outline must never cost the interaction grid,
-    // so the outline layer stays non-interactive and hit cells stay per-cell.
-    const outlines = container.querySelectorAll('.part-outline');
-    outlines.forEach((o) => expect(getComputedStyle(o).pointerEvents).not.toBe('auto'));
-
+    // §5: the single silhouette outline must never cost the interaction grid.
+    // The outline being non-interactive is a CSS fact (pointer-events: none) that
+    // jsdom cannot see, so what is asserted here is the part that matters and is
+    // observable: every rendered cell has its own hit target.
     // A chassis is a silhouette, so only masked-in cells exist -- CH-5 is 6x6
     // but 32 cells. Every cell that renders must also be independently hittable.
     const rendered = container.querySelectorAll('.cell-bg, .cell-core');
@@ -151,5 +151,42 @@ describe('GridEditor detach affordances (docs/14 §7)', () => {
 
     const armedPlate = renderPlate('CH-5', { ghost: { x: 0, y: 0 } });
     expect(armedPlate.container.querySelector('.plate-btn-danger')).toBeNull();
+  });
+});
+
+describe('GridEditor plate views (docs/14 §8)', () => {
+  it('offers the three overlays with state in aria, not colour alone', () => {
+    const { container } = renderPlate('CH-5');
+    const views = [...container.querySelectorAll('.plate-view')];
+
+    expect(views.map((v) => v.textContent)).toEqual(['Parts', 'Power', 'Heat']);
+    // .chip.active encoded state in colour only; aria-pressed carries it now.
+    expect(views.map((v) => v.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+  });
+
+  it('captions what the current colours mean', () => {
+    const parts = renderPlate('CH-5');
+    expect(parts.container.querySelector('.plate-caption')?.textContent)
+      .toContain('part category');
+  });
+
+  it('reports the view change rather than owning it', () => {
+    const seen: string[] = [];
+    const chassis = getChassis('CH-5');
+    const { container } = render(
+      <GridEditor
+        chassis={chassis} parts={[]} overlay="parts"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={(o) => seen.push(o)}
+        onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+      />,
+    );
+    fireEvent.click(container.querySelectorAll('.plate-view')[1]);
+    expect(seen).toEqual(['power']);
   });
 });

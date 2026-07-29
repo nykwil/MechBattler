@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { autoWire, buildTierBudget, computeHeatAdvice, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
-import { useBuild, type OverlayMode } from './state/useBuild.js';
+import { autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { useBuild } from './state/useBuild.js';
 import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
 import { StatsPanel } from './components/StatsPanel.js';
@@ -23,15 +23,11 @@ import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
+import { ReadoutBar } from './components/ReadoutBar.js';
+import { ReadoutSheet } from './components/ReadoutSheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
 import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
-
-const OVERLAYS: { id: OverlayMode; label: string }[] = [
-  { id: 'parts', label: 'Parts' },
-  { id: 'power', label: 'Power' },
-  { id: 'thermal', label: 'Thermal' },
-];
 
 export default function App() {
   const directView = new URLSearchParams(window.location.search).get('view');
@@ -51,6 +47,7 @@ export default function App() {
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
+  const [readoutOpen, setReadoutOpen] = useState(false);
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
@@ -237,6 +234,18 @@ export default function App() {
     () => new Set(issues.filter((i) => i.severity === 'error').flatMap((i) => i.instanceIds)),
     [issues],
   );
+  // Only what the 56px bar shows; the sheet computes its own detail.
+  const readoutStats = useMemo(() => {
+    const profile = computeSpeedProfile(chassis, build);
+    const energy = computeEnergyMargin(chassis, build);
+    const heat = computeHeatBalance(chassis, build);
+    return {
+      massT: profile.massT,
+      powerMarginKw: energy.marginKw,
+      heatMarginKw: heat.heatInKw <= 0 ? null : heat.marginKw,
+    };
+  }, [chassis, build]);
+
   const palettePartIds = useMemo(() => {
     if (run.phase === 'prep') return new Set(profile.unlockedPartIds);
     if (run.phase === 'active') {
@@ -382,18 +391,6 @@ export default function App() {
             </button>
           ))}
         </div>
-        <div className="overlay-toggle">
-          {OVERLAYS.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className={`chip${state.overlay === o.id ? ' active' : ''}`}
-              onClick={() => setOverlay(o.id)}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
         </>}
       </header>
 
@@ -430,6 +427,19 @@ export default function App() {
             faultInstanceIds={faultInstanceIds}
             flashInstanceIds={flashIds}
             onAutoWire={autoWireNow}
+            onSetOverlay={setOverlay}
+          />
+
+          {/* docs/14 §8: persistent readout, and the sheet it opens. Hidden above
+              768px for now -- the right rail already carries these numbers, and
+              §11 is what docks the two together. */}
+          <ReadoutBar
+            massT={readoutStats.massT}
+            ratedMassT={chassis.ratedMassT}
+            heatMarginKw={readoutStats.heatMarginKw}
+            powerMarginKw={readoutStats.powerMarginKw}
+            faultCount={issues.length}
+            onOpen={() => setReadoutOpen(true)}
           />
         </div>
 
@@ -551,6 +561,18 @@ export default function App() {
           )}
         </div>
       </div>}
+
+      <ReadoutSheet
+        open={readoutOpen}
+        onClose={() => setReadoutOpen(false)}
+        chassis={chassis}
+        build={build}
+        parts={state.parts}
+        powerPriority={state.powerPriority}
+        issues={issues}
+        onMovePriority={movePriority}
+        onBenchResult={setBenchResult}
+      />
 
       {live && (
         <BattleLiveScreen

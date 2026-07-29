@@ -1,0 +1,90 @@
+import { useState } from 'react';
+import { computeSpeedProfile, type Build, type ChassisSpec, type PlacedPart } from '@mechbattler/sim';
+import { Sheet } from './Sheet.js';
+import { StatsPanel } from './StatsPanel.js';
+import { BuildWarnings } from './BuildWarnings.js';
+import { PowerPriorityList } from './PowerPriorityList.js';
+import { TestBenchPanel } from './TestBenchPanel.js';
+import type { TestBenchResult } from '@mechbattler/sim';
+import './ReadoutSheet.css';
+
+type Tab = 'vitals' | 'faults' | 'power' | 'bench';
+
+/**
+ * What the readout bar opens (docs/14 §8). Its tabs are also where the §14
+ * right-rail audit puts the items that must not be lost on mobile: the speed
+ * envelope, the fault list behind the bar's count, and power priority.
+ */
+export function ReadoutSheet({
+  open, onClose, chassis, build, parts, powerPriority, issues, onMovePriority, onBenchResult,
+}: {
+  open: boolean;
+  onClose: () => void;
+  chassis: ChassisSpec;
+  build: Build;
+  parts: PlacedPart[];
+  powerPriority: string[];
+  issues: Parameters<typeof BuildWarnings>[0]['issues'];
+  onMovePriority: (instanceId: string, direction: -1 | 1) => void;
+  onBenchResult: (result: TestBenchResult | null) => void;
+}) {
+  const [tab, setTab] = useState<Tab>('vitals');
+  const profile = computeSpeedProfile(chassis, build);
+
+  return (
+    <Sheet open={open} onClose={onClose} label="Build readout">
+      <div className="readout-tabs" role="tablist" aria-label="Readout section">
+        {(['vitals', 'faults', 'power', 'bench'] as Tab[]).map((t) => (
+          <button
+            key={t}
+            type="button"
+            role="tab"
+            aria-selected={tab === t}
+            className={`readout-tab${tab === t ? ' active' : ''}`}
+            onClick={() => setTab(t)}
+          >
+            {t === 'faults' ? `Faults (${issues.length})` : t}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'vitals' && (
+        <>
+          {/*
+            The speed envelope is an ellipse, not a scalar: combat.ts derives max
+            speed per heading from all three figures, and dispersion is
+            speed-gated, so this is combat-relevant rather than trivia. Four
+            values do not fit the 56px bar, so they live here (docs/14 §14).
+          */}
+          <div className="readout-speed">
+            <span className="readout-speed-label">Speed envelope</span>
+            <dl className="readout-speed-grid">
+              <div><dt>Forward</dt><dd>{profile.fwd.toFixed(1)} m/s</dd></div>
+              <div><dt>Strafe</dt><dd>{profile.strafe.toFixed(1)} m/s</dd></div>
+              <div><dt>Reverse</dt><dd>{profile.rev.toFixed(1)} m/s</dd></div>
+              <div><dt>Turn</dt><dd>{profile.turnRateDegS.toFixed(0)} deg/s</dd></div>
+            </dl>
+          </div>
+          <StatsPanel chassis={chassis} build={build} hoveredPartId={null} />
+        </>
+      )}
+
+      {tab === 'faults' && (
+        issues.length === 0
+          ? <p className="readout-empty">No faults on this build.</p>
+          : <BuildWarnings issues={issues} />
+      )}
+
+      {/* The only control for brownout order anywhere in the app (docs/14 §14).
+          It already reorders with up/down buttons rather than drag, which is
+          what touch needs. */}
+      {tab === 'power' && (
+        <PowerPriorityList priority={powerPriority} parts={parts} onMove={onMovePriority} />
+      )}
+
+      {tab === 'bench' && (
+        <TestBenchPanel chassis={chassis} build={build} onResult={onBenchResult} />
+      )}
+    </Sheet>
+  );
+}
