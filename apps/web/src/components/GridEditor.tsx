@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   computeConnectivity,
   getOccupiedCells,
@@ -44,12 +44,32 @@ const PLATE_CAPTION: Record<OverlayMode, string> = {
   thermal: 'Colour is cell temperature, coolest to hottest.',
 };
 
-const REJECTION_TEXT: Record<string, string> = {
-  'out-of-mask': 'off the chassis — parts never hang off the mask',
-  overlap: 'cell already occupied',
-  'perimeter-required': 'radiators need perimeter cells (exposure)',
-  'core-occupied': 'the core cell is reserved',
-};
+/**
+ * docs/14 §10: an error names the cause and the fix. Overlap also names *who* is
+ * in the way, which the sim's PlacementError does not carry -- the reason comes
+ * from checkPlacement, and the blocking part is looked up in the occupancy map
+ * the plate already builds. No placement rule is re-implemented here.
+ */
+function rejectionText(
+  reason: string,
+  armedName: string,
+  blockerName: string | null,
+): string {
+  switch (reason) {
+    case 'overlap':
+      return blockerName
+        ? `Blocked — ${armedName} overlaps ${blockerName}.`
+        : `Blocked — ${armedName} overlaps a fitted part.`;
+    case 'out-of-mask':
+      return `Blocked — ${armedName} hangs off the chassis. Move it inside the outline.`;
+    case 'core-occupied':
+      return `Blocked — the core cell is reserved. Put ${armedName} anywhere else.`;
+    case 'perimeter-required':
+      return `Blocked — ${armedName} needs an outside edge to shed heat. Move it to the chassis rim.`;
+    default:
+      return `Blocked — ${reason}.`;
+  }
+}
 
 export function GridEditor({
   chassis, parts, overlay, selectedPartId, selectedInstanceId, previewCells, checkCandidate,
@@ -97,6 +117,28 @@ export function GridEditor({
   const ghostPreview = ghost && selectedPartId ? previewCells(ghost.x, ghost.y) : [];
   const ghostError = ghost && selectedPartId ? checkCandidate(ghost.x, ghost.y) : null;
   const ghostLegal = Boolean(ghost && selectedPartId) && ghostError === null;
+
+  // The action keeps its name through the whole flow: Place -> "Placed".
+  const [placedToast, setPlacedToast] = useState(false);
+  const partCountRef = useRef(parts.length);
+  useEffect(() => {
+    if (parts.length > partCountRef.current) setPlacedToast(true);
+    partCountRef.current = parts.length;
+  }, [parts.length]);
+  useEffect(() => {
+    if (!placedToast) return;
+    const t = setTimeout(() => setPlacedToast(false), 1400);
+    return () => clearTimeout(t);
+  }, [placedToast]);
+
+  const ghostBlockerName = useMemo(() => {
+    if (!ghostError || ghostError.reason !== 'overlap' || !ghost) return null;
+    for (const { x, y } of ghostPreview) {
+      const occ = occupancy.get(`${x},${y}`);
+      if (occ) return getPart(occ.partId).name.split(' ')[0];
+    }
+    return null;
+  }, [ghostError, ghost, ghostPreview, occupancy]);
 
   const selectedOutline = useMemo(() => {
     const placed = parts.find((p) => p.instanceId === selectedInstanceId);
@@ -317,7 +359,11 @@ export function GridEditor({
               directly above Place, not in a toast that has already gone. */}
           {ghostError && (
             <p className="plate-armed-reason" role="status">
-              {REJECTION_TEXT[ghostError.reason] ?? ghostError.reason}
+              {rejectionText(
+                ghostError.reason,
+                selectedPartId ? getPart(selectedPartId).name.split(' ')[0] : 'This part',
+                ghostBlockerName,
+              )}
             </p>
           )}
           <div className="plate-armed-actions">
@@ -342,6 +388,12 @@ export function GridEditor({
             </button>
           </div>
         </div>
+      )}
+
+      {placedToast && <p className="plate-toast" role="status">Placed</p>}
+
+      {parts.length === 0 && !selectedPartId && (
+        <p className="plate-empty">Empty chassis. Start with a reactor — open Parts.</p>
       )}
 
       {/* A legend you must remember is a legend that failed: the caption states

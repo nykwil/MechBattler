@@ -24,3 +24,14 @@
 }
 .variant-delta.good { color: var(--signal-green); }
 .variant-delta.bad { color: var(--signal-red-text); }
+
+/* docs/14 §10: mod and quirk explanations are tappable disclosures, because
+   title= is unreachable on touch. */
+.mod-chip-wrap { display: inline-flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-1); }
+.mod-chip-detail {
+  flex-basis: 100%;
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  line-height: 1.45;
+  color: var(--ink-secondary);
+}

@@ -260,3 +260,33 @@
   line-height: 1.5;
   color: var(--ink-secondary);
 }
+
+/* docs/14 §10: an empty grid says what to do next instead of nothing at all. */
+.plate-empty {
+  margin: 0;
+  max-width: 420px;
+  text-align: center;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-secondary);
+}
+
+/* An action keeps its name through the flow: Place -> Placed (docs/14 §10). */
+.plate-toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(56px + var(--space-4));
+  transform: translateX(-50%);
+  z-index: var(--z-toast);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-radius: var(--radius-full);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--line-bright);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-primary);
+  pointer-events: none;
+}

@@ -42,3 +42,10 @@
 .build-warning.error .build-warning-badge { background: var(--signal-red); color: #1a0808; }
 .build-warning.warn .build-warning-badge { background: var(--signal-amber); color: #1a1206; }
 .build-warning.hint .build-warning-badge { background: var(--signal-blue); color: #0a161c; }
+
+/* The fix, on its own line under the cause (docs/14 §10). */
+.build-warning-fix {
+  display: block;
+  margin-top: var(--space-1);
+  color: var(--ink-secondary);
+}

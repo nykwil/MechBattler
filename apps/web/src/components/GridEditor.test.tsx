@@ -123,9 +123,9 @@ describe('GridEditor tap-then-confirm placement (docs/14 §6)', () => {
     const place = container.querySelector('.plate-btn-primary') as HTMLButtonElement;
     expect(place.disabled).toBe(true);
 
-    // A disabled control must never be a mystery.
+    // A disabled control must never be a mystery. The wording is §10's.
     const reason = container.querySelector('.plate-armed-reason');
-    expect(reason?.textContent).toContain('cell already occupied');
+    expect(reason?.textContent).toContain('Blocked');
   });
 
   it('enables Place once the ghost is legal', () => {
@@ -251,5 +251,90 @@ describe('GridEditor second channel for state (docs/14 §9)', () => {
     // A second channel nobody explains is not a second channel.
     expect(container.querySelector('.plate-caption')?.textContent).toContain('hatched');
     expect(container.textContent).toContain('Unpowered (hatched)');
+  });
+});
+
+describe('GridEditor copy (docs/14 §10)', () => {
+  function renderWith(props: Partial<Parameters<typeof GridEditor>[0]> = {}) {
+    const chassis = getChassis('CH-5');
+    return render(
+      <GridEditor
+        chassis={chassis} parts={[]} overlay="parts"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={() => {}} onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+        {...props}
+      />,
+    );
+  }
+
+  it('tells an empty chassis what to do next', () => {
+    const { container } = renderWith();
+    expect(container.querySelector('.plate-empty')?.textContent)
+      .toBe('Empty chassis. Start with a reactor — open Parts.');
+  });
+
+  it('drops the empty-state hint once a part is armed', () => {
+    const { container } = renderWith({ selectedPartId: 'U-CON', ghost: { x: 0, y: 0 } });
+    expect(container.querySelector('.plate-empty')).toBeNull();
+  });
+
+  it('names both parts when a placement overlaps', () => {
+    const chassis = getChassis('CH-5');
+    const { container } = renderWith({
+      chassis,
+      // A fitted laser at 1,1 and a ghost aimed at the same cell.
+      parts: [{ instanceId: 'l1', partId: 'W-LAS', origin: { x: 1, y: 1 }, rotation: 0, integrity: 1 }],
+      selectedPartId: 'U-CON',
+      ghost: { x: 1, y: 1 },
+      previewCells: () => [{ x: 1, y: 1 }],
+      checkCandidate: () => ({ reason: 'overlap' }),
+    });
+
+    // The cause, and who is in the way -- not "Invalid placement".
+    const reason = container.querySelector('.plate-armed-reason')?.textContent ?? '';
+    expect(reason).toContain('Blocked');
+    expect(reason).toContain('Bus');
+    expect(reason).toContain('Ember');
+  });
+
+  it('names the fix, not just the cause, for other rejections', () => {
+    const { container } = renderWith({
+      selectedPartId: 'U-RAD',
+      ghost: { x: 2, y: 2 },
+      previewCells: () => [{ x: 2, y: 2 }],
+      checkCandidate: () => ({ reason: 'perimeter-required' }),
+    });
+    const reason = container.querySelector('.plate-armed-reason')?.textContent ?? '';
+    expect(reason).toContain('shed heat');
+    expect(reason).toContain('rim');
+  });
+
+  it('confirms with the same word the action used', () => {
+    const chassis = getChassis('CH-5');
+    const { container, rerender } = renderWith();
+    expect(container.querySelector('.plate-toast')).toBeNull();
+
+    rerender(
+      <GridEditor
+        chassis={chassis}
+        parts={[{ instanceId: 'l1', partId: 'W-LAS', origin: { x: 1, y: 1 }, rotation: 0, integrity: 1 }]}
+        overlay="parts"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={() => {}} onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+      />,
+    );
+
+    // Place -> "Placed". Never "Submitted", never "Confirmed".
+    expect(container.querySelector('.plate-toast')?.textContent).toBe('Placed');
   });
 });
