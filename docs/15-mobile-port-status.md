@@ -228,7 +228,29 @@ every node-1 choice from 60 real runs, at that opponent's own battle seed and sp
 distance -- the starting blueprint wins **50 of 147, 34%**. That is at the band's
 floor, not a sixth of it. `npm run game:balance` says 0.147 for the same round.
 
-`scripts/starter-odds.mjs` reproduces the 34%. It isolates one question: first
+**The gap is explained, and it changes the diagnosis.** `game:balance` allows two
+attempts per node (`balanceMaxAttemptsPerNode: 2`), cycling opponents. Losing runs
+`settlePlayerDamage`, which *removes* parts at zero integrity — and the between-round
+policy repairs integrity but cannot bring a destroyed part back. So the second
+attempt is fought with a permanently diminished mech. Modelling exactly that policy:
+
+```
+attempt 1 (pristine):                 29/60 = 48.3%
+attempt 2 (after losses, parts gone):  1/31 =  3.2%
+blended round-1 rate:                 30/91 = 33.0%
+```
+
+So the starting blueprint is **not** too weak: it wins 48% of first attempts, in the
+middle of the 0.35-0.65 band. What collapses the aggregate is that a loss is close to
+unrecoverable — one win in thirty-one on the retry. Buffing the blueprint would be
+treating the symptom; the question is whether losing a fight should strip parts
+permanently, and whether a node should be re-attemptable in that state at all.
+
+(The model lands at 33%, not the harness's 0.147, because it plays one node rather
+than whole runs. The mechanism is demonstrated; the exact figure is still the
+harness's to report.)
+
+`scripts/starter-odds.mjs` reproduces all of the above. It isolates one question: first
 fight, pristine build, no run context. `game:balance` plays whole runs and is the
 authority, so where the two disagree it is right and this is missing something --
 most likely how the harness picks an opponent, or state carried into the fight. But

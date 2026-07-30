@@ -33,7 +33,7 @@ for (let seed = 1; seed <= 60; seed += 1) {
     const r = runBattle({
       builds: [build, opp.build],
       seed: Number(opp.battleSeed ?? seed) || seed,
-      spawnDistanceM: opp.spawnDistanceM,
+      ...(process.env.NO_SPAWN ? {} : { spawnDistanceM: opp.spawnDistanceM }),
     });
     n += 1;
     if (r.winner === 0) wins += 1;
@@ -49,3 +49,44 @@ console.log(`\n${wins}/${n} wins (${(wins / n * 100).toFixed(1)}%)`);
 console.log('median fight length:', durations[Math.floor(durations.length / 2)].toFixed(1), 's');
 for (const [k, v] of [...reasons].sort()) console.log(`  ${k}: ${v.w}/${v.n} = ${(v.w / v.n * 100).toFixed(0)}%`);
 
+
+// --- The harness's policy, modelled -----------------------------------------
+// game:balance allows two attempts per node, cycling opponents. Losing removes
+// destroyed parts permanently (settlePlayerDamage returns [] at zero integrity);
+// the between-round repair restores integrity but cannot bring a part back. So the
+// second attempt is fought with a crippled mech, and the round's win rate blends a
+// pristine try with a wrecked one.
+let first = { w: 0, n: 0 };
+let second = { w: 0, n: 0 };
+for (let seed = 1; seed <= 60; seed += 1) {
+  const run = createRun({ seed, kitName: 'x', build });
+  const node = run.generatedNodes.find((x) => x.index === 1);
+  const opponents = node.opponents ?? [];
+  if (opponents.length === 0) continue;
+
+  let mech = build;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const opp = opponents[(attempt - 1) % opponents.length];
+    const r = runBattle({
+      builds: [mech, opp.build],
+      seed: Number(opp.battleSeed ?? seed) || seed,
+      spawnDistanceM: opp.spawnDistanceM,
+    });
+    const bucket = attempt === 1 ? first : second;
+    bucket.n += 1;
+    if (r.winner === 0) bucket.w += 1;
+    if (r.winner === 0) break;
+    // Drop what the battle destroyed; survivors are repaired to full.
+    const hp = new Map(r.mechs[0].partsFinalHp.map((x) => [x.instanceId, x.hpFrac]));
+    mech = {
+      ...mech,
+      parts: mech.parts.filter((pt) => (hp.get(pt.instanceId) ?? 1) > 0),
+    };
+  }
+}
+const pct = (b) => `${b.w}/${b.n} = ${(b.w / Math.max(1, b.n) * 100).toFixed(1)}%`;
+console.log('\nharness policy, two attempts per node:');
+console.log('  attempt 1 (pristine):', pct(first));
+console.log('  attempt 2 (after losses, parts gone):', pct(second));
+const blend = { w: first.w + second.w, n: first.n + second.n };
+console.log('  blended round-1 rate:', pct(blend));
