@@ -39,12 +39,16 @@ describe('motion and hover invariants', () => {
     const offenders: string[] = [];
 
     for (const { path, css } of stylesheets()) {
-      // Strip @media (hover: hover) blocks, then any remaining :hover is ungated.
+      // Strip hover-capability blocks, then any remaining :hover is ungated.
+      // Matched by pattern rather than exact text: the stylesheet ported from the
+      // prototype writes it as `@media (hover:hover)`, without the space.
       let stripped = '';
       let i = 0;
       while (i < css.length) {
-        const start = css.indexOf('@media (hover: hover)', i);
-        if (start === -1) { stripped += css.slice(i); break; }
+        const rest = css.slice(i);
+        const rel = rest.search(/@media\s*\(\s*hover\s*:\s*hover\s*\)/);
+        if (rel === -1) { stripped += rest; break; }
+        const start = i + rel;
         stripped += css.slice(i, start);
         // Walk to the matching close brace of the media block.
         let depth = 0;
