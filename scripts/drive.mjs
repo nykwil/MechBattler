@@ -255,7 +255,16 @@ for (const tap of taps) {
     // exists does not merely miss: --tapText falls back to the shortest containing
     // match, which for 'Faults' is the readout bar, whose click closes the sheet the
     // tab lives in. The tap succeeds and does the opposite of what was asked.
-    await waitFor(`document.querySelector(${JSON.stringify(selector)})`, { label: selector });
+    // `sel@ms` raises the ceiling for waits that are not about rendering: a fight
+    // has to actually play out before its report exists, which is minutes, not the
+    // 8s a paint needs.
+    const at = selector.lastIndexOf('@');
+    const ms = at > 0 ? Number(selector.slice(at + 1)) : NaN;
+    const sel = Number.isFinite(ms) ? selector.slice(0, at) : selector;
+    await waitFor(`document.querySelector(${JSON.stringify(sel)})`, {
+      label: sel,
+      ...(Number.isFinite(ms) ? { timeoutMs: ms } : {}),
+    });
     continue;
   }
   if (tap.kind === 'key') {

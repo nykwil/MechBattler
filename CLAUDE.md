@@ -31,6 +31,12 @@ metrics beside the image. `--tap <selector>`, `--tapText <visible text>` and
 each scrolls the target into view, clicks or presses, and settles. `--eval <expr>`
 reports any measurement. Use this rather than `--screenshot`.
 
+An `--eval` immediately after a tap can sample before React commits. A report
+overlay read as still mounted after its close button was tapped, twice looked like a
+screen you could not leave, and was the measurement racing the unmount -- the same
+class of mistake as reading a container instead of a leaf. Wait on the thing whose
+absence you are asserting, or re-run before believing it.
+
 Measure before believing a screenshot. Twice now an image has produced a false
 diagnosis — a 500px crop read as clipping, and a scrim read as failing to cover —
 and both times `--eval` showed nothing was wrong.
@@ -54,6 +60,10 @@ exists before its children commit: gating on `.report-overlay` reported the batt
 report as having no buttons at all, which looked like a screen with no way out.
 Gating on `.report-banner-title` read it correctly — eight buttons, Replay, Report and
 Rematch among them.
+
+`--waitFor <selector>` accepts `selector@ms` to raise its 8s ceiling. A fight has
+to actually play out before its report exists, so driving the whole campaign loop
+needs `--waitFor '.report-banner-title@300000'`; the default is sized for a paint.
 
 Put `--waitFor <selector>` between an action and the tap that depends on it. Without
 it, `--tapText` can fall back to a shortest-containing match and do the opposite of
