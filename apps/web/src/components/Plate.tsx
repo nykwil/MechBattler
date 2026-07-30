@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
+  buildOccupancyMap,
   computeConnectivity,
-  getOccupiedCells,
   getPart,
   type ChassisSpec,
   type PartDef,
@@ -72,15 +72,8 @@ export function Plate({
   thermalSnapshot: Record<string, number> | null;
   onCellActivate: (x: number, y: number) => void;
 }) {
-  const occupancy = useMemo(() => {
-    const map = new Map<string, { instanceId: string; partId: string }>();
-    for (const p of parts) {
-      for (const c of getOccupiedCells(p, getPart(p.partId))) {
-        map.set(`${c.x},${c.y}`, { instanceId: p.instanceId, partId: p.partId });
-      }
-    }
-    return map;
-  }, [parts]);
+  // The sim owns this mapping; both this and DamageGrid had a copy of it.
+  const occupancy = useMemo(() => buildOccupancyMap(parts).byCell, [parts]);
 
   const powered = useMemo(
     () => computeConnectivity(parts).connectedInstanceIds,

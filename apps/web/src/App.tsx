@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { getOccupiedCells, autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { buildOccupancyMap, autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
@@ -269,6 +269,9 @@ export default function App() {
     const t = setTimeout(() => setToast(''), 1400);
     return () => clearTimeout(t);
   }, [toast]);
+
+  /** Which part occupies each cell. The sim owns this mapping; do not re-derive it. */
+  const cellOwners = useMemo(() => buildOccupancyMap(state.parts).byCell, [state.parts]);
 
   const ghostReason = useMemo(() => {
     if (!state.selectedPartId || !state.ghost) return null;
@@ -654,9 +657,7 @@ export default function App() {
             onCellActivate={(x, y) => {
               // Armed: a tap aims the ghost. Otherwise it selects what is there.
               if (state.selectedPartId) { aim(x, y); return; }
-              const occ = state.parts.find((part) =>
-                getOccupiedCells(part, getPart(part.partId)).some((c) => c.x === x && c.y === y));
-              selectInstance(occ ? occ.instanceId : null);
+              selectInstance(cellOwners.get(`${x},${y}`)?.instanceId ?? null);
             }}
           />
 

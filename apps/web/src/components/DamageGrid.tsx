@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react';
-import { getChassis, getOccupiedCells, getPart, type Build, type BattleEvent } from '@mechbattler/sim';
+import { buildOccupancyMap, getChassis, getPart, type Build, type BattleEvent } from '@mechbattler/sim';
 
 /** Destroyed reads as a hatch as well as a colour — never colour alone (docs/14 §9). */
 const GONE: CSSProperties = {
@@ -43,15 +43,8 @@ export function DamageGrid({
     return gone;
   }, [events, tSec]);
 
-  const occupancy = useMemo(() => {
-    const map = new Map<string, { instanceId: string; partId: string }>();
-    for (const p of build.parts) {
-      for (const c of getOccupiedCells(p, getPart(p.partId))) {
-        map.set(`${c.x},${c.y}`, { instanceId: p.instanceId, partId: p.partId });
-      }
-    }
-    return map;
-  }, [build.parts]);
+  // The sim owns this mapping; see Plate, which had the same copy.
+  const occupancy = useMemo(() => buildOccupancyMap(build.parts).byCell, [build.parts]);
 
   const cells = [];
   for (let y = 0; y < chassis.height; y += 1) {
