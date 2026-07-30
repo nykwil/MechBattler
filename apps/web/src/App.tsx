@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
-import { useBuild } from './state/useBuild.js';
-import { GridEditor } from './components/GridEditor.js';
-import { StatsPanel } from './components/StatsPanel.js';
-import { PowerPriorityList } from './components/PowerPriorityList.js';
-import { TestBenchPanel } from './components/TestBenchPanel.js';
+import { getOccupiedCells, autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
-import { BuildWarnings } from './components/BuildWarnings.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
@@ -22,13 +17,29 @@ import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import type { OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
-import { ReadoutBar } from './components/ReadoutBar.js';
 import { ReadoutSheet } from './components/ReadoutSheet.js';
+import { Plate } from './components/Plate.js';
+import { Readout } from './components/Readout.js';
+import { ActionBar } from './components/ActionBar.js';
 import { PartsSheet } from './components/PartsSheet.js';
-import { useDocked } from './state/useDocked.js';
+import { Sheet } from './components/Sheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
 import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
+
+const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
+  { id: 'parts', label: 'Parts' },
+  { id: 'power', label: 'Power' },
+  { id: 'thermal', label: 'Heat' },
+];
+
+/** docs/14 §10: name the cause and the fix, briefly enough for the action bar. */
+const REJECTION_COPY: Record<string, string> = {
+  overlap: 'Overlaps a fitted part',
+  'out-of-mask': 'Hangs off the chassis',
+  'core-occupied': 'The core cell is reserved',
+  'perimeter-required': 'Needs a chassis rim cell',
+};
 
 export default function App() {
   const directView = new URLSearchParams(window.location.search).get('view');
@@ -47,11 +58,9 @@ export default function App() {
   const [benchResult, setBenchResult] = useState<TestBenchResult | null>(null);
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
-  const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const [readoutOpen, setReadoutOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
-  const docked = useDocked();
-  const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
+  const [chassisOpen, setChassisOpen] = useState(false);
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
@@ -208,8 +217,6 @@ export default function App() {
     const { conduits } = autoWire(chassis, build);
     if (conduits.length === 0) return;
     addParts(conduits);
-    setFlashIds(new Set(conduits.map((c) => c.instanceId)));
-    setTimeout(() => setFlashIds(new Set()), 1700);
   }, [chassis, build, addParts, runActive]);
 
   useEffect(() => {
@@ -233,11 +240,13 @@ export default function App() {
     const advice = predictedTemps ? computeHeatAdvice(chassis, build, predictedTemps) : [];
     return [...base, ...advice];
   }, [chassis, build, predictedTemps]);
-  const faultInstanceIds = useMemo(
-    () => new Set(issues.filter((i) => i.severity === 'error').flatMap((i) => i.instanceIds)),
-    [issues],
-  );
   // Only what the 56px bar shows; the sheet computes its own detail.
+  const ghostReason = useMemo(() => {
+    if (!state.selectedPartId || !state.ghost) return null;
+    const err = checkCandidate(state.ghost.x, state.ghost.y);
+    return err ? (REJECTION_COPY[err.reason] ?? err.reason) : null;
+  }, [state.selectedPartId, state.ghost, checkCandidate]);
+
   const readoutStats = useMemo(() => {
     const profile = computeSpeedProfile(chassis, build);
     const energy = computeEnergyMargin(chassis, build);
@@ -437,7 +446,7 @@ export default function App() {
     </div>
   ) : null;
 
-  const mobileTabs = docked ? [] : [
+  const mobileTabs = [
     ...(inspectorNode ? [{ id: 'inspect', label: 'inspect', node: inspectorNode }] : []),
     { id: 'run', label: 'run', node: <>{runNode}{arenaNode}</> },
   ];
@@ -510,87 +519,112 @@ export default function App() {
         </>}
       </header>
 
-      {workspace === 'balance' ? <BalanceLab /> : <div className="layout">
-        {/* docs/14 §11: a sheet on a phone, the left rail once docked. */}
-        <PartsSheet
-          open={partsOpen}
-          onClose={() => setPartsOpen(false)}
-          docked={docked}
-          selectedPartId={state.selectedPartId}
-          onSelect={(id) => {
-            selectPalettePart(id);
-            // Arming from a sheet hands the plate back so the ghost is visible.
-            if (id && !docked) setPartsOpen(false);
-          }}
-          onHover={setHoveredPartId}
-          visiblePartIds={palettePartIds}
-          ownedCounts={ownedPartCounts}
-          readOnly={runActive}
-          label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
-        />
+      {workspace === 'balance' ? <BalanceLab /> : (
+        /* The prototype's shell (docs/prototypes/mobile-builder.html):
+           topbar -> plate-area -> readout -> actionbar, with sheets over the top. */
+        <div className="app">
+          <header className="topbar">
+            <button
+              className="chassis-btn"
+              type="button"
+              onClick={() => setChassisOpen(true)}
+              aria-label="Change chassis"
+            >
+              <span className="chassis-id">
+                <span className="chassis-name">{chassis.name.split(' ')[0]}</span>
+                <span className="chassis-type">{chassis.id} · {chassis.type}</span>
+              </span>
+              <span className="caret" aria-hidden="true">▾</span>
+            </button>
+            <div className="ov-toggle" role="group" aria-label="Plate view">
+              {PLATE_VIEWS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  aria-pressed={state.overlay === v.id}
+                  onClick={() => setOverlay(v.id)}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </header>
 
-        <div className="centerpane">
-          <GridEditor
+          <Plate
             chassis={chassis}
             parts={state.parts}
             overlay={state.overlay}
-            selectedPartId={state.selectedPartId}
             selectedInstanceId={state.selectedInstanceId}
-            previewCells={previewCells}
-            checkCandidate={checkCandidate}
-            ghost={state.ghost}
-            detached={state.detached !== null}
-            onAim={aim}
-            onCommit={placeWithEconomy}
-            onCancel={() => selectPart(null)}
-            onRotate={rotate}
-            onSelectInstance={selectInstance}
+            ghostCells={state.ghost && state.selectedPartId ? previewCells(state.ghost.x, state.ghost.y) : []}
+            ghostLegal={Boolean(state.ghost) && ghostReason === null}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
-            faultInstanceIds={faultInstanceIds}
-            flashInstanceIds={flashIds}
-            onAutoWire={autoWireNow}
-            onSetOverlay={setOverlay}
+            onCellActivate={(x, y) => {
+              // Armed: a tap aims the ghost. Otherwise it selects what is there.
+              if (state.selectedPartId) { aim(x, y); return; }
+              const occ = state.parts.find((part) =>
+                getOccupiedCells(part, getPart(part.partId)).some((c) => c.x === x && c.y === y));
+              selectInstance(occ ? occ.instanceId : null);
+            }}
           />
 
-          {/* docs/14 §8: persistent readout, and the sheet it opens. Hidden above
-              768px for now -- the right rail already carries these numbers, and
-              §11 is what docks the two together. */}
-          {!docked && (
-            <button type="button" className="plate-btn open-parts" onClick={() => setPartsOpen(true)}>
-              Open Parts
-            </button>
-          )}
-
-          <ReadoutBar
+          <Readout
             massT={readoutStats.massT}
             ratedMassT={chassis.ratedMassT}
-            heatMarginKw={readoutStats.heatMarginKw}
             powerMarginKw={readoutStats.powerMarginKw}
-            faultCount={issues.length}
+            heatMarginKw={readoutStats.heatMarginKw}
+            faultCount={issues.filter((i) => i.severity === 'error').length}
+            preview={null}
             onOpen={() => setReadoutOpen(true)}
           />
-        </div>
 
-        {docked && <div className="panel">
-          {issues.length > 0 && (
-            <div className="section">
-              <BuildWarnings issues={issues} />
-            </div>
-          )}
-          {inspectorNode && <div className="section">{inspectorNode}</div>}
-          <div className="section">
-            <StatsPanel chassis={chassis} build={build} hoveredPartId={hoveredPartId} />
+          <ActionBar
+            armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}
+            moving={state.detached !== null}
+            reason={ghostReason}
+            onCancel={() => selectPart(null)}
+            onRotate={rotate}
+            onPlace={placeWithEconomy}
+            onOpenParts={() => setPartsOpen(true)}
+            idleHint={state.selectedInstanceId ? 'Detach from the readout sheet' : 'Open Parts to arm something'}
+            onAutoWire={autoWireNow}
+          />
+        </div>
+      )}
+
+      {chassisOpen && (
+        <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">
+          <div className="sheet-head"><span className="sheet-title">Chassis</span></div>
+          <div className="sheet-body">
+            {chassisOptions.map((c) => (
+              <button
+                key={c.id}
+                type="button"
+                className={`part-row${state.chassisId === c.id ? ' sel' : ''}`}
+                onClick={() => { setChassis(c.id); setChassisOpen(false); }}
+              >
+                <span className="part-txt">
+                  <span className="part-name">{c.name}</span>
+                  <span className="part-sub">{c.id} · {c.type} · {c.width}×{c.height}</span>
+                </span>
+                <span className="part-num">{c.ratedMassT.toFixed(1)} t</span>
+              </button>
+            ))}
           </div>
-          <div className="section">
-            <PowerPriorityList priority={state.powerPriority} parts={state.parts} onMove={movePriority} />
-          </div>
-          <div className="section">
-            <TestBenchPanel chassis={chassis} build={build} onResult={setBenchResult} />
-          </div>
-          <div className="section">{runNode}</div>
-          {arenaNode && <div className="section">{arenaNode}</div>}
-        </div>}
-      </div>}
+        </Sheet>
+      )}
+
+      <PartsSheet
+        open={partsOpen}
+        onClose={() => setPartsOpen(false)}
+        docked={false}
+        selectedPartId={state.selectedPartId}
+        onSelect={(id) => { selectPalettePart(id); if (id) setPartsOpen(false); }}
+        onHover={() => {}}
+        visiblePartIds={palettePartIds}
+        ownedCounts={ownedPartCounts}
+        readOnly={runActive}
+        label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
+      />
 
       <ReadoutSheet
         open={readoutOpen}

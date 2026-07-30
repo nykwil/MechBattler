@@ -28,7 +28,7 @@ describe('Sheet', () => {
   it('moves focus inside on open', () => {
     render(<Sheet open onClose={() => {}} label="Readout"><button>inner</button></Sheet>);
     // The handle is the first focusable, so focus lands in the sheet, not behind it.
-    expect(document.activeElement?.className).toContain('sheet-handle');
+    expect(document.activeElement?.className).toContain('handle-zone');
   });
 
   it('closes on Escape', () => {
@@ -60,20 +60,20 @@ describe('Sheet', () => {
     );
     expect(container.querySelector('.sheet')?.className).toContain('sheet-half');
     // No scrim at half: the plate behind must stay usable.
-    expect(container.querySelector('.sheet-scrim')).toBeNull();
+    expect(container.querySelector('.scrim')).toBeNull();
   });
 
   it('cycles snap on a handle tap and scrims only at full', () => {
     const { container } = render(
       <Sheet open onClose={() => {}} label="Readout"><button>inner</button></Sheet>,
     );
-    const handle = container.querySelector('.sheet-handle')!;
+    const handle = container.querySelector('.handle-zone')!;
 
     fireEvent.pointerDown(handle, { clientY: 100 });
     fireEvent.pointerUp(handle);
 
     expect(container.querySelector('.sheet')?.className).toContain('sheet-full');
-    expect(container.querySelector('.sheet-scrim')).not.toBeNull();
+    expect(container.querySelector('.scrim')).not.toBeNull();
   });
 });
 
@@ -90,8 +90,8 @@ describe('Sheet docking (docs/14 §11)', () => {
     expect(rail.getAttribute('aria-label')).toBe('Parts');
     expect(rail.getAttribute('role')).toBeNull();
     expect(rail.getAttribute('aria-modal')).toBeNull();
-    expect(container.querySelector('.sheet-handle')).toBeNull();
-    expect(container.querySelector('.sheet-scrim')).toBeNull();
+    expect(container.querySelector('.handle-zone')).toBeNull();
+    expect(container.querySelector('.scrim')).toBeNull();
     expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 

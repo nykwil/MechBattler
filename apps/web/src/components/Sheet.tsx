@@ -118,9 +118,11 @@ export function Sheet({
   return (
     <div className="sheet-layer" onKeyDown={onKeyDown}>
       {/* Only full covers the plate, so peek and half get no scrim. */}
-      {snap === 'full' && <div className="sheet-scrim" onClick={onClose} />}
+      {snap === 'full' && (
+        <button className="scrim" type="button" tabIndex={-1} aria-label="Close sheet" onClick={onClose} />
+      )}
       <div
-        className={`sheet sheet-${snap}`}
+        className={`sheet open sheet-${snap}`}
         role="dialog"
         aria-modal="true"
         aria-label={label}
@@ -129,13 +131,13 @@ export function Sheet({
       >
         <button
           type="button"
-          className="sheet-handle"
+          className="handle-zone"
           aria-label={`Resize ${label} sheet`}
           onPointerDown={onHandlePointerDown}
           onPointerMove={onHandlePointerMove}
           onPointerUp={onHandlePointerUp}
         >
-          <span className="sheet-grip" />
+          <span className="handle" />
         </button>
         <div className="sheet-body">{children}</div>
       </div>
