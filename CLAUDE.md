@@ -24,7 +24,8 @@ npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png \
   --w 390 --h 844 --tap '.actionbar .btn-primary' --tap '.part-row'
 ```
 
-`scripts/drive.mjs` drives Chrome over CDP. It prints viewport and overflow
+`scripts/drive.mjs` drives Chrome over CDP. It has no dependencies and finds Chrome
+itself; set `CHROME_PATH` if yours is somewhere unusual. It prints viewport and overflow
 metrics beside the image. `--tap <selector>`, `--tapText <visible text>` and
 `--key <ArrowRight|Enter|Escape|r|Delete>` are repeatable and interleave in order;
 each scrolls the target into view, clicks or presses, and settles. `--eval <expr>`

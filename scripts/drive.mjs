@@ -25,7 +25,7 @@
  * The screenshot is taken after all taps.
  */
 import { writeFileSync } from 'node:fs';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 // Node's built-in WebSocket, so this script has no dependencies. It previously
 // imported `ws`, which is only in the tree transitively via jsdom — an undeclared
@@ -66,8 +66,37 @@ const KEYS = {
   Tab: { code: 9, key: 'Tab' },
 };
 
+/**
+ * Chrome's binary name varies by platform and distro, so try the common ones rather
+ * than hardcoding the one that happened to be on this machine.
+ */
+function chromeBinary() {
+  const works = (bin) => !spawnSync(bin, ['--version'], { stdio: 'ignore' }).error;
+
+  // An explicit CHROME_PATH that does not run is a mistake worth reporting, not
+  // something to paper over by quietly launching a different browser.
+  if (process.env.CHROME_PATH) {
+    if (works(process.env.CHROME_PATH)) return process.env.CHROME_PATH;
+    console.error(`CHROME_PATH is set to ${process.env.CHROME_PATH}, which will not run.`);
+    process.exit(3);
+  }
+
+  const candidates = [
+    'google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser',
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  ];
+  for (const bin of candidates) {
+    if (works(bin)) return bin;
+  }
+  console.error(
+    'No Chrome found. Tried: ' + candidates.join(', ') + '\n'
+    + 'Set CHROME_PATH to a Chrome or Chromium binary.',
+  );
+  process.exit(3);
+}
+
 const port = 9333 + Math.floor(Math.random() * 400);
-const chrome = spawn('google-chrome', [
+const chrome = spawn(chromeBinary(), [
   '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
   `--remote-debugging-port=${port}`, `--user-data-dir=/tmp/cdp-${port}`,
   'about:blank',
