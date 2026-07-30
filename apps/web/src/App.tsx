@@ -310,7 +310,10 @@ export default function App() {
     if (!opponent) return;
     if (directView === 'battle') {
       autoBattleRef.current = true;
-      setLive({ build, opponent, seed: 20260730 });
+      // An armed build, so the console's gun chips actually have guns in them --
+      // the default sandbox build is empty and shows none.
+      const armed = OPPONENTS[OPPONENTS.length - 1] ?? opponent;
+      setLive({ build: armed.build, opponent, seed: 20260730 });
     } else if (directView === 'report') {
       autoBattleRef.current = true;
       const report = runBattle({

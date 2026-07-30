@@ -106,9 +106,13 @@ await sleep(2500);
 
 for (const tap of taps) {
   const selector = tap.value;
+  // Among text matches, take the tightest: a container always contains its
+  // child's text, so first-match-wins clicks the wrong thing. Tapping 'Faults'
+  // hit the readout bar (whose cells include that word) instead of the sheet tab.
   const finder = tap.kind === 'text'
     ? `[...document.querySelectorAll('button, [role=tab], a')]
-         .find((e) => e.textContent.includes(${JSON.stringify(selector)}))`
+         .filter((e) => e.textContent.includes(${JSON.stringify(selector)}))
+         .sort((a, b) => a.textContent.length - b.textContent.length)[0]`
     : `document.querySelector(${JSON.stringify(selector)})`;
   // Scroll into view first: sheet bodies scroll, and a part row 1900px down
   // reports a rect far outside the viewport, so the click lands on nothing.
