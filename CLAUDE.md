@@ -48,6 +48,10 @@ clipping that did not exist. `drive.mjs` uses
 `Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
 `overflowX` so a crop can never be mistaken for an overflow again.
 
+`--key Tab` gives real keyboard focus, which is the only way to verify a
+`:focus-visible` ring actually renders — a rule in the stylesheet is not the same as
+an outline on the screen.
+
 `--media reduce` emulates prefers-reduced-motion, which is how §9's blanket rule
 was actually checked rather than merely asserted: transitions drop to 1e-06s, the
 sheet still appears (its reveal is a class-set transform, not an animation), and

@@ -60,6 +60,7 @@ const KEYS = {
   Escape: { code: 27, key: 'Escape' },
   r: { code: 82, key: 'r' },
   Delete: { code: 46, key: 'Delete' },
+  Tab: { code: 9, key: 'Tab' },
 };
 
 const port = 9333 + Math.floor(Math.random() * 400);
