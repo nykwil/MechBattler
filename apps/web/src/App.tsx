@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { buildOccupancyMap, autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
@@ -12,12 +12,15 @@ import {
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
-import { BattleReportScreen } from './components/BattleReportScreen.js';
-import { BattleLiveScreen } from './components/BattleLiveScreen.js';
+const BattleReportScreen = lazy(() => import('./components/BattleReportScreen.js').then((m) => ({ default: m.BattleReportScreen })));
+const BattleLiveScreen = lazy(() => import('./components/BattleLiveScreen.js').then((m) => ({ default: m.BattleLiveScreen })));
 import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import { resolveView } from './lib/views.js';
 import type { FightMode } from './components/ArenaPanel.js';
-import { BalanceLab } from './components/BalanceLab.js';
+// Lazy: the Balance Lab is a desktop analysis tool with its own worker, and the
+// battle screens carry the whole battle stylesheet. Neither is needed to paint the
+// front door, which is what a visitor sees first.
+const BalanceLab = lazy(() => import('./components/BalanceLab.js').then((m) => ({ default: m.BalanceLab })));
 import { ReadoutSheet } from './components/ReadoutSheet.js';
 import { Plate } from './components/Plate.js';
 import { Readout } from './components/Readout.js';
@@ -609,7 +612,9 @@ export default function App() {
             <button type="button" className="active">Balance Lab</button>
           </nav>
         </header>
-        <BalanceLab />
+        <Suspense fallback={<p className="lazy-wait">Loading Balance Lab…</p>}>
+          <BalanceLab />
+        </Suspense>
       </div>
     );
   }
@@ -779,6 +784,7 @@ export default function App() {
       />
 
       {live && (
+        <Suspense fallback={<p className="lazy-wait">Opening battle…</p>}>
         <BattleLiveScreen
           key={live.seed}
           build={live.build}
@@ -790,6 +796,7 @@ export default function App() {
           }}
           onAbort={() => { runFightRef.current = false; setLive(null); }}
         />
+        </Suspense>
       )}
 
       {run.phase === 'active' && run.data.pendingSalvage && (
@@ -813,6 +820,7 @@ export default function App() {
       )}
 
       {battle && !live && !salvageOpen && (
+        <Suspense fallback={<p className="lazy-wait">Opening report…</p>}>
         <BattleReportScreen
           yourBuild={build}
           report={battle.report}
@@ -867,6 +875,7 @@ export default function App() {
             setBattle(null);
           }}
         />
+        </Suspense>
       )}
     </>
   );

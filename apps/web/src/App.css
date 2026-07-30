@@ -195,3 +195,15 @@
 /* Doubled selector to outrank shell.css's own .threat-off, which is equal
    specificity and wins on import order. */
 .threat-off.threat-off { color: var(--ink-faint); }
+
+/* Shown while a lazily-loaded screen arrives. Brief by design: these chunks are
+   small and local, so this should read as a beat rather than a spinner. */
+.lazy-wait {
+  display: grid;
+  place-items: center;
+  min-height: 100dvh;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+}
