@@ -141,6 +141,30 @@
   row-gap: var(--space-1);
 }
 
+/* The prototype sets these at 9px, under the 11px floor the rest of the app was
+   swept to. .cbar-k/.cbar-v are the core, evade and mass readouts -- the numbers
+   the fight is actually read from -- so they are the last text that should be the
+   smallest on the screen.
+
+   .con-foot is the chip legend, and at 9px it was both unreadable and truncated
+   mid-word ("...why fire contro..."), because the prototype pins it to one nowrap
+   line of 1.3em. Raising the size alone would cut more of it, so it wraps instead;
+   the console already scrolls, so the extra line costs nothing.
+
+   battle.css loads after this file and owns the same selectors, so these have to
+   out-specify it rather than merely restate it -- a first attempt at equal
+   specificity lost the tie and left 9px in place. .tiny is doubled to win that tie
+   on its compact variant without reaching for !important. */
+.battle-app .cbar .cbar-k,
+.battle-app .cbar .cbar-v,
+.battle-app .cbar.tiny.tiny .cbar-k,
+.battle-app .cbar.tiny.tiny .cbar-v { font-size: 11px; }
+.battle-app .console .con-foot {
+  font-size: 11px;
+  white-space: normal;
+  height: auto;
+}
+
 /* The unit suffix in a readout value; the prototype inlined this style. */
 .ro-unit {
   font-size: var(--text-2xs);
