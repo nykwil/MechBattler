@@ -48,6 +48,11 @@ clipping that did not exist. `drive.mjs` uses
 `Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
 `overflowX` so a crop can never be mistaken for an overflow again.
 
+The driver reports console errors and warnings beside the image. React's
+validateDOMNesting caught a `<button>` inside a `<button>` in salvage that no
+screenshot or test had noticed — invalid HTML that browsers may respond to by
+swallowing the click. Read that line.
+
 Being able to *tap* matters as much as seeing: every bottom sheet in this app was
 translated 101% off-screen for a day because no screenshot ever opened one.
 

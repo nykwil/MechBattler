@@ -110,6 +110,23 @@ const evaluate = async (expression) => {
 
 await send('Page.enable');
 await send('Runtime.enable');
+await send('Log.enable');
+
+// Console capture. React warnings, key collisions and thrown errors are invisible
+// in a screenshot and were never being looked at.
+const consoleMessages = [];
+ws.on('message', (raw) => {
+  const msg = JSON.parse(raw.toString());
+  if (msg.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(msg.params.type)) {
+    consoleMessages.push(`${msg.params.type}: ${msg.params.args.map((a) => a.value ?? a.description ?? a.type).join(' ')}`);
+  }
+  if (msg.method === 'Log.entryAdded' && ['error', 'warning'].includes(msg.params.entry.level)) {
+    consoleMessages.push(`${msg.params.entry.level}: ${msg.params.entry.text}`);
+  }
+  if (msg.method === 'Runtime.exceptionThrown') {
+    consoleMessages.push(`exception: ${msg.params.exceptionDetails.text} ${msg.params.exceptionDetails.exception?.description ?? ''}`);
+  }
+});
 // The whole point: a real 390px viewport, which --window-size cannot give.
 await send('Emulation.setDeviceMetricsOverride', {
   width, height, deviceScaleFactor: 1, mobile: true,
@@ -188,6 +205,13 @@ const metrics = await evaluate(`JSON.stringify({
   sheetOpen: !!document.querySelector('.sheet.on'),
 })`);
 console.error(`metrics ${metrics}`);
+
+if (consoleMessages.length) {
+  console.error(`console (${consoleMessages.length}):`);
+  for (const m of [...new Set(consoleMessages)]) console.error(`  ${m.slice(0, 220)}`);
+} else {
+  console.error('console clean');
+}
 
 const { data } = await send('Page.captureScreenshot', { format: 'png' });
 writeFileSync(out, Buffer.from(data, 'base64'));

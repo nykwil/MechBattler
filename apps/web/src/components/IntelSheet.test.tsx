@@ -78,3 +78,47 @@ describe('IntelSheet', () => {
     expect(blocked.container.querySelector('.btn-primary')).toBeNull();
   });
 });
+
+/**
+ * Nested buttons are invalid HTML and browsers may swallow the inner click. The
+ * mod chips became buttons for §10's tappable disclosures, and salvage renders
+ * them inside a candidate row that is itself a button — which React reported as
+ * validateDOMNesting once anything actually looked at the console.
+ */
+describe('ModChips nesting', () => {
+  it('renders no button when told it is not interactive', async () => {
+    const { ModChips } = await import('./ModChips.js');
+    const { container } = render(
+      <ModChips modifiers={['insulated-mount']} interactive={false} />,
+    );
+
+    expect(container.querySelector('button')).toBeNull();
+    expect(container.querySelector('.mod-chip')).not.toBeNull();
+    // The explanation must still be readable: it cannot be behind a tap that has
+    // nowhere to live, and title= is unreachable on touch.
+    expect(container.querySelector('.mod-chip-detail')?.textContent?.length ?? 0)
+      .toBeGreaterThan(0);
+  });
+
+  it('is a disclosure button where nesting allows it', async () => {
+    const { ModChips } = await import('./ModChips.js');
+    const { container } = render(<ModChips modifiers={['insulated-mount']} />);
+
+    const chip = container.querySelector('button.mod-chip');
+    expect(chip).not.toBeNull();
+    expect(chip?.getAttribute('aria-expanded')).toBe('false');
+    expect(container.querySelector('.mod-chip-detail')).toBeNull();
+
+    fireEvent.click(chip!);
+    expect(container.querySelector('.mod-chip-detail')).not.toBeNull();
+  });
+
+  it('keeps variant deltas non-interactive too', async () => {
+    const { ModChips } = await import('./ModChips.js');
+    const { container } = render(
+      <ModChips variant={{ cycleS: 0.9 }} interactive={false} />,
+    );
+    expect(container.querySelector('button')).toBeNull();
+    expect(container.querySelector('.variant-delta')).not.toBeNull();
+  });
+});
