@@ -25,7 +25,7 @@ export function TitleScreen({
   return (
     <main className="front-door">
       <div className="front-glow" />
-      <section className="front-card title-card">
+      <section className="front-card">
         <div className="front-kicker">SALVAGE · REBUILD · SURVIVE</div>
         <h1>MECH<span>BATTLER</span></h1>
         <p className="front-deck">

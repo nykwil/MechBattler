@@ -171,11 +171,12 @@
   max-width: 32ch;
 }
 
-/* The battle is an overlay over the workshop. .battle-app only scopes the ported
-   stylesheet -- the prototype's own root was the page, so it carries no
-   positioning, and replacing .report-overlay with it left the battle rendering in
-   normal flow below the workshop, mounted but off-screen. */
-.battle-app {
+/* .battle-app is only a style scope for the ported battle stylesheet -- the
+   prototype's own root was the page, so it carries no positioning. Every surface
+   that renders BattleHud needs it, or the console falls back to unstyled text.
+   Being an overlay is a separate concern: the live battle covers the workshop,
+   the report screen has its own .report-overlay. */
+.battle-overlay {
   position: fixed;
   inset: 0;
   z-index: var(--z-overlay);
@@ -201,4 +202,10 @@
 .battle-app .hud-enemy {
   flex-wrap: wrap;
   row-gap: var(--space-1);
+}
+
+/* The unit suffix in a readout value; the prototype inlined this style. */
+.ro-unit {
+  font-size: var(--text-2xs);
+  color: var(--ink-faint);
 }

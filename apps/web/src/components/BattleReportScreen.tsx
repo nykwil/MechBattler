@@ -56,7 +56,7 @@ export function BattleReportScreen({
   const [view, setView] = useState<'replay' | 'report'>(hasReplay ? 'replay' : 'report');
 
   return (
-    <div className="report-overlay" role="dialog" aria-modal="true">
+    <div className="battle-app report-overlay" role="dialog" aria-modal="true">
       <div className="report-panel">
         <div className={`report-banner ${report.winner === 'draw' ? 'draw' : won ? 'won' : 'lost'}`}>
           <div className="report-banner-title">{banner}</div>

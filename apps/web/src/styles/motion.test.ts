@@ -90,3 +90,45 @@ describe('ported stylesheet integrity', () => {
     }
   });
 });
+
+/**
+ * Every class the markup applies must be styled somewhere.
+ *
+ * Three bugs shipped past the suite because nothing checked this: a `.tbtn`
+ * topbar button styled only inside `.battle-app`, a `.ro-unit` span that never
+ * existed, and worst of all `.sheet.open` where the prototype reveals with
+ * `.sheet.on` -- which left every bottom sheet translated 101% off the screen.
+ */
+describe('class coverage', () => {
+  function walk(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+      const p = `${dir}/${e.name}`;
+      if (e.isDirectory()) return walk(p);
+      return e.isFile() ? [p] : [];
+    });
+  }
+
+  it('styles every class name used in markup', () => {
+    const files = walk('src');
+    const css = files.filter((f) => f.endsWith('.css'))
+      .map((f) => readFileSync(f, 'utf8')).join('\n');
+    const defined = new Set([...css.matchAll(/\.([a-zA-Z][\w-]*)/g)].map((m) => m[1]));
+
+    // Fragments of template literals, and utility prefixes completed at runtime.
+    const partial = /-$/;
+    const missing = new Set<string>();
+
+    for (const f of files.filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))) {
+      const src = readFileSync(f, 'utf8');
+      for (const m of src.matchAll(/className=(?:"([^"]*)"|\{`([^`]*)`\})/g)) {
+        const raw = (m[1] ?? m[2] ?? '').replace(/\$\{[^}]*\}/g, ' ');
+        for (const tok of raw.split(/\s+/)) {
+          if (!tok || partial.test(tok) || defined.has(tok)) continue;
+          missing.add(tok);
+        }
+      }
+    }
+
+    expect([...missing].sort()).toEqual([]);
+  });
+});

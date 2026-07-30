@@ -121,7 +121,7 @@ export function BalanceLab() {
           </section>
 
           <div className="lab-grid">
-            <section className="lab-card lab-standings">
+            <section className="lab-card">
               <div className="lab-card-head"><div><span>02</span><h2>Roster standings</h2></div><small>budget = sum of part tiers</small></div>
               <div className="standing-table">
                 {report.standings.map((standing, index) => (
@@ -135,7 +135,7 @@ export function BalanceLab() {
               </div>
             </section>
 
-            <section className="lab-card lab-brief">
+            <section className="lab-card">
               <div className="lab-card-head"><div><span>03</span><h2>Tuning brief</h2></div><small>ranked, explainable findings</small></div>
               <div className="diagnostic-list">
                 {summary.diagnostics.map((item) => (

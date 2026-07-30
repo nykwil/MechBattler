@@ -119,10 +119,10 @@ export function Sheet({
     <div className="sheet-layer" onKeyDown={onKeyDown}>
       {/* Only full covers the plate, so peek and half get no scrim. */}
       {snap === 'full' && (
-        <button className="scrim" type="button" tabIndex={-1} aria-label="Close sheet" onClick={onClose} />
+        <button className="scrim on" type="button" tabIndex={-1} aria-label="Close sheet" onClick={onClose} />
       )}
       <div
-        className={`sheet open sheet-${snap}`}
+        className={`sheet on sheet-${snap}`}
         role="dialog"
         aria-modal="true"
         aria-label={label}

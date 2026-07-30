@@ -44,7 +44,8 @@ const REJECTION_COPY: Record<string, string> = {
 export default function App() {
   const directView = new URLSearchParams(window.location.search).get('view');
   const [screen, setScreen] = useState<'title' | 'new-run' | 'profile' | 'workspace'>(
-    directView === 'workshop' || directView === 'balance' || directView === 'battle' ? 'workspace' : 'title',
+    directView === 'workshop' || directView === 'balance'
+      || directView === 'battle' || directView === 'report' ? 'workspace' : 'title',
   );
   const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
     directView === 'balance' ? 'balance' : 'workshop',
@@ -283,16 +284,27 @@ export default function App() {
     return counts;
   }, [runActive, state.parts, run]);
 
-  // ?view=battle opens a seeded free-play fight straight away, matching the
-  // existing ?view= affordances. It exists so the battle interface can be
-  // screenshotted and driven without clicking through the workshop first.
+  // ?view=battle opens a seeded free-play fight, ?view=report resolves one and
+  // opens its report. Both match the existing ?view= affordances and exist so the
+  // battle interfaces can be screenshotted without clicking through the workshop.
+  // The live sim is rAF-driven, so headless virtual time cannot advance it; the
+  // report route uses the synchronous watch path instead.
   const autoBattleRef = useRef(false);
   useEffect(() => {
-    if (directView !== 'battle' || autoBattleRef.current) return;
+    if (autoBattleRef.current) return;
     const opponent = OPPONENTS[0];
     if (!opponent) return;
-    autoBattleRef.current = true;
-    setLive({ build, opponent, seed: 20260730 });
+    if (directView === 'battle') {
+      autoBattleRef.current = true;
+      setLive({ build, opponent, seed: 20260730 });
+    } else if (directView === 'report') {
+      autoBattleRef.current = true;
+      const report = runBattle({
+        builds: [build, opponent.build], seed: 20260730,
+        spawnDistanceM: opponent.spawnDistanceM,
+      });
+      setBattle({ report, opponent, mode: 'watch' });
+    }
   }, [directView, build]);
 
   const fight = useCallback(

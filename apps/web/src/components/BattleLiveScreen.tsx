@@ -190,7 +190,7 @@ export function BattleLiveScreen({
     /* Ported from docs/prototypes/mobile-battle.html: the console is the mech's
        instrument panel and the glass above it is the windshield. .battle-app scopes
        the prototype's stylesheet, which reuses class names the builder also owns. */
-    <div className="battle-app" role="dialog" aria-modal="true">
+    <div className="battle-app battle-overlay" role="dialog" aria-modal="true">
       <div className="app">
         <header className="topbar">
           <span className="live-dot" />
