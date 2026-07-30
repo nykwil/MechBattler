@@ -222,6 +222,22 @@ reached round 4, where they won none; rounds 7, 10 and 12 were never reached at 
 The checkpoints exist at 1, 4, 7, 10 and 12, so four fifths of the ladder has never
 been played by the harness, let alone balanced.
 
+One thing does not add up, and it should be understood before the blueprint is
+changed. Fought head to head against the round-1 opponents it will actually meet --
+every node-1 choice from 60 real runs, at that opponent's own battle seed and spawn
+distance -- the starting blueprint wins **50 of 147, 34%**. That is at the band's
+floor, not a sixth of it. `npm run game:balance` says 0.147 for the same round.
+
+`scripts/starter-odds.mjs` reproduces the 34%. It isolates one question: first
+fight, pristine build, no run context. `game:balance` plays whole runs and is the
+authority, so where the two disagree it is right and this is missing something --
+most likely how the harness picks an opponent, or state carried into the fight. But
+the gap is a factor of two, so "the starter is far too weak" may be the wrong
+diagnosis, and tuning the build on the 0.147 figure could be tuning the wrong thing.
+
+Odd enough to mention: elites (threat 3) came out *easier* than normals -- 42% of 31
+against 32% of 116.
+
 Two consequences worth separating. As a *design* question this is whether the
 starting blueprint is meant to be survivable, which is a call for whoever owns the
 balance targets. As an *engineering* question it is why the scrapyard, the machinist
