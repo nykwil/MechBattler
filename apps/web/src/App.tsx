@@ -62,6 +62,7 @@ export default function App() {
   const [readoutOpen, setReadoutOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
   const [chassisOpen, setChassisOpen] = useState(false);
+  const [toast, setToast] = useState('');
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
@@ -247,6 +248,18 @@ export default function App() {
     const first = OPPONENTS[0];
     return first ? { name: first.name, threat: first.threat } : null;
   }, []);
+
+  // An action keeps its name through the whole flow: Place -> "Placed".
+  const partCountRef = useRef(state.parts.length);
+  useEffect(() => {
+    if (state.parts.length > partCountRef.current) setToast('Placed');
+    partCountRef.current = state.parts.length;
+  }, [state.parts.length]);
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(''), 1400);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const ghostReason = useMemo(() => {
     if (!state.selectedPartId || !state.ghost) return null;
@@ -598,6 +611,8 @@ export default function App() {
             preview={null}
             onOpen={() => setReadoutOpen(true)}
           />
+
+          <p className={`toast${toast ? ' on' : ''}`} role="status" aria-live="polite">{toast}</p>
 
           <ActionBar
             armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}

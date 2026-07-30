@@ -199,7 +199,9 @@ export function Plate({
       >
         {rows}
       </div>
-      {parts.length === 0 && (
+      {/* Hidden once a ghost is on the plate: mid-placement the instruction is
+          already being followed, and it prints over the thing being aimed. */}
+      {parts.length === 0 && ghostCells.length === 0 && (
         <p className="empty-hint">
           Empty chassis.<br />Start with a reactor — open Parts.
         </p>

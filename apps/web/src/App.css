@@ -209,3 +209,8 @@
   font-size: var(--text-2xs);
   color: var(--ink-faint);
 }
+
+/* The prototype pins the toast 96px from the bottom, which clears its action bar.
+   Ours is taller in the armed state (.actionbar.armed is a column), so 96px put
+   "Placed" on top of the readout's Heat cell. Lift it clear of both bars. */
+.app > .toast { bottom: 200px; }

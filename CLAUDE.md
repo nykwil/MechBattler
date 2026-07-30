@@ -19,10 +19,14 @@ If a task has ten steps, do ten steps. A status update is not a deliverable.
 fine. It does not mean the page renders. Screenshot it:
 
 ```bash
-google-chrome --headless --disable-gpu --hide-scrollbars \
-  --window-size=390,844 --screenshot=/tmp/shot.png \
-  'http://localhost:5160/?view=workshop'
+# True 390px viewport, and it can tap things:
+npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png \
+  --w 390 --h 844 --tap '.actionbar .btn-primary' --tap '.part-row'
 ```
+
+`scripts/drive.mjs` drives Chrome over CDP. It prints viewport and overflow
+metrics beside the image, and `--tap <selector>` is repeatable — each waits,
+clicks the element centre, and settles. Use it rather than `--screenshot`.
 
 Then open the PNG and actually look. This was learned expensively: a leftover
 56px header above a `height:100dvh` shell pushed the readout and action bar off
@@ -32,10 +36,14 @@ screen for an entire day of work while every test passed.
 `?view=battle` starts a seeded free-play fight so the battle interface can be seen
 without clicking through the workshop.
 
-Chrome enforces a 500px minimum window width, so `--window-size=390` lays out at
-500 and writes a 390px PNG — a crop, not a clip. Do not diagnose overflow from a
-screenshot alone; measure `document.documentElement.scrollWidth` in the page. A
-whole hour went into "fixing" clipping that did not exist.
+Chrome enforces a 500px minimum window width, so bare `--window-size=390` lays
+out at 500 and writes a 390px PNG — a crop, not a clip. An hour went into "fixing"
+clipping that did not exist. `drive.mjs` uses
+`Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
+`overflowX` so a crop can never be mistaken for an overflow again.
+
+Being able to *tap* matters as much as seeing: every bottom sheet in this app was
+translated 101% off-screen for a day because no screenshot ever opened one.
 
 ## The design source is the prototypes, not the prose
 
