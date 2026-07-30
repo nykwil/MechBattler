@@ -173,7 +173,38 @@ Still genuinely open: the run panel and scrapyard, which have no prototype at al
 verb chips, which the prototype renders as an `.orders` row with a segmented
 throttle — ours works and is legible, but it is not that.
 
-## 7. Tooling
+## 7. A balance finding, surfaced by making the game reachable
+
+Driving the campaign on a phone, the obvious first action — Load the provided
+blueprint, Launch, Fight — lost three times out of three, core destroyed in 7 to 10
+seconds each. That blueprint is not incidental: `legalStarterBlueprint` in
+`packages/game/src/persistence.ts` seeds "Vulture Skirmisher" into every new profile,
+so it is what a new player is handed.
+
+This is **not** something the port introduced, and it should not be fixed here. The
+game's own harness already measures it. `npm run game:balance -- 6` reports:
+
+```
+Round 1 match win rate 0.1346 is outside the target band
+Round 4 match win rate 0 is outside the target band
+No natural progression checkpoint reached round 7 / 10 / 12
+```
+
+So roughly seven of eight first fights are losses, and the cohort includes
+`vulture-skirmisher` among its starters. Three losses from three is consistent with
+that, not evidence of a new bug.
+
+Two things make it worth writing down rather than leaving in a report nobody opens:
+
+- These are **warnings, not failures**. `npm run verify` prints them and exits 0, so
+  the gate stays green while the first-run experience is a sub-ten-second loss.
+- The port changed who sees it. The campaign was previously hard to reach on a phone;
+  now the shortest path from the front door ends in a fast defeat.
+
+Whether that is intended difficulty, a tuning gap, or a starter-kit problem is a game
+design decision. It needs someone who owns the balance targets, not a port.
+
+## 8. Tooling
 
 `scripts/drive.mjs` (`npm run web:shot`) drives Chrome over CDP. It exists because
 `--screenshot` cannot do two things that mattered: Chrome enforces a 500px minimum
