@@ -57,6 +57,7 @@ Measured across workshop, battle, report and salvage, all currently clean:
 | Sheet snaps | 96px / 55vh / 88vh exactly, as §8 specifies |
 | Reduced motion | all animation collapses; indicators settle visible, sheets still appear |
 | Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
+| Production bundle | workshop renders and places correctly minified; dev views inert |
 
 | Surface | Reached by | State |
 |---|---|---|
@@ -75,6 +76,13 @@ Measured across workshop, battle, report and salvage, all currently clean:
 The three dev views are gated out of production by `resolveView`. `salvage`
 especially: it calls `startCustom`, which overwrites the persisted run, so shipping
 it would let a URL destroy a player's campaign.
+
+That gating is verified against the built bundle, not just the source: serving
+`apps/web/dist` and requesting `?view=battle`, `?view=report` and `?view=salvage`
+lands on the front door every time, with no battle shell and no wreck overlay. The
+production bundle was also driven through a placement — arm, place, "Placed", mass
+1.80t to 2.15t — because until then every check in this document had been run against
+the dev server, and the deploy serves `dist`.
 
 ## 4. What the port got wrong, and how each was caught
 
