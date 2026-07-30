@@ -165,8 +165,6 @@
   transition: width 0.1s linear;
 }
 .hud-gauge-fill.cap { background: var(--signal-blue); }
-.hud-gauge-fill.pwr { background: var(--signal-blue); }
-.hud-gauge-fill.pwr-over { background: var(--signal-red); }
 .hud-gauge-text {
   flex: none;
   width: 64px;
