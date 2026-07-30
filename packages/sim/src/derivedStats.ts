@@ -152,7 +152,13 @@ export interface RangeEnvelope {
 
 /** Damage multiplier at range r from a weapon's falloff curve (docs/03 §5). Shared with the arena. */
 export function falloffAt(def: PartDef, r: number): number {
-  const { rangeStart, rangeEnd, multAtEnd } = def.weapon!.falloff;
+  const { rangeStart, rangeEnd, multAtEnd, rangeMin, multAtMin } = def.weapon!.falloff;
+  // Near side, for weapons that need room to work. Ramps from multAtMin at contact
+  // up to full at rangeMin, so a brawl is punishing rather than impossible.
+  if (rangeMin !== undefined && multAtMin !== undefined && r < rangeMin) {
+    const t = Math.max(0, r) / Math.max(rangeMin, 1e-9);
+    return multAtMin + t * (1 - multAtMin);
+  }
   if (r <= rangeStart) return 1.0;
   if (r >= rangeEnd) return multAtEnd;
   const t = (r - rangeStart) / (rangeEnd - rangeStart);

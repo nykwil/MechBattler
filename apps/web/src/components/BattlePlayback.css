@@ -307,3 +307,13 @@
    Solid and small: it is a thing at a place, unlike a tracer, which is the memory
    of a shot that has already arrived. */
 .playback-round { opacity: 0.95; }
+
+/* The near edge of a weapon that needs room to work: rockets still boosting, a
+   railgun's sight picture in a brawl. Outlined, not filled — inside it the shot
+   still lands, at multAtMin rather than nothing, so a solid block would overstate
+   it as a dead zone. */
+.playback-cone .cone-min {
+  stroke-width: 0.7;
+  stroke-dasharray: 3 2;
+  opacity: 0.5;
+}

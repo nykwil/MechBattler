@@ -118,6 +118,16 @@ function WeaponCones({ frame, weapons, color }: {
             {/* rangeStart is where damage begins to fall off, so the inner sector
                 is the part of the cone that still hits for full damage. */}
             <path d={sector(w.falloff.rangeStart, half)} fill={color} className="cone-full" />
+            {/* And the near side, for weapons that need room to work. Marked rather
+                than filled: a shot inside it still lands, it just lands weakly. */}
+            {w.falloff.rangeMin !== undefined && (
+              <path
+                d={sector(w.falloff.rangeMin, half)}
+                fill="none"
+                stroke={color}
+                className="cone-min"
+              />
+            )}
           </g>
         );
       })}

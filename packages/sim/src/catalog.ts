@@ -139,7 +139,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 2 },
     weapon: {
       damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 250, dispersionMrad: 20.0,
-      falloff: { rangeStart: 40, rangeEnd: 120, multAtEnd: 0.6 }, mountArcDeg: 120,
+      falloff: { rangeStart: 40, rangeEnd: 120, multAtEnd: 0.6, rangeMin: 30, multAtMin: 0.35 }, mountArcDeg: 120,
     },
   },
   'W-RG': {
@@ -149,7 +149,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 25 },
     weapon: {
       damage: 85, cycleS: 5, projectileSpeed: 2000, dispersionMrad: 1.2,
-      falloff: { rangeStart: 80, rangeEnd: 240, multAtEnd: 0.85 }, mountArcDeg: 30,
+      falloff: { rangeStart: 80, rangeEnd: 240, multAtEnd: 0.85, rangeMin: 50, multAtMin: 0.3 }, mountArcDeg: 30,
       recoilKnS: 8,
     },
   },

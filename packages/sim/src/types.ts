@@ -70,7 +70,24 @@ export interface WeaponSpec {
   cycleS: number;
   projectileSpeed: number | 'hitscan';
   dispersionMrad: number;
-  falloff: { rangeStart: number; rangeEnd: number; multAtEnd: number };
+  /**
+   * Damage against range (docs/03 §5). Full damage out to `rangeStart`, then a
+   * linear ramp to `multAtEnd` at `rangeEnd`, flat beyond — there is no hard
+   * maximum, a distant shot is weak rather than impossible.
+   *
+   * `rangeMin` mirrors that on the near side, for weapons that need room to work:
+   * a rocket that has not finished boosting, a railgun whose sight picture is
+   * useless in a brawl. Below it damage ramps down to `multAtMin` at contact, so
+   * the shot still lands but badly. Omit both and the weapon is fully effective at
+   * point blank, which is what every weapon did before this existed.
+   */
+  falloff: {
+    rangeStart: number;
+    rangeEnd: number;
+    multAtEnd: number;
+    rangeMin?: number;
+    multAtMin?: number;
+  };
   mountArcDeg: number;
   recoilKnS?: number;
   /**
