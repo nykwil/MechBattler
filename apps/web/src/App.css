@@ -170,3 +170,35 @@
   inset: auto;
   max-width: 32ch;
 }
+
+/* The battle is an overlay over the workshop. .battle-app only scopes the ported
+   stylesheet -- the prototype's own root was the page, so it carries no
+   positioning, and replacing .report-overlay with it left the battle rendering in
+   normal flow below the workshop, mounted but off-screen. */
+.battle-app {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+}
+
+/* Battle layout corrections, found by screenshotting a live fight.
+   Kept out of battle.css so that file stays diffable against the prototype. */
+
+/* .app is height:100dvh with overflow:hidden. The console carries the old
+   HEAT/PWR gauges and verb chips on top of the ported bars and gun chips, so it
+   overran the viewport and the bottom row was clipped away entirely -- present in
+   the DOM, unreachable on screen. Let the arena give up space and the console
+   scroll rather than silently truncate controls. */
+.battle-app .arena-wrap { min-height: 0; }
+.battle-app .console {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+/* The enemy strip is a single row of name, meters and gun chips, and it ran off
+   the right edge. It is a compact mirror, so let it wrap. */
+.battle-app .hud-enemy {
+  flex-wrap: wrap;
+  row-gap: var(--space-1);
+}

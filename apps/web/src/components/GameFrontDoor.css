@@ -18,6 +18,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  /* Centred, so a tall screen does not leave the card stranded at the top. */
+  justify-content: center;
   gap: var(--space-4);
   padding: var(--space-5) var(--space-3) var(--space-6);
   background: var(--bg-floor);

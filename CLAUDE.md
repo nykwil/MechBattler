@@ -28,7 +28,14 @@ Then open the PNG and actually look. This was learned expensively: a leftover
 56px header above a `height:100dvh` shell pushed the readout and action bar off
 screen for an entire day of work while every test passed.
 
-`?view=workshop` skips the title screen. `?view=balance` opens the Balance Lab.
+`?view=workshop` skips the title screen, `?view=balance` opens the Balance Lab, and
+`?view=battle` starts a seeded free-play fight so the battle interface can be seen
+without clicking through the workshop.
+
+Chrome enforces a 500px minimum window width, so `--window-size=390` lays out at
+500 and writes a 390px PNG — a crop, not a clip. Do not diagnose overflow from a
+screenshot alone; measure `document.documentElement.scrollWidth` in the page. A
+whole hour went into "fixing" clipping that did not exist.
 
 ## The design source is the prototypes, not the prose
 

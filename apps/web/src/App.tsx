@@ -44,7 +44,7 @@ const REJECTION_COPY: Record<string, string> = {
 export default function App() {
   const directView = new URLSearchParams(window.location.search).get('view');
   const [screen, setScreen] = useState<'title' | 'new-run' | 'profile' | 'workspace'>(
-    directView === 'workshop' || directView === 'balance' ? 'workspace' : 'title',
+    directView === 'workshop' || directView === 'balance' || directView === 'battle' ? 'workspace' : 'title',
   );
   const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
     directView === 'balance' ? 'balance' : 'workshop',
@@ -282,6 +282,18 @@ export default function App() {
     }
     return counts;
   }, [runActive, state.parts, run]);
+
+  // ?view=battle opens a seeded free-play fight straight away, matching the
+  // existing ?view= affordances. It exists so the battle interface can be
+  // screenshotted and driven without clicking through the workshop first.
+  const autoBattleRef = useRef(false);
+  useEffect(() => {
+    if (directView !== 'battle' || autoBattleRef.current) return;
+    const opponent = OPPONENTS[0];
+    if (!opponent) return;
+    autoBattleRef.current = true;
+    setLive({ build, opponent, seed: 20260730 });
+  }, [directView, build]);
 
   const fight = useCallback(
     (opponent: OpponentDef, mode: FightMode, seed?: number) => {
