@@ -175,6 +175,10 @@ export default function App() {
       takeBench(permission.benchIndex);
       setPendingBench(null);
     }
+    // A detached part keeps its instanceId, so re-placing it is a move. Saying
+    // "Placed" after a move reads as having made a second copy — the same wrong
+    // impression the lingering ghost gave.
+    setToast(state.detached ? 'Moved' : 'Placed');
     place();
     // The prototype's place() ends with `S.armed = null`, for every part and not
     // just one-of bench salvage. Staying armed leaves a live ghost on the plate, so
@@ -276,12 +280,11 @@ export default function App() {
     return chosen ? { name: chosen.name, threat: chosen.threat } : null;
   }, [intelOpponents, intelPick]);
 
-  // An action keeps its name through the whole flow: Place -> "Placed".
-  const partCountRef = useRef(state.parts.length);
-  useEffect(() => {
-    if (state.parts.length > partCountRef.current) setToast('Placed');
-    partCountRef.current = state.parts.length;
-  }, [state.parts.length]);
+  // An action keeps its name through the whole flow: Place -> "Placed", and a
+  // detached part re-placed -> "Moved". Both are set where the placement happens
+  // (placeWithEconomy, the only route in) rather than inferred from the part count,
+  // which cannot tell a move from a new fitting -- a detach-then-place dips the
+  // count and raises it again, and reported the move as a fresh placement.
   useEffect(() => {
     if (!toast) return;
     const t = setTimeout(() => setToast(''), 1400);
