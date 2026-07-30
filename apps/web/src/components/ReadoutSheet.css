@@ -21,10 +21,11 @@
   text-transform: uppercase;
   cursor: pointer;
 }
+/* Amber is selection (docs/14 §9). Blue here would claim the tab means power. */
 .readout-tab.active {
-  background: rgba(90, 169, 199, 0.1);
-  border-color: var(--signal-blue-dim);
-  color: var(--signal-blue);
+  background: rgba(232, 162, 61, 0.1);
+  border-color: var(--signal-amber-dim);
+  color: var(--signal-amber);
 }
 
 .readout-speed {

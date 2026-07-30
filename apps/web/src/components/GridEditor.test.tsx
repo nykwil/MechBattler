@@ -190,3 +190,66 @@ describe('GridEditor plate views (docs/14 §8)', () => {
     expect(seen).toEqual(['power']);
   });
 });
+
+describe('GridEditor second channel for state (docs/14 §9)', () => {
+  it('hatches unpowered parts as well as colouring them', () => {
+    const chassis = getChassis('CH-5');
+    const { container } = render(
+      <GridEditor
+        chassis={chassis}
+        // An unwired laser: placed, drawing power, and with no path to the core.
+        parts={[{ instanceId: 'r1', partId: 'W-LAS', origin: { x: 1, y: 1 }, rotation: 0, integrity: 1 }]}
+        overlay="power"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={() => {}} onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+      />,
+    );
+
+    // Colour is never the only channel, so red is backed by a hatch pattern.
+    expect(container.querySelector('#hatch-unpowered')).not.toBeNull();
+    expect(container.querySelectorAll('.cell-unpowered-hatch').length).toBeGreaterThan(0);
+  });
+
+  it('does not hatch outside the power view', () => {
+    const chassis = getChassis('CH-5');
+    const { container } = render(
+      <GridEditor
+        chassis={chassis}
+        parts={[{ instanceId: 'r1', partId: 'W-LAS', origin: { x: 1, y: 1 }, rotation: 0, integrity: 1 }]}
+        overlay="parts"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={() => {}} onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+      />,
+    );
+    expect(container.querySelectorAll('.cell-unpowered-hatch').length).toBe(0);
+  });
+
+  it('names the hatch in the power caption and legend', () => {
+    const chassis = getChassis('CH-5');
+    const { container } = render(
+      <GridEditor
+        chassis={chassis} parts={[]} overlay="power"
+        selectedPartId={null} selectedInstanceId={null}
+        previewCells={() => []} checkCandidate={() => null}
+        ghost={null} detached={false}
+        onAim={() => {}} onCommit={() => {}} onCancel={() => {}} onRotate={() => {}}
+        onSetOverlay={() => {}} onSelectInstance={() => {}}
+        thermalSnapshot={null} faultInstanceIds={new Set()} flashInstanceIds={new Set()}
+        onAutoWire={() => {}}
+      />,
+    );
+    // A second channel nobody explains is not a second channel.
+    expect(container.querySelector('.plate-caption')?.textContent).toContain('hatched');
+    expect(container.textContent).toContain('Unpowered (hatched)');
+  });
+});

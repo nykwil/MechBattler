@@ -21,7 +21,9 @@
   margin-bottom: 12px;
   transition: filter 0.12s;
 }
-.run-btn:hover { filter: brightness(1.15); }
+@media (hover: hover) {
+  .run-btn:hover { filter: brightness(1.15); }
+}
 .run-btn:active { filter: brightness(0.9); }
 
 .bench-result-grid {
@@ -81,7 +83,9 @@
   padding: 2px 0 8px;
   cursor: pointer;
 }
-.sandbox-toggle:hover { color: var(--ink-primary); }
+@media (hover: hover) {
+  .sandbox-toggle:hover { color: var(--ink-primary); }
+}
 
 .sandbox-strip {
   display: flex;

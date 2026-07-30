@@ -14,7 +14,9 @@
   color: var(--ink-secondary);
   transition: border-color 0.12s, background 0.12s;
 }
-.arena-card:hover { border-color: var(--line-bright); }
+@media (hover: hover) {
+  .arena-card:hover { border-color: var(--line-bright); }
+}
 .arena-card.active {
   border-color: var(--signal-amber);
   background: var(--bg-panel-raised);
@@ -79,7 +81,9 @@
   border-radius: var(--radius-md);
   transition: filter 0.12s;
 }
-.fight-btn:hover { filter: brightness(1.25); }
+@media (hover: hover) {
+  .fight-btn:hover { filter: brightness(1.25); }
+}
 .fight-btn:active { filter: brightness(0.9); }
 .fight-btn.watch {
   flex: 0 0 auto;

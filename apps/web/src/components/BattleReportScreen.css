@@ -153,7 +153,9 @@
   background: var(--signal-red-dim);
   border-color: var(--signal-red);
 }
-.report-btn:hover { filter: brightness(1.2); }
+@media (hover: hover) {
+  .report-btn:hover { filter: brightness(1.2); }
+}
 
 .report-tabs {
   display: flex;

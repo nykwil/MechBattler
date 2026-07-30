@@ -62,7 +62,9 @@
   border-radius: var(--radius-md);
   transition: border-color var(--dur-fast) var(--ease-out);
 }
-.inspector-detach:hover { border-color: var(--signal-amber); }
+@media (hover: hover) {
+  .inspector-detach:hover { border-color: var(--signal-amber); }
+}
 .inspector-close {
   flex: none;
   padding: 9px 12px;
@@ -75,7 +77,9 @@
   text-transform: uppercase;
   border-radius: var(--radius-md);
 }
-.inspector-close:hover { color: var(--ink-primary); }
+@media (hover: hover) {
+  .inspector-close:hover { color: var(--ink-primary); }
+}
 
 .inspector-hint {
   font-family: var(--font-mono);
@@ -116,5 +120,7 @@
   padding: 2px 8px;
   cursor: pointer;
 }
-.inspector-repair-row button:hover:not(:disabled) { color: var(--signal-amber); border-color: var(--signal-amber); }
+@media (hover: hover) {
+  .inspector-repair-row button:hover:not(:disabled) { color: var(--signal-amber); border-color: var(--signal-amber); }
+}
 .inspector-repair-row button:disabled { opacity: 0.4; cursor: default; }

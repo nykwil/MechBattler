@@ -40,7 +40,7 @@ const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
 
 const PLATE_CAPTION: Record<OverlayMode, string> = {
   parts: 'Colour is the part category.',
-  power: 'Green reaches the core · red is stranded · blue is the bus · grey draws nothing.',
+  power: 'Green reaches the core · red and hatched is stranded · blue is the bus.',
   thermal: 'Colour is cell temperature, coolest to hottest.',
 };
 
@@ -158,6 +158,12 @@ export function GridEditor({
     }
   }
 
+  function isUnpowered(x: number, y: number): boolean {
+    const occ = occupancy.get(`${x},${y}`);
+    if (!occ || overlay !== 'power') return false;
+    return !connectivity.connectedInstanceIds.has(occ.instanceId);
+  }
+
   function cellFill(x: number, y: number): string | null {
     const occ = occupancy.get(`${x},${y}`);
     if (!occ) return null;
@@ -204,6 +210,14 @@ export function GridEditor({
           viewBox={`0 0 ${chassis.width * CELL} ${chassis.height * CELL}`}
           preserveAspectRatio="xMidYMid meet"
         >
+          {/* docs/14 §9: colour is never the only channel. Unpowered parts are
+              hatched as well as red, so the power overlay survives any form of
+              colour blindness and any bad screen. */}
+          <defs>
+            <pattern id="hatch-unpowered" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="6" stroke="var(--bg-inset)" strokeWidth="2.5" />
+            </pattern>
+          </defs>
           {cells.map(({ x, y }) => {
             const isCore = x === chassis.coreCell.x && y === chassis.coreCell.y;
             return (
@@ -228,6 +242,15 @@ export function GridEditor({
               />
             );
           })}
+
+          {cells.filter(({ x, y }) => isUnpowered(x, y)).map(({ x, y }) => (
+            <rect
+              key={`hatch-${x},${y}`}
+              className="cell-unpowered-hatch"
+              x={x * CELL} y={y * CELL} width={CELL} height={CELL}
+              fill="url(#hatch-unpowered)"
+            />
+          ))}
 
           {partOutlines.map(({ instanceId, d }) => (
             <path key={`outline-${instanceId}`} className="part-outline" d={d} />
@@ -348,7 +371,7 @@ function Legend({ overlay }: { overlay: OverlayMode }) {
     return (
       <div className="legend">
         <LegendItem color="var(--signal-green)" label="Connected" />
-        <LegendItem color="var(--signal-red)" label="Unpowered" />
+        <LegendItem color="var(--signal-red)" label="Unpowered (hatched)" />
         <LegendItem color="var(--bg-panel-raised)" label="Core (reserved)" />
       </div>
     );

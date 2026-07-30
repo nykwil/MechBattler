@@ -106,21 +106,14 @@
   color: var(--ink-secondary);
   cursor: pointer;
 }
-.autowire-btn:hover { color: var(--ink-primary); border-color: var(--signal-green); }
-.grid-svg .cell-rejected {
-  fill: var(--signal-red);
-  pointer-events: none;
-  animation: reject-flash 0.9s ease-out forwards;
-}
-@keyframes reject-flash {
-  0% { opacity: 0.75; }
-  20% { opacity: 0.3; }
-  40% { opacity: 0.7; }
-  100% { opacity: 0; }
+@media (hover: hover) {
+  .autowire-btn:hover { color: var(--ink-primary); border-color: var(--signal-green); }
 }
 .grid-svg .cell-preview-ok { fill: var(--signal-green); opacity: 0.45; pointer-events: none; }
 .grid-svg .cell-preview-bad { fill: var(--signal-red); opacity: 0.45; pointer-events: none; }
 .grid-svg .cell-hit { fill: transparent; cursor: pointer; }
+/* Second channel for "unpowered", alongside the red fill (docs/14 §9). */
+.grid-svg .cell-unpowered-hatch { pointer-events: none; }
 
 .grid-caption {
   display: flex;
@@ -129,13 +122,6 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-}
-
-.grid-rejection {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--signal-red-text);
-  letter-spacing: 0.04em;
 }
 
 .legend {
@@ -207,7 +193,9 @@
   cursor: pointer;
   transition: border-color var(--dur-fast) var(--ease-out);
 }
-.plate-btn:hover:not(:disabled) { border-color: var(--signal-amber); }
+@media (hover: hover) {
+  .plate-btn:hover:not(:disabled) { border-color: var(--signal-amber); }
+}
 
 .plate-btn-primary {
   background: var(--signal-amber);
@@ -215,7 +203,9 @@
   color: var(--bg-inset);
   font-weight: 600;
 }
-.plate-btn-primary:hover:not(:disabled) { border-color: var(--ink-primary); }
+@media (hover: hover) {
+  .plate-btn-primary:hover:not(:disabled) { border-color: var(--ink-primary); }
+}
 
 .plate-btn:disabled {
   opacity: 0.45;
@@ -227,7 +217,9 @@
   background: var(--signal-red-dim);
   border-color: var(--signal-red);
 }
-.plate-btn-danger:hover:not(:disabled) { border-color: var(--signal-red-text); }
+@media (hover: hover) {
+  .plate-btn-danger:hover:not(:disabled) { border-color: var(--signal-red-text); }
+}
 
 /* Plate views segmented control (docs/14 §8). */
 .plate-views {
@@ -252,9 +244,11 @@
   cursor: pointer;
 }
 .plate-view:last-child { border-right: none; }
+/* Amber is selection (docs/14 §9) -- the Power view's contents carry blue, the
+   control that selects it must not. */
 .plate-view.active {
-  background: rgba(90, 169, 199, 0.1);
-  color: var(--signal-blue);
+  background: rgba(232, 162, 61, 0.1);
+  color: var(--signal-amber);
 }
 
 .plate-caption {

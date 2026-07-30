@@ -35,7 +35,9 @@
 .wreck-grid { flex: none; }
 .wreck-cell { fill: var(--bg-inset); stroke: var(--line-hairline); stroke-width: 1; }
 .wreck-part.lootable { cursor: pointer; }
-.wreck-part.lootable:hover rect { filter: brightness(1.25); }
+@media (hover: hover) {
+  .wreck-part.lootable:hover rect { filter: brightness(1.25); }
+}
 .wreck-part.destroyed rect { opacity: 0.5; }
 .wreck-part.taken rect { stroke: var(--signal-green); stroke-width: 2; }
 .wreck-x {
@@ -69,7 +71,9 @@
   color: var(--ink-secondary);
   cursor: pointer;
 }
-.wreck-row:hover { background: var(--bg-panel-raised); }
+@media (hover: hover) {
+  .wreck-row:hover { background: var(--bg-panel-raised); }
+}
 .wreck-row.taken { color: var(--ink-primary); }
 .wreck-row.taken .wreck-row-mark { color: var(--signal-green); }
 .wreck-row-name { flex: 1; }

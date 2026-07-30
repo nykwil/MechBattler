@@ -30,7 +30,9 @@
   transition: border-color 0.12s, background 0.12s;
   min-height: 56px;
 }
-.part-row:hover { border-color: var(--line-bright); }
+@media (hover: hover) {
+  .part-row:hover { border-color: var(--line-bright); }
+}
 .part-row.selected {
   border-color: var(--signal-amber-dim);
   background: rgba(232, 162, 61, 0.08);

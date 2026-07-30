@@ -66,11 +66,31 @@ button {
   80% { opacity: 0.7; }
 }
 
+/*
+  docs/14 §9: prefers-reduced-motion must cover ALL animation. The previous rule
+  named only .led-red and missed fault-pulse, flash-fade, live-pulse, live-ripple,
+  slot-overheat, and labPulse -- so the fault indicator kept pulsing for users who
+  had asked it not to.
+
+  Deliberately blanket rather than per-animation: the failure mode being fixed is
+  that an enumerated list goes stale the moment someone adds a keyframe. Every
+  animation here either loops (fault-pulse, flicker, live-pulse, slot-overheat,
+  labPulse) or fills forwards (flash-fade, live-ripple), and collapsing the
+  duration lands each one on its final keyframe -- looping indicators settle
+  visible and solid, fading highlights settle gone. Nothing is left mid-frame.
+*/
 @media (prefers-reduced-motion: reduce) {
-  .led-red { animation: none; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 ::-webkit-scrollbar { width: 9px; height: 9px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--line-hairline); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--line-bright); }
+@media (hover: hover) {
+  ::-webkit-scrollbar-thumb:hover { background: var(--line-bright); }
+}
