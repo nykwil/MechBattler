@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from 'react';
+import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   computeConnectivity,
   getOccupiedCells,
@@ -112,6 +112,52 @@ export function Plate({
     return `var(--cat-${def.category})`;
   }
 
+  // Keyboard cursor, ported from the prototype's plate keydown handler. When a
+  // part is armed the arrows nudge the ghost (handled globally); when nothing is
+  // armed they walk a focus cursor across in-mask cells, skipping the void, and
+  // Enter selects whatever is under it. Without this an unarmed keyboard user
+  // could only reach cells by tabbing through all of them in document order.
+  const plateRef = useRef<HTMLDivElement>(null);
+  const firstCell = useMemo(() => {
+    for (let y = 0; y < chassis.height; y += 1) {
+      for (let x = 0; x < chassis.width; x += 1) if (chassis.mask[y]?.[x]) return { x, y };
+    }
+    return { x: 0, y: 0 };
+  }, [chassis]);
+  const [cursor, setCursor] = useState(firstCell);
+
+  const armed = ghostCells.length > 0;
+
+  function onKeyDown(e: React.KeyboardEvent) {
+    const deltas: Record<string, [number, number]> = {
+      ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1],
+    };
+    const delta = deltas[e.key];
+    if (delta) {
+      // Armed: the global handler nudges the ghost, so leave it alone.
+      if (armed) return;
+      e.preventDefault();
+      const [dx, dy] = delta;
+      let { x, y } = cursor;
+      // Step until the next in-mask cell, so the void never traps the cursor.
+      for (let i = 0; i < Math.max(chassis.width, chassis.height); i += 1) {
+        x += dx;
+        y += dy;
+        if (x < 0 || y < 0 || x >= chassis.width || y >= chassis.height) return;
+        if (chassis.mask[y]?.[x]) break;
+      }
+      setCursor({ x, y });
+      plateRef.current
+        ?.querySelector<HTMLElement>(`[data-x="${x}"][data-y="${y}"]`)
+        ?.focus();
+      return;
+    }
+    if ((e.key === 'Enter' || e.key === ' ') && !armed) {
+      e.preventDefault();
+      onCellActivate(cursor.x, cursor.y);
+    }
+  }
+
   const rows = [];
   for (let y = 0; y < chassis.height; y += 1) {
     const cells = [];
@@ -192,6 +238,8 @@ export function Plate({
       <div
         className="plate"
         role="grid"
+        ref={plateRef}
+        onKeyDown={onKeyDown}
         aria-label="Chassis layout grid"
         aria-rowcount={chassis.height}
         aria-colcount={chassis.width}

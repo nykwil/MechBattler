@@ -112,3 +112,65 @@ describe('Plate', () => {
     expect(renderPlate({ parts: [laser] }).container.querySelector('.empty-hint')).toBeNull();
   });
 });
+
+/**
+ * Keyboard cursor, ported from the prototype's plate keydown handler. Without it
+ * an unarmed keyboard user can only reach cells by tabbing through all of them in
+ * document order, and cannot select a placed part at all.
+ */
+describe('Plate keyboard cursor', () => {
+  it('walks focus across cells and skips the void', () => {
+    const { container } = renderPlate();
+    const plate = container.querySelector('.plate')!;
+    const first = container.querySelector('.cell:not(.void)') as HTMLElement;
+    first.focus();
+    expect([first.dataset.x, first.dataset.y]).toEqual(['1', '0']);
+
+    fireEvent.keyDown(plate, { key: 'ArrowRight' });
+    expect((document.activeElement as HTMLElement).dataset.x).toBe('2');
+
+    // Down from the top row lands on a masked cell, never on a void one.
+    fireEvent.keyDown(plate, { key: 'ArrowDown' });
+    const active = document.activeElement as HTMLElement;
+    expect(active.className).not.toContain('void');
+  });
+
+  it('activates the cell under the cursor on Enter', () => {
+    const taps: [number, number][] = [];
+    const { container } = renderPlate({ onCellActivate: (x, y) => taps.push([x, y]) });
+    const plate = container.querySelector('.plate')!;
+
+    fireEvent.keyDown(plate, { key: 'ArrowRight' });
+    fireEvent.keyDown(plate, { key: 'Enter' });
+
+    expect(taps).toEqual([[2, 0]]);
+  });
+
+  it('leaves the arrows to the ghost while a part is armed', () => {
+    const taps: [number, number][] = [];
+    const { container } = renderPlate({
+      ghostCells: [{ x: 1, y: 1 }],
+      onCellActivate: (x, y) => taps.push([x, y]),
+    });
+    const plate = container.querySelector('.plate')!;
+
+    fireEvent.keyDown(plate, { key: 'ArrowRight' });
+    fireEvent.keyDown(plate, { key: 'Enter' });
+
+    // Armed, the global handler nudges and commits; the plate must not also act,
+    // or one keypress would move the ghost twice.
+    expect(taps).toEqual([]);
+  });
+
+  it('does not walk off the chassis', () => {
+    const { container } = renderPlate();
+    const plate = container.querySelector('.plate')!;
+    const first = container.querySelector('.cell:not(.void)') as HTMLElement;
+    first.focus();
+
+    for (let i = 0; i < 20; i += 1) fireEvent.keyDown(plate, { key: 'ArrowUp' });
+
+    // Still on a real cell rather than focus lost to the document.
+    expect((document.activeElement as HTMLElement).className).toContain('cell');
+  });
+});
