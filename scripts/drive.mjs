@@ -30,7 +30,9 @@
  * Measuring in the same expression that clicks will read stale DOM.
  * The screenshot is taken after all taps.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 
 // Node's built-in WebSocket, so this script has no dependencies. It previously
@@ -108,8 +110,20 @@ const port = 9333 + Math.floor(Math.random() * 400);
  * own cleanup leaked browsers, and ten of them starve each other badly enough to look
  * like application flakiness — several "flakes" chased today were probably this.
  */
+/**
+ * A fresh profile per run. A profile keyed only by port is shared by every run on
+ * that port -- and by any parallel job that picks it -- so localStorage survives
+ * between runs. A stale pending salvage from an earlier drive rendered over the
+ * workshop and read as a layout bug; a starter build carried over and made a
+ * "placed 4 cells" assertion read 14. State must not outlive the run that made it.
+ */
+const profileDir = mkdtempSync(join(tmpdir(), 'cdp-profile-'));
+
 function reapOnExit(proc) {
-  const kill = () => { try { proc.kill('SIGKILL'); } catch { /* already gone */ } };
+  const kill = () => {
+    try { proc.kill('SIGKILL'); } catch { /* already gone */ }
+    try { rmSync(profileDir, { recursive: true, force: true }); } catch { /* best effort */ }
+  };
   process.on('exit', kill);
   for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
     process.on(sig, () => { kill(); process.exit(130); });
@@ -119,7 +133,7 @@ function reapOnExit(proc) {
 
 const chrome = spawn(chromeBinary(), [
   '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
-  `--remote-debugging-port=${port}`, `--user-data-dir=/tmp/cdp-${port}`,
+  `--remote-debugging-port=${port}`, `--user-data-dir=${profileDir}`,
   'about:blank',
 ], { stdio: 'ignore' });
 reapOnExit(chrome);

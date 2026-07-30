@@ -119,4 +119,19 @@
 }
 .part-price.too-rich { color: var(--signal-red-text); }
 
-.part-row.locked { opacity: 0.45; cursor: not-allowed; }
+/* Locked rows are read, not just skipped -- they are the list of what there is to
+   win -- so they stay legible rather than dimming to 0.45, which put the meta line
+   under the 4.5:1 floor. The word "locked" carries the state; opacity only supports
+   it (docs/14 §9: never colour or weight alone). */
+.part-row.locked { opacity: 0.7; cursor: not-allowed; }
+
+.part-locked {
+  margin-left: var(--space-2);
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  color: var(--ink-secondary);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-sm);
+  padding: 0 var(--space-1);
+  white-space: nowrap;
+}

@@ -13,7 +13,7 @@ function metaLine(def: PartDef): string {
 
 export function PartPalette({
   selectedPartId, onSelect, onHover, priceMult, scrap, visiblePartIds, ownedCounts,
-  readOnly, label = 'Salvage bin', category,
+  readOnly, label = 'Salvage bin', category, lockedReason = 'Not unlocked yet',
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -22,8 +22,19 @@ export function PartPalette({
   /** During a run, fresh parts cost tier × this scrap (docs/04 §1). */
   priceMult?: number;
   scrap?: number;
-  /** Limit game-facing inventory to equipment actually available in this context. */
+  /**
+   * Equipment that can actually be fitted here. Parts outside the set are shown
+   * anyway, disabled and marked locked, rather than removed.
+   *
+   * They used to be filtered out. With 7 of 22 parts unlocked that left the REACTOR
+   * tab holding a single row and the others near-empty, so the builder read as
+   * broken rather than as gated — the prototype's catalogue was always complete.
+   * Showing the locked rows keeps the unlock economy and restores the shape of the
+   * catalogue, and doubles as the list of what there is to win.
+   */
   visiblePartIds?: Set<string>;
+  /** Why the parts outside `visiblePartIds` cannot be fitted. */
+  lockedReason?: string;
   /** Physical owned-copy counts, used during active runs. */
   ownedCounts?: Map<string, number>;
   /** Active runs may only fit owned bench parts; the catalog is reference-only. */
@@ -39,9 +50,7 @@ export function PartPalette({
 }) {
   const byCategory = CATEGORY_ORDER.filter((cat) => !category || cat === category).map((cat) => ({
     cat, parts: Object.values(PARTS).filter(
-      (part) => part.category === cat
-        && GAME_CONTENT.enabledPartIds.includes(part.id)
-        && (!visiblePartIds || visiblePartIds.has(part.id)),
+      (part) => part.category === cat && GAME_CONTENT.enabledPartIds.includes(part.id),
     ),
   })).filter(({ parts }) => parts.length > 0);
 
@@ -55,14 +64,16 @@ export function PartPalette({
             {CATEGORY_LABEL[cat]}
           </div>}
           {parts.map((def) => {
-            const disabled = readOnly;
+            const locked = visiblePartIds !== undefined && !visiblePartIds.has(def.id);
+            const disabled = readOnly || locked;
             return (
               <button
                 key={def.id}
                 type="button"
                 className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
                 disabled={disabled}
-                title={readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
+                title={locked ? lockedReason
+                  : readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
               onMouseEnter={() => onHover(def.id)}
               onMouseLeave={() => onHover(null)}
@@ -71,6 +82,7 @@ export function PartPalette({
               <div className="part-info">
                 <div className="part-name">
                   {def.name}
+                  {locked && <span className="part-locked">{lockedReason}</span>}
                   {ownedCounts?.has(def.id) && (
                     <span className="part-price">×{ownedCounts.get(def.id)}</span>
                   )}

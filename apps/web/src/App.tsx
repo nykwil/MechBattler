@@ -174,11 +174,13 @@ export default function App() {
     if (permission.kind === 'allow-from-bench') {
       takeBench(permission.benchIndex);
       setPendingBench(null);
-      place();
-      selectPart(null); // a bench part is one-of — disarm after placing
-      return;
     }
     place();
+    // The prototype's place() ends with `S.armed = null`, for every part and not
+    // just one-of bench salvage. Staying armed leaves a live ghost on the plate, so
+    // the next tap re-aims another copy instead of selecting the part just placed —
+    // which is what made placing read as copying.
+    selectPart(null);
   }, [state.selectedPartId, state.ghost, checkCandidate, pendingBench, takeBench, place, selectPart, run.phase, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
@@ -778,6 +780,7 @@ export default function App() {
         onSelect={(id) => { selectPalettePart(id); if (id) setPartsOpen(false); }}
         onHover={() => {}}
         visiblePartIds={palettePartIds}
+        lockedReason={runActive ? 'Not owned' : 'Locked'}
         ownedCounts={ownedPartCounts}
         readOnly={runActive}
         label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
