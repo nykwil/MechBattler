@@ -128,6 +128,7 @@ found by diffing against the prototype's *source*, or by driving the app.
 | Heat thresholds typed in the HUD | 115/130/150 were inline literals in the sim *and* re-typed in the UI, so a gauge marked 130 would have kept saying 130 after the sim moved it | drawing the heat marks |
 | Projectile linger fixed at 0.22 s | Slow rounds are airborne far longer, so they vanished mid-flight; a round's window is its own flight time | drawing rounds |
 | Driver forced `mobile: true` always | It sets `hover: none` whatever else you emulate, so **every desktop screenshot ever taken here had the app's `@media (hover: hover)` rules switched off** | building a hover-only element |
+| Report's exit below the fold | On a run victory "Back to workshop" measured y=1062 in an 844px viewport. `.report-panel` scrolls, so it is reachable — but there is no affordance saying so, and the panel is the one screen a player *must* leave | driving the machinist milestone |
 
 **My own tooling produced nine false positives**, each of which nearly had me "fix"
 working code:
