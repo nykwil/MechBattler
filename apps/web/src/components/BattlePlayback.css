@@ -227,7 +227,10 @@
 .playback-btn {
   min-height: var(--tap-min);
   flex: none;
-  min-width: 40px;
+  /* Was a literal 40px while the height beside it used the token -- the earlier
+     tap-target pass raised one axis and not the other, and the buttons sit below
+     the fold on the replay tab, where nothing had looked. */
+  min-width: var(--tap-min);
   padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
