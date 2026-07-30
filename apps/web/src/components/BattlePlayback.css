@@ -311,3 +311,8 @@
 /* Clear to fire: the sim reports no gate, so the target is inside this arc. */
 .playback-cone.bearing .cone-band { opacity: 0.1; }
 .playback-cone.bearing .cone-full { opacity: 0.14; }
+
+/* A round in flight, walked along its line at the weapon's own projectileSpeed.
+   Solid and small: it is a thing at a place, unlike a tracer, which is the memory
+   of a shot that has already arrived. */
+.playback-round { opacity: 0.95; }

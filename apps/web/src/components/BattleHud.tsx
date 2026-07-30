@@ -340,6 +340,42 @@ export function BattleScene({
     ),
     [view.events, tSec],
   );
+  /**
+   * Rounds still in the air. A shot event records when a gun fired, not where its
+   * round is, so position is the shooter-to-target line walked at the weapon's own
+   * projectileSpeed -- 250 m/s from a rocket pod and 2000 m/s from a rail gun cross
+   * the same arena at visibly different rates, which is the whole point of showing
+   * them. Hitscan weapons have no travel time and stay instantaneous tracers.
+   *
+   * The window is the round's own flight time rather than a fixed linger, because a
+   * slow projectile at long range is airborne far longer than any constant would
+   * allow for.
+   */
+  const projectiles = useMemo(() => {
+    const live: { key: string; x: number; y: number; mech: 0 | 1 }[] = [];
+    for (const e of view.events) {
+      if (e.type !== 'shot' || e.tSec > tSec) continue;
+      const speed = getPart(e.partId).weapon?.projectileSpeed;
+      if (speed === undefined || speed === 'hitscan') continue;
+      const f = frameAt(view, e.tSec);
+      if (!f) continue;
+      const from = f.mechs[e.mech];
+      const to = f.mechs[(1 - e.mech) as 0 | 1];
+      const distM = Math.hypot(to.x - from.x, to.y - from.y);
+      const flightS = distM / speed;
+      if (flightS <= 0) continue;
+      const progress = (tSec - e.tSec) / flightS;
+      if (progress < 0 || progress > 1) continue;
+      live.push({
+        key: `${e.tSec}:${e.instanceId}`,
+        x: from.x + (to.x - from.x) * progress,
+        y: from.y + (to.y - from.y) * progress,
+        mech: e.mech,
+      });
+    }
+    return live;
+  }, [view, tSec]);
+
   const flashes = useMemo(
     () => view.events.filter(
       (e) => (e.type === 'part-destroyed' || e.type === 'cookoff') && e.tSec <= tSec && e.tSec > tSec - FLASH_LINGER_S,
@@ -465,7 +501,18 @@ export function BattleScene({
           );
         })}
 
+        {projectiles.map((p) => (
+          <circle
+            key={p.key}
+            cx={p.x} cy={p.y} r={1.1}
+            className="playback-round"
+            fill={MECH_COLORS[p.mech]}
+          />
+        ))}
+
         {tracers.map((e, idx) => {
+          // A travelling round is drawn as the round; only hitscan is a line.
+          if (getPart(e.partId).weapon?.projectileSpeed !== 'hitscan') return null;
           const f = frameAt(view, e.tSec);
           if (!f) return null;
           const from = f.mechs[e.mech];
