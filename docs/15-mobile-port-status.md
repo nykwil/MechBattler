@@ -113,11 +113,12 @@ dropping them removes information the prototype never had to display. The capaci
 gauge in particular is how a railgun or Surge build reads whether it can fire, which
 doc 14 §12 discusses directly. Nothing was lost, and the choice is reversible.
 
-One piece is a **documented partial port**: the prototype fades each damage cell by
-that part's remaining HP fraction, so a mech visibly wears down. `MechFrame` carries
-no per-part HP and `MechReport.partsFinalHp` is end-of-battle only, so cells here are
-alive or destroyed. Restoring the gradient needs the sim to expose per-tick part HP —
-a small additive change to `MechFrame`, but a sim change, so it was left alone.
+The widget fades each cell by wear, as the prototype's does. That looked to need a
+sim change at first — `MechFrame` has no per-part HP and `MechReport.partsFinalHp` is
+end-of-battle only — but `shot` events carry the damage dealt to each part along the
+penetration path, so the remaining fraction at any tick is derivable from the event
+stream with no sim change at all. One gap: heat and cook-off destroy parts without a
+`shot` event, so those show as destroyed rather than fading first.
 
 Still genuinely open: the run panel and scrapyard, which have no prototype at all
 (doc 14 §15) and are harmonised rather than designed. And the `FLANK`/`FLEE`/`FACE`

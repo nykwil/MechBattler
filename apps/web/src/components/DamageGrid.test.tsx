@@ -61,3 +61,53 @@ describe('DamageGrid', () => {
     expect(container.querySelector('.dmg')?.getAttribute('aria-label')).toContain('2 parts destroyed');
   });
 });
+
+const shotAt = (tSec: number, instanceId: string, damage: number): BattleEvent =>
+  ({
+    tSec, type: 'shot', mech: 1, instanceId: 'foeGun', partId: 'W-AC',
+    hit: true, totalDamageDealt: damage,
+    damaged: [{ instanceId, partId: 'R-C40', damage }],
+  }) as BattleEvent;
+
+describe('DamageGrid wear', () => {
+  const opacityOf = (container: HTMLElement, nth: number) =>
+    Number((container.querySelectorAll('.dmg-grid i')[nth] as HTMLElement).style.opacity || '1');
+
+  /** The reactor sits at 1,1 on a 6-wide chassis, so its first cell is index 7. */
+  const REACTOR_CELL = 7;
+
+  it('fades a part as it takes damage', () => {
+    const pristine = renderGrid([], 0);
+    const hurt = renderGrid([shotAt(1, 'r1', 30)], 5);
+
+    expect(opacityOf(hurt, REACTOR_CELL)).toBeLessThan(opacityOf(pristine, REACTOR_CELL));
+  });
+
+  it('ignores damage from later in the battle', () => {
+    const before = renderGrid([shotAt(9, 'r1', 30)], 3);
+    const after = renderGrid([shotAt(9, 'r1', 30)], 10);
+
+    expect(opacityOf(before, REACTOR_CELL)).toBeGreaterThan(opacityOf(after, REACTOR_CELL));
+  });
+
+  it('ignores our own shots, which damage the opponent', () => {
+    const ours = { ...shotAt(1, 'r1', 30), mech: 0 } as BattleEvent;
+    expect(opacityOf(renderGrid([ours], 5), REACTOR_CELL))
+      .toBe(opacityOf(renderGrid([], 5), REACTOR_CELL));
+  });
+
+  it('never fades below the floor that keeps a cell visible', () => {
+    // Enough damage to overkill: the cell must still read as present, not vanish.
+    const wrecked = renderGrid([shotAt(1, 'r1', 9999)], 5);
+    expect(opacityOf(wrecked, REACTOR_CELL)).toBeCloseTo(0.3, 5);
+  });
+
+  it('skips core damage, which the core cell shows itself', () => {
+    const coreHit = {
+      ...shotAt(1, 'r1', 20),
+      damaged: [{ instanceId: '__core__', partId: '__core__', damage: 20 }],
+    } as BattleEvent;
+    expect(opacityOf(renderGrid([coreHit], 5), REACTOR_CELL))
+      .toBe(opacityOf(renderGrid([], 5), REACTOR_CELL));
+  });
+});

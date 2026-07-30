@@ -15,12 +15,15 @@ const GONE: CSSProperties = {
  * core. docs/14 §12 records why that matters — damage strips structure before the
  * core is exposed, so "how much is left" is a pattern, not one figure.
  *
- * Partial port, deliberately. The prototype fades each cell by that part's
- * remaining HP fraction. MechFrame carries no per-part HP, and MechReport's
- * partsFinalHp is end-of-battle only, so cells here are alive or destroyed —
- * derived from the event stream up to tSec, the same way the rest of the HUD
- * derives per-tick state. Restoring the gradient needs the sim to expose per-tick
- * part HP; it is not something the UI can infer.
+ * Cells fade with wear, as the prototype's do. MechFrame carries no per-part HP and
+ * MechReport.partsFinalHp is end-of-battle only, but `shot` events carry the damage
+ * dealt to each part along the penetration path — so the remaining fraction at any
+ * tick is the part's starting HP less the damage accumulated up to it. Everything
+ * comes from the event stream, which is how the rest of the HUD derives per-tick
+ * state; no damage rule is restated here.
+ *
+ * One gap worth knowing: heat and cook-off destroy parts without a `shot` event, so
+ * those show as destroyed the moment they go rather than fading first.
  */
 export function DamageGrid({
   build, events, tSec, coreFrac, onOpen,
@@ -34,14 +37,30 @@ export function DamageGrid({
 }) {
   const chassis = getChassis(build.chassisId);
 
-  const destroyed = useMemo(() => {
+  const { destroyed, damageTaken } = useMemo(() => {
     const gone = new Set<string>();
+    const taken = new Map<string, number>();
     for (const e of events) {
       if (e.tSec > tSec) break;
       if (e.type === 'part-destroyed' && e.mech === 0) gone.add(e.instanceId);
+      // `mech` on a shot is the shooter, so the opponent's shots are our damage.
+      if (e.type === 'shot' && e.mech === 1) {
+        for (const d of e.damaged ?? []) {
+          if (d.instanceId === '__core__') continue;
+          taken.set(d.instanceId, (taken.get(d.instanceId) ?? 0) + d.damage);
+        }
+      }
     }
-    return gone;
+    return { destroyed: gone, damageTaken: taken };
   }, [events, tSec]);
+
+  /** Remaining HP as a fraction of pristine, starting from salvage integrity. */
+  const hpFrac = (instanceId: string, partId: string, integrity: number) => {
+    const pristine = getPart(partId).hp;
+    if (pristine <= 0) return 0;
+    const remaining = pristine * integrity - (damageTaken.get(instanceId) ?? 0);
+    return Math.max(0, Math.min(1, remaining / pristine));
+  };
 
   // The sim owns this mapping; see Plate, which had the same copy.
   const occupancy = useMemo(() => buildOccupancyMap(build.parts).byCell, [build.parts]);
@@ -71,12 +90,20 @@ export function DamageGrid({
         cells.push(<i key={key} style={{ background: 'var(--bg-floor)' }} />);
         continue;
       }
+      if (destroyed.has(occ.instanceId)) {
+        cells.push(<i key={key} style={GONE} />);
+        continue;
+      }
+      const placed = build.parts.find((p) => p.instanceId === occ.instanceId);
+      const frac = hpFrac(occ.instanceId, occ.partId, placed?.integrity ?? 1);
       cells.push(
         <i
           key={key}
-          style={destroyed.has(occ.instanceId)
-            ? GONE
-            : { background: `var(--cat-${getPart(occ.partId).category})` }}
+          style={{
+            background: `var(--cat-${getPart(occ.partId).category})`,
+            // Fades as the part wears, so a mech visibly comes apart.
+            opacity: 0.3 + frac * 0.7,
+          }}
         />,
       );
     }
