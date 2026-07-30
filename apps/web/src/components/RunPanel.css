@@ -78,12 +78,18 @@
 }
 .run-bench-row {
   display: flex;
-  align-items: baseline;
+  /* Centred rather than baseline: the row now sizes to a 44px control, and
+     baseline alignment against it dropped the text to the bottom of the row. */
+  align-items: center;
   gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-secondary);
   padding: 2px 0;
+  /* The row has to be at least as tall as the control it holds. At 22px a 44px
+     buy/sell target overflowed into its neighbours -- adjacent hit areas
+     overlapping is a worse bug than the small target was. */
+  min-height: var(--tap-min);
 }
 .run-bench-name { flex: 1; }
 .run-bench-int { color: var(--signal-amber); }
@@ -96,6 +102,10 @@
   font-size: var(--text-2xs);
   padding: 1px var(--space-2);
   cursor: pointer;
+  /* 64x18 on a phone: buying and selling are the whole of the scrapyard and the
+     bench, and both sat at well under half the --tap-min floor. The row grows to
+     match rather than the button spilling over its neighbours. */
+  min-height: var(--tap-min);
 }
 @media (hover: hover) {
   .run-bench-sell:hover { color: var(--signal-amber); border-color: var(--signal-amber); }

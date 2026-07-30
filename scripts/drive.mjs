@@ -59,6 +59,12 @@ const taps = args.reduce((acc, a, i) => {
   if (a === '--tapText') return [...acc, { kind: 'text', value: args[i + 1] }];
   if (a === '--key') return [...acc, { kind: 'key', value: args[i + 1] }];
   if (a === '--waitFor') return [...acc, { kind: 'wait', value: args[i + 1] }];
+  // --exec runs JS in page order; --reload navigates again. Together they reach
+  // states play cannot: the scrapyard is node 3 of a run, two wins away, and
+  // winning one takes about eight attempts (docs/15 s7). Setting the run's state
+  // and reloading is the only way that screen gets looked at.
+  if (a === '--exec') return [...acc, { kind: 'exec', value: args[i + 1] }];
+  if (a === '--reload') return [...acc, { kind: 'reload', value: '' }];
   return acc;
 }, []);
 
@@ -265,6 +271,21 @@ for (const tap of taps) {
       label: sel,
       ...(Number.isFinite(ms) ? { timeoutMs: ms } : {}),
     });
+    continue;
+  }
+  if (tap.kind === 'exec') {
+    const r = await send('Runtime.evaluate', {
+      expression: selector, returnByValue: true, awaitPromise: true,
+    });
+    if (r.exceptionDetails) console.error(`exec failed: ${r.exceptionDetails.text}`);
+    else console.log(`exec ok${r.result?.value !== undefined ? ` ${JSON.stringify(r.result.value)}` : ''}`);
+    continue;
+  }
+  if (tap.kind === 'reload') {
+    await send('Page.reload', {});
+    await waitFor('document.querySelector("#root")?.children.length > 0',
+      { timeoutMs: 20000, label: 'app remount' });
+    await sleep(400);
     continue;
   }
   if (tap.kind === 'key') {
