@@ -44,7 +44,9 @@ Every surface has been looked at and driven at a true 390×844 viewport, using
 `scripts/drive.mjs` (`npm run web:shot`). Tests alone were never sufficient — see
 §4.
 
-Measured across workshop, battle, report and salvage, all currently clean:
+Measured across workshop, battle, report, salvage and the Balance Lab — re-run in one
+sweep after the driver gained condition-based waiting, so these results are current
+rather than accumulated:
 
 | Property | Result |
 |---|---|
@@ -58,6 +60,7 @@ Measured across workshop, battle, report and salvage, all currently clean:
 | Reduced motion | all animation collapses; indicators settle visible, sheets still appear |
 | Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
 | Production bundle | workshop renders and places correctly minified; dev views inert |
+| First load | 80.05 kB CSS / 329.71 kB JS; battle and lab chunks load on demand |
 
 | Surface | Reached by | State |
 |---|---|---|
