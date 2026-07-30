@@ -1,0 +1,88 @@
+import { getChassis, getPart, type Build } from '@mechbattler/sim';
+import { Sheet } from './Sheet.js';
+import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
+
+/**
+ * Next match, ported from the prototype's intel sheet. It exists as its own
+ * surface because the loop is *read the opponent, move a radiator, read it again*
+ * — the strip in the action bar names who is next, and this is what it opens.
+ *
+ * The blocker line is the prototype's too: a build with no reactor or no weapon
+ * cannot fight, and saying so here is more use than letting the player discover it
+ * three seconds into a battle.
+ */
+export function IntelSheet({
+  open, onClose, build, selectedId, onSelect, onFight,
+}: {
+  open: boolean;
+  onClose: () => void;
+  build: Build;
+  selectedId: string | null;
+  onSelect: (opponent: OpponentDef) => void;
+  onFight: (opponent: OpponentDef) => void;
+}) {
+  // Derived from the build itself, never from a copied constant.
+  const hasReactor = build.parts.some((p) => getPart(p.partId).reactor);
+  const hasWeapon = build.parts.some((p) => getPart(p.partId).weapon);
+  const blocker = !hasReactor
+    ? 'No reactor mounted — nothing on this mech will power up.'
+    : !hasWeapon
+      ? 'No weapons mounted — you will lose by mission-kill in three seconds.'
+      : null;
+
+  return (
+    <Sheet open={open} onClose={onClose} label="Next match" initialSnap="full">
+      <div className="sheet-head">
+        <span className="sheet-title">Next match</span>
+        <span className="part-sub">{OPPONENTS.length} known opponents</span>
+      </div>
+      <div className="sheet-body">
+        {blocker && <p className="fault">{blocker}</p>}
+
+        {OPPONENTS.map((o) => {
+          const chassis = getChassis(o.build.chassisId);
+          return (
+            <button
+              key={o.id}
+              type="button"
+              className="foe"
+              aria-pressed={o.id === selectedId}
+              onClick={() => onSelect(o)}
+            >
+              <span className="foe-head">
+                <span className="foe-name">
+                  {o.name}
+                  {o.elite && <span className="elite">Elite</span>}
+                </span>
+                <span className="threat" aria-label={`Threat ${o.threat} of 3`}>
+                  {'▲'.repeat(o.threat)}
+                  <span className="threat-off">{'▲'.repeat(3 - o.threat)}</span>
+                </span>
+              </span>
+              <span className="foe-chassis">
+                {o.chassisLabel ?? `${chassis.name} · ${chassis.type}`}
+                {o.spawnDistanceM ? ` · engages at ${o.spawnDistanceM} m` : ''}
+              </span>
+              <span className="foe-blurb">{o.blurb}</span>
+              <span className="foe-intel">Confirmed · {o.confirmed.join(' · ')}</span>
+              {o.carries && <span className="foe-carries">Carries {o.carries}</span>}
+            </button>
+          );
+        })}
+
+        {selectedId && !blocker && (
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              const chosen = OPPONENTS.find((o) => o.id === selectedId);
+              if (chosen) onFight(chosen);
+            }}
+          >
+            Fight
+          </button>
+        )}
+      </div>
+    </Sheet>
+  );
+}

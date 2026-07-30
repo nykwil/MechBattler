@@ -23,6 +23,7 @@ import { Plate } from './components/Plate.js';
 import { Readout } from './components/Readout.js';
 import { ActionBar } from './components/ActionBar.js';
 import { PartsSheet } from './components/PartsSheet.js';
+import { IntelSheet } from './components/IntelSheet.js';
 import { Sheet } from './components/Sheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
 import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
@@ -68,6 +69,8 @@ export default function App() {
   const [readoutOpen, setReadoutOpen] = useState(false);
   const [partsOpen, setPartsOpen] = useState(false);
   const [chassisOpen, setChassisOpen] = useState(false);
+  const [intelOpen, setIntelOpen] = useState(false);
+  const [intelPick, setIntelPick] = useState<string | null>(null);
   const [toast, setToast] = useState('');
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
@@ -251,9 +254,9 @@ export default function App() {
   // Only what the 56px bar shows; the sheet computes its own detail.
   // The idle action bar is the intel strip, so it needs whoever is next.
   const nextFight = useMemo(() => {
-    const first = OPPONENTS[0];
-    return first ? { name: first.name, threat: first.threat } : null;
-  }, []);
+    const chosen = OPPONENTS.find((o) => o.id === intelPick) ?? OPPONENTS[0];
+    return chosen ? { name: chosen.name, threat: chosen.threat } : null;
+  }, [intelPick]);
 
   // An action keeps its name through the whole flow: Place -> "Placed".
   const partCountRef = useRef(state.parts.length);
@@ -683,7 +686,7 @@ export default function App() {
             onPlace={placeWithEconomy}
             onOpenParts={() => setPartsOpen(true)}
             next={nextFight}
-            onOpenIntel={() => { setReadoutOpen(true); }}
+            onOpenIntel={() => setIntelOpen(true)}
           />
       </div>
 
@@ -701,6 +704,19 @@ export default function App() {
           <div className="sheet-body">{inspectorNode}</div>
         </Sheet>
       )}
+
+      <IntelSheet
+        open={intelOpen}
+        onClose={() => setIntelOpen(false)}
+        build={build}
+        selectedId={intelPick}
+        onSelect={(o) => setIntelPick(o.id)}
+        onFight={(o) => {
+          setIntelOpen(false);
+          runFightRef.current = false;
+          fight(o, 'command');
+        }}
+      />
 
       {chassisOpen && (
         <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">
