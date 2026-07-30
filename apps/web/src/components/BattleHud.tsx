@@ -9,6 +9,7 @@ import {
 import { eventText, fmtTime } from '../lib/battleText.js';
 import { crossingSpeedMps } from '../lib/evade.js';
 import { DamageGrid } from './DamageGrid.js';
+import { BattleDiagnostics } from './BattleDiagnostics.js';
 import './BattlePlayback.css';
 
 /**
@@ -390,7 +391,7 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, diagnostics,
 }: {
   view: BattleView;
   tSec: number;
@@ -403,6 +404,8 @@ export function BattleScene({
   onWeaponClick?: (instanceId: string) => void;
   /** Extra SVG rendered over the arena (order feedback like click ripples). */
   arenaOverlay?: ReactNode;
+  /** Lay the movement and gunnery diagnostics on the glass (the fx toggle). */
+  diagnostics?: boolean;
   /** Your build, for the console's damage widget. Omitted where it is unknown. */
   yourBuild?: Build;
 }) {
@@ -685,6 +688,7 @@ export function BattleScene({
       {hoveredWeapon && (
         <p className="con-foot hover-only">{weaponBlurb(getPart(hoveredWeapon))}</p>
       )}
+      {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} />}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />
       </div>

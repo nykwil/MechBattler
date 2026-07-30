@@ -8,6 +8,7 @@ import type { OpponentDef } from '../lib/opponents.js';
 import { fmtTime } from '../lib/battleText.js';
 import { useBattle } from '../state/useBattle.js';
 import { BattleCaption, BattleScene, BattleTicker, frameAt, type BattleView, type WeaponOverride } from './BattleHud.js';
+import './BattleDiagnostics.css';
 import './BattleReportScreen.css';
 import './BattlePlayback.css';
 import './BattleLiveScreen.css';
@@ -72,6 +73,7 @@ export function BattleLiveScreen({
   const [paused, setPaused] = useState(false);
   const [speed, setSpeed] = useState<(typeof LIVE_SPEEDS)[number]>(1);
   const [manual, setManual] = useState<ManualState>(FULL_AUTO);
+  const [diag, setDiag] = useState(false);
   // The controller runs inside battle.step() at 4 Hz and reads the ref; state
   // drives the button highlights (docs/08 §3).
   const manualRef = useRef(manual);
@@ -244,6 +246,17 @@ export function BattleLiveScreen({
           >
             {speed}×
           </button>
+          {/* The prototype's fx toggle: every term the movement and gunnery models
+              use, laid on the glass. A debugging instrument, off by default. */}
+          <button
+            type="button"
+            className={`tbtn${diag ? ' on' : ''}`}
+            aria-pressed={diag}
+            onClick={() => setDiag((d) => !d)}
+            aria-label="Toggle movement and gunnery diagnostics"
+          >
+            ƒx
+          </button>
           <button type="button" className="tbtn" onClick={onAbort} aria-label="Abandon the battle">✕</button>
         </header>
 
@@ -254,6 +267,7 @@ export function BattleLiveScreen({
             weaponOverrides={manual.weapons}
             onWeaponClick={cycleWeapon}
             arenaOverlay={ripple && <circle key={ripple.key} className="live-ripple" cx={ripple.x} cy={ripple.y} />}
+            diagnostics={diag}
           />
 
           {/* Manual verb overrides (docs/08 §2). Chips toggle: active manual
