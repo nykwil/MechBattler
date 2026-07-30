@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildOccupancyMap, autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { buildOccupancyMap, autoWire, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
@@ -7,7 +7,7 @@ import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
   BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE,
-  START_BUDGET, repairCost, useRun,
+  repairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
@@ -16,6 +16,7 @@ const BattleLiveScreen = lazy(() => import('./components/BattleLiveScreen.js').t
 import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import { resolveView } from './lib/views.js';
 import { settleRunFight } from './lib/settleRunFight.js';
+import { placementPermission } from './lib/placementPermission.js';
 import type { FightMode } from './components/ArenaPanel.js';
 // Lazy: the Balance Lab is a desktop analysis tool with its own worker, and the
 // battle screens carry the whole battle stylesheet. Neither is needed to paint the
@@ -161,26 +162,24 @@ export default function App() {
   const placeWithEconomy = useCallback(() => {
     if (!state.selectedPartId || !state.ghost) return;
     if (checkCandidate(state.ghost.x, state.ghost.y) !== null) return;
-    if (pendingBench && pendingBench.partId === state.selectedPartId) {
-      takeBench(pendingBench.index);
+    // The gates live in lib/placementPermission so each can be tested; this applies
+    // whichever one fires.
+    const permission = placementPermission({
+      partId: state.selectedPartId,
+      build,
+      phase: run.phase,
+      pendingBench,
+    });
+    if (permission.kind === 'deny') return;
+    if (permission.kind === 'allow-from-bench') {
+      takeBench(permission.benchIndex);
       setPendingBench(null);
       place();
       selectPart(null); // a bench part is one-of — disarm after placing
       return;
     }
-    if (runPrep) {
-      // Custom-frame outfitting (docs/04 §7): unlocked parts only, free but
-      // capped by the tier budget (wiring is exempt, like the enemy ladder).
-      const def = getPart(state.selectedPartId);
-      if (!def.isConduit && !def.isHeatPipe && buildTierBudget(build) + def.tier > START_BUDGET) return;
-      place();
-      return;
-    }
-    // Once a run launches, the catalog is reference-only. New equipment comes
-    // from owned bench salvage or a seeded scrapyard offer.
-    if (runActive) return;
     place();
-  }, [state.selectedPartId, state.ghost, checkCandidate, pendingBench, takeBench, place, selectPart, runActive, runPrep, build]);
+  }, [state.selectedPartId, state.ghost, checkCandidate, pendingBench, takeBench, place, selectPart, run.phase, build]);
 
   /** Repair / sell / unplace controls on the part inspector during a run. */
   const runOps: RunPartOps | undefined = runActive ? {
