@@ -92,6 +92,10 @@ const AUDIT = (marker) => `(() => {
   for (const el of document.querySelectorAll('body *')) {
     if (el.closest('[aria-hidden="true"]')) continue;
     if (el.children.length || !(el.textContent || '').trim()) continue;
+    // Text with no box is not rendered, so it cannot be too small to read. The
+    // enemy strip's compact gun chips display:none their range slot, and scanning
+    // it reported 9px text that is on no screen.
+    if (!visible(el)) continue;
     const fs = parseFloat(getComputedStyle(el).fontSize);
     if (fs < 11) small.push(\`\${el.className || el.tagName}:\${fs}px\`);
   }

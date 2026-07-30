@@ -164,6 +164,15 @@
   white-space: normal;
   height: auto;
 }
+/* The prototype leaves .gun-rng at 9px, which did not matter while the port left
+   the slot empty. Now that it carries the band and arc -- numbers you read to
+   predict a RANGE or ARC gate -- it has to clear the floor like everything else. */
+.battle-app .gunrow .gun-rng { font-size: 11px; }
+/* The heat column's label and risk line are 9px in the prototype. They are now on
+   screen rather than in an unused stylesheet, so they meet the floor too -- the
+   risk line in particular is the one that says how long you have. */
+.battle-app .heatcol .heat-k,
+.battle-app .heatcol .heat-risk { font-size: 11px; }
 
 /* The unit suffix in a readout value; the prototype inlined this style. */
 .ro-unit {

@@ -56,10 +56,20 @@ function shortName(partId: string): string {
   return getPart(partId).name.split(' (')[0]!;
 }
 
+/**
+ * Ammo is not modelled: the sim does not consume it (packages/sim diversity.ts
+ * calls U-AMMO a dead placeholder until Track C lands). The slot is shown because
+ * it was asked for, but it reads as unavailable rather than as a count -- a number
+ * here would be indistinguishable from a real one, and every figure on this screen
+ * is supposed to come from the sim.
+ */
+const AMMO_PLACEHOLDER = 'ammo — (not modelled yet)';
+
 function weaponBlurb(def: PartDef): string {
   const w = def.weapon!;
   const speed = w.projectileSpeed === 'hitscan' ? 'hitscan' : `${w.projectileSpeed} m/s`;
-  return `${def.name} — ${w.damage}${w.salvoCount ? `×${w.salvoCount}` : ''} dmg every ${w.cycleS}s · ${speed} · band ${w.falloff.rangeStart}–${w.falloff.rangeEnd} m`;
+  return `${def.name} — ${w.damage}${w.salvoCount ? `×${w.salvoCount}` : ''} dmg every ${w.cycleS}s · ${speed}`
+    + ` · band ${w.falloff.rangeStart}–${w.falloff.rangeEnd} m · arc ${w.mountArcDeg}° · ${AMMO_PLACEHOLDER}`;
 }
 
 function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: string; color: string }) {
@@ -141,7 +151,15 @@ function WeaponSlot({
                   : wf.readyFrac >= 1 ? 'Ready' : ''}
         </span>
       </span>
-      <span className="gun-rng">
+      {/* The prototype's .gun-rng is a two-column grid -- range info, then hint --
+          and the port only ever filled the hint, leaving the designed slot blank.
+          Band and arc are what decide whether a gun can speak, and the RANGE/ARC
+          gates already name them as reasons; showing the numbers means you can see
+          the gate coming instead of only being told after it fires. */}
+      <span className={`gun-rng${wf.gate === null && wf.status === 'ok' ? ' in' : ''}`}>
+        <span>
+          {def.weapon!.falloff.rangeStart}–{def.weapon!.falloff.rangeEnd}m · {def.weapon!.mountArcDeg}°
+        </span>
         <span className="gun-hint">{override ? (override === 'hold' ? 'held' : 'forced') : ''}</span>
       </span>
     </>
