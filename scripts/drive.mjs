@@ -14,6 +14,9 @@
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
  *
+ * --slow throttles the network, so lazy-loading fallbacks can be seen rather than
+ * assumed.
+ *
  * --media reduce turns on prefers-reduced-motion.
  *
  * --key presses a key on the document, for the keyboard paths that touch
@@ -176,6 +179,15 @@ await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints
 if (flag('media', null) === 'reduce') {
   await send('Emulation.setEmulatedMedia', {
     features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+}
+
+// --slow throttles the network, which is the only way to actually see a lazy
+// fallback: these chunks are small enough to arrive before a frame otherwise.
+if (args.includes('--slow')) {
+  await send('Network.enable');
+  await send('Network.emulateNetworkConditions', {
+    offline: false, latency: 400, downloadThroughput: 40000, uploadThroughput: 40000,
   });
 }
 

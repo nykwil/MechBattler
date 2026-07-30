@@ -196,12 +196,18 @@
    specificity and wins on import order. */
 .threat-off.threat-off { color: var(--ink-faint); }
 
-/* Shown while a lazily-loaded screen arrives. Brief by design: these chunks are
-   small and local, so this should read as a beat rather than a spinner. */
+/* Shown while a lazily-loaded screen arrives. Fixed rather than in flow: the battle
+   and report screens it stands in for are overlays, and a 100dvh block in normal
+   flow would add a viewport of scroll beneath the workshop while it showed.
+   Precautionary — the chunks are small and local enough that it never appeared, even
+   throttled to 40 kB/s. */
 .lazy-wait {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  background: var(--bg-floor);
   display: grid;
   place-items: center;
-  min-height: 100dvh;
   margin: 0;
   color: var(--ink-secondary);
   font-family: var(--font-mono);
