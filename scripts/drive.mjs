@@ -14,6 +14,8 @@
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
  *
+ * --media reduce turns on prefers-reduced-motion.
+ *
  * --key presses a key on the document, for the keyboard paths that touch
  * accelerates rather than replaces.
  *
@@ -132,6 +134,14 @@ await send('Emulation.setDeviceMetricsOverride', {
   width, height, deviceScaleFactor: 1, mobile: true,
 });
 await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+
+// --media reduce emulates prefers-reduced-motion, so §9's blanket rule can be
+// checked in a browser rather than only asserted against the stylesheet.
+if (flag('media', null) === 'reduce') {
+  await send('Emulation.setEmulatedMedia', {
+    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
+  });
+}
 
 await send('Page.navigate', { url });
 await send('Page.setLifecycleEventsEnabled', { enabled: true });

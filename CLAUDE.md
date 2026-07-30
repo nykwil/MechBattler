@@ -48,6 +48,12 @@ clipping that did not exist. `drive.mjs` uses
 `Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
 `overflowX` so a crop can never be mistaken for an overflow again.
 
+`--media reduce` emulates prefers-reduced-motion, which is how §9's blanket rule
+was actually checked rather than merely asserted: transitions drop to 1e-06s, the
+sheet still appears (its reveal is a class-set transform, not an animation), and
+the pulsing live-dot settles at opacity 1 — visible and solid, which is the whole
+point of collapsing duration instead of setting `animation: none`.
+
 The driver reports console errors and warnings beside the image. React's
 validateDOMNesting caught a `<button>` inside a `<button>` in salvage that no
 screenshot or test had noticed — invalid HTML that browsers may respond to by
