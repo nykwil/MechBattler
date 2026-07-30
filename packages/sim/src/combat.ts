@@ -24,7 +24,7 @@ import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
-import { Simulation, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
+import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 import { Pcg32 } from './rng.js';
@@ -877,7 +877,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
     const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
-    const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < 115;
+    const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
     enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
   }
 
@@ -1329,7 +1329,7 @@ export class Battle {
         const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
         if (rangeToEnemy > despawnRange) gate = 'range';
         else if (bearingOffset > halfArc) gate = 'arc';
-        else if (tempC >= 115) gate = 'heat';
+        else if (tempC >= HEAT_FIRE_HOLD_C) gate = 'heat';
       }
       weapons.push({
         instanceId: p.instanceId,

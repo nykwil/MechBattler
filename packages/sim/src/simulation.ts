@@ -41,6 +41,22 @@ export const SPEED_SETTING_FRACTIONS: Record<SpeedSetting, number> = {
 };
 
 /**
+ * The heat ladder (docs/01 §4), named so the HUD can mark it without restating it.
+ * These were inline literals here and re-typed in the battle HUD, which is the one
+ * thing the UI is not allowed to do: a gauge marked 130 that the sim later moved
+ * would lie, silently and forever.
+ */
+/** Fire control holds a gun at or above this (docs/09 M2). */
+export const HEAT_FIRE_HOLD_C = 115;
+/** The part shuts down here, and restarts only below HEAT_RESTART_C. */
+export const HEAT_SHUTDOWN_C = 130;
+export const HEAT_RESTART_C = 110;
+/** Above this, heat does structural damage. */
+export const HEAT_DAMAGE_C = 150;
+/** Arena ambient, the bottom of the HUD's heat span. */
+export const HEAT_AMBIENT_C = 25;
+
+/**
  * Ram-air cooling (docs/02 §3): airflow over the radiator scales dissipation
  * with speed. Radiator output is multiplied by (1 + RAM_AIR_MAX_BONUS × speed
  * fraction), so a flanking mech cools 50% harder than a stationary one. This
@@ -312,7 +328,7 @@ export class Simulation {
       const rt = this.runtime.get(p.instanceId)!;
       const enabled = command.weaponsEnabled[p.instanceId] === true;
       if (rt.cookedOff || rt.destroyed) continue;
-      rt.isShutdown = this.hottestCellC(p.instanceId) >= 130 ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= 110;
+      rt.isShutdown = this.hottestCellC(p.instanceId) >= HEAT_SHUTDOWN_C ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= HEAT_RESTART_C;
       if (rt.cooldownRemainingS > 0) rt.cooldownRemainingS -= dtSec;
       if (!enabled || rt.isShutdown || rt.cooldownRemainingS > 0) continue;
 
@@ -359,7 +375,7 @@ export class Simulation {
       const networkId = this.networkIdByInstance.get(p.instanceId);
       if (!networkId) continue; // not connected -- draws nothing, does nothing (docs/01 §3)
       const rt = this.runtime.get(p.instanceId)!;
-      rt.isShutdown = this.hottestCellC(p.instanceId) >= 130 ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= 110;
+      rt.isShutdown = this.hottestCellC(p.instanceId) >= HEAT_SHUTDOWN_C ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= HEAT_RESTART_C;
       if (rt.cookedOff || rt.isShutdown || rt.destroyed) continue;
 
       let kw = 0;
@@ -578,11 +594,11 @@ export class Simulation {
       const rt = this.runtime.get(p.instanceId)!;
       if (rt.destroyed) continue;
       const hottest = this.hottestCellC(p.instanceId);
-      if (!rt.isShutdown && hottest >= 130) rt.isShutdown = true;
+      if (!rt.isShutdown && hottest >= HEAT_SHUTDOWN_C) rt.isShutdown = true;
       if (rt.isShutdown && hottest < 110) rt.isShutdown = false;
       if (rt.isShutdown) shutdownInstanceIds.push(p.instanceId);
 
-      if (hottest >= 150) rt.cumulativeDamageHp += ((hottest - 150) / 10) * dtSec;
+      if (hottest >= HEAT_DAMAGE_C) rt.cumulativeDamageHp += ((hottest - HEAT_DAMAGE_C) / 10) * dtSec;
 
       if (hottest >= 180 && p.partId === 'U-AMMO' && !rt.cookedOff) {
         rt.cookedOff = true;

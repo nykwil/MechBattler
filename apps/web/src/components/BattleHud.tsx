@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
+  HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
@@ -38,9 +39,13 @@ export const MECH_COLORS = ['var(--signal-blue)', 'var(--signal-red)'] as const;
  * for exactly that, while marks and borders keep the fill colour.
  */
 const MECH_TEXT_COLORS = ['var(--signal-blue)', 'var(--signal-red-text)'] as const;
-/** Heat gauge span: ambient to the damage threshold (docs/01 §4 ladder). */
-const HEAT_MIN_C = 25;
-const HEAT_MAX_C = 150;
+/**
+ * Heat gauge span: ambient to the damage threshold (docs/01 §4 ladder). Both ends
+ * and both marks now come from the sim, which names them. They used to be typed
+ * here -- a gauge marked 130 would have gone on saying 130 after the sim moved it.
+ */
+const HEAT_MIN_C = HEAT_AMBIENT_C;
+const HEAT_MAX_C = HEAT_DAMAGE_C;
 
 export function frameAt(view: BattleView, tSec: number): BattleFrame | undefined {
   const idx = Math.min(view.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
@@ -117,7 +122,7 @@ function WeaponSlot({
           : wf.gate === 'arc'
             ? { label: 'ARC', blurb: 'target outside the mount arc — turn to bear' }
             : wf.gate === 'heat'
-              ? { label: 'HOT', blurb: 'fire control holding at ≥115°C (shutdown at 130°C)' }
+              ? { label: 'HOT', blurb: `fire control holding at ≥${HEAT_FIRE_HOLD_C}°C (shutdown at ${HEAT_SHUTDOWN_C}°C)` }
               : { label: 'HOLD', blurb: 'fire control holding' };
   const className = `gun${compact ? ' compact' : ''}${cls.includes('destroyed') ? ' dead' : ''}`;
   const body = (
@@ -160,6 +165,58 @@ function WeaponSlot({
     >
       {body}
     </button>
+  );
+}
+
+/**
+ * Heat as a column, which is the prototype's design and was never ported -- its
+ * CSS has been sitting in battle.css unused while the console showed a horizontal
+ * bar. What you need from heat is headroom before cutout, and a column shows
+ * headroom at a glance in a way a horizontal bar does not.
+ *
+ * The risk line predicts time to shutdown from the slope of the last second of
+ * frames. That is measured from the recorded temperatures, not modelled here: the
+ * HUD may not re-derive the sim's thermal maths (docs/02 §6).
+ */
+function HeatColumn({ view, tSec, tempC }: { view: BattleView; tSec: number; tempC: number }) {
+  const frac = (tempC - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C);
+  const mark = (c: number) => `${((c - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C)) * 100}%`;
+
+  const risk = useMemo(() => {
+    if (tempC >= HEAT_SHUTDOWN_C) return { text: 'Cut out', cls: 'bad' };
+    const back = frameAt(view, Math.max(0, tSec - 1));
+    const now = frameAt(view, tSec);
+    if (!back || !now) return { text: 'Nominal', cls: '' };
+    const ratePerS = now.mechs[0].hottestCellC - back.mechs[0].hottestCellC;
+    if (ratePerS <= 0.05) return tempC >= HEAT_FIRE_HOLD_C
+      ? { text: 'Holding fire', cls: 'warn' }
+      : { text: 'Nominal', cls: '' };
+    const secs = (HEAT_SHUTDOWN_C - tempC) / ratePerS;
+    if (secs > 60) return { text: 'Nominal', cls: '' };
+    return { text: `${Math.ceil(secs)}s to cut`, cls: secs <= 10 ? 'bad' : 'warn' };
+  }, [view, tSec, tempC]);
+
+  return (
+    <div className="heatcol">
+      <span className="heat-k">Heat</span>
+      <span
+        className="heat-track"
+        role="meter"
+        aria-valuenow={Math.round(tempC)}
+        aria-valuemin={HEAT_MIN_C}
+        aria-valuemax={HEAT_MAX_C}
+        aria-label={`Heat ${Math.round(tempC)} degrees, shutdown at ${HEAT_SHUTDOWN_C}`}
+      >
+        <i
+          className={`heat-fill${tempC >= HEAT_SHUTDOWN_C ? ' hot' : ''}`}
+          style={{ height: `${Math.min(100, Math.max(0, frac * 100))}%` }}
+        />
+        <span className="heat-mark warn" style={{ bottom: mark(HEAT_FIRE_HOLD_C) }} />
+        <span className="heat-mark stop" style={{ bottom: mark(HEAT_SHUTDOWN_C) }} />
+      </span>
+      <span className="heat-v">{Math.round(tempC)}°</span>
+      <span className={`heat-risk ${risk.cls}`}>{risk.text}</span>
+    </div>
   );
 }
 
@@ -423,6 +480,9 @@ export function BattleScene({
               <span className="cbar-v">{Math.round(you.functionalMassFrac * 100)}%</span>
             </div>
           </div>
+          {/* Full console height, as the prototype has it: the taller the column,
+              the more precisely headroom to cutout can be read. */}
+          <HeatColumn view={view} tSec={tSec} tempC={you.hottestCellC} />
         </div>
 
         <div className="gunrow" role="group" aria-label="Weapons">
@@ -442,11 +502,6 @@ export function BattleScene({
         </p>
 
         <div className="hud-gauges">
-          <Gauge
-            label="HEAT" frac={heatFrac(you)} cls={you.hottestCellC >= 130 ? 'heat-hot' : 'heat'}
-            marks={[(100 - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C), (130 - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C)]}
-            text={`${you.hottestCellC.toFixed(0)}°C`}
-          />
           {view.mechs[0].capacitorMaxKj > 0 && (
             <Gauge
               label="CAP" frac={you.capacitorKj / view.mechs[0].capacitorMaxKj} cls="cap"
