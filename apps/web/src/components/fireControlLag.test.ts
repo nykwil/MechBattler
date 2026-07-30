@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Build } from '@mechbattler/sim';
-import { hasPoweredTcAt } from './BattleHud.js';
+import { hasPoweredTcAt, targetProfileMultAt } from './BattleHud.js';
 import type { BattleView } from './BattleHud.js';
 
 /**
@@ -62,5 +62,44 @@ describe('powered targeting computer', () => {
   it('survives on a second computer when one is lost', () => {
     const v = view([{ tSec: 1, type: 'shed', mech: 0, instanceId: 'p0' }]);
     expect(hasPoweredTcAt(v, build(['U-TC1', 'U-TC1']), 5, 0)).toBe(true);
+  });
+});
+
+/**
+ * A target's profile multiplier narrows the silhouette a shot is scored against.
+ * Same replay rules as the targeting computer: a modifier stops counting once its
+ * part is destroyed, shed or shut down.
+ */
+describe('target profile multiplier', () => {
+  const ctx = { speedMps: 0, tile: 'open' as const };
+  const modded = (): Build => {
+    const b = build(['U-ARM']);
+    b.parts[0]!.modifiers = ['hull-down'];
+    return b;
+  };
+
+  it('is neutral with no build, no modifiers, or a part that carries none', () => {
+    expect(targetProfileMultAt(view([]), undefined, 5, 1, ctx)).toBe(1);
+    expect(targetProfileMultAt(view([]), build(['U-ARM']), 5, 1, ctx)).toBe(1);
+  });
+
+  it('stops counting a modifier once its part is gone', () => {
+    const before = targetProfileMultAt(view([]), modded(), 5, 1, ctx);
+    const shed = view([{ tSec: 1, type: 'shed', mech: 1, instanceId: 'p0' }]);
+    const after = targetProfileMultAt(shed, modded(), 5, 1, ctx);
+    // Whatever hull-down is worth, losing the part must return the target to neutral.
+    expect(after).toBe(1);
+    expect(before).not.toBe(after);
+  });
+
+  it('reads the mech it was asked about, not the other one', () => {
+    const mine = view([{ tSec: 1, type: 'shed', mech: 0, instanceId: 'p0' }]);
+    expect(targetProfileMultAt(mine, modded(), 5, 1, ctx)).not.toBe(1);
+  });
+
+  it('ignores events after the moment being drawn', () => {
+    const later = view([{ tSec: 4, type: 'shed', mech: 1, instanceId: 'p0' }]);
+    expect(targetProfileMultAt(later, modded(), 2, 1, ctx)).not.toBe(1);
+    expect(targetProfileMultAt(later, modded(), 5, 1, ctx)).toBe(1);
   });
 });

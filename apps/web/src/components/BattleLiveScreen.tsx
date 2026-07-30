@@ -267,6 +267,7 @@ export function BattleLiveScreen({
             weaponOverrides={manual.weapons}
             onWeaponClick={cycleWeapon}
             arenaOverlay={ripple && <circle key={ripple.key} className="live-ripple" cx={ripple.x} cy={ripple.y} />}
+            foeBuild={opponent.build}
             diagnostics={diag}
           />
 

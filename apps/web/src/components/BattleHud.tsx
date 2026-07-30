@@ -4,7 +4,7 @@ import {
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
   computeHitModel, effectiveMults, meanSilhouetteHalfWidthM, FOREST_COVER_MULT,
   MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
-  type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
+  type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid, type TerrainType,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
 import { crossingSpeedMps } from '../lib/evade.js';
@@ -79,6 +79,32 @@ export function hasPoweredTcAt(view: BattleView, build: Build | undefined, tSec:
     if ((e.type === 'shed' || e.type === 'shutdown') && e.mech === mech) down.add(e.instanceId);
   }
   return fitted.some((p) => !down.has(p.instanceId));
+}
+
+/**
+ * The target's profile multiplier: the product of its own modifiers' targetProfile
+ * terms, which is how a mech makes itself harder to hit. Mirrors Combatant's
+ * profileMult, including its condition that a part is skipped once destroyed, shed
+ * or shut down -- replayed from events, since none of that is on a frame.
+ */
+export function targetProfileMultAt(
+  view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
+  ctx: { speedMps: number; tile: TerrainType },
+): number {
+  const parts = build?.parts.filter((p) => p.modifiers?.length) ?? [];
+  if (parts.length === 0) return 1;
+  const down = new Set<string>();
+  for (const e of view.events) {
+    if (e.tSec > tSec) break;
+    if (e.type !== 'part-destroyed' && e.type !== 'shed' && e.type !== 'shutdown') continue;
+    if (e.mech === mech) down.add(e.instanceId);
+  }
+  let mult = 1;
+  for (const p of parts) {
+    if (down.has(p.instanceId)) continue;
+    mult *= effectiveMults(p, { tempC: HEAT_AMBIENT_C, speedMps: ctx.speedMps, tile: ctx.tile }).targetProfile;
+  }
+  return mult;
 }
 
 export function frameIndexAt(view: BattleView, tSec: number): number {
@@ -437,7 +463,7 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, diagnostics,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, foeBuild, diagnostics,
 }: {
   view: BattleView;
   tSec: number;
@@ -450,6 +476,9 @@ export function BattleScene({
   onWeaponClick?: (instanceId: string) => void;
   /** Extra SVG rendered over the arena (order feedback like click ripples). */
   arenaOverlay?: ReactNode;
+  /** The opponent's build. Only the diagnostics need it, to apply the target's own
+   *  profile modifiers to its silhouette the way the sim does. */
+  foeBuild?: Build;
   /** Lay the movement and gunnery diagnostics on the glass (the fx toggle). */
   diagnostics?: boolean;
   /** Your build, for the console's damage widget. Omitted where it is unknown. */
@@ -734,7 +763,7 @@ export function BattleScene({
       {hoveredWeapon && (
         <p className="con-foot hover-only">{weaponBlurb(getPart(hoveredWeapon))}</p>
       )}
-      {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} build={yourBuild} />}
+      {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} build={yourBuild} foeBuild={foeBuild} />}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />
       </div>

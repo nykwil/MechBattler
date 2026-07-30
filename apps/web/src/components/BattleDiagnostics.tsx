@@ -6,7 +6,7 @@ import {
   type BattleFrame, type Build,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
-import { frameIndexAt, hasPoweredTcAt, type BattleView } from './BattleHud.js';
+import { frameIndexAt, hasPoweredTcAt, targetProfileMultAt, type BattleView } from './BattleHud.js';
 import './BattleDiagnostics.css';
 
 /**
@@ -23,17 +23,17 @@ import './BattleDiagnostics.css';
  * instrument that computes its own answer cannot disagree with the thing it is
  * measuring, which is the only reason to have one.
  *
- * Forest cover is applied to the target's width, as the sim does. What remains
- * unmodelled here is the target's *profile* multiplier — the product of its own
- * modifiers — because that needs the enemy's build and BattleView carries only a
- * chassis id. It moves the number only for opponents carrying profile mods, and
- * closing it means plumbing the opponent build through rather than guessing.
+ * Forest cover and the target's own profile modifiers are both applied to its
+ * width, as the sim does, so the hit chance here is the hit chance the shot is
+ * scored with. The row says (cover) and (profile) when either is in play, because a
+ * number that moves for an invisible reason is worse than no number.
  */
-export function BattleDiagnostics({ view, frame, tSec, build }: {
+export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
   view: BattleView;
   frame: BattleFrame;
   tSec: number;
   build?: Build;
+  foeBuild?: Build;
 }) {
   const me = frame.mechs[0];
   const foe = frame.mechs[1];
@@ -86,8 +86,10 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
     ? (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
       + MOVE_JITTER_MRAD_PER_MPS * speed * (mults?.moveJitter ?? 1)) * 0.001
     : 0;
+  const profileMult = targetProfileMultAt(view, foeBuild, tSec, 1, { speedMps: 0, tile: foe.tile });
   const halfWidthM = meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId))
-    * (foe.tile === 'forest' ? FOREST_COVER_MULT : 1);
+    * (foe.tile === 'forest' ? FOREST_COVER_MULT : 1)
+    * profileMult;
   const model = w
     ? computeHitModel({
       rangeM,
@@ -157,7 +159,7 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
             {row('target crossing', `${lateral.toFixed(2)} m/s`)}
             {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s${tc ? ' (TC)' : ''}`)}
             {row('lead error', `${leadErrorM.toFixed(2)} m`, leadErrorM > dispersionM ? 'bad' : '')}
-            {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${halfWidthM.toFixed(2)} m${foe.tile === 'forest' ? ' (cover)' : ''}`)}
+            {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${halfWidthM.toFixed(2)} m${foe.tile === 'forest' ? ' (cover)' : ''}${profileMult !== 1 ? ' (profile)' : ''}`)}
             {row('damage at range', `×${falloffAt(def!, rangeM).toFixed(2)}`, falloffAt(def!, rangeM) < 0.6 ? 'warn' : '')}
             {row(
               'hit chance',
