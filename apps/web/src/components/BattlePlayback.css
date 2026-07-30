@@ -303,10 +303,19 @@
 .playback-cone.bearing .cone-band { opacity: 0.1; }
 .playback-cone.bearing .cone-full { opacity: 0.14; }
 
-/* A round in flight, walked along its line at the weapon's own projectileSpeed.
-   Solid and small: it is a thing at a place, unlike a tracer, which is the memory
-   of a shot that has already arrived. */
-.playback-round { opacity: 0.95; }
+/* A round in flight, walked along its line at the weapon's own projectileSpeed and
+   drawn as a short streak so it carries a heading. A tracer, by contrast, is the
+   memory of a shot that has already arrived. */
+.playback-round {
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  opacity: 0.95;
+}
+/* Where it landed. Brief, and only for hits -- a miss just leaves the frame. */
+.playback-round-hit {
+  fill: none;
+  stroke-width: 0.9;
+}
 
 /* The near edge of a weapon that needs room to work: rockets still boosting, a
    railgun's sight picture in a brawl. Outlined, not filled — inside it the shot

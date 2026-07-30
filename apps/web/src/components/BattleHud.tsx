@@ -30,6 +30,8 @@ export interface BattleView {
 /** True footprints are ~3 m in a 240 m arena; magnify them to stay readable. */
 const MECH_MAG = 5;
 const TRACER_LINGER_S = 0.22;
+/** Length of a round's visible streak, metres of arena. */
+const ROUND_LEN_M = 3;
 const FLASH_LINGER_S = 0.4;
 const MUZZLE_FLASH_S = 0.18;
 export const MECH_COLORS = ['var(--signal-blue)', 'var(--signal-red)'] as const;
@@ -365,7 +367,10 @@ export function BattleScene({
    * allow for.
    */
   const projectiles = useMemo(() => {
-    const live: { key: string; x: number; y: number; mech: 0 | 1 }[] = [];
+    const live: {
+      key: string; x: number; y: number; dx: number; dy: number;
+      mech: 0 | 1; arrived: boolean; age: number;
+    }[] = [];
     for (const e of view.events) {
       if (e.type !== 'shot' || e.tSec > tSec) continue;
       const speed = getPart(e.partId).weapon?.projectileSpeed;
@@ -378,15 +383,32 @@ export function BattleScene({
       const flightS = distM / speed;
       if (flightS <= 0) continue;
       const progress = (tSec - e.tSec) / flightS;
-      if (progress < 0 || progress > 1) continue;
+      // A hit stops at the hull, not the centre mark -- a round sliding through the
+      // mech it just struck reads as a miss. A miss keeps going and passes to one
+      // side, which is what a miss actually looks like.
+      const ux = (to.x - from.x) / (distM || 1);
+      const uy = (to.y - from.y) / (distM || 1);
+      const hullM = getChassis(view.mechs[(1 - e.mech) as 0 | 1].chassisId).height
+        * CELL_SIZE_M * MECH_MAG * 0.5;
+      const travelFrac = e.hit ? Math.max(0, distM - hullM) / distM : 1 + 24 / distM;
+      const overrun = e.hit ? TRACER_LINGER_S / Math.max(flightS, 1e-6) : 0;
+      if (progress < 0 || progress > travelFrac + overrun) continue;
+      const at = Math.min(progress, travelFrac);
+      const arrived = e.hit && progress >= travelFrac;
+      // Misses drift off the line so they visibly go past rather than through.
+      const missM = e.hit ? 0 : (Math.round(e.tSec * 10) % 2 ? 1 : -1) * 3.5 * Math.min(1, progress);
       live.push({
         // The mech index belongs in the key: instance ids are unique within a
         // build, not across the two in a battle, so two rounds leaving different
         // mechs on the same tick could collide and React would drop one.
         key: `${e.mech}:${e.tSec}:${e.instanceId}`,
-        x: from.x + (to.x - from.x) * progress,
-        y: from.y + (to.y - from.y) * progress,
+        x: from.x + (to.x - from.x) * at - uy * missM,
+        y: from.y + (to.y - from.y) * at + ux * missM,
+        dx: ux,
+        dy: uy,
         mech: e.mech,
+        arrived,
+        age: arrived ? Math.min(1, (progress - travelFrac) / Math.max(overrun, 1e-6)) : 0,
       });
     }
     return live;
@@ -517,14 +539,27 @@ export function BattleScene({
           );
         })}
 
-        {projectiles.map((p) => (
+        {/* A round is a short line along its own travel, not a dot: a dot has no
+            heading, and at 2000 m/s a rail slug crosses several metres per frame,
+            so the segment is what the eye can actually follow. On arrival it
+            becomes a brief impact mark instead. */}
+        {projectiles.map((p) => (p.arrived ? (
           <circle
             key={p.key}
-            cx={p.x} cy={p.y} r={1.1}
-            className="playback-round"
-            fill={MECH_COLORS[p.mech]}
+            cx={p.x} cy={p.y} r={1.4 + p.age * 2.2}
+            className="playback-round-hit"
+            stroke={MECH_COLORS[p.mech]}
+            opacity={1 - p.age}
           />
-        ))}
+        ) : (
+          <line
+            key={p.key}
+            x1={p.x - p.dx * ROUND_LEN_M} y1={p.y - p.dy * ROUND_LEN_M}
+            x2={p.x} y2={p.y}
+            className="playback-round"
+            stroke={MECH_COLORS[p.mech]}
+          />
+        )))}
 
         {tracers.map((e, idx) => {
           // A travelling round is drawn as the round; only hitscan is a line.
