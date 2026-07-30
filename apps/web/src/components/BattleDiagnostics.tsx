@@ -2,6 +2,7 @@ import {
   CELL_SIZE_M, TICK_S,
   computeHitModel, effectiveMults, falloffAt, getChassis, getPart, meanSilhouetteHalfWidthM,
   MOVE_JITTER_MRAD_PER_MPS, SPEED_SETTING_FRACTIONS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
+  FOREST_COVER_MULT,
   type BattleFrame, type Build,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
@@ -22,10 +23,11 @@ import './BattleDiagnostics.css';
  * instrument that computes its own answer cannot disagree with the thing it is
  * measuring, which is the only reason to have one.
  *
- * One known simplification: the target half-width is the bare mean silhouette. The
- * sim additionally scales it by terrain cover and the target's profile on its tile,
- * neither of which is exported. So the hit chance here reads slightly high against
- * an enemy in cover. Worth closing by exporting those two, not by guessing at them.
+ * Forest cover is applied to the target's width, as the sim does. What remains
+ * unmodelled here is the target's *profile* multiplier — the product of its own
+ * modifiers — because that needs the enemy's build and BattleView carries only a
+ * chassis id. It moves the number only for opponents carrying profile mods, and
+ * closing it means plumbing the opponent build through rather than guessing.
  */
 export function BattleDiagnostics({ view, frame, tSec, build }: {
   view: BattleView;
@@ -84,6 +86,8 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
     ? (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
       + MOVE_JITTER_MRAD_PER_MPS * speed * (mults?.moveJitter ?? 1)) * 0.001
     : 0;
+  const halfWidthM = meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId))
+    * (foe.tile === 'forest' ? FOREST_COVER_MULT : 1);
   const model = w
     ? computeHitModel({
       rangeM,
@@ -91,7 +95,7 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
       lateralSpeedMps: lateral,
       lagS,
       projectileSpeed: w.projectileSpeed,
-      targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId)),
+      targetHalfWidthM: halfWidthM,
     })
     : undefined;
   const dispersionM = sigmaRad * rangeM;
@@ -153,7 +157,7 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
             {row('target crossing', `${lateral.toFixed(2)} m/s`)}
             {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s${tc ? ' (TC)' : ''}`)}
             {row('lead error', `${leadErrorM.toFixed(2)} m`, leadErrorM > dispersionM ? 'bad' : '')}
-            {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId)).toFixed(2)} m`)}
+            {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${halfWidthM.toFixed(2)} m${foe.tile === 'forest' ? ' (cover)' : ''}`)}
             {row('damage at range', `×${falloffAt(def!, rangeM).toFixed(2)}`, falloffAt(def!, rangeM) < 0.6 ? 'warn' : '')}
             {row(
               'hit chance',

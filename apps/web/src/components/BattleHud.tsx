@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
-  computeHitModel, effectiveMults, meanSilhouetteHalfWidthM,
+  computeHitModel, effectiveMults, meanSilhouetteHalfWidthM, FOREST_COVER_MULT,
   MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
@@ -219,7 +219,11 @@ function ShotSpread({ view, frame, tSec, mech, build }: {
     lateralSpeedMps: lateral,
     lagS: hasPoweredTcAt(view, build, tSec, mech) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S,
     projectileSpeed: w.projectileSpeed,
-    targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[(1 - mech) as 0 | 1].chassisId)),
+    // Forest is cover: the sim narrows the target the same way (combat.ts's
+    // targetCoverMult). Without it the spread claimed a wider target than the
+    // shot was actually scored against, exactly when the enemy was hiding.
+    targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[(1 - mech) as 0 | 1].chassisId))
+      * (foe.tile === 'forest' ? FOREST_COVER_MULT : 1),
   });
 
   // Perpendicular to the line of sight: the axis the error is measured on.
