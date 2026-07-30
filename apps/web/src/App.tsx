@@ -744,7 +744,13 @@ export default function App() {
         onSelect={(o) => setIntelPick(o.id)}
         onFight={(o) => {
           setIntelOpen(false);
-          runFightRef.current = false;
+          // A fight picked from the intel sheet during a live run *is* the run's
+          // fight -- the sheet is already listing that ladder node's opponents,
+          // not the free-play roster. Hardcoding false meant the mobile interface
+          // could not advance the campaign at all: you could win, and get no
+          // purse, no salvage, no node, with fightsWon stuck at 0. Outside an
+          // active run (sandbox, or a trial fight during prep) it stays free play.
+          runFightRef.current = run.phase === 'active';
           fight(o, 'command');
         }}
       />
