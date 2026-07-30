@@ -41,12 +41,20 @@ Measure before believing a screenshot. Twice now an image has produced a false
 diagnosis — a 500px crop read as clipping, and a scrim read as failing to cover —
 and both times `--eval` showed nothing was wrong.
 
-`npm run web:audit` drives every `?view=` screen and fails on the invariants that
-have each been broken at least once: text under 11px, tap targets under 44px,
-overlapping targets, horizontal overflow, console errors. It is not a substitute for
-looking -- it found the report's 40px transport buttons only because they are
-measured whether or not they are on screen, and it will say nothing about a screen
-that renders the wrong thing at the right size.
+`npm run web:audit` drives seven screens -- title, workshop, battle, report,
+salvage, run panel, scrapyard -- and fails on the invariants that have each been
+broken at least once: text under 11px, tap targets under 44px, overlapping targets,
+horizontal overflow, console errors. `node scripts/audit.mjs scrapyard` re-runs one;
+the deep ones walk a whole run and take a while.
+
+The run panel and scrapyard are reached with `--exec`/`--reload`, which set the run's
+node in localStorage and reload — a scrapyard is otherwise two won fights away. Each
+screen asserts a marker element, so a navigation that quietly fails reports "never
+reached the screen" instead of auditing whatever was on screen and passing.
+
+It is not a substitute for looking. It found the report's 40px transport buttons only
+because size is measured whether or not the control is on screen, and it will say
+nothing about a screen that renders the wrong thing at the right size.
 
 Then open the PNG and actually look. This was learned expensively: a leftover
 56px header above a `height:100dvh` shell pushed the readout and action bar off

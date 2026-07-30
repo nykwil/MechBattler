@@ -12,9 +12,9 @@
  * This exists because the manual sweep that found those was not repeatable, and the
  * defects it found were not the kind unit tests can see. `npm run web:audit`.
  *
- * Screens needing a run in progress are not covered here -- reaching a scrapyard
- * takes --exec/--reload against localStorage, which is a fixture this does not own
- * yet. docs/15 records what is and is not driven.
+ * Screens needing a run in progress are covered too, via `steps` -- the run panel
+ * and the scrapyard are where two of those defects actually were, and a scrapyard
+ * is otherwise two won fights away (docs/15 §7).
  */
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -23,19 +23,67 @@ import { dirname, join } from 'node:path';
 const here = dirname(fileURLToPath(import.meta.url));
 const base = process.env.AUDIT_URL ?? 'http://localhost:5160';
 
-/** Each screen names the leaf to wait on -- never a container (docs/15 §8). */
+/** Walks from the title screen into a launched run, ready to open the readout. */
+const INTO_RUN = [
+  '--tapText', 'New run', '--waitFor', 'button@20000',
+  '--tapText', 'Load', '--waitFor', '.plate@20000',
+  '--tap', '.readout', '--waitFor', '.readout-tab@20000',
+  '--tap', '.readout-tab:nth-child(5)', '--waitFor', '.run-abandon@20000',
+  '--tapText', 'Launch the run', '--waitFor', '.plate@20000',
+];
+
+/** Node kinds vary by seed, so the yard is found rather than assumed to be node 3. */
+const JUMP_TO_YARD = `(() => {
+  const k = 'mechbattler-run-v2';
+  const r = JSON.parse(localStorage.getItem(k));
+  const yard = r.generatedNodes.find((n) => n.kind === 'scrapyard');
+  r.nodeIndex = yard.index;
+  localStorage.setItem(k, JSON.stringify(r));
+})()`;
+
+/**
+ * Each screen names the leaf to wait on -- never a container (docs/15 §8) -- and
+ * may carry `steps`, extra driver arguments run in order before the audit.
+ */
 const SCREENS = [
   { name: 'title', url: '/', waitFor: 'button' },
   { name: 'workshop', url: '/?view=workshop', waitFor: '.plate' },
   { name: 'battle', url: '/?view=battle', waitFor: '.live-title' },
   { name: 'report', url: '/?view=report', waitFor: '.report-banner-title' },
+  { name: 'salvage', url: '/?view=salvage', waitFor: '.wreck-panel' },
+  {
+    name: 'run-panel',
+    url: '/',
+    waitFor: 'button',
+    steps: [
+      '--tapText', 'New run', '--waitFor', 'button@20000',
+      '--tapText', 'Load', '--waitFor', '.plate@20000',
+      '--tap', '.readout', '--waitFor', '.readout-tab@20000',
+      '--tap', '.readout-tab:nth-child(5)', '--waitFor', '.run-abandon@20000',
+    ],
+    marker: '.run-abandon',
+  },
+  {
+    name: 'scrapyard',
+    url: '/',
+    waitFor: 'button',
+    steps: [
+      ...INTO_RUN,
+      '--exec', JUMP_TO_YARD,
+      '--reload',
+      '--tapText', 'Continue run', '--waitFor', '.plate@20000',
+      '--tap', '.readout', '--waitFor', '.readout-tab@20000',
+      '--tap', '.readout-tab:nth-child(5)', '--waitFor', '.run-bench-sell@20000',
+    ],
+    marker: '.run-bench-sell',
+  },
 ];
 
 /**
  * Runs in the page. Excludes aria-hidden subtrees, which are decorative and were
  * an earlier false positive in the accessible-name scan.
  */
-const AUDIT = `(() => {
+const AUDIT = (marker) => `(() => {
   const visible = (el) => {
     const r = el.getBoundingClientRect();
     return r.width > 0 && r.height > 0 && getComputedStyle(el).visibility !== 'hidden';
@@ -92,6 +140,10 @@ const AUDIT = `(() => {
     }
   }
   return JSON.stringify({
+    // Proof the run actually landed on the screen being audited. Without it a
+    // navigation that quietly failed would audit whatever was on screen instead
+    // and report a clean pass for a screen nobody reached.
+    marker: !!document.querySelector(${JSON.stringify(marker)}),
     sub11: [...new Set(small)],
     tinyTargets: [...new Set(tiny)],
     overlaps: [...new Set(overlaps)].slice(0, 6),
@@ -99,14 +151,25 @@ const AUDIT = `(() => {
   });
 })()`;
 
+// `node scripts/audit.mjs scrapyard` re-runs one screen; the deep ones take a
+// while, and a fix rarely needs the whole set re-driven.
+const only = process.argv.slice(2).filter((a) => !a.startsWith('-'));
+const chosen = only.length ? SCREENS.filter((s) => only.includes(s.name)) : SCREENS;
+if (only.length && !chosen.length) {
+  console.error(`no such screen: ${only.join(', ')}`);
+  console.error(`known: ${SCREENS.map((s) => s.name).join(', ')}`);
+  process.exit(2);
+}
+
 let failures = 0;
 
-for (const screen of SCREENS) {
+for (const screen of chosen) {
   const out = spawnSync('node', [
     join(here, 'drive.mjs'), `${base}${screen.url}`, `/tmp/audit-${screen.name}.png`,
     '--w', '390', '--h', '844',
     '--waitFor', `${screen.waitFor}@20000`,
-    '--eval', AUDIT,
+    ...(screen.steps ?? []),
+    '--eval', AUDIT(screen.marker ?? screen.waitFor),
   ], { encoding: 'utf8' });
 
   // drive.mjs reports on stderr as well as stdout; read both.
@@ -120,6 +183,7 @@ for (const screen of SCREENS) {
 
   const report = JSON.parse(JSON.parse(evalLine.slice(5)));
   const problems = [];
+  if (!report.marker) problems.push(`never reached the screen (no ${screen.marker ?? screen.waitFor})`);
   if (report.sub11.length) problems.push(`text under 11px: ${report.sub11.join(', ')}`);
   if (report.tinyTargets.length) problems.push(`targets under 44px: ${report.tinyTargets.join(', ')}`);
   if (report.overlaps.length) problems.push(`overlapping targets: ${report.overlaps.join(', ')}`);
