@@ -49,7 +49,8 @@
 }
 .front-kicker {
   color: var(--signal-amber);
-  font: 11px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
   letter-spacing: 0.22em;
 }
 .front-card h1 {
@@ -100,7 +101,8 @@
 .front-primary small, .front-secondary small {
   color: inherit;
   opacity: 0.7;
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .front-modes {
   display: grid;
@@ -110,27 +112,34 @@
 }
 .front-modes button, .front-back {
   min-height: var(--tap-min);
-  padding: 9px 12px;
+  padding: var(--space-2) var(--space-3);
   color: var(--ink-secondary);
   background: transparent;
   border: 1px solid var(--line-hairline);
-  font: 11px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .front-modes button:disabled {
   min-height: var(--tap-min); opacity: 0.35; cursor: not-allowed; }
-.front-footnote { color: var(--ink-faint); font: 10px var(--font-mono); }
-.front-back { margin-bottom: 24px; }
+.front-footnote { color: var(--ink-faint); font-size: var(--text-2xs);
+  font-family: var(--font-mono) }
+.front-back {
+  /* Hugs its label instead of spanning the card. Written once and lost when a
+     whole-file rewrite was rejected and redone as targeted patches. */
+  align-self: flex-start;
+  margin-bottom: var(--space-5);
+}
 .starter-grid, .challenge-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 28px;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 .garage-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 28px;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
 }
 .garage-card {
   min-height: 180px;
@@ -141,12 +150,16 @@
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
-.garage-card > strong { font: 600 17px var(--font-display); }
+.garage-card > strong { font-weight: 600;
+  font-size: var(--text-lg);
+  font-family: var(--font-display) }
 .garage-card > span:not(.starter-status) { color: var(--ink-secondary); font-size: var(--text-xs); }
 .garage-card > small {
   flex: 1;
   color: var(--ink-faint);
-  font: 10px/1.5 var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.5;
+  font-family: var(--font-mono);
 }
 .garage-actions {
   display: flex;
@@ -164,7 +177,8 @@
   color: var(--ink-faint);
   background: transparent;
   border: 1px solid var(--line-hairline);
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .garage-empty {
   grid-column: 1 / -1;
@@ -179,7 +193,8 @@
   align-items: center;
   gap: 12px;
 }
-.garage-create label { color: var(--ink-secondary); font: 10px var(--font-mono); }
+.garage-create label { color: var(--ink-secondary); font-size: var(--text-2xs);
+  font-family: var(--font-mono) }
 .garage-create select {
   min-height: var(--tap-min);
   min-width: 0;
@@ -197,7 +212,9 @@
   border: 1px solid var(--line-hairline);
 }
 .starter-card strong, .challenge-card strong, .frame-grid strong {
-  font: 600 16px var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-base);
+  font-family: var(--font-display)
 }
 .starter-card > span:not(.starter-status), .frame-grid span {
   color: var(--ink-secondary);
@@ -205,11 +222,13 @@
 }
 .starter-card small, .challenge-card small, .frame-grid small {
   color: var(--ink-faint);
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .starter-status {
   color: var(--signal-amber);
-  font: 9px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
   letter-spacing: 0.16em;
 }
 .locked { opacity: 0.42; }
@@ -219,7 +238,8 @@
   gap: 12px;
   margin: 30px 0 14px;
   color: var(--ink-faint);
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
   letter-spacing: 0.14em;
 }
 .front-divider::before, .front-divider::after {
@@ -252,7 +272,8 @@
   padding: 12px;
   background: var(--bg-inset);
   color: var(--ink-secondary);
-  font: 11px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .profile-summary strong { color: var(--signal-amber); font-size: var(--text-lg); }
 .challenge-grid { grid-template-columns: repeat(2, 1fr); }

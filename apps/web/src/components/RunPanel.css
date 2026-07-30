@@ -25,7 +25,8 @@
   color: var(--ink-primary);
   background: transparent;
   border: 1px solid var(--line-bright);
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .run-save-mech button:disabled {
   min-height: var(--tap-min); opacity: 0.4; }

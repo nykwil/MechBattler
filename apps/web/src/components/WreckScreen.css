@@ -121,15 +121,20 @@
 .wreck-recovery > div { display: grid; gap: var(--space-1); }
 .wreck-recovery-kicker {
   color: var(--signal-red-text);
-  font: 9px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
   letter-spacing: 0.12em;
 }
-.wreck-recovery strong { font: 600 13px var(--font-display); }
+.wreck-recovery strong { font-weight: 600;
+  font-size: var(--text-sm);
+  font-family: var(--font-display) }
 .wreck-recovery p,
 .wreck-recovery small {
   margin: 0;
   color: var(--ink-secondary);
-  font: 10px/1.45 var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1.45;
+  font-family: var(--font-mono);
 }
 .wreck-recovery small { color: var(--ink-faint); }
 .wreck-recovery button {
@@ -139,7 +144,8 @@
   color: var(--ink-secondary);
   background: transparent;
   border: 1px solid var(--line-bright);
-  font: 10px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 .wreck-recovery button.danger-confirm {
   min-height: var(--tap-min);

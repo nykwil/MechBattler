@@ -180,3 +180,27 @@ describe('text contrast', () => {
     expect(failures).toEqual([]);
   });
 });
+
+/**
+ * Type sizes must come from the scale. Two earlier sweeps matched `font-size:` only
+ * and missed the `font:` shorthand entirely, which left 10px text — below the 11px
+ * floor — sitting in the front door and salvage for several commits.
+ */
+describe('type scale adoption', () => {
+  const OWN_STYLESHEETS = (dir: string) => readdirSync(dir)
+    .filter((f) => f.endsWith('.css'))
+    .map((f) => `${dir}/${f}`)
+    // shell.css and battle.css are the prototypes' own, kept verbatim. BalanceLab
+    // is a desktop-only tool, excluded by decision.
+    .filter((f) => !/shell\.css|battle\.css|BalanceLab\.css/.test(f));
+
+  it('declares no raw pixel font sizes, in longhand or shorthand', () => {
+    const offenders: string[] = [];
+    for (const f of [...OWN_STYLESHEETS('src/styles'), ...OWN_STYLESHEETS('src/components')]) {
+      const css = readFileSync(f, 'utf8');
+      for (const m of css.matchAll(/font-size:\s*([0-9.]+)px/g)) offenders.push(`${f}: font-size ${m[1]}px`);
+      for (const m of css.matchAll(/\bfont:\s*(?:[1-9]00\s+)?([0-9.]+)px/g)) offenders.push(`${f}: font shorthand ${m[1]}px`);
+    }
+    expect(offenders).toEqual([]);
+  });
+});

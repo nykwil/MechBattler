@@ -50,7 +50,8 @@
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--ink-muted);
-  font: 11px var(--font-mono);
+  font-size: var(--text-2xs);
+  font-family: var(--font-mono)
 }
 @media (hover: hover) {
   .workspace-nav button:hover { color: var(--ink-primary); }
