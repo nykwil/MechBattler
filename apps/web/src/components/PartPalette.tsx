@@ -1,4 +1,4 @@
-import { PARTS, type PartDef } from '@mechbattler/sim';
+import { PARTS, type PartCategory, type PartDef } from '@mechbattler/sim';
 import { GAME_CONTENT } from '@mechbattler/game';
 import { CATEGORY_COLOR, CATEGORY_LABEL, CATEGORY_ORDER } from '../lib/partVisuals.js';
 import { ChipRow, ShapePreview } from './PartVisual.js';
@@ -13,7 +13,7 @@ function metaLine(def: PartDef): string {
 
 export function PartPalette({
   selectedPartId, onSelect, onHover, priceMult, scrap, visiblePartIds, ownedCounts,
-  readOnly, label = 'Salvage bin',
+  readOnly, label = 'Salvage bin', category,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -29,8 +29,15 @@ export function PartPalette({
   /** Active runs may only fit owned bench parts; the catalog is reference-only. */
   readOnly?: boolean;
   label?: string;
+  /**
+   * Show one category only. The prototype's parts sheet is tabbed by category
+   * (docs/prototypes/mobile-builder.html), and it matters on a phone: the full
+   * catalogue is 22 rows, which put the radiators about 1900px down a scrolling
+   * sheet. Undefined shows everything, which is what the desktop rail wants.
+   */
+  category?: PartCategory;
 }) {
-  const byCategory = CATEGORY_ORDER.map((cat) => ({
+  const byCategory = CATEGORY_ORDER.filter((cat) => !category || cat === category).map((cat) => ({
     cat, parts: Object.values(PARTS).filter(
       (part) => part.category === cat
         && GAME_CONTENT.enabledPartIds.includes(part.id)
@@ -40,13 +47,13 @@ export function PartPalette({
 
   return (
     <div>
-      <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>
+      {!category && <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>}
       {byCategory.map(({ cat, parts }) => (
         <div className="category" key={cat}>
-          <div className="category-label" style={{ color: 'var(--ink-secondary)' }}>
+          {!category && <div className="category-label" style={{ color: 'var(--ink-secondary)' }}>
             <span className="swatch" style={{ background: CATEGORY_COLOR[cat] }} />
             {CATEGORY_LABEL[cat]}
-          </div>
+          </div>}
           {parts.map((def) => {
             const disabled = readOnly;
             return (

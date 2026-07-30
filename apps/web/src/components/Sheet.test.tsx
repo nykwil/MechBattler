@@ -122,3 +122,57 @@ describe('Sheet docking (docs/14 §11)', () => {
     expect(container.querySelector('.sheet-rail')).toBeNull();
   });
 });
+
+describe('PartsSheet category tabs', () => {
+  const palette = {
+    selectedPartId: null,
+    onSelect: () => {},
+    onHover: () => {},
+    label: 'Sandbox catalog',
+  };
+
+  it('shows one category at a time, so the list stays reachable', async () => {
+    const { PartsSheet } = await import('./PartsSheet.js');
+    const { container } = render(
+      <PartsSheet open onClose={() => {}} docked={false} {...palette} />,
+    );
+
+    const tabs = [...container.querySelectorAll('.tabs .tab')];
+    expect(tabs.map((t) => t.textContent))
+      .toEqual(['Reactor', 'Capacitor', 'Weapon', 'Utility', 'Structural']);
+    expect(tabs.filter((t) => t.getAttribute('aria-selected') === 'true')).toHaveLength(1);
+
+    // Reactors only: the full catalogue is 22 rows, which is what put the
+    // radiators ~1900px down a scrolling sheet.
+    const rows = container.querySelectorAll('.part-row');
+    expect(rows.length).toBeGreaterThan(0);
+    expect(rows.length).toBeLessThan(8);
+  });
+
+  it('switches category on tab press', async () => {
+    const { PartsSheet } = await import('./PartsSheet.js');
+    const { container } = render(
+      <PartsSheet open onClose={() => {}} docked={false} {...palette} />,
+    );
+    const before = [...container.querySelectorAll('.part-row')].map((r) => r.textContent);
+
+    const utility = [...container.querySelectorAll('.tabs .tab')]
+      .find((t) => t.textContent === 'Utility')!;
+    fireEvent.click(utility);
+
+    const after = [...container.querySelectorAll('.part-row')].map((r) => r.textContent);
+    expect(after).not.toEqual(before);
+    expect(after.join(' ')).toContain('Gill');
+    expect(utility.getAttribute('aria-selected')).toBe('true');
+  });
+
+  it('drops the per-category heading it would only repeat', async () => {
+    const { PartsSheet } = await import('./PartsSheet.js');
+    const { container } = render(
+      <PartsSheet open onClose={() => {}} docked={false} {...palette} />,
+    );
+    // The tab already names the category and the sheet already has a title.
+    expect(container.querySelector('.category-label')).toBeNull();
+    expect(container.querySelector('.sheet-title')?.textContent).toBe('Parts');
+  });
+});
