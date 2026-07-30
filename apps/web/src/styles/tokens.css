@@ -20,6 +20,19 @@
   --ink-faint: #868d9b;
   --ink-muted: var(--ink-secondary);
 
+  /* Part-category colours. Identical to CATEGORY_COLOR in lib/partVisuals.ts,
+     which predates them -- the prototype's CSS needs them as custom properties.
+     Worth collapsing to one source later; the values are verified equal. */
+  --cat-reactor: #e8a23d;
+  --cat-capacitor: #c98fd6;
+  --cat-weapon: #d64545;
+  --cat-utility: #5aa9c7;
+  --cat-structural: #7d8493;
+
+  /* Plate cell size. The prototype drives its CSS-grid plate from this; the
+     app's SVG plate derives --plate-cell in GridEditor.css instead. */
+  --cell: 40px;
+
   /* Signal colors -- each one means one thing, everywhere in the app */
   --signal-amber: #e8a23d;     /* hazard / selection / heat warning */
   --signal-amber-dim: #7a5a26;
