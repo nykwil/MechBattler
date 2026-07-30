@@ -225,8 +225,14 @@ export function BattleScene({
         {foe.tile !== 'open' && <span className={`hud-chip tile-${foe.tile}`}>{foe.tile}</span>}
       </div>
 
+      {/* The canopy: chamfered bezel and corner brackets frame the glass, and
+          what the glass shows is an overhead map -- that split is what decides
+          where everything goes (docs/prototypes/mobile-battle.html). */}
+      <div className="arena-wrap">
+      <div className="canopy-frame">
+      <div className="canopy">
       <svg
-        className={`playback-arena${onArenaOrder ? ' commandable' : ''}`}
+        className={`arena playback-arena${onArenaOrder ? ' commandable' : ''}`}
         viewBox={`${-halfL - margin} ${-halfW - margin} ${2 * (halfL + margin)} ${2 * (halfW + margin)}`}
         onPointerDown={onArenaOrder ? (e) => {
           const pt = new DOMPoint(e.clientX, e.clientY).matrixTransform(e.currentTarget.getScreenCTM()!.inverse());
@@ -305,6 +311,12 @@ export function BattleScene({
         ))}
         {arenaOverlay}
       </svg>
+      <span className="corner tl" /><span className="corner tr" />
+      <span className="corner bl" /><span className="corner br" />
+      </div>
+      </div>
+      </div>
+
 
       {/* Your cockpit: portrait | gun bar | gauges + verb chips. */}
       <div className="hud-cockpit" style={{ borderColor: MECH_COLORS[0] }}>

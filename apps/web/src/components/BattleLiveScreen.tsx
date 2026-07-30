@@ -187,24 +187,33 @@ export function BattleLiveScreen({
   const moveMode = manual.move === 'auto' ? 'auto' : manual.move === 'hold' ? 'hold' : 'waypoint';
 
   return (
-    <div className="report-overlay" role="dialog" aria-modal="true">
-      <div className="report-panel">
-        <div className="live-topbar">
+    /* Ported from docs/prototypes/mobile-battle.html: the console is the mech's
+       instrument panel and the glass above it is the windshield. .battle-app scopes
+       the prototype's stylesheet, which reuses class names the builder also owns. */
+    <div className="battle-app" role="dialog" aria-modal="true">
+      <div className="app">
+        <header className="topbar">
           <span className="live-dot" />
-          <span className="live-title">LIVE · vs {opponent.name} · seed {battle.seed}</span>
-          <span className="live-spacer" />
-          <button type="button" className="playback-btn" onClick={() => setPaused(!paused)} disabled={finished}>
+          <span className="live-title">Live · vs {opponent.name}</span>
+          <span className="clock">{fmtTime(tSec)}</span>
+          {/* Pause is a first-class control at full size, not a spacebar: orders
+              cannot be issued as fast by thumb as by mouse, and the sim is
+              tick-based so pausing costs nothing. */}
+          <button
+            type="button" className="tbtn" onClick={() => setPaused(!paused)} disabled={finished}
+            aria-label={paused ? 'Resume' : 'Pause'}
+          >
             {paused ? '▶' : '❚❚'}
           </button>
           <button
-            type="button" className="playback-btn"
+            type="button" className="tbtn"
             onClick={() => setSpeed(LIVE_SPEEDS[(LIVE_SPEEDS.indexOf(speed) + 1) % LIVE_SPEEDS.length]!)}
+            aria-label="Playback speed"
           >
             {speed}×
           </button>
-          <span className="playback-clock">{fmtTime(tSec)}</span>
-          <button type="button" className="playback-btn" onClick={onAbort} title="Abandon the battle (no report)">✕</button>
-        </div>
+          <button type="button" className="tbtn" onClick={onAbort} aria-label="Abandon the battle">✕</button>
+        </header>
 
         <div className="playback">
           <BattleScene
