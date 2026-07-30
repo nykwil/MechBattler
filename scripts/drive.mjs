@@ -80,6 +80,10 @@ const KEYS = {
   Enter: { code: 13, key: 'Enter' },
   Escape: { code: 27, key: 'Escape' },
   r: { code: 82, key: 'r' },
+  // The battle screen's order shortcuts: A full auto, H hold, F face cycle.
+  a: { code: 65, key: 'a' },
+  f: { code: 70, key: 'f' },
+  h: { code: 72, key: 'h' },
   Delete: { code: 46, key: 'Delete' },
   Tab: { code: 9, key: 'Tab' },
 };

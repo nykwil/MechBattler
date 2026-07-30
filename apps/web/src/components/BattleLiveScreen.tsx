@@ -167,7 +167,16 @@ export function BattleLiveScreen({
       const next = FACE_MODES[(FACE_MODES.indexOf(m.face) + 1) % FACE_MODES.length]!;
       // Entering bearing mode holds the current facing until a click re-aims it.
       const me = battle.latestFrame()?.mechs[0];
-      return { ...m, face: next, bearingRad: next === 'bearing' && me ? me.facingRad : m.bearingRad };
+      return {
+        ...m,
+        face: next,
+        // Throttle and face leave auto together, because they are presented
+        // together. Cycling face with the F key used to change face alone, which
+        // left the throttle segment enabled with no setting shown while the
+        // autopilot was still driving it -- controls that look manual and are not.
+        throttle: next === 'auto' ? m.throttle : m.throttle === 'auto' ? (me?.speedSetting ?? 'cruise') : m.throttle,
+        bearingRad: next === 'bearing' && me ? me.facingRad : m.bearingRad,
+      };
     });
   };
 
