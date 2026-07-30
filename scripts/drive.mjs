@@ -162,13 +162,21 @@ for (const tap of taps) {
     await sleep(400);
     continue;
   }
-  // Among text matches, take the tightest: a container always contains its
-  // child's text, so first-match-wins clicks the wrong thing. Tapping 'Faults'
-  // hit the readout bar (whose cells include that word) instead of the sheet tab.
+  // Choosing among text matches is subtler than it looks. A container always
+  // contains its child's text, so first-match-wins is wrong: tapping 'Faults' hit
+  // the readout bar rather than the sheet tab. Shortest-match is also wrong on its
+  // own: tapping 'Widow' hit the intel strip's 'Junkyard Widow' (22 chars) instead
+  // of the 'Widow' chassis row (29). So prefer an element whose own text *starts*
+  // with the query, and only then fall back to the shortest containing match.
   const finder = tap.kind === 'text'
-    ? `[...document.querySelectorAll('button, [role=tab], a')]
-         .filter((e) => e.textContent.includes(${JSON.stringify(selector)}))
-         .sort((a, b) => a.textContent.length - b.textContent.length)[0]`
+    ? `(() => {
+         const q = ${JSON.stringify(selector)};
+         const all = [...document.querySelectorAll('button, [role=tab], a')]
+           .filter((e) => e.textContent.includes(q));
+         const byLength = (a, b) => a.textContent.length - b.textContent.length;
+         const starts = all.filter((e) => e.textContent.trim().startsWith(q)).sort(byLength);
+         return (starts[0] ?? all.sort(byLength)[0]);
+       })()`
     : `document.querySelector(${JSON.stringify(selector)})`;
   // Scroll into view first: sheet bodies scroll, and a part row 1900px down
   // reports a rect far outside the viewport, so the click lands on nothing.
@@ -200,7 +208,9 @@ for (const tap of taps) {
     });
   }
   console.error(`tapped ${selector} at ${Math.round(box.x)},${Math.round(box.y)}`);
-  await sleep(700);
+  // Generous on purpose: at 700ms a tab-switch assertion read stale DOM about one
+  // run in three, which looks exactly like a broken control.
+  await sleep(1000);
 }
 
 // Arbitrary measurement, for when a screenshot cannot settle a question.
