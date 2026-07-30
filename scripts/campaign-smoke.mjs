@@ -68,11 +68,10 @@ const args = [
   '--tap', '.nextfight, .actionbar button', '--waitFor', '.foe@20000',
   '--tap', '.foe', '--waitFor', '.sheet .btn-primary@20000',
   '--tapText', 'Fight', '--waitFor', '.report-banner-title@240000',
-  // The report's exit sits below the fold -- on one victory it measured y=1062 in
-  // an 844px viewport. .report-panel scrolls, so the button is reachable, but
-  // whether it is on screen depends on how long that battle's report ran. Scroll
-  // first, or this test passes or fails on report length rather than on the run.
-  '--exec', '(() => { const p = document.querySelector(".report-panel"); if (p) p.scrollTop = p.scrollHeight; })()',
+  // Tapped without scrolling on purpose. The report's actions are pinned to the
+  // bottom of the panel; they used to scroll away with the content, measured at
+  // y=1062 in an 844px viewport. Scrolling first here would hide a regression of
+  // that, so this step doubles as the check that the exit stays reachable.
   '--tapText', 'Back to workshop', '--waitFor', '.wreck-panel@30000',
   '--tapText', 'Whisper',
   '--tapText', 'Strip the wreck',

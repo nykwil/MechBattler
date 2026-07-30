@@ -130,10 +130,27 @@
   padding-top: var(--space-1);
 }
 
+/*
+ * The report is the one screen a player has no choice but to leave, and its exit
+ * used to scroll away with the content -- measured at y=1062 in an 844px viewport
+ * after a long battle. The panel scrolls, so it was reachable, but nothing said so
+ * and mobile hides scrollbars.
+ *
+ * Pinned to the bottom of the panel instead, which is the convention the app
+ * already uses: the workshop's primary action is a fixed bar in exactly this
+ * position. The negative margins and padding let the bar span the panel's padding
+ * so content scrolls under it rather than beside it.
+ */
 .report-actions {
   display: flex;
   gap: 10px;
   margin-top: var(--space-3);
+  position: sticky;
+  bottom: calc(var(--space-4) * -1);
+  margin-inline: calc(var(--space-4) * -1);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--bg-panel);
+  border-top: 1px solid var(--line-hairline);
 }
 .report-btn {
   flex: 1;
