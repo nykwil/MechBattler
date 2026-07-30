@@ -72,6 +72,59 @@ function weaponBlurb(def: PartDef): string {
     + ` · band ${w.falloff.rangeStart}–${w.falloff.rangeEnd} m · arc ${w.mountArcDeg}° · ${AMMO_PLACEHOLDER}`;
 }
 
+/**
+ * A weapon's mount arc, drawn as a sector out to the far edge of its falloff band.
+ *
+ * The arc is relative to the mech's facing, which is what makes the ARC gate
+ * legible: the sim silences a gun when the target sits outside `mountArcDeg`, and
+ * until now the only way to know that was to be told after the fact. Everything
+ * here -- half-angle, both band edges -- is read from the catalog; nothing about
+ * the geometry is decided in the UI.
+ */
+function WeaponCones({ frame, weapons, color }: {
+  frame: MechFrame;
+  weapons: WeaponFrame[];
+  color: string;
+}) {
+  // One cone per distinct weapon type: two of the same gun share an arc exactly,
+  // and stacking identical sectors just darkens the fill.
+  const seen = new Set<string>();
+  const cones = weapons.filter((wf) => {
+    if (wf.status === 'destroyed' || seen.has(wf.partId)) return false;
+    seen.add(wf.partId);
+    return true;
+  });
+
+  const sector = (r: number, half: number) => {
+    const a0 = frame.facingRad - half;
+    const a1 = frame.facingRad + half;
+    const x0 = frame.x + r * Math.cos(a0);
+    const y0 = frame.y + r * Math.sin(a0);
+    const x1 = frame.x + r * Math.cos(a1);
+    const y1 = frame.y + r * Math.sin(a1);
+    const largeArc = half * 2 > Math.PI ? 1 : 0;
+    return `M ${frame.x} ${frame.y} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+  };
+
+  return (
+    <g className="playback-cones" aria-hidden="true">
+      {cones.map((wf) => {
+        const w = getPart(wf.partId).weapon!;
+        const half = ((w.mountArcDeg / 2) * Math.PI) / 180;
+        return (
+          <g key={wf.instanceId} className={`playback-cone${wf.gate === null && wf.status === 'ok' ? ' bearing' : ''}`}>
+            {/* Out to rangeEnd: past it the gun is out of its band entirely. */}
+            <path d={sector(w.falloff.rangeEnd, half)} fill={color} className="cone-band" />
+            {/* rangeStart is where damage begins to fall off, so the inner sector
+                is the part of the cone that still hits for full damage. */}
+            <path d={sector(w.falloff.rangeStart, half)} fill={color} className="cone-full" />
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: string; color: string }) {
   const chassis = getChassis(chassisId);
   // Grid "up" is forward, and forward points along +x at facing 0: the
@@ -443,6 +496,19 @@ export function BattleScene({
           return <circle key={`fl${idx}`} cx={m.x} cy={m.y} r={3 + age * 8} className="playback-boom" opacity={1 - age} />;
         })}
 
+        {/* Cones under the glyphs: they are context for where a gun can reach,
+            not something to read the mech's position through. Both mechs get
+            them -- knowing which of the enemy's guns can bear on you is the same
+            question from the other side, and it is what deciding to close or
+            orbit actually turns on. */}
+        {([0, 1] as const).map((i) => (
+          <WeaponCones
+            key={`c${i}`}
+            frame={frame.mechs[i]}
+            weapons={frame.mechs[i].weapons}
+            color={MECH_COLORS[i]}
+          />
+        ))}
         {([0, 1] as const).map((i) => (
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={view.mechs[i].chassisId} color={MECH_COLORS[i]} />
         ))}

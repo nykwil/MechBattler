@@ -296,3 +296,18 @@
 .tile-key.forest { color: rgba(93, 160, 90, 0.9); }
 .tile-key.hill { color: rgba(206, 186, 140, 0.9); }
 .tile-key.water { color: rgba(90, 150, 199, 0.9); }
+
+/* The cone layer never takes a pointer: the arena is clickable to issue a move
+   order, and a full-width sector lying over it would swallow those taps. The class
+   coverage test caught this by noticing the group had no rule at all. */
+.playback-cones { pointer-events: none; }
+
+/* Weapon mount arcs (docs/03 §4). Two nested sectors per gun: the outer runs to
+   falloff.rangeEnd, the inner to rangeStart where damage is still full. Kept very
+   faint -- this is the layer you read the arena through, so it has to inform
+   without competing with the mechs, the terrain or the tracers on top of it. */
+.playback-cone .cone-band { opacity: 0.05; }
+.playback-cone .cone-full { opacity: 0.07; }
+/* Clear to fire: the sim reports no gate, so the target is inside this arc. */
+.playback-cone.bearing .cone-band { opacity: 0.1; }
+.playback-cone.bearing .cone-full { opacity: 0.14; }
