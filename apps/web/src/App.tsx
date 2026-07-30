@@ -14,7 +14,7 @@ import type { RunPartOps } from './components/PartInspector.js';
 import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
-import type { OpponentDef } from './lib/opponents.js';
+import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
 import { ReadoutSheet } from './components/ReadoutSheet.js';
@@ -241,6 +241,12 @@ export default function App() {
     return [...base, ...advice];
   }, [chassis, build, predictedTemps]);
   // Only what the 56px bar shows; the sheet computes its own detail.
+  // The idle action bar is the intel strip, so it needs whoever is next.
+  const nextFight = useMemo(() => {
+    const first = OPPONENTS[0];
+    return first ? { name: first.name, threat: first.threat } : null;
+  }, []);
+
   const ghostReason = useMemo(() => {
     if (!state.selectedPartId || !state.ghost) return null;
     const err = checkCandidate(state.ghost.x, state.ghost.y);
@@ -528,14 +534,6 @@ export default function App() {
               </span>
               <span className="caret" aria-hidden="true">▾</span>
             </button>
-            <button
-              type="button"
-              className="tbtn"
-              onClick={() => setScreen('title')}
-              aria-label="Back to title"
-            >
-              ⌂
-            </button>
             <div className="ov-toggle" role="group" aria-label="Plate view">
               {PLATE_VIEWS.map((v) => (
                 <button
@@ -585,8 +583,8 @@ export default function App() {
             onRotate={rotate}
             onPlace={placeWithEconomy}
             onOpenParts={() => setPartsOpen(true)}
-            idleHint={state.selectedInstanceId ? 'Detach from the readout sheet' : 'Open Parts to arm something'}
-            onAutoWire={autoWireNow}
+            next={nextFight}
+            onOpenIntel={() => { setReadoutOpen(true); }}
           />
       </div>
 
@@ -594,6 +592,16 @@ export default function App() {
         <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">
           <div className="sheet-head"><span className="sheet-title">Chassis</span></div>
           <div className="sheet-body">
+            <button
+              type="button"
+              className="part-row"
+              onClick={() => { setChassisOpen(false); setScreen('title'); }}
+            >
+              <span className="part-txt">
+                <span className="part-name">← Title screen</span>
+                <span className="part-sub">Leave the workshop</span>
+              </span>
+            </button>
             {chassisOptions.map((c) => (
               <button
                 key={c.id}
@@ -635,6 +643,7 @@ export default function App() {
         issues={issues}
         onMovePriority={movePriority}
         onBenchResult={setBenchResult}
+        onAutoWire={runActive ? undefined : autoWireNow}
         extraTabs={mobileTabs}
       />
 

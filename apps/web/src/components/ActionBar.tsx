@@ -1,12 +1,16 @@
 /**
  * The action bar, ported from the mobile builder prototype.
  *
- * Idle keeps the same two-row shape as armed, so the plate never resizes when a
- * part is armed -- the prototype's note, and the reason docs/14 §5 insists on a
- * fixed reserve rather than a grown row.
+ * Idle keeps the same shape as armed so the plate never resizes, and the strip is
+ * spent on the thing you are building *against* -- the prototype's own words. That
+ * is where §8's intel strip lives: it names the opponent and threat, and tapping
+ * it opens the detail, because the loop is read the opponent, move a radiator,
+ * read it again. Making that a navigation would cost the loop.
+ *
+ * The bar keeps the `armed` class in both states; it governs height, not arming.
  */
 export function ActionBar({
-  armedName, moving, reason, onCancel, onRotate, onPlace, onOpenParts, idleHint, onAutoWire,
+  armedName, moving, reason, next, onCancel, onRotate, onPlace, onOpenParts, onOpenIntel,
 }: {
   /** Null when nothing is armed. */
   armedName: string | null;
@@ -17,19 +21,31 @@ export function ActionBar({
   onCancel: () => void;
   onRotate: () => void;
   onPlace: () => void;
+  /** The coming fight, shown while idle. */
+  next: { name: string; threat: 1 | 2 | 3 } | null;
   onOpenParts: () => void;
-  idleHint: string;
-  onAutoWire: () => void;
+  onOpenIntel: () => void;
 }) {
   if (!armedName) {
     return (
-      <div className="actionbar">
-        <span className="armed-strip">
-          <span className="armed-name">Nothing armed</span>
-          <span className="armed-why">{idleHint}</span>
-        </span>
+      <div className="actionbar armed">
+        {next ? (
+          <button className="next-strip" type="button" onClick={onOpenIntel}>
+            <span className="next-k">Next</span>
+            <span className="next-name">{next.name}</span>
+            <span className="threat">
+              {'▲'.repeat(next.threat)}
+              <span className="threat-off">{'▲'.repeat(3 - next.threat)}</span>
+            </span>
+            <span className="next-caret" aria-hidden="true">›</span>
+          </button>
+        ) : (
+          <span className="next-strip">
+            <span className="next-k">Sandbox</span>
+            <span className="next-name">No fight queued</span>
+          </span>
+        )}
         <span className="armed-controls">
-          <button className="btn" type="button" onClick={onAutoWire}>Auto-wire</button>
           <button className="btn-primary" type="button" onClick={onOpenParts}>Parts</button>
         </span>
       </div>

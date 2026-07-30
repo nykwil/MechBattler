@@ -28,7 +28,7 @@ export interface ExtraTab {
  */
 export function ReadoutSheet({
   open, onClose, chassis, build, parts, powerPriority, issues, onMovePriority, onBenchResult,
-  extraTabs = [],
+  onAutoWire, extraTabs = [],
 }: {
   open: boolean;
   onClose: () => void;
@@ -39,6 +39,8 @@ export function ReadoutSheet({
   issues: Parameters<typeof BuildWarnings>[0]['issues'];
   onMovePriority: (instanceId: string, direction: -1 | 1) => void;
   onBenchResult: (result: TestBenchResult | null) => void;
+  /** Lays a functional conduit graph; the fix for most unpowered-part faults. */
+  onAutoWire?: () => void;
   extraTabs?: ExtraTab[];
 }) {
   const [tab, setTab] = useState<Tab>('vitals');
@@ -90,9 +92,19 @@ export function ReadoutSheet({
       )}
 
       {tab === 'faults' && (
-        issues.length === 0
-          ? <p className="readout-empty">No faults on this build.</p>
-          : <BuildWarnings issues={issues} />
+        <>
+          {/* The prototype's idle action bar is the intel strip, so auto-wire
+              lives beside the faults it exists to clear rather than competing
+              for a slot the prototype spends on the coming fight. */}
+          {onAutoWire && (
+            <button type="button" className="btn" onClick={onAutoWire} style={{ marginBottom: 'var(--space-3)' }}>
+              Auto-wire unpowered parts
+            </button>
+          )}
+          {issues.length === 0
+            ? <p className="readout-empty">No faults on this build.</p>
+            : <BuildWarnings issues={issues} />}
+        </>
       )}
 
       {/* The only control for brownout order anywhere in the app (docs/14 §14).

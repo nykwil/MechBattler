@@ -151,3 +151,22 @@
   width: 100%;
   max-width: 420px;
 }
+
+/*
+ * One correction to the ported shell, kept here rather than edited into
+ * shell.css so that file stays diffable against docs/prototypes/.
+ *
+ * Found by screenshotting the app, which is the only way it could have been:
+ * every test passed with this wrong.
+ */
+
+/* The prototype pins the empty hint at 38% from the bottom of .plate-area. That
+   assumes a phone-height area; in a taller viewport the plate centres and the
+   hint lands on top of the grid. Flowing it under the plate says the same thing
+   without printing over the thing it is describing. */
+.app .plate-area { grid-auto-flow: row; gap: var(--space-3); align-content: center; }
+.app .empty-hint {
+  position: static;
+  inset: auto;
+  max-width: 32ch;
+}
