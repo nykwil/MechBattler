@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { TICK_S, type BattleReport } from '@mechbattler/sim';
+import { TICK_S, type BattleReport, type Build } from '@mechbattler/sim';
 import { fmtTime } from '../lib/battleText.js';
 import { BattleCaption, BattleScene, BattleTicker } from './BattleHud.js';
 import './BattlePlayback.css';
@@ -12,7 +12,12 @@ import './BattlePlayback.css';
 
 const SPEEDS = [1, 2, 4, 8] as const;
 
-export function BattlePlayback({ report, names }: { report: BattleReport; names: [string, string] }) {
+export function BattlePlayback({ report, names, yourBuild }: {
+  report: BattleReport;
+  names: [string, string];
+  /** Your build, so the replay console shows the same damage widget as the live one. */
+  yourBuild?: Build;
+}) {
   const [tSec, setTSec] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState<(typeof SPEEDS)[number]>(2);
@@ -41,7 +46,7 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
 
   return (
     <div className="playback">
-      <BattleScene view={report} tSec={tSec} names={names} />
+      <BattleScene view={report} tSec={tSec} names={names} yourBuild={yourBuild} />
 
       <div className="playback-controls">
         <button

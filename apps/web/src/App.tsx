@@ -813,6 +813,7 @@ export default function App() {
 
       {battle && !live && !salvageOpen && (
         <BattleReportScreen
+          yourBuild={build}
           report={battle.report}
           opponent={battle.opponent}
           onRematch={() => fight(battle.opponent, battle.mode)}

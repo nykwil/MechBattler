@@ -3,6 +3,7 @@ import type { BattleEvent, BattleReport } from '@mechbattler/sim';
 import type { OpponentDef } from '../lib/opponents.js';
 import { eventText, fmtTime, partName, REASON_TEXT } from '../lib/battleText.js';
 import { BattlePlayback } from './BattlePlayback.js';
+import type { Build } from '@mechbattler/sim';
 import './BattleReportScreen.css';
 
 interface DamageRow {
@@ -39,13 +40,15 @@ function timelineRows(report: BattleReport): BattleEvent[] {
 }
 
 export function BattleReportScreen({
-  report, opponent, onRematch, onRematchSameSeed, onClose,
+  report, opponent, onRematch, onRematchSameSeed, onClose, yourBuild,
 }: {
   report: BattleReport;
   opponent: OpponentDef;
   onRematch: () => void;
   onRematchSameSeed: () => void;
   onClose: () => void;
+  /** The build that fought, for the console's damage widget. */
+  yourBuild?: Build;
 }) {
   const names: [string, string] = ['YOU', opponent.name.toUpperCase()];
   const won = report.winner === 0;
@@ -79,7 +82,7 @@ export function BattleReportScreen({
           </div>
         )}
 
-        {view === 'replay' && hasReplay && <BattlePlayback report={report} names={names} />}
+        {view === 'replay' && hasReplay && <BattlePlayback report={report} names={names} yourBuild={yourBuild} />}
 
         {view === 'report' && (<>
         <div className="report-columns">

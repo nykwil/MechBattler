@@ -217,7 +217,7 @@ export function BattleLiveScreen({
 
         <div className="playback">
           <BattleScene
-            view={view} tSec={tSec} names={names}
+            view={view} tSec={tSec} names={names} yourBuild={build}
             onArenaOrder={orderMove}
             weaponOverrides={manual.weapons}
             onWeaponClick={cycleWeapon}

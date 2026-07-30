@@ -104,25 +104,25 @@ sanity-check each new measurement before trusting it.
   only brownout-order control in the app, so losing it would remove a mechanic.
 - **`HEAT`/`PWR` gauges retained** in the battle console. See §6.
 
-## 6. The open decision
+## 6. The console, and what is left of the decision
 
-The battle console still carries the app's own `HEAT`, `PWR` and `CAP` gauges plus
-the `FLANK`/`FLEE`/`FACE` verb chips. The prototype's console has a `.dmg` damage
-widget and an Evade bar in that space instead — Evade is now ported, the damage
-widget is not.
+The console is now the prototype's: the `.dmg` damage widget, then Core / Evade /
+Mass as `.cbar` rows, then the `.gun` chips. **Option 2 was taken** — the widget was
+added and the app's `HEAT`, `PWR` and `CAP` gauges were kept below it, because
+dropping them removes information the prototype never had to display. The capacitor
+gauge in particular is how a railgun or Surge build reads whether it can fire, which
+doc 14 §12 discusses directly. Nothing was lost, and the choice is reversible.
 
-**This is a real decision, not an oversight.** The prototype has no equivalent for
-capacitor or power, and those are not decoration: the capacitor gauge is how a
-railgun or Surge build reads whether it can fire, which doc 14 §12 discusses
-directly. Replacing the gauges means choosing what happens to information the
-prototype never displayed. Someone should decide:
+One piece is a **documented partial port**: the prototype fades each damage cell by
+that part's remaining HP fraction, so a mech visibly wears down. `MechFrame` carries
+no per-part HP and `MechReport.partsFinalHp` is end-of-battle only, so cells here are
+alive or destroyed. Restoring the gradient needs the sim to expose per-tick part HP —
+a small additive change to `MechFrame`, but a sim change, so it was left alone.
 
-1. Port `.dmg` and drop the gauges — cleanest, loses capacitor and power legibility.
-2. Port `.dmg` and keep the gauges below it — faithful and complete, taller console.
-3. Keep as is — the console is functional and consistent, just not the prototype's.
-
-Whoever decides should also settle the run panel and scrapyard, which have no
-prototype at all (doc 14 §15) and are currently harmonised rather than designed.
+Still genuinely open: the run panel and scrapyard, which have no prototype at all
+(doc 14 §15) and are harmonised rather than designed. And the `FLANK`/`FLEE`/`FACE`
+verb chips, which the prototype renders as an `.orders` row with a segmented
+throttle — ours works and is legible, but it is not that.
 
 ## 7. Tooling
 

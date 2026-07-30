@@ -1,10 +1,11 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
-  type BattleEvent, type BattleFrame, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
+  type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
 import { crossingSpeedMps } from '../lib/evade.js';
+import { DamageGrid } from './DamageGrid.js';
 import './BattlePlayback.css';
 
 /**
@@ -165,7 +166,7 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild,
 }: {
   view: BattleView;
   tSec: number;
@@ -178,6 +179,8 @@ export function BattleScene({
   onWeaponClick?: (instanceId: string) => void;
   /** Extra SVG rendered over the arena (order feedback like click ripples). */
   arenaOverlay?: ReactNode;
+  /** Your build, for the console's damage widget. Omitted where it is unknown. */
+  yourBuild?: Build;
 }) {
   const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const frame = frameAt(view, tSec);
@@ -354,6 +357,16 @@ export function BattleScene({
       <div className="console">
        <div className="con-main">
         <div className="con-instruments">
+          {/* The prototype's damage widget: your mech as a shape, so a loss reads
+              as where rather than how much. Opens the log, as it does there. */}
+          {yourBuild && (
+            <DamageGrid
+              build={yourBuild}
+              events={view.events}
+              tSec={tSec}
+              coreFrac={Math.max(0, you.coreHp) / CORE_HP}
+            />
+          )}
           <div className="con-bars">
             <div className="cbar">
               <span className="cbar-k">Core</span>
