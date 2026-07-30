@@ -22,6 +22,9 @@
  *
  * --media reduce turns on prefers-reduced-motion.
  *
+ * --pointer fine turns off touch emulation, so (hover: hover) applies. The default
+ * is a touch device, which is what a phone viewport should be.
+ *
  * --key presses a key on the document, for the keyboard paths that touch
  * accelerates rather than replaces.
  *
@@ -223,18 +226,42 @@ ws.addEventListener('message', (event) => {
   }
 });
 // The whole point: a real 390px viewport, which --window-size cannot give.
-await send('Emulation.setDeviceMetricsOverride', {
-  width, height, deviceScaleFactor: 1, mobile: true,
-});
-await send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 1 });
+/*
+ * Whether this run is a touch device. It decides three things that have to agree,
+ * or the page sees a contradiction: the metrics override's `mobile` flag, touch
+ * emulation, and the hover/pointer media features.
+ *
+ * `mobile: true` was unconditional, and it forces `hover: none` no matter what
+ * setEmulatedMedia says -- so every 1440px screenshot was taken with the hover
+ * styles switched off, and a hover-only element could not be verified to exist at
+ * all. `--pointer fine` gives a mouse; the default stays a phone.
+ */
+const finePointer = flag('pointer', null) === 'fine';
 
-// --media reduce emulates prefers-reduced-motion, so §9's blanket rule can be
-// checked in a browser rather than only asserted against the stylesheet.
+await send('Emulation.setDeviceMetricsOverride', {
+  width, height, deviceScaleFactor: 1, mobile: !finePointer,
+});
+// maxTouchPoints must be 1..16 even when disabled, so only `enabled` varies.
+await send('Emulation.setTouchEmulationEnabled', { enabled: !finePointer, maxTouchPoints: 1 });
+
+/*
+ * Emulated media features, set in one call because setEmulatedMedia replaces the
+ * whole list rather than merging into it -- setting reduced motion separately would
+ * silently drop the pointer features.
+ *
+ * --media reduce emulates prefers-reduced-motion, so §9's blanket rule can be
+ * checked in a browser rather than only asserted against the stylesheet.
+ *
+ * Note what cannot be emulated: headless Chrome has no pointing device, so
+ * `(hover: hover)` is false whatever `--pointer fine` and setEmulatedMedia say.
+ * A hover-only element therefore cannot be *seen* here -- verify that it is present
+ * and only suppressed by its media query, by disabling the rule through CSSOM.
+ */
+const mediaFeatures = [];
 if (flag('media', null) === 'reduce') {
-  await send('Emulation.setEmulatedMedia', {
-    features: [{ name: 'prefers-reduced-motion', value: 'reduce' }],
-  });
+  mediaFeatures.push({ name: 'prefers-reduced-motion', value: 'reduce' });
 }
+if (mediaFeatures.length) await send('Emulation.setEmulatedMedia', { features: mediaFeatures });
 
 // --slow throttles the network, which is the only way to actually see a lazy
 // fallback: these chunks are small enough to arrive before a frame otherwise.

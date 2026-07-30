@@ -246,3 +246,11 @@
   font-family: var(--font-mono);
   font-size: var(--text-sm);
 }
+
+/* Hover-only console detail. Not merely hidden on a phone -- removed from layout,
+   so it costs no height at all. The rule is (hover: none), not a width query: what
+   decides this is whether a pointer exists, not how wide the screen is, and a
+   touch laptop should keep it. */
+@media (hover: none) {
+  .battle-app .con-foot.hover-only { display: none; }
+}

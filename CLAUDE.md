@@ -86,6 +86,13 @@ what you asked — tapping `Faults` before the sheet renders hits the readout ba
 which closes the sheet the tab lives in. That looked like a one-in-three flake and
 was not a timing problem.
 
+`--pointer fine` drops the `mobile` metrics flag and touch emulation. It cannot make
+`(hover: hover)` true: headless Chrome has no pointing device, and neither
+setEmulatedMedia nor `mobile: false` overrides that. So a hover-only element can
+never be *seen* here. Verify it another way — disable its media rule through CSSOM
+and check the element then has a box, which proves it is present and only the query
+suppresses it.
+
 `--key Tab` gives real keyboard focus, which is the only way to verify a
 `:focus-visible` ring actually renders — a rule in the stylesheet is not the same as
 an outline on the screen.

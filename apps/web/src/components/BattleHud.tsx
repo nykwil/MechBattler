@@ -628,7 +628,12 @@ export function BattleScene({
               />
             ))}
         </div>
-        <p className="con-foot">
+        {/* Hover detail is a pointer affordance, so it exists only where a pointer
+            does. On a phone it could never be filled, yet it held two permanent
+            lines of console -- the scarcest space on the screen -- to say so. The
+            band and arc it used to reveal are on the gun chips now, which is where
+            a thumb can read them. */}
+        <p className="con-foot hover-only">
           {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · Range/Arc/Hot = why fire control holds'}
         </p>
 
