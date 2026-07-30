@@ -224,3 +224,30 @@ describe('persistent run stages', () => {
     expect(screen.getByText(/Earned: First Blood · Judge/)).toBeTruthy();
   });
 });
+
+describe('the machinist milestone', () => {
+  /**
+   * The offers are weapon mods and the starting blueprint's first installed part
+   * is a reactor, so defaulting the target to modTargets[0] rendered every offer
+   * on a reward screen disabled. It has to open on something a gun can take.
+   */
+  const service = { afterWin: 3, offerIds: ['cold-bore'], applied: false };
+
+  it('opens on a target the offered mods can actually be fitted to', () => {
+    const data = runData();
+    renderRun({
+      phase: 'active',
+      data: { ...data, pendingModService: service, scrap: 500 },
+    }, {
+      modTargets: [
+        { id: 'installed:a', partId: 'R-E25', label: 'Installed · Whisper', modifiers: [] },
+        { id: 'installed:b', partId: 'W-MG', label: 'Installed · Stitcher', modifiers: [] },
+      ],
+    });
+
+    const select = screen.getByLabelText('Target equipment') as HTMLSelectElement;
+    expect(select.value).toBe('installed:b');
+    // And the offer is therefore live rather than greyed out on arrival.
+    expect(screen.getByRole('button', { name: /apply/ })).toHaveProperty('disabled', false);
+  });
+});

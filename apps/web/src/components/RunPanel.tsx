@@ -231,7 +231,20 @@ export function RunPanel({
   );
 
   if (run.data.pendingModService && !run.data.pendingModService.applied) {
-    const chosenTargetId = modTargetId || modTargets[0]?.id || '';
+    /*
+     * Default to a target at least one of the offers can actually be fitted to.
+     * Blindly taking the first installed part meant that when it was a reactor --
+     * which it is on the starting blueprint -- every offer on a *reward* screen
+     * rendered disabled, and the milestone read as broken rather than as waiting
+     * for you to choose a gun from the dropdown.
+     */
+    const offers = run.data.pendingModService.offerIds;
+    const firstUsable = modTargets.find((target) => offers.some((modId) => {
+      const mod = MODIFIERS[modId];
+      return mod?.appliesTo(getPart(target.partId))
+        && !(target.modifiers ?? []).some((id) => MODIFIERS[id]?.kind === 'mod');
+    }));
+    const chosenTargetId = modTargetId || firstUsable?.id || modTargets[0]?.id || '';
     const chosenTarget = modTargets.find((target) => target.id === chosenTargetId);
     return (
       <div>
