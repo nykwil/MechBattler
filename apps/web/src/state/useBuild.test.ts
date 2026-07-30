@@ -215,3 +215,59 @@ describe('useBuild ghost visibility', () => {
     expect(result.current.checkCandidate(ghost!.x, ghost!.y)).not.toBeNull();
   });
 });
+
+/**
+ * Aiming centres the ghost on the tapped cell, clamped to the chassis. This is the
+ * prototype's behaviour and it exists for touch: a fingertip covers the cells it
+ * is aiming at, so a part bigger than one cell must appear under the finger rather
+ * than offset down and right by its own footprint.
+ */
+describe('useBuild aim centring', () => {
+  it('leaves single-cell parts on the tapped cell', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('U-CON'));
+    act(() => result.current.aim(3, 3));
+    expect(result.current.state.ghost).toEqual({ x: 3, y: 3 });
+  });
+
+  it('centres a multi-cell part on the tapped cell', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    // Lump is 2x2, so its origin sits one cell up and left of the tap.
+    act(() => result.current.selectPart('R-C40'));
+    act(() => result.current.aim(3, 3));
+    expect(result.current.state.ghost).toEqual({ x: 2, y: 2 });
+  });
+
+  it('clamps against the near edge rather than going negative', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('R-C40'));
+    act(() => result.current.aim(0, 0));
+    expect(result.current.state.ghost).toEqual({ x: 0, y: 0 });
+  });
+
+  it('clamps against the far edge so the footprint stays on the chassis', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    const chassis = result.current.chassis;
+    act(() => result.current.selectPart('R-C40'));
+    act(() => result.current.aim(chassis.width - 1, chassis.height - 1));
+
+    const ghost = result.current.state.ghost!;
+    expect(ghost.x).toBe(chassis.width - 2);
+    expect(ghost.y).toBe(chassis.height - 2);
+  });
+
+  it('accounts for rotation when centring', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    // Gill is a 3x1 line; rotated it is 1x3, so the centring offset swaps axes.
+    act(() => result.current.selectPart('U-RAD'));
+    act(() => result.current.aim(3, 3));
+    const flat = result.current.state.ghost!;
+
+    act(() => result.current.rotate());
+    act(() => result.current.aim(3, 3));
+    const upright = result.current.state.ghost!;
+
+    expect(flat).toEqual({ x: 2, y: 3 });
+    expect(upright).toEqual({ x: 3, y: 2 });
+  });
+});

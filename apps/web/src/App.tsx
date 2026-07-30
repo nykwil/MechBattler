@@ -397,7 +397,10 @@ export default function App() {
     function onKey(e: KeyboardEvent) {
       if (screen !== 'workspace' || workspace !== 'workshop') return;
       if (battle || live || salvageOpen) return; // overlays own the keyboard
-      if (e.key.toLowerCase() === 'r') rotate();
+      // Rotate applies to what you are holding; the prototype notes "only in the
+      // hand". With nothing armed it changed a value that arming resets, so the
+      // key appeared to do nothing.
+      if (e.key.toLowerCase() === 'r' && state.selectedPartId) rotate();
       // Arrow keys are the keyboard's cell tap and Enter is its Place, so touch,
       // keyboard, and screen reader all drive one placement model (docs/14 §6).
       if (state.selectedPartId) {

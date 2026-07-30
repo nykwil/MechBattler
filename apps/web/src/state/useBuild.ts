@@ -71,6 +71,18 @@ function nextRotation(r: Rotation): Rotation {
   return ((r + 90) % 360) as Rotation;
 }
 
+/** Footprint of a part at a rotation, in cells. */
+function dims(partId: string, rotation: Rotation): { w: number; h: number } {
+  const cells = getOccupiedCells(
+    { instanceId: '__dims__', partId, origin: { x: 0, y: 0 }, rotation, integrity: 1 },
+    getPart(partId),
+  );
+  return {
+    w: Math.max(...cells.map((c) => c.x)) + 1,
+    h: Math.max(...cells.map((c) => c.y)) + 1,
+  };
+}
+
 /**
  * Where a freshly armed part's ghost starts (docs/14 §6). Row-major first legal
  * origin, so the ghost lands somewhere it can actually be committed and the
@@ -192,9 +204,22 @@ function reducer(state: EditorState, action: Action): EditorState {
         },
       };
     }
-    case 'AIM':
+    case 'AIM': {
+      // Centre the ghost on the tapped cell where possible, clamped to the
+      // chassis -- the prototype's behaviour, and the point of it is touch: your
+      // fingertip covers the target, so a part larger than one cell must appear
+      // under the finger rather than offset down and right by its own size.
       if (!state.selectedPartId) return state;
-      return { ...state, ghost: { x: action.x, y: action.y } };
+      const chassis = getChassis(state.chassisId);
+      const { w, h } = dims(state.selectedPartId, state.rotation);
+      return {
+        ...state,
+        ghost: {
+          x: Math.max(0, Math.min(chassis.width - w, action.x - (w >> 1))),
+          y: Math.max(0, Math.min(chassis.height - h, action.y - (h >> 1))),
+        },
+      };
+    }
     case 'NUDGE': {
       // Arrow keys are the keyboard's equivalent of tapping a cell (docs/14 §6);
       // a keyboard has no cell to tap, which is why no on-screen nudge pad exists.
