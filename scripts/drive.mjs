@@ -14,7 +14,10 @@
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
  *
- * --tap and --tapText may be repeated and interleave in order; each clicks the
+ * --key presses a key on the document, for the keyboard paths that touch
+ * accelerates rather than replaces.
+ *
+ * --tap, --tapText and --key may be repeated and interleave in order; each clicks the
  * element's centre and settles before the next, so React commits between steps.
  * Measuring in the same expression that clicks will read stale DOM.
  * The screenshot is taken after all taps.
@@ -41,8 +44,21 @@ const height = Number(flag('h', 844));
 const taps = args.reduce((acc, a, i) => {
   if (a === '--tap') return [...acc, { kind: 'selector', value: args[i + 1] }];
   if (a === '--tapText') return [...acc, { kind: 'text', value: args[i + 1] }];
+  if (a === '--key') return [...acc, { kind: 'key', value: args[i + 1] }];
   return acc;
 }, []);
+
+/** Key names the app actually binds, mapped to what CDP needs. */
+const KEYS = {
+  ArrowLeft: { code: 37, key: 'ArrowLeft' },
+  ArrowRight: { code: 39, key: 'ArrowRight' },
+  ArrowUp: { code: 38, key: 'ArrowUp' },
+  ArrowDown: { code: 40, key: 'ArrowDown' },
+  Enter: { code: 13, key: 'Enter' },
+  Escape: { code: 27, key: 'Escape' },
+  r: { code: 82, key: 'r' },
+  Delete: { code: 46, key: 'Delete' },
+};
 
 const port = 9333 + Math.floor(Math.random() * 400);
 const chrome = spawn('google-chrome', [
@@ -106,6 +122,18 @@ await sleep(2500);
 
 for (const tap of taps) {
   const selector = tap.value;
+  if (tap.kind === 'key') {
+    const k = KEYS[selector];
+    if (!k) { console.error(`key: unknown ${selector}`); continue; }
+    for (const type of ['keyDown', 'keyUp']) {
+      await send('Input.dispatchKeyEvent', {
+        type, key: k.key, code: k.key, windowsVirtualKeyCode: k.code, nativeVirtualKeyCode: k.code,
+      });
+    }
+    console.error(`pressed ${selector}`);
+    await sleep(400);
+    continue;
+  }
   // Among text matches, take the tightest: a container always contains its
   // child's text, so first-match-wins clicks the wrong thing. Tapping 'Faults'
   // hit the readout bar (whose cells include that word) instead of the sheet tab.

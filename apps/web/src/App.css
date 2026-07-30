@@ -214,3 +214,21 @@
    Ours is taller in the armed state (.actionbar.armed is a column), so 96px put
    "Placed" on top of the readout's Heat cell. Lift it clear of both bars. */
 .app > .toast { bottom: 200px; }
+
+/*
+ * Wide screens. The prototype is a phone design and has no desktop layout — its
+ * .device rule is a bezel mock for the review page, not part of the app. Rather
+ * than invent one, hold the shell at a readable column width and centre it, so a
+ * 1440px window does not stretch the readout row across the whole screen.
+ *
+ * This replaces docs/14 §11's docking rails, which described the prose design
+ * rather than the prototype. Where the two disagree the prototype wins.
+ */
+@media (min-width: 768px) {
+  .app {
+    max-width: 560px;
+    margin-inline: auto;
+    border-inline: 1px solid var(--line-hairline);
+  }
+  body { background: var(--bg-deep); }
+}

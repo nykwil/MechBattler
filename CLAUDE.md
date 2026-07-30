@@ -25,8 +25,14 @@ npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png \
 ```
 
 `scripts/drive.mjs` drives Chrome over CDP. It prints viewport and overflow
-metrics beside the image, and `--tap <selector>` is repeatable — each waits,
-clicks the element centre, and settles. Use it rather than `--screenshot`.
+metrics beside the image. `--tap <selector>`, `--tapText <visible text>` and
+`--key <ArrowRight|Enter|Escape|r|Delete>` are repeatable and interleave in order;
+each scrolls the target into view, clicks or presses, and settles. `--eval <expr>`
+reports any measurement. Use this rather than `--screenshot`.
+
+Measure before believing a screenshot. Twice now an image has produced a false
+diagnosis — a 500px crop read as clipping, and a scrim read as failing to cover —
+and both times `--eval` showed nothing was wrong.
 
 Then open the PNG and actually look. This was learned expensively: a leftover
 56px header above a `height:100dvh` shell pushed the readout and action bar off
@@ -44,6 +50,11 @@ clipping that did not exist. `drive.mjs` uses
 
 Being able to *tap* matters as much as seeing: every bottom sheet in this app was
 translated 101% off-screen for a day because no screenshot ever opened one.
+
+There is no desktop design. The prototypes are phone designs; the builder's
+`.device` rule is a bezel mock for its review page, not part of the app. Above
+768px the shell holds a 560px column and centres it. docs/14 §11's docking rails
+described the prose design, not the prototype, and the prototype wins.
 
 ## The design source is the prototypes, not the prose
 
