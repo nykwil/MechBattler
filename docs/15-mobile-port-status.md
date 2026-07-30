@@ -128,6 +128,12 @@ found by diffing against the prototype's *source*, or by driving the app.
 | Heat thresholds typed in the HUD | 115/130/150 were inline literals in the sim *and* re-typed in the UI, so a gauge marked 130 would have kept saying 130 after the sim moved it | drawing the heat marks |
 | Projectile linger fixed at 0.22 s | Slow rounds are airborne far longer, so they vanished mid-flight; a round's window is its own flight time | drawing rounds |
 | Driver forced `mobile: true` always | It sets `hover: none` whatever else you emulate, so **every desktop screenshot ever taken here had the app's `@media (hover: hover)` rules switched off** | building a hover-only element |
+| `.playback` had no height of its own | It grew to 1105px inside a 900px parent and `overflow:hidden` ate the rest — the orders row half off screen, the ticker entirely below it, no page scroll to reach either | measuring desktop |
+| Arena SVG painted over the console | Once the column was constrained the SVG kept its aspect height and overflowed its wrapper. Core and Evade were laid out, measured *inside* the console, and reported visible — they were underneath. A bounding box cannot see overlap; a hit test at the element's centre can | screenshot vs measurement disagreeing |
+| `.cbar-v` fixed at 42px | Fits "100%", clips "999/999" silently, and Pwr is demand/supply with three digits available to each half | setting each box to its worst-case string |
+| Instruments hardcoded their inputs | The spread and diagnostics fed `TRACKING_LAG_BASE_S`, catalog dispersion, and an uncovered silhouette into `computeHitModel` — so they disagreed with the sim precisely on the builds and terrain fitted to change those terms | reviewing my own new code |
+| `frames.indexOf(frame)` | A linear scan of the battle per render, twice a frame — and identity-based, so a rebuilt array returns -1 and a moving mech silently reports 0.00 m/s | reviewing my own new code |
+| Diagnostics truncated its own numbers | The prototype's two-column grid at 390px cut "4.43 mrad" to "4.43 mra" and hid the hit chance. An instrument that truncates is worse than none: a wrong reading looks real | first render of the port |
 | Report's exit below the fold | On a run victory "Back to workshop" measured y=1062 in an 844px viewport. `.report-panel` scrolls, so it was reachable — but nothing said so, and mobile hides scrollbars, on the one screen a player *must* leave. Now pinned to the panel foot, as the workshop's action bar already is | driving the machinist milestone |
 
 **My own tooling produced nine false positives**, each of which nearly had me "fix"
@@ -157,6 +163,19 @@ The complementary rule, from §4's table: a rule correctly declared is not a rul
 effect. `--tap-min` was in the stylesheets and not in the rendering. The type scale
 was adopted for the syntax I had searched for. Contrast passed at token level and
 failed composited. Verify outcomes, not declarations.
+
+### Battle screen, second pass
+
+Requested after the port: cones now draw each weapon's mount arc out to its falloff
+band and its minimum where one exists; rounds are streaks that stop at the hull,
+with misses passing by and hits leaving an impact ring; the shot's real spread is
+marked at the target as ±1σ and ±2σ from `computeHitModel`; the prototype's `ƒx`
+diagnostics overlay is ported; power moved into the console bars; hover detail left
+the layout entirely; and both viewports now end exactly at the fold.
+
+Weapons gained an optional near-side falloff (`rangeMin`/`multAtMin`) — the far side
+already existed. Rockets and the railgun have one; everything else is provably
+unchanged at contact. `game:balance` is unmoved, because the starter carries neither.
 
 ## 5. Deliberate divergences from the prototypes
 
