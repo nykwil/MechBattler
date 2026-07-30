@@ -200,6 +200,17 @@ so placement never loses context. `--radius-lg` on the top corners only. Handle 
 a 44 px drag zone. `role="dialog"`, `aria-modal`, focus moved in on open, focus restored on
 close, Tab trapped. None of that exists in the current modals.
 
+> Corrected in the build, after all three sheets shipped with no way out of peek or half.
+> "The plate stays visible at peek and half" was read as *render no scrim there*, and a
+> tap outside then landed on nothing. The scrim is present at every snap and is merely
+> **clear** below full: the plate stays visible, and the tap still dismisses. Nothing on
+> the plate is reachable behind an open sheet regardless — arming a part closes it.
+>
+> The handle is also a **close** control, not a snap cycler: in the prototype it is
+> `id="s-close"`, labelled "Close parts". A tap closes; a drag still resizes. Making it
+> cycle snaps left the sheet with no dismissal affordance a phone could reach, since Esc
+> and a 24 px drag are not available to a thumb. The prototype wins (see CLAUDE.md).
+
 **Part rows** — 56 px minimum, 32 px shape preview, name at 15 px, cost in 13 px mono.
 
 **Plate views** — a segmented control (Parts · Power · Heat) recolours the plate; the same
