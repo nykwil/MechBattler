@@ -241,10 +241,25 @@ blended round-1 rate:                 30/91 = 33.0%
 ```
 
 So the starting blueprint is **not** too weak: it wins 48% of first attempts, in the
-middle of the 0.35-0.65 band. What collapses the aggregate is that a loss is close to
-unrecoverable — one win in thirty-one on the retry. Buffing the blueprint would be
-treating the symptom; the question is whether losing a fight should strip parts
-permanently, and whether a node should be re-attemptable in that state at all.
+middle of the 0.35-0.65 band. What collapses the aggregate is the retry.
+
+How much of that is the stripping rule specifically, measured by re-running the same
+retries with the mech left pristine:
+
+```
+attempt 2, parts stripped: 1/31 =  3.2%
+attempt 2, parts kept:     5/31 = 16.1%
+```
+
+So stripping is worth about thirteen points, and is not the whole story. Two other
+things are mixed in and this method cannot separate them: the retry faces a
+*different* opponent (the harness cycles them, so attempt 2 is usually the elite),
+and the retry sample is by definition the seeds where attempt 1 was already lost,
+which selects for bad matchups.
+
+The honest summary is that a first fight is fair, a retry is not, and the permanent
+loss of parts is a real but partial cause. Buffing the blueprint would treat none of
+it.
 
 (The model lands at 33%, not the harness's 0.147, because it plays one node rather
 than whole runs. The mechanism is demonstrated; the exact figure is still the

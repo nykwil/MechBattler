@@ -90,3 +90,31 @@ console.log('  attempt 1 (pristine):', pct(first));
 console.log('  attempt 2 (after losses, parts gone):', pct(second));
 const blend = { w: first.w + second.w, n: first.n + second.n };
 console.log('  blended round-1 rate:', pct(blend));
+
+// --- What-if: how big is the retry lever? -----------------------------------
+// Same two-attempt policy, but the second attempt keeps its parts (repaired) rather
+// than losing the destroyed ones. Not a proposal -- a measurement of how much of the
+// collapse is the stripping rule, so the design question has a number attached.
+let keepSecond = { w: 0, n: 0 };
+for (let seed = 1; seed <= 60; seed += 1) {
+  const run = createRun({ seed, kitName: 'x', build });
+  const node = run.generatedNodes.find((x) => x.index === 1);
+  const opponents = node.opponents ?? [];
+  if (opponents.length === 0) continue;
+  const first = opponents[0];
+  const r1 = runBattle({
+    builds: [build, first.build],
+    seed: Number(first.battleSeed ?? seed) || seed,
+    spawnDistanceM: first.spawnDistanceM,
+  });
+  if (r1.winner === 0) continue;
+  const opp = opponents[1 % opponents.length];
+  const r2 = runBattle({
+    builds: [build, opp.build], // pristine: nothing stripped
+    seed: Number(opp.battleSeed ?? seed) || seed,
+    spawnDistanceM: opp.spawnDistanceM,
+  });
+  keepSecond.n += 1;
+  if (r2.winner === 0) keepSecond.w += 1;
+}
+console.log('  attempt 2 if parts were kept:', `${keepSecond.w}/${keepSecond.n} = ${(keepSecond.w / Math.max(1, keepSecond.n) * 100).toFixed(1)}%`);
