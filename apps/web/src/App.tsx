@@ -145,6 +145,12 @@ export default function App() {
     const b = run.data.benchPool[index];
     if (!b) return;
     setPendingBench({ index, partId: b.partId });
+    // Arming anything closes the sheet it was armed from, exactly as picking a
+    // catalog part closes the parts sheet. The bench lives in the readout sheet,
+    // which stayed open over the plate -- so the first tap aimed at the ghost hit
+    // the sheet's scrim and merely closed it, costing a tap and looking like the
+    // plate had stopped responding.
+    setReadoutOpen(false);
     selectPart(b.partId, {
       instanceId: b.id,
       integrity: b.integrity,
