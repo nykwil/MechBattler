@@ -211,6 +211,25 @@ Round 4 match win rate 0 is outside the target band
 No natural progression checkpoint reached round 7 / 10 / 12
 ```
 
+The band it is outside is `balanceTargetWinRateMin/Max` in
+`packages/game/src/content.ts`: **0.35 to 0.65**. So the game states an intent and
+misses it by more than half. A larger sample (`-- 8`, 68 round-1 matches) puts the
+rate at **0.147** — steady across sample sizes, so this is the real figure and not
+noise.
+
+The sample counts are the sharper number. Of those 68 round-1 attempts, **three**
+reached round 4, where they won none; rounds 7, 10 and 12 were never reached at all.
+The checkpoints exist at 1, 4, 7, 10 and 12, so four fifths of the ladder has never
+been played by the harness, let alone balanced.
+
+Two consequences worth separating. As a *design* question this is whether the
+starting blueprint is meant to be survivable, which is a call for whoever owns the
+balance targets. As an *engineering* question it is why the scrapyard, the machinist
+milestone and the victory path all went unverified for the whole port: everything
+past the first node sits behind a coin-flip weighted 6:1 against. That half is now
+solved regardless of the design answer — `npm run web:campaign` decides the fight by
+stripping the opponent's weapons, so those paths are reachable in three minutes.
+
 So roughly seven of eight first fights are losses, and the cohort includes
 `vulture-skirmisher` among its starters. Three losses from three is consistent with
 that, not evidence of a new bug.
