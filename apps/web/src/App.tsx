@@ -15,6 +15,7 @@ import { ELITE_PURSE_MULT } from './lib/ladder.js';
 import { BattleReportScreen } from './components/BattleReportScreen.js';
 import { BattleLiveScreen } from './components/BattleLiveScreen.js';
 import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
+import { resolveView } from './lib/views.js';
 import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
 import { ReadoutSheet } from './components/ReadoutSheet.js';
@@ -42,7 +43,11 @@ const REJECTION_COPY: Record<string, string> = {
 };
 
 export default function App() {
-  const directView = new URLSearchParams(window.location.search).get('view');
+  // ?view= routing, with the dev-only surfaces dropped outside development.
+  const directView = resolveView(
+    new URLSearchParams(window.location.search).get('view'),
+    import.meta.env.DEV,
+  );
   const [screen, setScreen] = useState<'title' | 'new-run' | 'profile' | 'workspace'>(
     directView === 'workshop' || directView === 'balance'
       || directView === 'battle' || directView === 'report'
