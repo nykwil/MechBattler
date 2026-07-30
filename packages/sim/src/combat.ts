@@ -127,6 +127,19 @@ export interface HitModel {
  * weapons only pay the tracking-lag share. Pure and exported so the workshop
  * can chart hit% curves and tests can pin the numbers.
  */
+/**
+ * The mean silhouette half-width of a chassis, in metres: what a shot has to land
+ * within to connect, before cover. Pose is unknown at planning time, so this is the
+ * average of the two footprint axes.
+ *
+ * Exported because the HUD needs the same figure to draw a shot's spread against
+ * the target it is measured against, and re-deriving chassis geometry in the UI is
+ * exactly the drift this codebase forbids.
+ */
+export function meanSilhouetteHalfWidthM(chassis: { width: number; height: number }): number {
+  return ((chassis.width + chassis.height) / 4) * CELL_SIZE_M;
+}
+
 export function computeHitModel(inputs: HitModelInputs): HitModel {
   const tofS = inputs.projectileSpeed === 'hitscan' ? 0 : inputs.rangeM / Math.max(inputs.projectileSpeed, 1);
   const aimStalenessS = inputs.lagS + tofS;
@@ -686,7 +699,7 @@ export function estimateExpectedDps(
   const coverMult = mods.targetCoverMult ?? 1;
   const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
-  const halfWidthM = ((target.chassis.width + target.chassis.height) / 4) * CELL_SIZE_M * coverMult *
+  const halfWidthM = meanSilhouetteHalfWidthM(target.chassis) * coverMult *
     target.profileMult(mods.targetTile ?? 'open');
   let dps = 0;
   for (const p of shooter.build.parts) {

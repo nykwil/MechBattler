@@ -326,3 +326,9 @@
   stroke-dasharray: 3 2;
   opacity: 0.5;
 }
+
+/* Shot spread at the target: +/- one and two sigma of lateral aim error, across
+   the line of sight. Two weights so the inner band reads as the likely one. */
+.playback-spread { pointer-events: none; }
+.playback-spread .spread-1s { stroke-width: 1.2; opacity: 0.75; }
+.playback-spread .spread-2s { stroke-width: 0.6; opacity: 0.35; stroke-dasharray: 2 2; }

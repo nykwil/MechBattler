@@ -2,6 +2,8 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
+  computeHitModel, meanSilhouetteHalfWidthM,
+  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
@@ -133,6 +135,66 @@ function WeaponCones({ frame, weapons, color }: {
           </g>
         );
       })}
+    </g>
+  );
+}
+
+/**
+ * A shot's spread, drawn where it lands. `computeHitModel` returns sigmaM -- the
+ * standard deviation of lateral aim error at the target, combining angular
+ * dispersion (which grows with range) with lead error (the target's crossing speed
+ * times how stale the aim is). Both bars are +/- one and two sigma across the line
+ * of sight, against the silhouette half-width the model scores hits on.
+ *
+ * The point is that the spread is a *measured* consequence of range, your own
+ * speed and the target's crossing -- not a fixed cone. Move faster and it widens.
+ */
+function ShotSpread({ view, frame, mech }: {
+  view: BattleView;
+  frame: BattleFrame;
+  mech: 0 | 1;
+}) {
+  const me = frame.mechs[mech];
+  const foe = frame.mechs[(1 - mech) as 0 | 1];
+  const gun = me.weapons.find((w) => w.status === 'ok' && w.gate === null);
+  if (!gun) return null;
+  const w = getPart(gun.partId).weapon;
+  if (!w) return null;
+
+  const rangeM = Math.hypot(foe.x - me.x, foe.y - me.y);
+  if (rangeM < 1) return null;
+  const idx = view.frames.indexOf(frame);
+  const prev = idx > 0 ? view.frames[idx - 1] : undefined;
+  const mySpeed = prev
+    ? Math.hypot(me.x - prev.mechs[mech].x, me.y - prev.mechs[mech].y) / TICK_S
+    : 0;
+  const lateral = prev ? crossingSpeedMps(prev.mechs[mech], me, foe, TICK_S) : 0;
+
+  const model = computeHitModel({
+    rangeM,
+    sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * mySpeed) * 0.001,
+    lateralSpeedMps: lateral,
+    lagS: TRACKING_LAG_BASE_S,
+    projectileSpeed: w.projectileSpeed,
+    targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[(1 - mech) as 0 | 1].chassisId)),
+  });
+
+  // Perpendicular to the line of sight: the axis the error is measured on.
+  const px = -(foe.y - me.y) / rangeM;
+  const py = (foe.x - me.x) / rangeM;
+  const bar = (n: number, cls: string) => (
+    <line
+      key={cls}
+      x1={foe.x - px * model.sigmaM * n} y1={foe.y - py * model.sigmaM * n}
+      x2={foe.x + px * model.sigmaM * n} y2={foe.y + py * model.sigmaM * n}
+      className={cls}
+      stroke={MECH_COLORS[mech]}
+    />
+  );
+  return (
+    <g className="playback-spread" aria-hidden="true">
+      {bar(2, 'spread-2s')}
+      {bar(1, 'spread-1s')}
     </g>
   );
 }
@@ -607,6 +669,10 @@ export function BattleScene({
             color={MECH_COLORS[i]}
           />
         ))}
+        {/* Your spread only: the enemy's would double the marks on the same target
+            and this is about reading your own gunnery. */}
+        <ShotSpread view={view} frame={frame} mech={0} />
+
         {([0, 1] as const).map((i) => (
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={view.mechs[i].chassisId} color={MECH_COLORS[i]} />
         ))}
