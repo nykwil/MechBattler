@@ -306,9 +306,14 @@ half an hour of retries. Driving it is what found the bug that mattered: fightin
 from the intel sheet — the mobile path — settled nothing at all, so a win gave no
 purse, no salvage and no node.
 
-**Still not driven: the core-kill loss.** Losing ends the run, and that branch fires
-— observed once, `status: over`, cause "Core destroyed by Copper Vulture Sniper".
-But it cannot be forced. Five further attempts with a mech stripped to guns and a
+**Now driven: the core-kill loss.** Rather than hope for one, search for it: the
+sim is deterministic, so a seed that produces a core-kill can be found and that
+opponent injected into a live run. Seed 1's first node-1 opponent does it in 13.2 s.
+Driven end to end — `status: over`, cause "Core destroyed by Ashen Widow Orbiter",
+and the memorial shown on the run tab, which was the one line that had never been
+observed in a browser.
+
+The original difficulty, kept because the reasoning holds for any rare outcome: Five further attempts with a mech stripped to guns and a
 reactor all ended in mission-kill or judges instead, which keep the node. The
 `settleRunFight` unit tests cover the decision; what is unverified in a browser is
 only the wiring that shows the memorial when the run ends that way.

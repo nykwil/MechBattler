@@ -367,7 +367,10 @@ export function BattleScene({
       const progress = (tSec - e.tSec) / flightS;
       if (progress < 0 || progress > 1) continue;
       live.push({
-        key: `${e.tSec}:${e.instanceId}`,
+        // The mech index belongs in the key: instance ids are unique within a
+        // build, not across the two in a battle, so two rounds leaving different
+        // mechs on the same tick could collide and React would drop one.
+        key: `${e.mech}:${e.tSec}:${e.instanceId}`,
         x: from.x + (to.x - from.x) * progress,
         y: from.y + (to.y - from.y) * progress,
         mech: e.mech,
