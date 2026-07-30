@@ -117,8 +117,13 @@ found by diffing against the prototype's *source*, or by driving the app.
 | Enemy name in `--signal-red` | 4.38 rendered, under AA, using a token §4 marks UI-only | rendered-contrast measurement |
 | Unfilled threat marks in `--line-bright` | 1.87, under even the 3:1 graphical threshold | rendered-contrast measurement |
 | Three copies of the occupancy map | UI owning logic the sim exports | reviewing the diff |
+| Handle repurposed as a snap cycler | The prototype's `id="s-close"` was the *only* close control; cycling it left peek and half with no way out | user report |
+| Scrim rendered only at `full` | Nothing to tap outside a peek or half sheet — Parts, Next match and details could all strand you | user report |
+| Placing did not disarm | The prototype's `place()` ends `S.armed = null`; a live ghost stayed on the plate and the next tap re-aimed a copy, so placing read as *copying* | user report |
+| "Placed" toast inferred from part count | A count cannot tell a move from a new fitting, so every move claimed a placement | driving detach-then-place |
+| `cbar-k`/`cbar-v`/`con-foot` at 9px | Core, evade and mass — the numbers the fight is read from — under the 11px floor, legend truncated mid-word | driving the battle screen |
 
-**My own tooling produced six false positives**, each of which nearly had me "fix"
+**My own tooling produced nine false positives**, each of which nearly had me "fix"
 working code:
 
 - a 390px PNG cropped from a 500px layout, read as clipping;
@@ -127,7 +132,15 @@ working code:
 - `--tapText` matching a shorter unrelated element (tapping *Widow* hit "Junkyard
   Widow", which looked like a chassis-selection bug);
 - a scroll race making a tap silently miss, which looked like an invisible ghost;
-- an accessible-name scan not excluding `aria-hidden` subtrees.
+- an accessible-name scan not excluding `aria-hidden` subtrees;
+- a Chrome profile shared by port number, so a stale mid-run state rendered over the
+  workshop and was read as a layout bug, and a carried-over starter build made a
+  "placed four cells" assertion read fourteen. Fixed: a fresh profile per run,
+  removed on exit;
+- `--tapText 'POWER'` matching nothing, because the label is uppercased by CSS and
+  the DOM text is `Power` — which looked like dead tabs;
+- clicking the centre of a full-snap scrim, which lands on the sheet in front of it
+  (`elementFromPoint` returned `foe-head`) — read as a sheet that would not close.
 
 Two rules come out of that. Measure before believing a screenshot — and sanity-check
 each instrument before treating its output as evidence about the app. Every tool here
