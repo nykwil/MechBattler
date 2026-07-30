@@ -7,7 +7,7 @@
 
 .arena-card {
   text-align: left;
-  padding: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-2);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
@@ -58,7 +58,7 @@
   color: var(--signal-amber);
   border: 1px dashed var(--signal-amber-dim);
   border-radius: var(--radius-md);
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
   margin-bottom: var(--space-2);
 }
 
@@ -90,7 +90,7 @@
 .fight-btn.watch {
   min-height: var(--tap-min);
   flex: 0 0 auto;
-  padding-inline: 14px;
+  padding-inline: var(--space-3);
   background: var(--bg-panel-raised);
   border-color: var(--line-bright);
   color: var(--ink-secondary);

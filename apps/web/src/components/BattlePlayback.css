@@ -30,7 +30,7 @@
 
 .hud-chip {
   flex: none;
-  padding: 2px 7px;
+  padding: 2px var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: 3px;
   color: var(--ink-faint);
@@ -49,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 10px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid;
   border-radius: var(--radius-md);
   background: var(--bg-inset);
@@ -227,7 +227,7 @@
 .playback-btn {
   flex: none;
   min-width: 40px;
-  padding: 5px 8px;
+  padding: var(--space-1) var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   background: var(--bg-panel-raised);
@@ -252,7 +252,7 @@
   flex-direction: column;
   gap: 2px;
   min-height: 102px;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   background: var(--bg-inset);

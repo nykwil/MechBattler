@@ -7,7 +7,7 @@
   align-items: center;
   justify-content: center;
   z-index: 100;
-  padding: 24px;
+  padding: var(--space-5);
 }
 
 .report-panel {
@@ -17,14 +17,14 @@
   background: var(--bg-panel);
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-md);
-  padding: 18px;
+  padding: var(--space-4);
 }
 
 .report-banner {
   text-align: center;
-  padding: 14px 10px;
+  padding: var(--space-3) var(--space-2);
   border-radius: var(--radius-md);
-  margin-bottom: 14px;
+  margin-bottom: var(--space-3);
   border: 1px solid var(--line-hairline);
 }
 .report-banner.won { border-color: var(--signal-green); background: rgba(111, 168, 90, 0.08); }
@@ -46,7 +46,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-secondary);
-  margin-top: 4px;
+  margin-top: var(--space-1);
   text-transform: uppercase;
   letter-spacing: 0.06em;
 }
@@ -55,21 +55,21 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 .report-mech {
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .report-mech-name {
   font-family: var(--font-display);
   font-size: var(--text-sm);
   letter-spacing: 0.08em;
   color: var(--ink-primary);
-  margin-bottom: 6px;
+  margin-bottom: var(--space-1);
 }
 .report-stat-row {
   display: flex;
@@ -85,7 +85,7 @@
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 10px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .report-damage-row {
   display: flex;
@@ -108,7 +108,7 @@
   background: var(--bg-inset);
   max-height: 220px;
   overflow-y: auto;
-  padding: 8px 10px;
+  padding: var(--space-2) var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
 }
@@ -126,18 +126,18 @@
   color: var(--ink-primary);
   font-weight: 600;
   border-top: 1px solid var(--line-hairline);
-  margin-top: 4px;
-  padding-top: 5px;
+  margin-top: var(--space-1);
+  padding-top: var(--space-1);
 }
 
 .report-actions {
   display: flex;
   gap: 10px;
-  margin-top: 14px;
+  margin-top: var(--space-3);
 }
 .report-btn {
   flex: 1;
-  padding: 11px;
+  padding: var(--space-3);
   background: var(--bg-panel-raised);
   border: 1px solid var(--line-bright);
   color: var(--ink-primary);
@@ -160,10 +160,10 @@
 .report-tabs {
   display: flex;
   gap: 6px;
-  margin: 12px 0;
+  margin: var(--space-3) 0;
 }
 .report-tab {
-  padding: 5px 14px;
+  padding: var(--space-1) var(--space-3);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   background: var(--bg-panel-raised);

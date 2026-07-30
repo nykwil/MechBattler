@@ -2,7 +2,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  padding: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-2);
   border: 1px dashed var(--line-hairline);
   border-radius: var(--radius-md);
 }
@@ -10,18 +10,18 @@
   display: grid;
   grid-template-columns: 1fr auto;
   gap: 7px;
-  margin: 8px 0;
+  margin: var(--space-2) 0;
 }
 .run-save-mech input {
   min-width: 0;
-  padding: var(--space-2) 9px;
+  padding: var(--space-2) var(--space-2);
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
 .run-save-mech button {
   min-height: var(--tap-min);
-  padding: var(--space-2) 10px;
+  padding: var(--space-2) var(--space-2);
   color: var(--ink-primary);
   background: transparent;
   border: 1px solid var(--line-bright);
@@ -59,7 +59,7 @@
 .run-bench {
   margin-top: var(--space-3);
   border-top: 1px solid var(--line-hairline);
-  padding-top: 8px;
+  padding-top: var(--space-2);
 }
 .run-bench-title {
   font-family: var(--font-mono);
@@ -87,7 +87,7 @@
   color: var(--ink-faint);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
-  padding: 1px 8px;
+  padding: 1px var(--space-2);
   cursor: pointer;
 }
 @media (hover: hover) {
@@ -96,7 +96,7 @@
 
 .run-memorial {
   text-align: center;
-  padding: var(--space-4) 12px;
+  padding: var(--space-4) var(--space-3);
   border: 1px solid var(--signal-red);
   border-radius: var(--radius-md);
   margin-bottom: var(--space-2);
@@ -124,14 +124,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  margin-top: 6px;
+  margin-top: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
 }
 .arena-preview { border-radius: 3px; flex-shrink: 0; }
 .arena-card-warning {
-  margin-top: 5px;
+  margin-top: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--signal-amber);
@@ -143,8 +143,8 @@
 .run-target-select {
   min-height: var(--tap-min);
   width: 100%;
-  margin-top: 5px;
-  padding: 7px 9px;
+  margin-top: var(--space-1);
+  padding: var(--space-2) var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   background: var(--surface-raised);
@@ -163,8 +163,8 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  margin: 7px 0 10px;
-  padding: 6px 8px;
+  margin: var(--space-2) 0 var(--space-2);
+  padding: var(--space-1) var(--space-2);
   border: 1px solid color-mix(in srgb, var(--signal-green) 35%, var(--line-hairline));
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--signal-green) 5%, transparent);
@@ -174,7 +174,7 @@
 }
 
 .arena-card-carries {
-  margin-top: 5px;
+  margin-top: var(--space-1);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--signal-amber);

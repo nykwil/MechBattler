@@ -7,7 +7,7 @@
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 9px 10px;
+  padding: var(--space-2) var(--space-2);
 }
 .stat-card.wide { grid-column: 1 / -1; }
 .stat-label {
@@ -38,7 +38,7 @@
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  margin-bottom: 6px;
+  margin-bottom: var(--space-1);
 }
 .meter-value {
   font-family: var(--font-mono);
@@ -100,7 +100,7 @@
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  margin-top: 6px;
+  margin-top: var(--space-1);
   overflow: hidden;
 }
 .range-band-fill {

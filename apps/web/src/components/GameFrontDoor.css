@@ -108,7 +108,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
-  margin-top: 18px;
+  margin-top: var(--space-4);
 }
 .front-modes button, .front-back {
   min-height: var(--tap-min);
@@ -146,7 +146,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 18px;
+  padding: var(--space-4);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
@@ -165,15 +165,15 @@
   display: flex;
   align-items: stretch;
   gap: 8px;
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .garage-actions .front-primary {
   flex: 1;
   justify-content: center;
-  padding: 9px 12px;
+  padding: var(--space-2) var(--space-3);
 }
 .garage-delete {
-  padding: 9px 10px;
+  padding: var(--space-2) var(--space-2);
   color: var(--ink-faint);
   background: transparent;
   border: 1px solid var(--line-hairline);
@@ -198,15 +198,15 @@
 .garage-create select {
   min-height: var(--tap-min);
   min-width: 0;
-  padding: 11px 12px;
+  padding: var(--space-3) var(--space-3);
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
-.garage-create .front-secondary { padding: 11px 16px; }
+.garage-create .front-secondary { padding: var(--space-3) var(--space-4); }
 .starter-card, .challenge-card {
   min-height: 170px;
-  padding: 18px;
+  padding: var(--space-4);
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
@@ -236,7 +236,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 30px 0 14px;
+  margin: var(--space-6) 0 var(--space-3);
   color: var(--ink-faint);
   font-size: var(--text-2xs);
   font-family: var(--font-mono)
@@ -257,7 +257,7 @@
   min-height: var(--tap-min);
   display: grid;
   gap: 5px;
-  padding: 14px;
+  padding: var(--space-3);
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
@@ -265,11 +265,11 @@
 .profile-summary {
   display: flex;
   gap: 10px;
-  margin: 22px 0;
+  margin: var(--space-5) 0;
 }
 .profile-summary span {
   flex: 1;
-  padding: 12px;
+  padding: var(--space-3);
   background: var(--bg-inset);
   color: var(--ink-secondary);
   font-size: var(--text-2xs);
@@ -278,7 +278,7 @@
 .profile-summary strong { color: var(--signal-amber); font-size: var(--text-lg); }
 .challenge-grid { grid-template-columns: repeat(2, 1fr); }
 .challenge-card.complete { border-color: var(--signal-green); }
-.challenge-card p { color: var(--ink-secondary); margin: 8px 0 14px; }
+.challenge-card p { color: var(--ink-secondary); margin: var(--space-2) 0 var(--space-3); }
 
 @media (max-width: 760px) {
   .front-card { padding: 28px 20px; }

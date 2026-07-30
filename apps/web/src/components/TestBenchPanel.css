@@ -41,7 +41,7 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
-  margin: 10px 0 4px;
+  margin: var(--space-2) 0 var(--space-1);
 }
 
 .event-log {
@@ -52,7 +52,7 @@
   overflow-y: auto;
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 .event-log .event-row { padding: 1px 0; }
 .event-log .event-row.bad { color: var(--signal-red-text); }
@@ -70,7 +70,7 @@
 .sandbox {
   margin-top: var(--space-3);
   border-top: 1px solid var(--line-hairline);
-  padding-top: 10px;
+  padding-top: var(--space-2);
 }
 .sandbox-toggle {
   width: 100%;
@@ -82,7 +82,7 @@
   font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  padding: 2px 0 8px;
+  padding: 2px 0 var(--space-2);
   cursor: pointer;
 }
 @media (hover: hover) {
@@ -138,7 +138,7 @@
   font-size: var(--text-2xs);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
-  padding: 6px 8px;
+  padding: var(--space-1) var(--space-2);
 }
 .sandbox-row {
   display: flex;
@@ -157,7 +157,7 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  padding: 1px 0 1px 8px;
+  padding: 1px 0 1px var(--space-2);
 }
 .sandbox-uptime-name { color: var(--ink-faint); width: 64px; flex: none; font-size: var(--text-2xs); }
 .sandbox-uptime-bar {
