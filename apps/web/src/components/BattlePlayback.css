@@ -150,18 +150,9 @@
   height: 100%;
   transition: width 0.1s linear;
 }
-.hud-gauge-fill.heat { background: var(--signal-amber); }
-.hud-gauge-fill.heat-hot { background: var(--signal-red); }
 .hud-gauge-fill.cap { background: var(--signal-blue); }
 .hud-gauge-fill.pwr { background: var(--signal-blue); }
 .hud-gauge-fill.pwr-over { background: var(--signal-red); }
-.hud-gauge-mark {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: rgba(255, 255, 255, 0.4);
-}
 .hud-gauge-text {
   flex: none;
   width: 64px;

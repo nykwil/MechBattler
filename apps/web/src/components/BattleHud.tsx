@@ -291,12 +291,16 @@ function HeatColumn({ view, tSec, tempC }: { view: BattleView; tSec: number; tem
   );
 }
 
+/**
+ * A horizontal bar for capacitor charge and power draw. Heat used to be one of
+ * these, with `marks` drawing its hold and shutdown lines; it is a column now
+ * (HeatColumn), and nothing else marked a threshold, so the prop went with it.
+ */
 function Gauge({
-  label, frac, marks, cls, text,
+  label, frac, cls, text,
 }: {
   label: string;
   frac: number;
-  marks?: number[];
   cls: string;
   text: string;
 }) {
@@ -305,7 +309,6 @@ function Gauge({
       <span className="hud-gauge-label">{label}</span>
       <span className="hud-gauge-track">
         <span className={`hud-gauge-fill ${cls}`} style={{ width: `${Math.min(100, Math.max(0, frac * 100))}%` }} />
-        {marks?.map((m) => <span key={m} className="hud-gauge-mark" style={{ left: `${m * 100}%` }} />)}
       </span>
       <span className="hud-gauge-text">{text}</span>
     </div>
