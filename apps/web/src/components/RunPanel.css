@@ -51,6 +51,13 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   cursor: pointer;
+  /* It rendered 63x16 on a phone: the most destructive control in the run, at a
+     third of the --tap-min floor, sitting beside the readout tabs. The negative
+     margin keeps the row's height where it was, so the target grows without the
+     layout moving. */
+  min-height: var(--tap-min);
+  padding-inline: var(--space-2);
+  margin-block: calc((var(--tap-min) - 1.4em) / -2);
 }
 @media (hover: hover) {
   .run-abandon:hover { color: var(--signal-red-text); }
