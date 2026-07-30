@@ -1,11 +1,11 @@
 import {
   CELL_SIZE_M, TICK_S,
   computeHitModel, falloffAt, getChassis, getPart, meanSilhouetteHalfWidthM,
-  MOVE_JITTER_MRAD_PER_MPS, SPEED_SETTING_FRACTIONS, TRACKING_LAG_BASE_S,
-  type BattleFrame,
+  MOVE_JITTER_MRAD_PER_MPS, SPEED_SETTING_FRACTIONS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
+  type BattleFrame, type Build,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
-import { frameIndexAt, type BattleView } from './BattleHud.js';
+import { frameIndexAt, hasPoweredTcAt, type BattleView } from './BattleHud.js';
 import './BattleDiagnostics.css';
 
 /**
@@ -22,10 +22,11 @@ import './BattleDiagnostics.css';
  * cannot disagree with the thing it is measuring, which is the only reason to have
  * it.
  */
-export function BattleDiagnostics({ view, frame, tSec }: {
+export function BattleDiagnostics({ view, frame, tSec, build }: {
   view: BattleView;
   frame: BattleFrame;
   tSec: number;
+  build?: Build;
 }) {
   const me = frame.mechs[0];
   const foe = frame.mechs[1];
@@ -65,13 +66,15 @@ export function BattleDiagnostics({ view, frame, tSec }: {
   const w = def?.weapon;
   const rangeM = Math.hypot(foe.x - me.x, foe.y - me.y);
   const lateral = prev ? crossingSpeedMps(prev.mechs[0], me, foe, TICK_S) : 0;
+  const tc = hasPoweredTcAt(view, build, tSec, 0);
+  const lagS = tc ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
   const sigmaRad = w ? (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * speed) * 0.001 : 0;
   const model = w
     ? computeHitModel({
       rangeM,
       sigmaRad,
       lateralSpeedMps: lateral,
-      lagS: TRACKING_LAG_BASE_S,
+      lagS,
       projectileSpeed: w.projectileSpeed,
       targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId)),
     })
@@ -132,7 +135,7 @@ export function BattleDiagnostics({ view, frame, tSec }: {
             {row('your speed → jitter', `${speed.toFixed(2)} → +${(MOVE_JITTER_MRAD_PER_MPS * speed).toFixed(2)} mrad`)}
             {row('total dispersion', `${(sigmaRad * 1000).toFixed(2)} mrad → ${dispersionM.toFixed(2)} m`)}
             {row('target crossing', `${lateral.toFixed(2)} m/s`)}
-            {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s`)}
+            {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s${tc ? ' (TC)' : ''}`)}
             {row('lead error', `${leadErrorM.toFixed(2)} m`, leadErrorM > dispersionM ? 'bad' : '')}
             {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId)).toFixed(2)} m`)}
             {row('damage at range', `×${falloffAt(def!, rangeM).toFixed(2)}`, falloffAt(def!, rangeM) < 0.6 ? 'warn' : '')}

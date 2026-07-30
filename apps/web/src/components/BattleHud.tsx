@@ -3,7 +3,7 @@ import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
   computeHitModel, meanSilhouetteHalfWidthM,
-  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S,
+  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
@@ -59,6 +59,28 @@ const HEAT_MAX_C = HEAT_DAMAGE_C;
  * object identity, so a rebuilt frame array would silently return -1 and report a
  * standing mech as moving at zero.
  */
+/**
+ * Whether a powered targeting computer is on the mech at this moment, which is what
+ * decides fire-control lag: TRACKING_LAG_TC_S rather than the base 0.3 s.
+ *
+ * The sim requires the part to be fitted, functional, and neither shed nor shut
+ * down. Only the first is visible from a build, so the rest is replayed from the
+ * event stream up to tSec, the way DamageGrid derives destroyed parts. Assuming the
+ * base lag instead would make the spread and the diagnostics disagree with the
+ * model they report on, precisely on the builds fitted to change it.
+ */
+export function hasPoweredTcAt(view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1): boolean {
+  const fitted = build?.parts.filter((p) => p.partId === 'U-TC1') ?? [];
+  if (fitted.length === 0) return false;
+  const down = new Set<string>();
+  for (const e of view.events) {
+    if (e.tSec > tSec) break;
+    if (e.type === 'part-destroyed' && e.mech === mech) down.add(e.instanceId);
+    if ((e.type === 'shed' || e.type === 'shutdown') && e.mech === mech) down.add(e.instanceId);
+  }
+  return fitted.some((p) => !down.has(p.instanceId));
+}
+
 export function frameIndexAt(view: BattleView, tSec: number): number {
   return Math.min(view.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
 }
@@ -160,11 +182,12 @@ function WeaponCones({ frame, weapons, color }: {
  * The point is that the spread is a *measured* consequence of range, your own
  * speed and the target's crossing -- not a fixed cone. Move faster and it widens.
  */
-function ShotSpread({ view, frame, tSec, mech }: {
+function ShotSpread({ view, frame, tSec, mech, build }: {
   view: BattleView;
   frame: BattleFrame;
   tSec: number;
   mech: 0 | 1;
+  build?: Build;
 }) {
   const me = frame.mechs[mech];
   const foe = frame.mechs[(1 - mech) as 0 | 1];
@@ -186,7 +209,7 @@ function ShotSpread({ view, frame, tSec, mech }: {
     rangeM,
     sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * mySpeed) * 0.001,
     lateralSpeedMps: lateral,
-    lagS: TRACKING_LAG_BASE_S,
+    lagS: hasPoweredTcAt(view, build, tSec, mech) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S,
     projectileSpeed: w.projectileSpeed,
     targetHalfWidthM: meanSilhouetteHalfWidthM(getChassis(view.mechs[(1 - mech) as 0 | 1].chassisId)),
   });
@@ -685,7 +708,7 @@ export function BattleScene({
         ))}
         {/* Your spread only: the enemy's would double the marks on the same target
             and this is about reading your own gunnery. */}
-        <ShotSpread view={view} frame={frame} tSec={tSec} mech={0} />
+        <ShotSpread view={view} frame={frame} tSec={tSec} mech={0} build={yourBuild} />
 
         {([0, 1] as const).map((i) => (
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={view.mechs[i].chassisId} color={MECH_COLORS[i]} />
@@ -699,7 +722,7 @@ export function BattleScene({
       {hoveredWeapon && (
         <p className="con-foot hover-only">{weaponBlurb(getPart(hoveredWeapon))}</p>
       )}
-      {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} />}
+      {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} build={yourBuild} />}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />
       </div>
