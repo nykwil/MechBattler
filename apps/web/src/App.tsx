@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { autoWire, buildTierBudget, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild } from './state/useBuild.js';
-import { PartPalette } from './components/PartPalette.js';
 import { GridEditor } from './components/GridEditor.js';
 import { StatsPanel } from './components/StatsPanel.js';
 import { PowerPriorityList } from './components/PowerPriorityList.js';
@@ -25,6 +24,8 @@ import type { FightMode } from './components/ArenaPanel.js';
 import { BalanceLab } from './components/BalanceLab.js';
 import { ReadoutBar } from './components/ReadoutBar.js';
 import { ReadoutSheet } from './components/ReadoutSheet.js';
+import { PartsSheet } from './components/PartsSheet.js';
+import { useDocked } from './state/useDocked.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
 import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
@@ -48,6 +49,8 @@ export default function App() {
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
   const [hoveredPartId, setHoveredPartId] = useState<string | null>(null);
   const [readoutOpen, setReadoutOpen] = useState(false);
+  const [partsOpen, setPartsOpen] = useState(false);
+  const docked = useDocked();
   const [flashIds, setFlashIds] = useState<Set<string>>(() => new Set());
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
@@ -326,6 +329,119 @@ export default function App() {
   }, [rotate, selectPart, selectInstance, detach, nudge, placeWithEconomy, state.selectedPartId,
       state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
 
+
+  // docs/14 §11: built once, rendered by whichever container is showing -- the
+  // docked right rail or the mobile readout sheet. Sharing the nodes is what
+  // keeps this one version rather than two.
+  const inspectorNode = state.selectedInstanceId ? (
+    <div className="section">
+      <PartInspector
+        parts={state.parts}
+        selectedInstanceId={state.selectedInstanceId}
+        onDetach={detach}
+        onDeselect={() => selectInstance(null)}
+        runOps={runOps}
+      />
+    </div>
+  ) : null;
+
+  const runNode = (
+    <RunPanel
+                  run={run}
+                  build={build}
+                  onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
+                  onAbandon={() => {
+                    if (!window.confirm('Abandon this run? Its mech, bench, and scrap will be lost.')) return;
+                    abandon();
+                    setEditingSavedMechId(null);
+                    setScreen('title');
+                  }}
+                  onNewRun={() => { abandon(); setEditingSavedMechId(null); setScreen('new-run'); }}
+                  onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
+                  onFitBench={fitBench}
+                  fittingBenchIndex={pendingBench?.index ?? null}
+                  onBuyOffer={(o) => {
+                    if (o.price > runScrap || benchUsed >= BENCH_CAP) return;
+                    addScrap(-o.price);
+                    addBench({
+                      id: `yard-${run.phase === 'active' ? run.data.seed : 0}-${run.phase === 'active' ? run.data.nodeIndex : 0}-${o.partId}-${run.phase === 'active' ? run.data.benchPool.length : 0}`,
+                      partId: o.partId,
+                      integrity: o.integrity,
+                      provenance: {
+                        source: 'scrapyard',
+                        nodeIndex: run.phase === 'active' ? run.data.nodeIndex : undefined,
+                      },
+                    });
+                  }}
+                  onRerollYard={rerollYard}
+                  onSkipNode={() => { setPendingBench(null); skipNode(); }}
+                  onRepairBench={repairBench}
+                  onRepairAll={() => {
+                    if (run.phase !== 'active') return;
+                    const damagedInstalled = state.parts.filter((part) => part.integrity < 1);
+                    const installedCost = damagedInstalled.reduce(
+                      (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
+                      0,
+                    );
+                    const damagedBench = run.data.benchPool
+                      .map((part, index) => ({ part, index }))
+                      .filter(({ part }) => part.integrity < 1);
+                    const benchCost = damagedBench.reduce(
+                      (total, { part }) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
+                      0,
+                    );
+                    if (installedCost + benchCost > run.data.scrap) return;
+                    if (installedCost > 0) addScrap(-installedCost);
+                    for (const part of damagedInstalled) setIntegrity(part.instanceId, 1);
+                    for (const { index } of damagedBench) repairBench(index, 1);
+                  }}
+                  modTargets={[
+                    ...state.parts.map((part) => ({
+                      id: `installed:${part.instanceId}`,
+                      partId: part.partId,
+                      label: `Installed · ${getPart(part.partId).name}`,
+                      modifiers: part.modifiers,
+                    })),
+                    ...(run.phase === 'active' ? run.data.benchPool.map((part, index) => ({
+                      id: `bench:${index}`,
+                      partId: part.partId,
+                      label: `Bench · ${getPart(part.partId).name} (${Math.round(part.integrity * 100)}%)`,
+                      modifiers: part.modifiers,
+                    })) : []),
+                  ]}
+                  onApplyMilestoneMod={(targetId, modId) => {
+                    if (runScrap < MACHINIST_MOD_COST) return;
+                    addScrap(-MACHINIST_MOD_COST);
+                    if (targetId.startsWith('installed:')) {
+                      applyModifier(targetId.slice('installed:'.length), modId);
+                    } else if (targetId.startsWith('bench:')) {
+                      applyBenchModifier(Number(targetId.slice('bench:'.length)), modId);
+                    }
+                    markMilestoneMod();
+                    clearModService();
+                  }}
+                  onSkipModService={clearModService}
+                  onLaunch={launch}
+                  editingSavedMechId={editingSavedMechId}
+                  onSaveMech={(name) => {
+                    const saved = saveMech(name, build, editingSavedMechId ?? undefined);
+                    setEditingSavedMechId(saved.id);
+                    renamePrep(saved.name);
+                  }}
+                />
+  );
+
+  const arenaNode = run.phase === 'none' ? (
+    <div className="section">
+      <ArenaPanel build={build} onFight={(o, m) => { runFightRef.current = false; fight(o, m); }} />
+    </div>
+  ) : null;
+
+  const mobileTabs = docked ? [] : [
+    ...(inspectorNode ? [{ id: 'inspect', label: 'inspect', node: inspectorNode }] : []),
+    { id: 'run', label: 'run', node: <>{runNode}{arenaNode}</> },
+  ];
+
   if (screen === 'title') {
     return (
       <TitleScreen
@@ -395,17 +511,23 @@ export default function App() {
       </header>
 
       {workspace === 'balance' ? <BalanceLab /> : <div className="layout">
-        <div className="panel">
-          <PartPalette
-            selectedPartId={state.selectedPartId}
-            onSelect={selectPalettePart}
-            onHover={setHoveredPartId}
-            visiblePartIds={palettePartIds}
-            ownedCounts={ownedPartCounts}
-            readOnly={runActive}
-            label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
-          />
-        </div>
+        {/* docs/14 §11: a sheet on a phone, the left rail once docked. */}
+        <PartsSheet
+          open={partsOpen}
+          onClose={() => setPartsOpen(false)}
+          docked={docked}
+          selectedPartId={state.selectedPartId}
+          onSelect={(id) => {
+            selectPalettePart(id);
+            // Arming from a sheet hands the plate back so the ghost is visible.
+            if (id && !docked) setPartsOpen(false);
+          }}
+          onHover={setHoveredPartId}
+          visiblePartIds={palettePartIds}
+          ownedCounts={ownedPartCounts}
+          readOnly={runActive}
+          label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
+        />
 
         <div className="centerpane">
           <GridEditor
@@ -433,6 +555,12 @@ export default function App() {
           {/* docs/14 §8: persistent readout, and the sheet it opens. Hidden above
               768px for now -- the right rail already carries these numbers, and
               §11 is what docks the two together. */}
+          {!docked && (
+            <button type="button" className="plate-btn open-parts" onClick={() => setPartsOpen(true)}>
+              Open Parts
+            </button>
+          )}
+
           <ReadoutBar
             massT={readoutStats.massT}
             ratedMassT={chassis.ratedMassT}
@@ -443,23 +571,13 @@ export default function App() {
           />
         </div>
 
-        <div className="panel">
+        {docked && <div className="panel">
           {issues.length > 0 && (
             <div className="section">
               <BuildWarnings issues={issues} />
             </div>
           )}
-          {state.selectedInstanceId && (
-            <div className="section">
-              <PartInspector
-                parts={state.parts}
-                selectedInstanceId={state.selectedInstanceId}
-                onDetach={detach}
-                onDeselect={() => selectInstance(null)}
-                runOps={runOps}
-              />
-            </div>
-          )}
+          {inspectorNode && <div className="section">{inspectorNode}</div>}
           <div className="section">
             <StatsPanel chassis={chassis} build={build} hoveredPartId={hoveredPartId} />
           </div>
@@ -469,97 +587,9 @@ export default function App() {
           <div className="section">
             <TestBenchPanel chassis={chassis} build={build} onResult={setBenchResult} />
           </div>
-          <div className="section">
-            <RunPanel
-              run={run}
-              build={build}
-              onFight={(o, m) => { runFightRef.current = true; fight(o, m); }}
-              onAbandon={() => {
-                if (!window.confirm('Abandon this run? Its mech, bench, and scrap will be lost.')) return;
-                abandon();
-                setEditingSavedMechId(null);
-                setScreen('title');
-              }}
-              onNewRun={() => { abandon(); setEditingSavedMechId(null); setScreen('new-run'); }}
-              onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
-              onFitBench={fitBench}
-              fittingBenchIndex={pendingBench?.index ?? null}
-              onBuyOffer={(o) => {
-                if (o.price > runScrap || benchUsed >= BENCH_CAP) return;
-                addScrap(-o.price);
-                addBench({
-                  id: `yard-${run.phase === 'active' ? run.data.seed : 0}-${run.phase === 'active' ? run.data.nodeIndex : 0}-${o.partId}-${run.phase === 'active' ? run.data.benchPool.length : 0}`,
-                  partId: o.partId,
-                  integrity: o.integrity,
-                  provenance: {
-                    source: 'scrapyard',
-                    nodeIndex: run.phase === 'active' ? run.data.nodeIndex : undefined,
-                  },
-                });
-              }}
-              onRerollYard={rerollYard}
-              onSkipNode={() => { setPendingBench(null); skipNode(); }}
-              onRepairBench={repairBench}
-              onRepairAll={() => {
-                if (run.phase !== 'active') return;
-                const damagedInstalled = state.parts.filter((part) => part.integrity < 1);
-                const installedCost = damagedInstalled.reduce(
-                  (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
-                  0,
-                );
-                const damagedBench = run.data.benchPool
-                  .map((part, index) => ({ part, index }))
-                  .filter(({ part }) => part.integrity < 1);
-                const benchCost = damagedBench.reduce(
-                  (total, { part }) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
-                  0,
-                );
-                if (installedCost + benchCost > run.data.scrap) return;
-                if (installedCost > 0) addScrap(-installedCost);
-                for (const part of damagedInstalled) setIntegrity(part.instanceId, 1);
-                for (const { index } of damagedBench) repairBench(index, 1);
-              }}
-              modTargets={[
-                ...state.parts.map((part) => ({
-                  id: `installed:${part.instanceId}`,
-                  partId: part.partId,
-                  label: `Installed · ${getPart(part.partId).name}`,
-                  modifiers: part.modifiers,
-                })),
-                ...(run.phase === 'active' ? run.data.benchPool.map((part, index) => ({
-                  id: `bench:${index}`,
-                  partId: part.partId,
-                  label: `Bench · ${getPart(part.partId).name} (${Math.round(part.integrity * 100)}%)`,
-                  modifiers: part.modifiers,
-                })) : []),
-              ]}
-              onApplyMilestoneMod={(targetId, modId) => {
-                if (runScrap < MACHINIST_MOD_COST) return;
-                addScrap(-MACHINIST_MOD_COST);
-                if (targetId.startsWith('installed:')) {
-                  applyModifier(targetId.slice('installed:'.length), modId);
-                } else if (targetId.startsWith('bench:')) {
-                  applyBenchModifier(Number(targetId.slice('bench:'.length)), modId);
-                }
-                markMilestoneMod();
-                clearModService();
-              }}
-              onSkipModService={clearModService}
-              onLaunch={launch}
-              editingSavedMechId={editingSavedMechId}
-              onSaveMech={(name) => {
-                const saved = saveMech(name, build, editingSavedMechId ?? undefined);
-                setEditingSavedMechId(saved.id);
-                renamePrep(saved.name);
-              }}
-            />
-          </div>
-          {run.phase === 'none' && (
-            <div className="section">
-              <ArenaPanel build={build} onFight={(o, m) => { runFightRef.current = false; fight(o, m); }} />
-            </div>
-          )}
-        </div>
+          <div className="section">{runNode}</div>
+          {arenaNode && <div className="section">{arenaNode}</div>}
+        </div>}
       </div>}
 
       <ReadoutSheet
@@ -572,6 +602,7 @@ export default function App() {
         issues={issues}
         onMovePriority={movePriority}
         onBenchResult={setBenchResult}
+        extraTabs={mobileTabs}
       />
 
       {live && (

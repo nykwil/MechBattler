@@ -14,7 +14,7 @@ const SNAP_ORDER: SheetSnap[] = ['peek', 'half', 'full'];
  * of that exists in the app's current modals.
  */
 export function Sheet({
-  open, onClose, label, children, initialSnap = 'half',
+  open, onClose, label, children, initialSnap = 'half', docked = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,15 +22,23 @@ export function Sheet({
   label: string;
   children: ReactNode;
   initialSnap?: SheetSnap;
+  /**
+   * At --bp-md the sheet docks as a rail (docs/14 §11). Same content, same
+   * component -- but a rail is always present and is not a dialog, so it drops
+   * role/aria-modal, the handle, the scrim, and the focus trap. Those exist to
+   * manage a thing that covers the screen; a rail covers nothing.
+   */
+  docked?: boolean;
 }) {
   const [snap, setSnap] = useState<SheetSnap>(initialSnap);
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreFocusRef = useRef<HTMLElement | null>(null);
   const dragRef = useRef<{ startY: number; moved: boolean } | null>(null);
 
-  // Focus moves in on open and returns whence it came on close.
+  // Focus moves in on open and returns whence it came on close. A docked rail is
+  // not an overlay, so it never steals focus.
   useEffect(() => {
-    if (!open) return;
+    if (!open || docked) return;
     restoreFocusRef.current = document.activeElement as HTMLElement | null;
     setSnap(initialSnap);
     const panel = panelRef.current;
@@ -39,7 +47,7 @@ export function Sheet({
     );
     (first ?? panel)?.focus();
     return () => restoreFocusRef.current?.focus?.();
-  }, [open, initialSnap]);
+  }, [open, initialSnap, docked]);
 
   const onKeyDown = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Escape') {
@@ -95,6 +103,14 @@ export function Sheet({
     dragRef.current = null;
     // A tap on the handle is a snap cycle; a drag has already moved it.
     if (drag && !drag.moved) cycleSnap();
+  }
+
+  if (docked) {
+    return (
+      <section className="sheet-rail" aria-label={label}>
+        <div className="sheet-body">{children}</div>
+      </section>
+    );
   }
 
   if (!open) return null;

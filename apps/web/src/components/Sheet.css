@@ -64,3 +64,18 @@
   overflow-y: auto;
   padding: 0 var(--space-3) var(--space-5);
 }
+
+/* Docked (docs/14 §11): the sheet becomes a rail above --bp-md. Static flow, no
+   handle, no scrim, no dialog semantics -- the three-column desktop layout
+   re-emerging from the mobile primitive rather than a second implementation. */
+.sheet-rail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--line-hairline);
+}
+.sheet-rail:last-child { border-right: none; }
+.sheet-rail > .sheet-body {
+  padding: var(--space-4);
+}

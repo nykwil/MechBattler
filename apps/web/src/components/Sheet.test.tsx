@@ -76,3 +76,49 @@ describe('Sheet', () => {
     expect(container.querySelector('.sheet-scrim')).not.toBeNull();
   });
 });
+
+describe('Sheet docking (docs/14 §11)', () => {
+  it('becomes a rail rather than a dialog when docked', () => {
+    const { container } = render(
+      <Sheet open={false} onClose={() => {}} docked label="Parts"><button>inner</button></Sheet>,
+    );
+
+    // A rail covers nothing, so the dialog machinery would be a lie: no role,
+    // no modal, no handle, no scrim.
+    const rail = container.querySelector('.sheet-rail') as HTMLElement;
+    expect(rail).not.toBeNull();
+    expect(rail.getAttribute('aria-label')).toBe('Parts');
+    expect(rail.getAttribute('role')).toBeNull();
+    expect(rail.getAttribute('aria-modal')).toBeNull();
+    expect(container.querySelector('.sheet-handle')).toBeNull();
+    expect(container.querySelector('.sheet-scrim')).toBeNull();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('shows docked content even while closed', () => {
+    // The rail is always present; `open` only governs the overlay presentation.
+    const { container } = render(
+      <Sheet open={false} onClose={() => {}} docked label="Parts"><button>inner</button></Sheet>,
+    );
+    expect(container.textContent).toContain('inner');
+  });
+
+  it('does not steal focus when docked', () => {
+    const outside = document.createElement('button');
+    document.body.appendChild(outside);
+    outside.focus();
+
+    render(<Sheet open docked onClose={() => {}} label="Parts"><button>inner</button></Sheet>);
+
+    expect(document.activeElement).toBe(outside);
+    outside.remove();
+  });
+
+  it('still renders the dialog when not docked', () => {
+    const { container } = render(
+      <Sheet open onClose={() => {}} label="Parts"><button>inner</button></Sheet>,
+    );
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+    expect(container.querySelector('.sheet-rail')).toBeNull();
+  });
+});
