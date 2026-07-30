@@ -89,10 +89,22 @@ npm run prototype:test
 npm run prototype:build
 ```
 
-Current verified state: **199 tests passing**, clean game/simulation/prototype builds, deterministic
-run-depth and checkpoint-match balance reports, unchanged
-canonical 280-battle safety rail, passing 330-battle diversity stress, and a clean Vite
-production build.
+Current verified state: **247 tests passing** (21 game, 160 simulation, 59 web, 7 prototype),
+clean game/simulation/prototype builds, deterministic run-depth and checkpoint-match balance
+reports, unchanged canonical 280-battle safety rail, passing 330-battle diversity stress, and a
+clean Vite production build.
+
+The workshop and battle interfaces are the mobile design, ported from the prototypes in
+`docs/prototypes/`. To look at them:
+
+```bash
+npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png --w 390 --h 844
+```
+
+`scripts/drive.mjs` drives Chrome over the DevTools Protocol: a true phone viewport (which
+`--window-size` cannot give, having a 500px floor), repeatable `--tap`/`--tapText`/`--key`, and
+`--eval` for measurements. `?view=` reaches any surface directly — `workshop`, `battle`,
+`report`, `salvage`, `balance`.
 
 ## How it works
 
@@ -131,6 +143,8 @@ The dated Git history distinguishes work completed after the July 13 submission-
 
 ```text
 apps/web/                 React + Vite workshop, battles, and Balance Lab
+docs/prototypes/          Recovered mobile UX prototypes; the design source of truth
+scripts/drive.mjs         CDP driver for screenshotting and driving the app
 apps/physics-prototype/   Standalone React Three Fiber IK and payload-physics lab
 packages/game/            Persistent run, profile, saved-mech, and balance domain
 packages/sim/src/         Deterministic simulation and analysis library

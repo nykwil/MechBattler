@@ -1,9 +1,25 @@
 # 14 — Mobile Design System
 
-*Written Jul 28 2026. Status: design agreed, not yet implemented. This document is the
-authoritative source for tokens, component rules, and copy voice on touch. It extends
-`apps/web/src/styles/tokens.css` — it does not repaint it. Where this doc and a component
-disagree, this doc wins and the component is wrong.*
+*Written Jul 28 2026. **Implemented Jul 29–30 2026, and the authority has moved.***
+
+*This document described the design in prose, and §3–§12 were implemented from it directly.
+That produced an app that satisfied the spec while looking almost nothing like the artefact
+that had been reviewed and agreed. The prototypes were then recovered to
+`docs/prototypes/mobile-builder.html` and `mobile-battle.html`, and the interface was ported
+from their own CSS and markup instead.*
+
+***So the prototypes now win, not this document.** Where the two disagree, the prototype is
+right — it is the thing that was actually looked at. `apps/web/src/styles/shell.css` and
+`styles/battle.css` are the prototypes' own stylesheets, kept verbatim so they stay diffable
+against the source. This document remains the record of the reasoning, and of the two findings
+in §12 that the lost prototype's tests forced, but it is no longer the source of truth for
+what anything looks like.*
+
+*Superseded in detail: §5's per-edge-box-shadow note is now literal — the plate is the
+prototype's CSS grid of buttons, not the old SVG. §8's readout bar, sheets, part rows, plate
+views and intel strip all exist as the prototype's own components. §11's docking rails were
+never built: the prototypes are phone designs with no desktop layout, so above `--bp-md` the
+shell simply holds a 560px column and centres it.*
 
 References: [design system](https://claude.ai/code/artifact/4c4606c8-0230-47cc-a7c4-8e3bc476e074)
 (specimens at true scale), [interactive prototype](https://claude.ai/code/artifact/95216c5f-a92b-45b1-879f-998043c43b92)
