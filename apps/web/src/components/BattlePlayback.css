@@ -1,7 +1,21 @@
+/*
+ * The battle's own column, inside .app's 100dvh with overflow:hidden.
+ *
+ * It had no height of its own, so it grew to its content -- 1105px inside a 900px
+ * parent on desktop -- and the parent silently clipped the difference. The orders
+ * row ended up half off-screen and the event ticker entirely below it, with no
+ * page scroll to reach either. `flex: 1` on .arena-wrap could never fire, because
+ * nothing above it was constrained for the arena to shrink against.
+ *
+ * Given a height and min-height:0, the chain works as intended: the arena takes
+ * what is left after the console, orders and ticker, at any viewport.
+ */
 .playback {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* --- Shared HUD atoms ------------------------------------------------------ */
@@ -247,7 +261,13 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
-  min-height: 102px;
+  /* The arena is what the fight is read from, so the log yields to it rather than
+     the other way round. It keeps a couple of lines and scrolls; before the column
+     was constrained it simply ran off the bottom of the screen instead. */
+  flex: 0 1 auto;
+  min-height: 64px;
+  max-height: 120px;
+  overflow-y: auto;
   padding: var(--space-2) var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);

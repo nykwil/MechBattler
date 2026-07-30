@@ -128,8 +128,17 @@
    the DOM, unreachable on screen. Let the arena give up space and the console
    scroll rather than silently truncate controls. */
 .battle-app .arena-wrap { min-height: 0; }
+/*
+ * The console keeps its natural height and the arena absorbs what is left. It used
+ * to be the other way round -- the console was allowed to shrink to nothing, so
+ * once the column was properly constrained the arena grew and pushed Core and Evade
+ * out of their own scroll box. The bars are the fight's instruments; the arena can
+ * be smaller, it cannot be missing rows.
+ *
+ * It still scrolls, as a last resort on a very short viewport.
+ */
 .battle-app .console {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
   min-height: 0;
   overflow-y: auto;
 }
@@ -273,3 +282,23 @@
    power variants, matching the gauge they replaced. */
 .battle-app .cbar-f.pwr { background: var(--signal-blue); }
 .battle-app .cbar-f.pwr-over { background: var(--signal-red); }
+
+/* The keyboard legend lists space/1-9/H/F/A. On a touch device none of those keys
+   exist, and it was costing the arena a band of height to say so — the same
+   reasoning as the hover line. Kept wherever a keyboard plausibly is. */
+@media (hover: none) {
+  .battle-app .playback-caption { display: none; }
+}
+
+/* The arena SVG carries a viewBox and only had a width, so when the battle column
+   was finally constrained it kept its aspect height, overflowed .arena-wrap and
+   painted over the console's first two bars. Core and Evade were still laid out
+   and still "visible" by every box measurement -- they were simply underneath.
+   Bounding boxes cannot see that; a hit test at the label's centre can, and did.
+   Capping the height lets it scale down instead of spilling. */
+.battle-app .canopy-frame,
+.battle-app .canopy { max-height: 100%; min-height: 0; }
+.battle-app .playback-arena {
+  max-height: 100%;
+  object-fit: contain;
+}
