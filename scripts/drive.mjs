@@ -26,7 +26,10 @@
  */
 import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
-import WebSocket from 'ws';
+
+// Node's built-in WebSocket, so this script has no dependencies. It previously
+// imported `ws`, which is only in the tree transitively via jsdom — an undeclared
+// dependency in the one script the README tells people to run.
 
 const args = process.argv.slice(2);
 const url = args[0];
@@ -86,12 +89,15 @@ async function targetWs() {
 }
 
 const ws = new WebSocket(await targetWs());
-await new Promise((r) => ws.once('open', r));
+await new Promise((resolve, reject) => {
+  ws.addEventListener('open', resolve, { once: true });
+  ws.addEventListener('error', reject, { once: true });
+});
 
 let seq = 0;
 const pending = new Map();
-ws.on('message', (raw) => {
-  const msg = JSON.parse(raw.toString());
+ws.addEventListener('message', (event) => {
+  const msg = JSON.parse(event.data);
   if (msg.id && pending.has(msg.id)) {
     const { resolve, reject } = pending.get(msg.id);
     pending.delete(msg.id);
@@ -118,8 +124,8 @@ await send('Log.enable');
 // Console capture. React warnings, key collisions and thrown errors are invisible
 // in a screenshot and were never being looked at.
 const consoleMessages = [];
-ws.on('message', (raw) => {
-  const msg = JSON.parse(raw.toString());
+ws.addEventListener('message', (event) => {
+  const msg = JSON.parse(event.data);
   if (msg.method === 'Runtime.consoleAPICalled' && ['error', 'warning', 'assert'].includes(msg.params.type)) {
     consoleMessages.push(`${msg.params.type}: ${msg.params.args.map((a) => a.value ?? a.description ?? a.type).join(' ')}`);
   }
