@@ -122,6 +122,12 @@ found by diffing against the prototype's *source*, or by driving the app.
 | Placing did not disarm | The prototype's `place()` ends `S.armed = null`; a live ghost stayed on the plate and the next tap re-aimed a copy, so placing read as *copying* | user report |
 | "Placed" toast inferred from part count | A count cannot tell a move from a new fitting, so every move claimed a placement | driving detach-then-place |
 | `cbar-k`/`cbar-v`/`con-foot` at 9px | Core, evade and mass — the numbers the fight is read from — under the 11px floor, legend truncated mid-word | driving the battle screen |
+| Gridlines every 25 m, verticals only | Drawn from the arena centre while terrain tiles are laid from the corner at `cellSizeM`, so the lines cut the tiles they bound — and with no horizontals it was not a grid | user report |
+| `.gun-rng` and `.heatcol` never wired up | The prototype designed a range slot on every gun chip and a whole vertical heat column; both sat in `battle.css` unused while the port showed a blank half-chip and a horizontal bar | reading the prototype's CSS |
+| Face carried a phantom fourth state | `MechFrame.faceMode` is `'target' | 'bearing'`; the control cycled four stops, so a two-way choice was unpredictable from its label. tsc proved the branch unreachable once the type was honoured | honouring the sim's type |
+| Heat thresholds typed in the HUD | 115/130/150 were inline literals in the sim *and* re-typed in the UI, so a gauge marked 130 would have kept saying 130 after the sim moved it | drawing the heat marks |
+| Projectile linger fixed at 0.22 s | Slow rounds are airborne far longer, so they vanished mid-flight; a round's window is its own flight time | drawing rounds |
+| Driver forced `mobile: true` always | It sets `hover: none` whatever else you emulate, so **every desktop screenshot ever taken here had the app's `@media (hover: hover)` rules switched off** | building a hover-only element |
 
 **My own tooling produced nine false positives**, each of which nearly had me "fix"
 working code:
