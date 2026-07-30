@@ -61,6 +61,11 @@ export function BattleReportScreen({
   return (
     <div className="battle-app report-overlay" role="dialog" aria-modal="true">
       <div className="report-panel">
+        {/* The scrolling half. Keeping the actions outside it means the footer is a
+            sibling that reserves its own space, rather than a sticky bar laid over
+            whatever content happens to be at the panel's bottom edge -- which put
+            it across the playback scrubber. */}
+        <div className="report-scroll">
         <div className={`report-banner ${report.winner === 'draw' ? 'draw' : won ? 'won' : 'lost'}`}>
           <div className="report-banner-title">{banner}</div>
           <div className="report-banner-sub">
@@ -130,6 +135,8 @@ export function BattleReportScreen({
           })}
         </div>
         </>)}
+
+        </div>
 
         <div className="report-actions">
           <button type="button" className="report-btn rematch" onClick={onRematch}>Rematch</button>

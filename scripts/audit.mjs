@@ -119,10 +119,15 @@ const AUDIT = (marker) => `(() => {
   // on top: an overlay leaves the workshop's controls laid out full-size underneath
   // it, and counting those reported the topbar tabs as overlapping the battle
   // transport, which is just two screens stacked.
+  // The point must resolve to the control itself or something inside it. Also
+  // accepting hit.contains(el) was wrong: an *ancestor* containing the element says
+  // nothing about whether the element is visible there, and the ancestor is often
+  // what is painting over it. That let a damage grid clipped by its scroll container
+  // count as on top, and reported it as overlapping the report's buttons.
   const hittable = controls.filter(onScreen).filter((el) => {
     const r = el.getBoundingClientRect();
     const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
-    return hit && (el === hit || el.contains(hit) || hit.contains(el));
+    return hit !== null && (el === hit || el.contains(hit));
   });
   const tiny = targets
     .filter((el) => {

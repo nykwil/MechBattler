@@ -13,11 +13,20 @@
 .report-panel {
   width: min(680px, 100%);
   max-height: calc(100vh - 48px);
-  overflow-y: auto;
+  /* A column: the content scrolls, the actions keep their own space at the foot. */
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
   background: var(--bg-panel);
   border: 1px solid var(--line-bright);
   border-radius: var(--radius-md);
   padding: var(--space-4);
+}
+
+.report-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .report-banner {
@@ -145,8 +154,7 @@
   display: flex;
   gap: 10px;
   margin-top: var(--space-3);
-  position: sticky;
-  bottom: calc(var(--space-4) * -1);
+  flex: none;
   margin-inline: calc(var(--space-4) * -1);
   padding: var(--space-3) var(--space-4) var(--space-4);
   background: var(--bg-panel);
