@@ -45,7 +45,8 @@ export default function App() {
   const directView = new URLSearchParams(window.location.search).get('view');
   const [screen, setScreen] = useState<'title' | 'new-run' | 'profile' | 'workspace'>(
     directView === 'workshop' || directView === 'balance'
-      || directView === 'battle' || directView === 'report' ? 'workspace' : 'title',
+      || directView === 'battle' || directView === 'report'
+      || directView === 'salvage' ? 'workspace' : 'title',
   );
   const [workspace, setWorkspace] = useState<'workshop' | 'balance'>(() =>
     directView === 'balance' ? 'balance' : 'workshop',
@@ -319,6 +320,48 @@ export default function App() {
       setBattle({ report, opponent, mode: 'watch' });
     }
   }, [directView, build]);
+
+  // ?view=salvage walks the real run state machine to a won node's salvage screen,
+  // which is the only way to reach it: it needs an active run AND a victory. One
+  // step per render, because each depends on the previous phase having committed.
+  const salvageStepRef = useRef(0);
+  useEffect(() => {
+    if (directView !== 'salvage') return;
+    const strong = OPPONENTS[OPPONENTS.length - 1];
+    const weak = OPPONENTS[0];
+    if (!strong || !weak) return;
+
+    if (run.phase === 'none' && salvageStepRef.current === 0) {
+      salvageStepRef.current = 1;
+      loadBuild(strong.build);
+      startCustom('Salvage preview');
+    } else if (run.phase === 'prep' && salvageStepRef.current === 1) {
+      salvageStepRef.current = 2;
+      launch();
+    } else if (run.phase === 'active' && salvageStepRef.current === 2 && !run.data.pendingSalvage) {
+      salvageStepRef.current = 3;
+      // A strong build against the weakest opponent, so winner is side 0.
+      const report = runBattle({
+        builds: [strong.build, weak.build], seed: 20260730,
+        spawnDistanceM: weak.spawnDistanceM,
+      });
+      const purse = PURSE_BASE;
+      beginSalvage({
+        opponentName: weak.name,
+        opponentChassisId: weak.build.chassisId,
+        opponentPowerPriority: [...weak.build.powerPriority],
+        purse,
+        candidates: createSalvageCandidates({
+          run: { seed: run.data.seed, nodeIndex: 0 },
+          report,
+          enemyBuild: weak.build,
+          opponentName: weak.name,
+          purse,
+          guaranteeMod: true,
+        }),
+      });
+    }
+  }, [directView, run, loadBuild, startCustom, launch, beginSalvage]);
 
   const fight = useCallback(
     (opponent: OpponentDef, mode: FightMode, seed?: number) => {

@@ -12,6 +12,7 @@
  *
  * Usage:
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
+ *                                          [--eval <js expression>]
  *
  * --tap may be repeated; each waits for the selector, clicks its centre, and
  * settles before the next. The screenshot is taken after all taps.
@@ -114,6 +115,10 @@ for (const selector of taps) {
   console.error(`tapped ${selector} at ${Math.round(box.x)},${Math.round(box.y)}`);
   await sleep(700);
 }
+
+// Arbitrary measurement, for when a screenshot cannot settle a question.
+const evalExpr = flag('eval', null);
+if (evalExpr) console.error(`eval ${JSON.stringify(await evaluate(evalExpr))}`);
 
 // Report layout facts alongside the image: a screenshot alone cannot tell a crop
 // from an overflow, which is exactly the mistake this driver exists to prevent.
