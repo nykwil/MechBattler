@@ -239,7 +239,11 @@ export function Plate({
         aria-label="Chassis layout grid"
         aria-rowcount={chassis.height}
         aria-colcount={chassis.width}
-        style={{ gridTemplateColumns: `repeat(${chassis.width}, var(--cell))` }}
+        style={{
+          gridTemplateColumns: `repeat(${chassis.width}, var(--cell))`,
+          // --plate-cols feeds the responsive --cell in App.css (docs/14 §5).
+          '--plate-cols': chassis.width,
+        } as CSSProperties}
       >
         {rows}
       </div>

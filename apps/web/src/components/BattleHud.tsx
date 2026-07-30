@@ -113,16 +113,9 @@ function WeaponSlot({
             : wf.gate === 'heat'
               ? { label: 'HOT', blurb: 'fire control holding at ≥115°C (shutdown at 130°C)' }
               : { label: 'HOLD', blurb: 'fire control holding' };
-  return (
-    <button
-      type="button"
-      className={`gun${compact ? ' compact' : ''}${cls.includes('destroyed') ? ' dead' : ''}`}
-      aria-pressed={override === 'force'}
-      title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '')}
-      onClick={onClick}
-      onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
-      onMouseLeave={onHover ? () => onHover(null) : undefined}
-    >
+  const className = `gun${compact ? ' compact' : ''}${cls.includes('destroyed') ? ' dead' : ''}`;
+  const body = (
+    <>
       {/* Fill is time to next shot. The prototype learned to build these once and
           update in place: rebuilding every frame ate taps between pointerdown and
           pointerup and restarted the fill transition before it could finish. */}
@@ -140,6 +133,26 @@ function WeaponSlot({
       <span className="gun-rng">
         <span className="gun-hint">{override ? (override === 'hold' ? 'held' : 'forced') : ''}</span>
       </span>
+    </>
+  );
+
+  // Read-only where there is nothing to click -- the enemy strip mirrors their guns
+  // but cannot order them, so a button there is a focus stop that does nothing.
+  if (!onClick) {
+    return <span className={className} title={weaponBlurb(def)}>{body}</span>;
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      aria-pressed={override === 'force'}
+      title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '')}
+      onClick={onClick}
+      onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
+      onMouseLeave={onHover ? () => onHover(null) : undefined}
+    >
+      {body}
     </button>
   );
 }

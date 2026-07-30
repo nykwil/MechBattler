@@ -169,3 +169,21 @@
   }
   body { background: var(--bg-deep); }
 }
+
+/*
+ * Plate cell size. shell.css inherits --cell: 40px from the prototype's tokens,
+ * which hardcoded it because the prototype targets one chassis at one width. We
+ * carry four chassis, and docs/14 §5 specifies min(44px, availW / cols - 1): 44 --
+ * the --tap-min floor -- wherever it fits, with Bastion's eight columns as the one
+ * bounded exception at ~40px.
+ *
+ * Porting Plate.tsx replaced the responsive sizing with the flat token and nobody
+ * noticed until tap targets were actually measured: every cell rendered at 40px,
+ * four short of the minimum the design system sets for itself.
+ *
+ * Measured in cqw against .plate-area so the desktop column is respected too.
+ */
+.plate-area { container-type: inline-size; }
+.app .plate {
+  --cell: min(var(--tap-min), calc((100cqw - var(--space-3) * 2 - var(--space-2) * 2 - 2px) / var(--plate-cols) - 1px));
+}
