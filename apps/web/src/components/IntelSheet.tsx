@@ -1,6 +1,6 @@
 import { getChassis, getPart, type Build } from '@mechbattler/sim';
 import { Sheet } from './Sheet.js';
-import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
+import type { OpponentDef } from '../lib/opponents.js';
 
 /**
  * Next match, ported from the prototype's intel sheet. It exists as its own
@@ -12,11 +12,17 @@ import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
  * three seconds into a battle.
  */
 export function IntelSheet({
-  open, onClose, build, selectedId, onSelect, onFight,
+  open, onClose, build, opponents, selectedId, onSelect, onFight,
 }: {
   open: boolean;
   onClose: () => void;
   build: Build;
+  /**
+   * Who you can actually fight next. During a run that is the current ladder
+   * node's choices, not the free-play roster — showing the latter named an
+   * opponent the run would never present.
+   */
+  opponents: OpponentDef[];
   selectedId: string | null;
   onSelect: (opponent: OpponentDef) => void;
   onFight: (opponent: OpponentDef) => void;
@@ -34,12 +40,14 @@ export function IntelSheet({
     <Sheet open={open} onClose={onClose} label="Next match" initialSnap="full">
       <div className="sheet-head">
         <span className="sheet-title">Next match</span>
-        <span className="part-sub">{OPPONENTS.length} known opponents</span>
+        <span className="part-sub">
+          {opponents.length} {opponents.length === 1 ? 'opponent' : 'opponents'}
+        </span>
       </div>
       <div className="sheet-body">
         {blocker && <p className="fault">{blocker}</p>}
 
-        {OPPONENTS.map((o) => {
+        {opponents.map((o) => {
           const chassis = getChassis(o.build.chassisId);
           return (
             <button
@@ -75,7 +83,7 @@ export function IntelSheet({
             type="button"
             className="btn-primary"
             onClick={() => {
-              const chosen = OPPONENTS.find((o) => o.id === selectedId);
+              const chosen = opponents.find((o) => o.id === selectedId);
               if (chosen) onFight(chosen);
             }}
           >

@@ -22,6 +22,7 @@ function renderSheet(build: Build, over: Partial<Parameters<typeof IntelSheet>[0
       open
       onClose={() => {}}
       build={build}
+      opponents={OPPONENTS}
       selectedId={null}
       onSelect={(o) => picked.push(o.id)}
       onFight={(o) => fought.push(o.id)}

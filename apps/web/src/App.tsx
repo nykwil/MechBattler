@@ -256,10 +256,24 @@ export default function App() {
   }, [chassis, build, predictedTemps]);
   // Only what the 56px bar shows; the sheet computes its own detail.
   // The idle action bar is the intel strip, so it needs whoever is next.
+  /**
+   * Who the intel strip and sheet are actually about. During a run it is the
+   * current ladder node's choices; outside one it is the free-play roster. The
+   * strip previously always named OPPONENTS[0], so mid-run it announced a fight
+   * the run would never offer.
+   */
+  const intelOpponents = useMemo((): OpponentDef[] => {
+    // Nodes are generated when the run is created, so prep already knows who node
+    // one is. Only free play has no ladder to point at.
+    if (run.phase === 'none' || run.phase === 'over') return OPPONENTS;
+    const node = run.data.generatedNodes.find((n) => n.index === run.data.nodeIndex);
+    return node?.kind === 'fight' && node.opponents?.length ? node.opponents : OPPONENTS;
+  }, [run]);
+
   const nextFight = useMemo(() => {
-    const chosen = OPPONENTS.find((o) => o.id === intelPick) ?? OPPONENTS[0];
+    const chosen = intelOpponents.find((o) => o.id === intelPick) ?? intelOpponents[0];
     return chosen ? { name: chosen.name, threat: chosen.threat } : null;
-  }, [intelPick]);
+  }, [intelOpponents, intelPick]);
 
   // An action keeps its name through the whole flow: Place -> "Placed".
   const partCountRef = useRef(state.parts.length);
@@ -715,6 +729,7 @@ export default function App() {
         open={intelOpen}
         onClose={() => setIntelOpen(false)}
         build={build}
+        opponents={intelOpponents}
         selectedId={intelPick}
         onSelect={(o) => setIntelPick(o.id)}
         onFight={(o) => {
