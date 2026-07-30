@@ -2,7 +2,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   border: 1px dashed var(--line-hairline);
   border-radius: var(--radius-md);
 }
@@ -14,28 +14,30 @@
 }
 .run-save-mech input {
   min-width: 0;
-  padding: 8px 9px;
+  padding: var(--space-2) 9px;
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
 .run-save-mech button {
-  padding: 8px 10px;
+  min-height: var(--tap-min);
+  padding: var(--space-2) 10px;
   color: var(--ink-primary);
   background: transparent;
   border: 1px solid var(--line-bright);
   font: 10px var(--font-mono);
 }
-.run-save-mech button:disabled { opacity: 0.4; }
+.run-save-mech button:disabled {
+  min-height: var(--tap-min); opacity: 0.4; }
 
 .run-status {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-secondary);
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 .run-scrap { color: var(--signal-amber); font-weight: 600; }
 .run-abandon {
@@ -54,7 +56,7 @@
 }
 
 .run-bench {
-  margin-top: 12px;
+  margin-top: var(--space-3);
   border-top: 1px solid var(--line-hairline);
   padding-top: 8px;
 }
@@ -64,12 +66,12 @@
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .run-bench-row {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-secondary);
@@ -93,10 +95,10 @@
 
 .run-memorial {
   text-align: center;
-  padding: 18px 12px;
+  padding: var(--space-4) 12px;
   border: 1px solid var(--signal-red);
   border-radius: var(--radius-md);
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 .run-memorial.victorious { border-color: var(--signal-green); }
 .run-memorial-title {
@@ -104,7 +106,7 @@
   font-size: var(--text-base);
   letter-spacing: 0.08em;
   color: var(--signal-red-text);
-  margin-bottom: 8px;
+  margin-bottom: var(--space-2);
 }
 .run-memorial.victorious .run-memorial-title { color: var(--signal-green); }
 .run-memorial-line {
@@ -120,7 +122,7 @@
 .arena-card-arena {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   margin-top: 6px;
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -134,9 +136,11 @@
   color: var(--signal-amber);
 }
 .run-bench-sell:disabled { opacity: 0.4; cursor: default; }
-.fight-btn:disabled { opacity: 0.4; cursor: default; }
+.fight-btn:disabled {
+  min-height: var(--tap-min); opacity: 0.4; cursor: default; }
 
 .run-target-select {
+  min-height: var(--tap-min);
   width: 100%;
   margin-top: 5px;
   padding: 7px 9px;
@@ -148,6 +152,7 @@
   font-size: var(--text-2xs);
 }
 .run-target-select:focus {
+  min-height: var(--tap-min);
   outline: 1px solid var(--signal-green);
   border-color: var(--signal-green);
 }
@@ -156,7 +161,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: var(--space-2);
   margin: 7px 0 10px;
   padding: 6px 8px;
   border: 1px solid color-mix(in srgb, var(--signal-green) 35%, var(--line-hairline));
@@ -174,7 +179,7 @@
   color: var(--signal-amber);
 }
 
-.run-frames { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0; }
+.run-frames { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--space-1) 0; }
 .run-frames .chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .run-scrap.over { color: var(--signal-red-text); }
 .run-history-cause {

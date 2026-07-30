@@ -1,7 +1,7 @@
 .priority-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 6px 8px;
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
@@ -27,6 +27,7 @@
   gap: 3px;
 }
 .priority-btns button {
+  min-height: var(--tap-min);
   background: var(--bg-panel-raised);
   border: 1px solid var(--line-hairline);
   color: var(--ink-secondary);
@@ -40,13 +41,14 @@
 @media (hover: hover) {
   .priority-btns button:hover:not(:disabled) { border-color: var(--line-bright); color: var(--ink-primary); }
 }
-.priority-btns button:disabled { opacity: 0.3; cursor: default; }
+.priority-btns button:disabled {
+  min-height: var(--tap-min); opacity: 0.3; cursor: default; }
 
 .priority-empty {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  padding: 10px;
+  padding: var(--space-2);
   border: 1px dashed var(--line-hairline);
   border-radius: var(--radius-md);
 }

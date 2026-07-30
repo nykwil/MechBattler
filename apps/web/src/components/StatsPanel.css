@@ -1,7 +1,7 @@
 .stat-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .stat-card {
   background: var(--bg-inset);
@@ -57,7 +57,7 @@
   border: 1px solid var(--line-hairline);
   border-radius: 3px;
   overflow: hidden;
-  margin-bottom: 4px;
+  margin-bottom: var(--space-1);
 }
 .meter-fill {
   position: absolute;

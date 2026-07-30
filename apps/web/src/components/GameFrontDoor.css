@@ -1,52 +1,73 @@
+/*
+ * Front door, brought onto the ported shell's vocabulary.
+ *
+ * There is no prototype for these screens -- docs/14 §15 records them as never
+ * designed -- so this is not a port. It is the same tokens, type scale, full-bleed
+ * single column, and 44px targets the prototype uses, applied by hand so landing
+ * here does not feel like a different application.
+ *
+ * The decoration went for the reasons §5 and §9 give: a fixed radial glow, two
+ * grid gradients, a heavy drop shadow, and an amber top border on every card.
+ * Amber means hazard, selection, or heat -- spending it on a card edge erodes
+ * what it means on the plate.
+ */
+
 .front-door {
-  min-height: 100%;
-  overflow: auto;
-  position: relative;
-  display: grid;
-  place-items: center;
-  padding: 48px 24px;
-  background:
-    linear-gradient(rgba(9, 12, 15, 0.82), rgba(9, 12, 15, 0.94)),
-    repeating-linear-gradient(90deg, transparent 0 39px, rgba(90, 169, 199, 0.035) 40px),
-    repeating-linear-gradient(0deg, transparent 0 39px, rgba(90, 169, 199, 0.035) 40px);
+  min-height: 100dvh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-3) var(--space-6);
+  background: var(--bg-floor);
 }
 
-.front-glow {
-  position: fixed;
-  inset: 10% 20%;
-  pointer-events: none;
-  background: radial-gradient(circle, rgba(90, 169, 199, 0.09), transparent 65%);
-}
+/* Kept as a hook so the markup needs no change; it draws nothing now. */
+.front-glow { display: none; }
 
 .front-card {
-  z-index: 1;
-  width: min(560px, 100%);
-  padding: 42px;
-  background: rgba(21, 25, 29, 0.96);
-  border: 1px solid var(--line-bright);
-  border-top: 3px solid var(--signal-amber);
-  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-panel);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-lg);
 }
 
-.front-card.wide { width: min(1040px, 100%); }
+.front-card.wide { max-width: 560px; }
+
+@media (min-width: 768px) {
+  .front-door { padding: var(--space-6) var(--space-5); }
+  .front-card { padding: var(--space-5); }
+  .front-card.wide { max-width: 1040px; }
+}
 .front-kicker {
   color: var(--signal-amber);
   font: 11px var(--font-mono);
   letter-spacing: 0.22em;
 }
 .front-card h1 {
-  margin: 8px 0 12px;
-  font: 700 clamp(44px, 8vw, 74px)/0.95 var(--font-display);
-  letter-spacing: -0.04em;
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-3xl);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
 }
 .front-card h1 span { color: var(--signal-amber); }
 .front-card h2 {
-  margin: 8px 0 12px;
-  font: 700 32px var(--font-display);
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--text-2xl);
 }
 .front-deck { max-width: 48ch; color: var(--ink-secondary); font-size: var(--text-base); }
 .front-deck.compact { max-width: 68ch; }
-.front-actions { display: grid; gap: 10px; margin-top: 28px; }
+.front-actions { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
 .front-actions button,
 .starter-card,
 .frame-grid button,
@@ -58,12 +79,16 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 18px;
-  padding: 14px 16px;
+  gap: var(--space-4);
+  min-height: var(--tap-min);
+  padding: var(--space-3) var(--space-4);
   border: 1px solid var(--line-bright);
+  border-radius: var(--radius-md);
   color: var(--ink-primary);
-  background: var(--bg-inset);
-  font: 600 15px var(--font-display);
+  background: var(--bg-panel-raised);
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-base);
 }
 .front-primary {
   background: var(--signal-amber);
@@ -82,13 +107,15 @@
   margin-top: 18px;
 }
 .front-modes button, .front-back {
+  min-height: var(--tap-min);
   padding: 9px 12px;
   color: var(--ink-secondary);
   background: transparent;
   border: 1px solid var(--line-hairline);
   font: 11px var(--font-mono);
 }
-.front-modes button:disabled { opacity: 0.35; cursor: not-allowed; }
+.front-modes button:disabled {
+  min-height: var(--tap-min); opacity: 0.35; cursor: not-allowed; }
 .front-footnote { color: var(--ink-faint); font: 10px var(--font-mono); }
 .front-back { margin-bottom: 24px; }
 .starter-grid, .challenge-grid {
@@ -152,6 +179,7 @@
 }
 .garage-create label { color: var(--ink-secondary); font: 10px var(--font-mono); }
 .garage-create select {
+  min-height: var(--tap-min);
   min-width: 0;
   padding: 11px 12px;
   color: var(--ink-primary);
@@ -210,6 +238,7 @@
   gap: 10px;
 }
 .frame-grid button, .frame-grid > div {
+  min-height: var(--tap-min);
   display: grid;
   gap: 5px;
   padding: 14px;

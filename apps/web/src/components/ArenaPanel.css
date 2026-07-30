@@ -2,12 +2,12 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 .arena-card {
   text-align: left;
-  padding: 8px 10px;
+  padding: var(--space-2) 10px;
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
@@ -47,7 +47,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  margin-top: 4px;
+  margin-top: var(--space-1);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
@@ -59,17 +59,18 @@
   border: 1px dashed var(--signal-amber-dim);
   border-radius: var(--radius-md);
   padding: 6px 8px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 
 .fight-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 .fight-btn {
+  min-height: var(--tap-min);
   flex: 1;
   min-width: 0;
-  padding: 12px;
+  padding: var(--space-3);
   background: var(--signal-red-dim);
   border: 1px solid var(--signal-red);
   color: var(--ink-primary);
@@ -84,8 +85,10 @@
 @media (hover: hover) {
   .fight-btn:hover { filter: brightness(1.25); }
 }
-.fight-btn:active { filter: brightness(0.9); }
+.fight-btn:active {
+  min-height: var(--tap-min); filter: brightness(0.9); }
 .fight-btn.watch {
+  min-height: var(--tap-min);
   flex: 0 0 auto;
   padding-inline: 14px;
   background: var(--bg-panel-raised);

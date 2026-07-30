@@ -1,14 +1,15 @@
 .bench-controls {
   display: flex;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
   flex-wrap: wrap;
 }
 .bench-controls .chip { flex: none; }
 
 .run-btn {
+  min-height: var(--tap-min);
   width: 100%;
-  padding: 10px;
+  padding: var(--space-2);
   background: var(--signal-amber-dim);
   border: 1px solid var(--signal-amber);
   color: #1a1206;
@@ -18,19 +19,20 @@
   text-transform: uppercase;
   font-size: var(--text-xs);
   border-radius: var(--radius-md);
-  margin-bottom: 12px;
+  margin-bottom: var(--space-3);
   transition: filter 0.12s;
 }
 @media (hover: hover) {
   .run-btn:hover { filter: brightness(1.15); }
 }
-.run-btn:active { filter: brightness(0.9); }
+.run-btn:active {
+  min-height: var(--tap-min); filter: brightness(0.9); }
 
 .bench-result-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
 }
 
 .chart-title {
@@ -60,13 +62,13 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  padding: 10px;
+  padding: var(--space-2);
   border: 1px dashed var(--line-hairline);
   border-radius: var(--radius-md);
 }
 
 .sandbox {
-  margin-top: 14px;
+  margin-top: var(--space-3);
   border-top: 1px solid var(--line-hairline);
   padding-top: 10px;
 }
@@ -91,7 +93,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-bottom: var(--space-2);
 }
 .sandbox-shooter {
   color: var(--signal-amber);
@@ -140,7 +142,7 @@
 }
 .sandbox-row {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
   align-items: baseline;
   padding: 2px 0;
 }
@@ -154,7 +156,7 @@
 .sandbox-uptime {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 1px 0 1px 8px;
 }
 .sandbox-uptime-name { color: var(--ink-faint); width: 64px; flex: none; font-size: var(--text-2xs); }

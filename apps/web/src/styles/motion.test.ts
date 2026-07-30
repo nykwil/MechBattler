@@ -65,3 +65,28 @@ describe('motion and hover invariants', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+/**
+ * The ported prototype stylesheets are the source of truth for the shell's look.
+ *
+ * A first version of this suite tried to assert they contained no token-based
+ * font sizes, on the theory that any would mean a sweep had rewritten them. That
+ * premise was wrong: the prototypes already use --text-* throughout, which is
+ * precisely why their token layer matched ours on import.
+ */
+describe('ported stylesheet integrity', () => {
+  it('scopes the battle sheet so it cannot overwrite the builder shell', () => {
+    // Both prototypes define .app, .topbar and .btn with different rules; loading
+    // them flat would make import order decide which one wins.
+    const battle = readFileSync('src/styles/battle.css', 'utf8');
+    expect(battle).toMatch(/\.battle-app\s*\{/);
+
+    const shell = readFileSync('src/styles/shell.css', 'utf8');
+    for (const sel of ['.app', '.topbar']) {
+      // The builder sheet owns these unscoped; the battle sheet must not.
+      expect(shell).toContain(`${sel}{`);
+      const outside = battle.slice(0, battle.indexOf('.battle-app {'));
+      expect(outside).not.toContain(`${sel}{`);
+    }
+  });
+});

@@ -7,7 +7,7 @@
 .build-warning {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: var(--space-2);
   padding: 7px 10px;
   border-radius: var(--radius-md);
   font-family: var(--font-mono);

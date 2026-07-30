@@ -1,7 +1,7 @@
 .inspector-head {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
+  gap: var(--space-2);
   margin-bottom: 6px;
 }
 .inspector-name {
@@ -20,7 +20,7 @@
 }
 
 .inspector-rows {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   background: var(--bg-inset);
@@ -29,7 +29,7 @@
 .inspector-row {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: var(--space-2);
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-secondary);
@@ -41,8 +41,8 @@
 
 .inspector-actions {
   display: flex;
-  gap: 8px;
-  margin-top: 10px;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 /* Detach is not destructive -- it lifts the part into the placement state, and
    discarding is a separate act from there (docs/14 §7). So it drops the danger
@@ -85,7 +85,7 @@
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
   color: var(--ink-faint);
-  margin-top: 8px;
+  margin-top: var(--space-2);
 }
 .inspector-hint kbd {
   background: var(--bg-panel-raised);
@@ -95,7 +95,7 @@
 }
 
 .inspector-run-ops {
-  margin-top: 8px;
+  margin-top: var(--space-2);
   border-top: 1px solid var(--line-hairline);
   padding-top: 8px;
   display: flex;
@@ -111,6 +111,7 @@
   color: var(--ink-secondary);
 }
 .inspector-repair-row button {
+  min-height: var(--tap-min);
   background: none;
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
@@ -123,4 +124,5 @@
 @media (hover: hover) {
   .inspector-repair-row button:hover:not(:disabled) { color: var(--signal-amber); border-color: var(--signal-amber); }
 }
-.inspector-repair-row button:disabled { opacity: 0.4; cursor: default; }
+.inspector-repair-row button:disabled {
+  min-height: var(--tap-min); opacity: 0.4; cursor: default; }

@@ -1,7 +1,7 @@
 .mod-chips {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 4px;
+  gap: var(--space-1);
   vertical-align: middle;
 }
 .mod-chip {
