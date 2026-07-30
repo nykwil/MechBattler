@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { getPart } from '@mechbattler/sim';
 import { generateRunNodes } from '@mechbattler/game';
-import { benchSellValue } from './runState.js';
+import { benchSellValue, repairCost } from './runState.js';
 
 /**
  * The scrapyard must not be a scrap printer. Buying a part and selling it back has
@@ -50,6 +50,41 @@ describe('the scrapyard cannot mint scrap', () => {
           `tier ${tier} at ${integrity}`,
         ).toBeLessThanOrEqual(price);
       }
+    }
+  });
+});
+
+/**
+ * The other half of the same worry: repairing a cheap wreck and selling it on must
+ * not pay either. Repair is charged per integrity point at 40 x tier for a full
+ * restore, and a full restore only adds 8 x tier of sale value, so the margin is
+ * five to one -- but that is a relationship between two constants in different
+ * packages, which is exactly the kind that drifts unnoticed.
+ */
+describe('repairing to sell cannot pay', () => {
+  const offers = Array.from({ length: 40 }, (_, seed) =>
+    generateRunNodes(seed + 1)
+      .filter((node) => node.kind === 'scrapyard')
+      .flatMap((node) => [
+        ...(node.scrapyardOffers?.initial ?? []),
+        ...(node.scrapyardOffers?.reroll ?? []),
+      ]))
+    .flat();
+
+  it('never returns more than the repair cost', () => {
+    for (const offer of offers) {
+      const { tier } = getPart(offer.partId);
+      const gain = benchSellValue(tier, 1) - benchSellValue(tier, offer.integrity);
+      const cost = repairCost(tier, offer.integrity, 1);
+      expect(gain, `${offer.partId} at ${Math.round(offer.integrity * 100)}%`).toBeLessThan(cost);
+    }
+  });
+
+  it('leaves the whole buy-repair-sell round trip underwater', () => {
+    for (const offer of offers) {
+      const { tier } = getPart(offer.partId);
+      const spent = offer.price + repairCost(tier, offer.integrity, 1);
+      expect(benchSellValue(tier, 1), `${offer.partId}`).toBeLessThan(spent);
     }
   });
 });
