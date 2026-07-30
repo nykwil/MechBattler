@@ -673,7 +673,12 @@ export default function App() {
             armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}
             moving={state.detached !== null}
             reason={ghostReason}
-            onCancel={() => selectPart(null)}
+            onCancel={() => {
+              const discarding = state.detached !== null;
+              const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
+              selectPart(null);
+              if (discarding) setToast(`${name} discarded`);
+            }}
             onRotate={rotate}
             onPlace={placeWithEconomy}
             onOpenParts={() => setPartsOpen(true)}

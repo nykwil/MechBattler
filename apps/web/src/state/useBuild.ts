@@ -170,10 +170,23 @@ function reducer(state: EditorState, action: Action): EditorState {
         ghost: null,
         detached: null,
       };
-    case 'ROTATE':
+    case 'ROTATE': {
       // The ghost holds its origin through a rotation, so Rotate reads as
-      // turning the part in place rather than moving it.
-      return { ...state, rotation: nextRotation(state.rotation) };
+      // turning the part in place rather than moving it -- but the footprint
+      // swaps axes, so re-clamp or a part near an edge rotates off the chassis.
+      const rotation = nextRotation(state.rotation);
+      if (!state.selectedPartId || !state.ghost) return { ...state, rotation };
+      const chassis = getChassis(state.chassisId);
+      const { w, h } = dims(state.selectedPartId, rotation);
+      return {
+        ...state,
+        rotation,
+        ghost: {
+          x: Math.max(0, Math.min(chassis.width - w, state.ghost.x)),
+          y: Math.max(0, Math.min(chassis.height - h, state.ghost.y)),
+        },
+      };
+    }
     case 'DETACH': {
       // Off the plate and into the placement state holding it: move, rotate,
       // place. Rotate-in-place and remove-in-place do not exist, because
@@ -225,11 +238,14 @@ function reducer(state: EditorState, action: Action): EditorState {
       // a keyboard has no cell to tap, which is why no on-screen nudge pad exists.
       if (!state.selectedPartId || !state.ghost) return state;
       const chassis = getChassis(state.chassisId);
+      // Clamp the whole footprint, not the origin: width - 1 would let a 2x2 part
+      // be walked until its far column hung off the chassis.
+      const { w, h } = dims(state.selectedPartId, state.rotation);
       return {
         ...state,
         ghost: {
-          x: Math.min(Math.max(state.ghost.x + action.dx, 0), chassis.width - 1),
-          y: Math.min(Math.max(state.ghost.y + action.dy, 0), chassis.height - 1),
+          x: Math.min(Math.max(state.ghost.x + action.dx, 0), chassis.width - w),
+          y: Math.min(Math.max(state.ghost.y + action.dy, 0), chassis.height - h),
         },
       };
     }

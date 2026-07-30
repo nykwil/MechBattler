@@ -271,3 +271,53 @@ describe('useBuild aim centring', () => {
     expect(upright).toEqual({ x: 3, y: 2 });
   });
 });
+
+/**
+ * The ghost's whole footprint stays on the chassis. Clamping the origin to
+ * width - 1 instead of width - w let a multi-cell part be walked or rotated until
+ * part of it hung off the plate — a state the prototype prevents outright.
+ */
+describe('useBuild footprint clamping', () => {
+  it('stops nudging before a multi-cell part leaves the chassis', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    const chassis = result.current.chassis;
+    act(() => result.current.selectPart('R-C40')); // 2x2
+
+    for (let i = 0; i < 20; i += 1) act(() => result.current.nudge(1, 1));
+
+    const ghost = result.current.state.ghost!;
+    expect(ghost.x).toBe(chassis.width - 2);
+    expect(ghost.y).toBe(chassis.height - 2);
+  });
+
+  it('re-clamps after a rotation that swaps the footprint', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    const chassis = result.current.chassis;
+    act(() => result.current.selectPart('U-RAD')); // 3x1 flat
+
+    // Walk to the bottom-right, legal while flat: origin can reach height - 1.
+    for (let i = 0; i < 20; i += 1) act(() => result.current.nudge(1, 1));
+    const flat = result.current.state.ghost!;
+    expect(flat.y).toBe(chassis.height - 1);
+
+    // Rotated it is 1x3, so that same origin would hang two cells off the bottom.
+    // Clamping only pulls a coordinate back in; x is already legal and stays put.
+    const flatX = flat.x;
+    act(() => result.current.rotate());
+    const upright = result.current.state.ghost!;
+    expect(upright.y).toBe(chassis.height - 3);
+    expect(upright.x).toBe(flatX);
+  });
+
+  it('keeps a rotation harmless when the part still fits', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('U-RAD'));
+    act(() => result.current.aim(2, 2));
+    const before = result.current.state.ghost!;
+
+    act(() => result.current.rotate());
+
+    // Well inside the chassis, so Rotate turns in place and moves nothing.
+    expect(result.current.state.ghost).toEqual(before);
+  });
+});
