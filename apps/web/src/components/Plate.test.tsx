@@ -174,3 +174,33 @@ describe('Plate keyboard cursor', () => {
     expect((document.activeElement as HTMLElement).className).toContain('cell');
   });
 });
+
+describe('Plate accessibility structure', () => {
+  it('gives every row child a gridcell role', () => {
+    const { container } = renderPlate();
+    for (const row of container.querySelectorAll('[role="row"]')) {
+      for (const child of row.children) {
+        // A row's children must all be gridcells; void positions are hidden
+        // gridcells rather than roleless buttons sitting in the grid.
+        expect(child.getAttribute('role')).toBe('gridcell');
+      }
+    }
+  });
+
+  it('makes void positions inert rather than unnamed controls', () => {
+    const { container } = renderPlate();
+    const voids = [...container.querySelectorAll('.cell.void')];
+    expect(voids.length).toBeGreaterThan(0);
+    for (const v of voids) {
+      expect(v.tagName).toBe('SPAN');
+      expect(v.getAttribute('aria-hidden')).toBe('true');
+    }
+  });
+
+  it('names every interactive cell', () => {
+    const { container } = renderPlate();
+    for (const cell of container.querySelectorAll('button.cell')) {
+      expect(cell.getAttribute('aria-label')).toMatch(/column \d+, row \d+/);
+    }
+  });
+});

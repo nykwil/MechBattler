@@ -60,6 +60,10 @@ export function BattlePlayback({ report, names }: { report: BattleReport; names:
           type="range" className="playback-scrub"
           min={0} max={report.durationS} step={TICK_S} value={tSec}
           onChange={(e) => seek(Number(e.target.value))}
+          aria-label="Scrub battle playback"
+          /* A bare number of seconds is not what the clock beside it reads, so
+             give assistive tech the same mm:ss.s the sighted user gets. */
+          aria-valuetext={`${fmtTime(tSec)} of ${fmtTime(report.durationS)}`}
         />
         <span className="playback-clock">{fmtTime(tSec)} / {fmtTime(report.durationS)}</span>
       </div>

@@ -166,8 +166,11 @@ export function Plate({
       const inMask = Boolean(chassis.mask[y]?.[x]);
 
       if (!inMask) {
+        // Off-mask positions still occupy a grid slot, so they carry role=gridcell
+        // -- a row's children must all be gridcells -- but are hidden and
+        // untabbable, since there is nothing there to interact with.
         cells.push(
-          <button key={key} type="button" className="cell void" aria-hidden="true" tabIndex={-1} />,
+          <span key={key} className="cell void" role="gridcell" aria-hidden="true" />,
         );
         continue;
       }
