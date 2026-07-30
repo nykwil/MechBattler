@@ -302,3 +302,17 @@
   max-height: 100%;
   object-fit: contain;
 }
+
+/* Console value boxes, sized to the longest string they can hold rather than to
+   whatever they happen to show. .cbar-v was 42px, which fits "100%" and "50" but
+   not "999/999" -- and Pwr is demand/supply, so both halves can be three digits.
+   It needed 46px and would have clipped silently, since the box is fixed and the
+   text does not wrap. 7ch of the mono face covers the widest real value.
+
+   Fixed width matters more than the 4px: these numbers change every tick, and a
+   content-sized box would jitter the bar beside it on every frame. */
+.battle-app .cbar-v {
+  width: 7ch;
+  min-width: 7ch;
+  flex: none;
+}
