@@ -11,7 +11,7 @@ body {
   background: var(--bg-floor);
   color: var(--ink-primary);
   font-family: var(--font-body);
-  font-size: 14px;
+  font-size: var(--text-sm);
   line-height: 1.4;
   /* docs/14 §5: the body gradients went with the plate's glow and rim shadow --
      decoration competing with the grid for attention. */
@@ -29,7 +29,7 @@ button {
 
 .eyebrow {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -40,7 +40,7 @@ button {
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
-  font-size: 13px;
+  font-size: var(--text-sm);
   color: var(--ink-secondary);
 }
 

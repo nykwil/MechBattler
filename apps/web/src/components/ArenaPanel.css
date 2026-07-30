@@ -30,22 +30,22 @@
 }
 .arena-card-name {
   font-family: var(--font-display);
-  font-size: 13px;
+  font-size: var(--text-sm);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
 .arena-threat {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--signal-red-text);
   letter-spacing: 2px;
 }
 .arena-card-blurb {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   margin-top: 2px;
 }
 .arena-card-intel {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   margin-top: 4px;
   text-transform: uppercase;
@@ -54,7 +54,7 @@
 
 .arena-warning {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--signal-amber);
   border: 1px dashed var(--signal-amber-dim);
   border-radius: var(--radius-md);
@@ -77,7 +77,7 @@
   font-weight: 600;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  font-size: 14px;
+  font-size: var(--text-sm);
   border-radius: var(--radius-md);
   transition: filter 0.12s;
 }

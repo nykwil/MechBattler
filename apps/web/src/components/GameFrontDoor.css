@@ -44,7 +44,7 @@
   margin: 8px 0 12px;
   font: 700 32px var(--font-display);
 }
-.front-deck { max-width: 48ch; color: var(--ink-secondary); font-size: 16px; }
+.front-deck { max-width: 48ch; color: var(--ink-secondary); font-size: var(--text-base); }
 .front-deck.compact { max-width: 68ch; }
 .front-actions { display: grid; gap: 10px; margin-top: 28px; }
 .front-actions button,
@@ -113,7 +113,7 @@
   border: 1px solid var(--line-hairline);
 }
 .garage-card > strong { font: 600 17px var(--font-display); }
-.garage-card > span:not(.starter-status) { color: var(--ink-secondary); font-size: 12px; }
+.garage-card > span:not(.starter-status) { color: var(--ink-secondary); font-size: var(--text-xs); }
 .garage-card > small {
   flex: 1;
   color: var(--ink-faint);
@@ -177,7 +177,7 @@
 }
 .starter-card > span:not(.starter-status), .frame-grid span {
   color: var(--ink-secondary);
-  font-size: 12px;
+  font-size: var(--text-xs);
 }
 .starter-card small, .challenge-card small, .frame-grid small {
   color: var(--ink-faint);
@@ -229,7 +229,7 @@
   color: var(--ink-secondary);
   font: 11px var(--font-mono);
 }
-.profile-summary strong { color: var(--signal-amber); font-size: 18px; }
+.profile-summary strong { color: var(--signal-amber); font-size: var(--text-lg); }
 .challenge-grid { grid-template-columns: repeat(2, 1fr); }
 .challenge-card.complete { border-color: var(--signal-green); }
 .challenge-card p { color: var(--ink-secondary); margin: 8px 0 14px; }

@@ -12,7 +12,7 @@
 .stat-card.wide { grid-column: 1 / -1; }
 .stat-label {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -20,7 +20,7 @@
 }
 .stat-value {
   font-family: var(--font-mono);
-  font-size: 17px;
+  font-size: var(--text-lg);
   font-weight: 500;
   color: var(--ink-primary);
 }
@@ -29,7 +29,7 @@
 .stat-value.good { color: var(--signal-green); }
 .stat-sub {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   margin-top: 2px;
 }
@@ -42,7 +42,7 @@
 }
 .meter-value {
   font-family: var(--font-mono);
-  font-size: 14px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--ink-primary);
 }
@@ -82,14 +82,14 @@
   opacity: 0.35;
 }
 .meter-preview-value {
-  font-size: 12px;
+  font-size: var(--text-xs);
   opacity: 0.9;
 }
 .meter-preview-value.good { color: var(--signal-green); }
 .meter-preview-value.bad { color: var(--signal-red-text); }
 
 .stat-preview {
-  font-size: 12px;
+  font-size: var(--text-xs);
   color: var(--ink-secondary);
 }
 .stat-preview.warn { color: var(--signal-amber); }
@@ -119,7 +119,7 @@
   display: flex;
   justify-content: space-between;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   margin-top: 3px;
 }

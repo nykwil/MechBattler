@@ -6,7 +6,7 @@
 }
 .mod-chip {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0 5px;
@@ -19,7 +19,7 @@
 .mod-chip.quirk-flaw { color: var(--signal-red-text); border-color: color-mix(in srgb, var(--signal-red) 60%, transparent); }
 .variant-delta {
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: var(--text-2xs);
   padding: 0 3px;
 }
 .variant-delta.good { color: var(--signal-green); }

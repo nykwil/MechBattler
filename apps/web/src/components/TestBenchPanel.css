@@ -16,7 +16,7 @@
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-size: 12.5px;
+  font-size: var(--text-xs);
   border-radius: var(--radius-md);
   margin-bottom: 12px;
   transition: filter 0.12s;
@@ -35,7 +35,7 @@
 
 .chart-title {
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-faint);
@@ -44,7 +44,7 @@
 
 .event-log {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
   max-height: 90px;
   overflow-y: auto;
@@ -58,7 +58,7 @@
 
 .placeholder {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   padding: 10px;
   border: 1px dashed var(--line-hairline);
@@ -77,7 +77,7 @@
   border: none;
   color: var(--ink-secondary);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   padding: 2px 0 8px;
@@ -95,7 +95,7 @@
 }
 .sandbox-shooter {
   color: var(--signal-amber);
-  font-size: 14px;
+  font-size: var(--text-sm);
   flex: none;
 }
 .sandbox-track {
@@ -120,20 +120,20 @@
   padding: 0;
 }
 .sandbox-target.active { color: var(--ink-primary); }
-.sandbox-target-box { font-size: 14px; line-height: 1; }
+.sandbox-target-box { font-size: var(--text-sm); line-height: 1; }
 .sandbox-target.active .sandbox-target-box { color: var(--signal-red-text); }
-.sandbox-target-range { font-size: 9.5px; }
+.sandbox-target-range { font-size: var(--text-2xs); }
 .sandbox-target-dps {
-  font-size: 11px;
+  font-size: var(--text-2xs);
   font-weight: 600;
   color: var(--signal-green);
 }
 .sandbox-target-dps.zero { color: var(--ink-faint); }
-.sandbox-target-dps em { font-style: normal; font-size: 8px; margin-left: 2px; color: var(--ink-faint); }
+.sandbox-target-dps em { font-style: normal; font-size: var(--text-2xs); margin-left: 2px; color: var(--ink-faint); }
 
 .sandbox-rows {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   border: 1px solid var(--line-hairline);
   border-radius: var(--radius-md);
   padding: 6px 8px;
@@ -157,7 +157,7 @@
   gap: 8px;
   padding: 1px 0 1px 8px;
 }
-.sandbox-uptime-name { color: var(--ink-faint); width: 64px; flex: none; font-size: 10px; }
+.sandbox-uptime-name { color: var(--ink-faint); width: 64px; flex: none; font-size: var(--text-2xs); }
 .sandbox-uptime-bar {
   display: flex;
   width: 90px;
@@ -167,4 +167,4 @@
   overflow: hidden;
   background: var(--bg-inset);
 }
-.sandbox-uptime-text { color: var(--ink-secondary); font-size: 10px; }
+.sandbox-uptime-text { color: var(--ink-secondary); font-size: var(--text-2xs); }

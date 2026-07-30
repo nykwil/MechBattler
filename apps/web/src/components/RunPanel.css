@@ -1,6 +1,6 @@
 .run-note {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   padding: 8px 10px;
   border: 1px dashed var(--line-hairline);
@@ -33,7 +33,7 @@
   align-items: baseline;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
   margin-bottom: 10px;
 }
@@ -44,7 +44,7 @@
   border: none;
   color: var(--ink-faint);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -60,7 +60,7 @@
 }
 .run-bench-title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -71,7 +71,7 @@
   align-items: baseline;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
   padding: 2px 0;
 }
@@ -83,7 +83,7 @@
   border-radius: var(--radius-md);
   color: var(--ink-faint);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   padding: 1px 8px;
   cursor: pointer;
 }
@@ -101,7 +101,7 @@
 .run-memorial.victorious { border-color: var(--signal-green); }
 .run-memorial-title {
   font-family: var(--font-display);
-  font-size: 15px;
+  font-size: var(--text-base);
   letter-spacing: 0.08em;
   color: var(--signal-red-text);
   margin-bottom: 8px;
@@ -109,7 +109,7 @@
 .run-memorial.victorious .run-memorial-title { color: var(--signal-green); }
 .run-memorial-line {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
   padding: 1px 0;
 }
@@ -123,14 +123,14 @@
   gap: 8px;
   margin-top: 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
 }
 .arena-preview { border-radius: 3px; flex-shrink: 0; }
 .arena-card-warning {
   margin-top: 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--signal-amber);
 }
 .run-bench-sell:disabled { opacity: 0.4; cursor: default; }
@@ -145,7 +145,7 @@
   background: var(--surface-raised);
   color: var(--ink-primary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
 }
 .run-target-select:focus {
   outline: 1px solid var(--signal-green);
@@ -164,13 +164,13 @@
   background: color-mix(in srgb, var(--signal-green) 5%, transparent);
   color: var(--ink-secondary);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
 }
 
 .arena-card-carries {
   margin-top: 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--signal-amber);
 }
 
@@ -179,7 +179,7 @@
 .run-scrap.over { color: var(--signal-red-text); }
 .run-history-cause {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   text-align: right;
 }

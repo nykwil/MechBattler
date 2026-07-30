@@ -4,7 +4,7 @@
   gap: 8px;
   margin-bottom: 10px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
 }
 .live-title {
@@ -33,10 +33,10 @@
   border-radius: var(--radius-md);
   background: var(--bg-inset);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
 }
 .live-orders-label {
-  font-size: 9px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.1em;
   color: var(--ink-faint);
   margin-left: 6px;
@@ -75,7 +75,7 @@
   padding: 8px;
   text-align: center;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.1em;
   color: var(--signal-amber);
   border: 1px solid var(--signal-amber-dim);

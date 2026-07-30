@@ -36,7 +36,7 @@
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  font-size: 9.5px;
+  font-size: var(--text-2xs);
 }
 .hud-chip.active {
   border-color: var(--signal-amber-dim);
@@ -54,7 +54,7 @@
   border-radius: var(--radius-md);
   background: var(--bg-inset);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
 }
 .hud-enemy-slots {
   display: flex;
@@ -119,14 +119,14 @@
   position: absolute;
   top: 1px;
   right: 3px;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   pointer-events: none;
 }
 .hud-slot-ovr.hold { color: var(--ink-faint); }
 .hud-slot-ovr.force { color: var(--signal-green); }
 .hud-slot-label {
   position: relative;
-  font-size: 8.5px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.04em;
   color: var(--ink-secondary);
   padding-bottom: 3px;
@@ -142,11 +142,11 @@
   justify-content: center;
   pointer-events: none;
 }
-.hud-slot-x { color: var(--signal-red-text); font-size: 14px; }
-.hud-slot.compact .hud-slot-x { font-size: 10px; }
+.hud-slot-x { color: var(--signal-red-text); font-size: var(--text-sm); }
+.hud-slot.compact .hud-slot-x { font-size: var(--text-2xs); }
 .hud-slot-hold {
   color: var(--ink-faint);
-  font-size: 8px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.12em;
   padding-bottom: 12px;
 }
@@ -170,7 +170,7 @@
 .hud-gauge-label {
   flex: none;
   width: 34px;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   letter-spacing: 0.1em;
   color: var(--ink-faint);
 }
@@ -203,7 +203,7 @@
   flex: none;
   width: 64px;
   text-align: right;
-  font-size: 9px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
 }
 .hud-verbs {
@@ -270,7 +270,7 @@
   background: var(--bg-panel-raised);
   color: var(--ink-primary);
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   cursor: pointer;
 }
 @media (hover: hover) {
@@ -280,7 +280,7 @@
 .playback-clock {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
 }
 
@@ -294,7 +294,7 @@
   border-radius: var(--radius-md);
   background: var(--bg-inset);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
 }
 .playback-ticker-row {
   display: flex;
@@ -310,7 +310,7 @@
 
 .playback-caption {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   text-align: center;
 }

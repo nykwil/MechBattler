@@ -25,11 +25,11 @@
 }
 .wreck-title {
   font-family: var(--font-display);
-  font-size: 14px;
+  font-size: var(--text-sm);
   letter-spacing: 0.08em;
   color: var(--ink-primary);
 }
-.wreck-purse { font-family: var(--font-mono); font-size: 12px; color: var(--signal-amber); }
+.wreck-purse { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--signal-amber); }
 
 .wreck-body { display: flex; gap: 16px; align-items: flex-start; }
 .wreck-grid { flex: none; }
@@ -42,7 +42,7 @@
 .wreck-part.taken rect { stroke: var(--signal-green); stroke-width: 2; }
 .wreck-x {
   fill: var(--signal-red);
-  font-size: 12px;
+  font-size: var(--text-xs);
   text-anchor: middle;
   pointer-events: none;
 }
@@ -50,7 +50,7 @@
 .wreck-list { flex: 1; min-width: 240px; }
 .wreck-list-title {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -67,7 +67,7 @@
   border-radius: var(--radius-sm, 4px);
   padding: 3px 6px;
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--text-2xs);
   color: var(--ink-secondary);
   cursor: pointer;
 }
@@ -83,7 +83,7 @@
 
 .wreck-destroyed {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--text-2xs);
   color: var(--ink-faint);
   margin-top: 8px;
   padding-top: 6px;
@@ -97,12 +97,12 @@
   gap: 16px;
   margin-top: 14px;
 }
-.wreck-total { font-family: var(--font-mono); font-size: 12px; color: var(--signal-amber); }
+.wreck-total { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--signal-amber); }
 
 .wreck-unlocks {
   flex-basis: 100%;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: var(--text-2xs);
   color: var(--signal-green);
   margin-top: 4px;
 }
