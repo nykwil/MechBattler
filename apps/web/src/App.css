@@ -1,17 +1,20 @@
+/* Only the Balance Lab uses this now; the workshop shell is height:100dvh and
+   must be the viewport itself (docs/prototypes/mobile-builder.html). */
+.lab-topbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line-hairline);
+}
+
 .app-shell {
   display: grid;
   grid-template-rows: auto 1fr;
   height: 100%;
 }
 
-.topbar {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  padding: 14px 22px;
-  background: var(--bg-panel);
-  border-bottom: 1px solid var(--line-hairline);
-}
 
 .brand {
   font-family: var(--font-display);

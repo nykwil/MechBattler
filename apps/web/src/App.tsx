@@ -491,38 +491,30 @@ export default function App() {
     return <ProfileScreen profile={profile} onBack={() => setScreen('title')} />;
   }
 
-  return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="brand">
-          MechBattler <span className="tag">{workspace === 'balance' ? 'Balance Lab' : 'Workshop'}</span>
-        </div>
-        <nav className="workspace-nav" aria-label="Workspace">
-          <button type="button" onClick={() => setScreen('title')}>Title</button>
-          <button type="button" className={workspace === 'workshop' ? 'active' : ''} onClick={() => setWorkspace('workshop')}>Workshop</button>
-          <button type="button" className={workspace === 'balance' ? 'active' : ''} onClick={() => setWorkspace('balance')}>Balance Lab</button>
-        </nav>
-        {workspace === 'workshop' && !runActive && !runPrep && <>
-        <div className="chassis-select">
-          {chassisOptions.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              className={`chip${state.chassisId === c.id ? ' active' : ''}`}
-              onClick={() => setChassis(c.id)}
-              title={c.type}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
-        </>}
-      </header>
+  // The Balance Lab keeps the old desktop chrome; it is a desktop-only analysis
+  // tool. The workshop is the ported prototype shell, and that shell is
+  // height:100dvh -- it has to BE the viewport, so nothing may sit above it.
+  if (workspace === 'balance') {
+    return (
+      <div className="app-shell">
+        <header className="lab-topbar">
+          <div className="brand">MechBattler <span className="tag">Balance Lab</span></div>
+          <nav className="workspace-nav" aria-label="Workspace">
+            <button type="button" onClick={() => setScreen('title')}>Title</button>
+            <button type="button" onClick={() => setWorkspace('workshop')}>Workshop</button>
+            <button type="button" className="active">Balance Lab</button>
+          </nav>
+        </header>
+        <BalanceLab />
+      </div>
+    );
+  }
 
-      {workspace === 'balance' ? <BalanceLab /> : (
-        /* The prototype's shell (docs/prototypes/mobile-builder.html):
-           topbar -> plate-area -> readout -> actionbar, with sheets over the top. */
-        <div className="app">
+  return (
+    <>
+      {/* The prototype's shell (docs/prototypes/mobile-builder.html):
+          topbar -> plate-area -> readout -> actionbar, with sheets over the top. */}
+      <div className="app">
           <header className="topbar">
             <button
               className="chassis-btn"
@@ -535,6 +527,14 @@ export default function App() {
                 <span className="chassis-type">{chassis.id} · {chassis.type}</span>
               </span>
               <span className="caret" aria-hidden="true">▾</span>
+            </button>
+            <button
+              type="button"
+              className="tbtn"
+              onClick={() => setScreen('title')}
+              aria-label="Back to title"
+            >
+              ⌂
             </button>
             <div className="ov-toggle" role="group" aria-label="Plate view">
               {PLATE_VIEWS.map((v) => (
@@ -588,8 +588,7 @@ export default function App() {
             idleHint={state.selectedInstanceId ? 'Detach from the readout sheet' : 'Open Parts to arm something'}
             onAutoWire={autoWireNow}
           />
-        </div>
-      )}
+      </div>
 
       {chassisOpen && (
         <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">
@@ -728,6 +727,6 @@ export default function App() {
           }}
         />
       )}
-    </div>
+    </>
   );
 }
