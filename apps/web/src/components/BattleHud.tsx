@@ -309,8 +309,17 @@ export function BattleScene({
           ),
         )}
         <rect x={-halfL} y={-halfW} width={2 * halfL} height={2 * halfW} className="playback-walls" />
-        {Array.from({ length: Math.floor(halfL / 25) * 2 + 1 }, (_, k) => (k - Math.floor(halfL / 25)) * 25).map((x) => (
-          <line key={x} x1={x} y1={-halfW} x2={x} y2={halfW} className="playback-gridline" />
+        {/* The grid is the terrain grid. It used to be drawn every 25 m from the
+            arena centre while the tiles are laid from the corner at the sim's
+            cellSizeM, so the lines crossed the tiles they were meant to bound --
+            and only verticals were drawn, so it was not a grid at all. Both axes
+            now step the same cell size the terrain does; 25 was a UI-invented
+            constant of exactly the kind CLAUDE.md forbids. */}
+        {Array.from({ length: view.terrain.cols + 1 }, (_, i) => -halfL + i * view.terrain.cellSizeM).map((x) => (
+          <line key={`gv${x}`} x1={x} y1={-halfW} x2={x} y2={halfW} className="playback-gridline" />
+        ))}
+        {Array.from({ length: view.terrain.rows + 1 }, (_, i) => -halfW + i * view.terrain.cellSizeM).map((y) => (
+          <line key={`gh${y}`} x1={-halfL} y1={y} x2={halfL} y2={y} className="playback-gridline" />
         ))}
 
         {/* Destination markers: the standing move order, drawn like an RTS waypoint. */}
