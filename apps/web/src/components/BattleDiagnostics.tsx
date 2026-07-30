@@ -1,6 +1,6 @@
 import {
   CELL_SIZE_M, TICK_S,
-  computeHitModel, falloffAt, getChassis, getPart, meanSilhouetteHalfWidthM,
+  computeHitModel, effectiveMults, falloffAt, getChassis, getPart, meanSilhouetteHalfWidthM,
   MOVE_JITTER_MRAD_PER_MPS, SPEED_SETTING_FRACTIONS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
   type BattleFrame, type Build,
 } from '@mechbattler/sim';
@@ -16,11 +16,16 @@ import './BattleDiagnostics.css';
  * It is a debugging instrument, not a player-facing screen: it exists so a wrong
  * number can be traced to the term that produced it. Deliberately dense.
  *
- * Every figure is read from the sim — `computeHitModel` for the shot, the frame for
- * kinematics, `falloffAt` for damage against range. Nothing here re-derives the
- * models it is reporting on, because an instrument that computes its own answer
- * cannot disagree with the thing it is measuring, which is the only reason to have
- * it.
+ * Every figure is read from the sim — `computeHitModel` for the shot, `effectiveMults`
+ * for the gun's modifiers, the frame for kinematics, `falloffAt` for damage against
+ * range. Nothing here re-derives the models it is reporting on, because an
+ * instrument that computes its own answer cannot disagree with the thing it is
+ * measuring, which is the only reason to have one.
+ *
+ * One known simplification: the target half-width is the bare mean silhouette. The
+ * sim additionally scales it by terrain cover and the target's profile on its tile,
+ * neither of which is exported. So the hit chance here reads slightly high against
+ * an enemy in cover. Worth closing by exporting those two, not by guessing at them.
  */
 export function BattleDiagnostics({ view, frame, tSec, build }: {
   view: BattleView;
@@ -68,7 +73,17 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
   const lateral = prev ? crossingSpeedMps(prev.mechs[0], me, foe, TICK_S) : 0;
   const tc = hasPoweredTcAt(view, build, tSec, 0);
   const lagS = tc ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
-  const sigmaRad = w ? (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * speed) * 0.001 : 0;
+  // Same multipliers the sim applies: a modified or salvaged gun disperses
+  // differently from its catalog entry, and an instrument that ignores that reports
+  // a spread the shot does not have.
+  const placed = build?.parts.find((p) => p.instanceId === gun?.instanceId);
+  const mults = placed && gun
+    ? effectiveMults(placed, { tempC: gun.tempC, speedMps: speed, tile: me.tile })
+    : undefined;
+  const sigmaRad = w
+    ? (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
+      + MOVE_JITTER_MRAD_PER_MPS * speed * (mults?.moveJitter ?? 1)) * 0.001
+    : 0;
   const model = w
     ? computeHitModel({
       rangeM,
@@ -133,7 +148,8 @@ export function BattleDiagnostics({ view, frame, tSec, build }: {
         {w && model ? (
           <>
             {row('your speed → jitter', `${speed.toFixed(2)} → +${(MOVE_JITTER_MRAD_PER_MPS * speed).toFixed(2)} mrad`)}
-            {row('total dispersion', `${(sigmaRad * 1000).toFixed(2)} mrad → ${dispersionM.toFixed(2)} m`)}
+            {row('total dispersion', `${(sigmaRad * 1000).toFixed(2)} mrad → ${dispersionM.toFixed(2)} m`,
+              mults && mults.dispersionMrad !== 1 ? 'good' : '')}
             {row('target crossing', `${lateral.toFixed(2)} m/s`)}
             {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s${tc ? ' (TC)' : ''}`)}
             {row('lead error', `${leadErrorM.toFixed(2)} m`, leadErrorM > dispersionM ? 'bad' : '')}

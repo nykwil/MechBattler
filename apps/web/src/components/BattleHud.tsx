@@ -2,7 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
-  computeHitModel, meanSilhouetteHalfWidthM,
+  computeHitModel, effectiveMults, meanSilhouetteHalfWidthM,
   MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
@@ -205,9 +205,17 @@ function ShotSpread({ view, frame, tSec, mech, build }: {
     : 0;
   const lateral = prev ? crossingSpeedMps(prev.mechs[mech], me, foe, TICK_S) : 0;
 
+  // The sim scales both terms by the gun's own modifier and variant multipliers, so
+  // a cold-bore or gyrostabilised weapon draws a narrower spread than the catalog
+  // number implies. Dropping them made the mark disagree with the shot.
+  const placed = build?.parts.find((p) => p.instanceId === gun.instanceId);
+  const mults = placed
+    ? effectiveMults(placed, { tempC: gun.tempC, speedMps: mySpeed, tile: me.tile })
+    : undefined;
   const model = computeHitModel({
     rangeM,
-    sigmaRad: (w.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * mySpeed) * 0.001,
+    sigmaRad: (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
+      + MOVE_JITTER_MRAD_PER_MPS * mySpeed * (mults?.moveJitter ?? 1)) * 0.001,
     lateralSpeedMps: lateral,
     lagS: hasPoweredTcAt(view, build, tSec, mech) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S,
     projectileSpeed: w.projectileSpeed,
