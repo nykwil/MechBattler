@@ -6,16 +6,16 @@ import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, PURSE_PER_NODE,
+  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE,
   START_BUDGET, repairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
-import { ELITE_PURSE_MULT } from './lib/ladder.js';
 const BattleReportScreen = lazy(() => import('./components/BattleReportScreen.js').then((m) => ({ default: m.BattleReportScreen })));
 const BattleLiveScreen = lazy(() => import('./components/BattleLiveScreen.js').then((m) => ({ default: m.BattleLiveScreen })));
 import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import { resolveView } from './lib/views.js';
+import { settleRunFight } from './lib/settleRunFight.js';
 import type { FightMode } from './components/ArenaPanel.js';
 // Lazy: the Balance Lab is a desktop analysis tool with its own worker, and the
 // battle screens carry the whole battle stylesheet. Neither is needed to paint the
@@ -852,40 +852,16 @@ export default function App() {
               const settledBuild = settleBuildDamage(build, battle.report);
               loadBuild(settledBuild);
               const unlocks = recordBattleOutcome(battle.report, battle.opponent.build);
-              if (battle.report.winner === 0 && run.phase === 'active') {
-                // Salvage settles the node (docs/04 §2) before the ladder
-                // advances; beating the mech registers its unlocks (04 §7).
-                const purse = Math.round(
-                  (PURSE_BASE + PURSE_PER_NODE * run.data.nodeIndex)
-                  * (battle.opponent.elite ? ELITE_PURSE_MULT : 1),
-                );
-                beginSalvage({
-                  opponentName: battle.opponent.name,
-                  opponentChassisId: battle.opponent.build.chassisId,
-                  opponentPowerPriority: [...battle.opponent.build.powerPriority],
-                  purse,
-                  candidates: createSalvageCandidates({
-                    run: { seed: run.data.seed, nodeIndex: run.data.nodeIndex },
-                    report: battle.report,
-                    enemyBuild: battle.opponent.build,
-                    opponentName: battle.opponent.name,
-                    purse,
-                    guaranteeMod: run.data.fightsWon === 0,
-                  }),
-                  unlocks: {
-                    chassis: unlocks.chassis,
-                    parts: unlocks.parts,
-                    challenges: unlocks.challenges,
-                  },
-                  unlockIds: {
-                    chassis: unlocks.chassisIds,
-                    parts: unlocks.partIds,
-                    challenges: unlocks.challengeIds,
-                  },
-                });
-              } else if (battle.report.winner === 1 && battle.report.reason === 'core-kill') {
-                lost(`Core destroyed by ${battle.opponent.name}`);
-              }
+              // The decision lives in lib/settleRunFight so its branches can be
+              // tested; this applies it.
+              const outcome = settleRunFight({
+                report: battle.report,
+                opponent: battle.opponent,
+                run,
+                unlocks,
+              });
+              if (outcome.kind === 'salvage') beginSalvage(outcome.pending);
+              else if (outcome.kind === 'lost') lost(outcome.cause);
             }
             setBattle(null);
           }}

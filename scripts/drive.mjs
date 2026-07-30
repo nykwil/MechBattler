@@ -103,11 +103,26 @@ function chromeBinary() {
 }
 
 const port = 9333 + Math.floor(Math.random() * 400);
+/**
+ * Chrome must die with this script however it ends. Runs that timed out before their
+ * own cleanup leaked browsers, and ten of them starve each other badly enough to look
+ * like application flakiness — several "flakes" chased today were probably this.
+ */
+function reapOnExit(proc) {
+  const kill = () => { try { proc.kill('SIGKILL'); } catch { /* already gone */ } };
+  process.on('exit', kill);
+  for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
+    process.on(sig, () => { kill(); process.exit(130); });
+  }
+  process.on('uncaughtException', (err) => { kill(); throw err; });
+}
+
 const chrome = spawn(chromeBinary(), [
   '--headless=new', '--disable-gpu', '--no-sandbox', '--hide-scrollbars',
   `--remote-debugging-port=${port}`, `--user-data-dir=/tmp/cdp-${port}`,
   'about:blank',
 ], { stdio: 'ignore' });
+reapOnExit(chrome);
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
