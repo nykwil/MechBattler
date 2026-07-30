@@ -5,14 +5,6 @@
   pointer-events: none;
 }
 
-.sheet-scrim {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  pointer-events: auto;
-  z-index: var(--z-overlay);
-}
-
 /* Snap points from docs/14 §8. The plate stays visible at peek and half, so
    placement never loses its context to the sheet. */
 .sheet {
@@ -36,26 +28,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .sheet { transition: none; }
-}
-
-/* 36x4 grip inside a 44px drag zone: the grip is the signal, the zone is the
-   target. Sizing the target to the graphic would break --tap-min. */
-.sheet-handle {
-  flex: none;
-  height: var(--tap-min);
-  width: 100%;
-  display: grid;
-  place-items: center;
-  background: none;
-  border: none;
-  cursor: grab;
-  touch-action: none;
-}
-.sheet-grip {
-  width: 36px;
-  height: 4px;
-  border-radius: var(--radius-full);
-  background: var(--line-bright);
 }
 
 .sheet-body {

@@ -178,8 +178,6 @@
   font-size: var(--text-2xs);
   color: var(--signal-amber);
 }
-
-.run-frames { display: flex; flex-wrap: wrap; gap: 6px; padding: var(--space-1) 0; }
 .run-frames .chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .run-scrap.over { color: var(--signal-red-text); }
 .run-history-cause {

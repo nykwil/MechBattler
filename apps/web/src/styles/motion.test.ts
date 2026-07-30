@@ -132,3 +132,51 @@ describe('class coverage', () => {
     expect([...missing].sort()).toEqual([]);
   });
 });
+
+/**
+ * Contrast, extended past docs/14 §4. That audit measured four grounds; the port
+ * introduced a fifth -- --surface-raised, the sheet background -- and --ink-faint
+ * measured 4.26 against it, below AA for the small mono labels it exists for.
+ * Ground-derived rather than hard-coded, so a new surface token is audited the
+ * moment it is added.
+ */
+describe('text contrast', () => {
+  const srgb = (c: number) => {
+    const v = c / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = (hex: string) => {
+    const h = hex.replace('#', '');
+    const [r, g, b] = [0, 2, 4].map((i) => parseInt(h.slice(i, i + 2), 16));
+    return 0.2126 * srgb(r!) + 0.7152 * srgb(g!) + 0.0722 * srgb(b!);
+  };
+  const ratio = (a: string, b: string) => {
+    const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+    return (hi! + 0.05) / (lo! + 0.05);
+  };
+
+  function tokens() {
+    const css = readFileSync('src/styles/tokens.css', 'utf8');
+    const out: Record<string, string> = {};
+    for (const m of css.matchAll(/(--[a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;/g)) out[m[1]!] = m[2]!;
+    return out;
+  }
+
+  it('clears AA for every text ink on every surface', () => {
+    const t = tokens();
+    const grounds = Object.entries(t).filter(([k]) => k.startsWith('--bg') || k === '--surface-raised');
+    // Text tokens only. The -dim variants and --cat-* are fills, borders and cell
+    // colours; --signal-red is documented UI-only, with --signal-red-text for text.
+    const inks = ['--ink-primary', '--ink-secondary', '--ink-faint', '--signal-red-text',
+      '--signal-amber', '--signal-blue', '--signal-green'];
+
+    const failures: string[] = [];
+    for (const ink of inks) {
+      for (const [gName, gHex] of grounds) {
+        const r = ratio(t[ink]!, gHex);
+        if (r < 4.5) failures.push(`${ink} on ${gName}: ${r.toFixed(2)}`);
+      }
+    }
+    expect(failures).toEqual([]);
+  });
+});

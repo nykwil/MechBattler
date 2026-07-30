@@ -14,10 +14,16 @@
   --ink-primary: #e9e7e1;
   --ink-secondary: #9a9fab;
   /* Was #616774, which failed WCAG AA on every ground (3.38/3.24/2.97/2.71) and
-     fell below even the 3:1 non-text minimum on --bg-panel-raised. This is the
-     smallest value clearing AA on all four (5.75/5.52/5.06/4.61); #767c8a and
-     #7d8492 still fail on raised. See docs/14 §4. */
-  --ink-faint: #868d9b;
+     fell below even the 3:1 non-text minimum on --bg-panel-raised. docs/14 §4
+     replaced it with #868d9b, the smallest value clearing AA on the four grounds
+     that existed then.
+
+     Now #8b92a0. The port introduced a fifth ground: --surface-raised #262b34 is
+     the sheet background, and #868d9b measured only 4.26 against it -- below AA
+     for exactly the small mono labels this token exists for (.ro-k readout keys,
+     .chassis-type, .part-sub). This is the smallest hue-preserving value clearing
+     4.5 on all five (5.89/5.39/4.91/6.14/6.37/4.55). */
+  --ink-faint: #8b92a0;
   --ink-muted: var(--ink-secondary);
 
   /* Part-category colours. Identical to CATEGORY_COLOR in lib/partVisuals.ts,

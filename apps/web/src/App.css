@@ -15,7 +15,6 @@
   height: 100%;
 }
 
-
 .brand {
   font-family: var(--font-display);
   font-weight: 700;
@@ -57,11 +56,6 @@
   .workspace-nav button:hover { color: var(--ink-primary); }
 }
 .workspace-nav button.active { color: var(--ink-primary); border-bottom-color: var(--signal-amber); }
-
-.chassis-select {
-  display: flex;
-  gap: 6px;
-}
 .chip {
   font-family: var(--font-mono);
   font-size: var(--text-2xs);
@@ -82,57 +76,6 @@
   background: rgba(232, 162, 61, 0.08);
 }
 
-.overlay-toggle {
-  display: flex;
-  gap: 6px;
-  margin-left: auto;
-}
-
-/*
-  docs/14 §11: mobile-first, min-width queries only. The base layout is a single
-  column -- the plate owns the screen and Parts and the readout are sheets. At
-  --bp-md they dock and the three-column desktop layout re-emerges from those same
-  primitives. (--bp-md cannot be read inside @media, so 768px is repeated here and
-  mirrored by BP_MD in useDocked.ts.)
-*/
-.layout {
-  display: grid;
-  grid-template-columns: 1fr;
-  min-height: 0;
-}
-
-@media (min-width: 768px) {
-  .layout {
-    grid-template-columns: 268px 1fr 360px;
-  }
-}
-
-.panel {
-  overflow-y: auto;
-  padding: var(--space-4);
-  border-right: 1px solid var(--line-hairline);
-}
-.panel:last-child { border-right: none; }
-
-.centerpane {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  /* Totals of 24px, matching the plate-sizing arithmetic in docs/14 §5. */
-  padding: var(--space-3);
-  overflow: auto;
-  /* Sizes the plate: --plate-cell resolves against this pane's width in cqw,
-     so the grid fits the centre track on desktop and the screen on mobile. */
-  container-type: inline-size;
-  /* docs/14 §5: the plate earns the screen by size and position, not effects.
-     The radial gradient that used to sit here was pure decoration. */
-}
-
-@media (min-width: 768px) {
-  .centerpane { padding: var(--space-5); }
-}
-
 .section {
   margin-bottom: 22px;
 }
@@ -143,13 +86,6 @@
   align-items: baseline;
   justify-content: space-between;
   margin-bottom: 8px;
-}
-
-/* The way into the Parts sheet on a phone; docked, the rail is always present so
-   this control is unnecessary (docs/14 §11). */
-.open-parts {
-  width: 100%;
-  max-width: 420px;
 }
 
 /*

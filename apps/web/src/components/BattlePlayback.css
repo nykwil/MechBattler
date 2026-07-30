@@ -84,12 +84,6 @@
   width: 30px;
   height: 20px;
 }
-.hud-slot-fill {
-  position: absolute;
-  inset: auto 0 0 0;
-  background: rgba(232, 162, 61, 0.35);
-  transition: height 0.08s linear;
-}
 .hud-slot.ok { border-color: var(--signal-amber-dim); }
 .hud-slot.ok .hud-slot-fill { background: rgba(232, 162, 61, 0.45); }
 .hud-slot.holdfire { border-color: var(--line-hairline); opacity: 0.65; }
@@ -115,41 +109,10 @@
 }
 .hud-slot.ovr-hold { border-style: dashed; }
 .hud-slot.ovr-force { border-color: var(--signal-green); }
-.hud-slot-ovr {
-  position: absolute;
-  top: 1px;
-  right: 3px;
-  font-size: var(--text-2xs);
-  pointer-events: none;
-}
 .hud-slot-ovr.hold { color: var(--ink-faint); }
 .hud-slot-ovr.force { color: var(--signal-green); }
-.hud-slot-label {
-  position: relative;
-  font-size: var(--text-2xs);
-  letter-spacing: 0.04em;
-  color: var(--ink-secondary);
-  padding-bottom: 3px;
-  pointer-events: none;
-}
 .hud-slot.compact .hud-slot-label { display: none; }
-.hud-slot-x,
-.hud-slot-hold {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-.hud-slot-x { color: var(--signal-red-text); font-size: var(--text-sm); }
 .hud-slot.compact .hud-slot-x { font-size: var(--text-2xs); }
-.hud-slot-hold {
-  color: var(--ink-faint);
-  font-size: var(--text-2xs);
-  letter-spacing: 0.12em;
-  padding-bottom: 12px;
-}
 .hud-slot.compact .hud-slot-hold { display: none; }
 
 /* --- Gauges ---------------------------------------------------------------- */

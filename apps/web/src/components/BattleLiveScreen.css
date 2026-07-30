@@ -1,17 +1,8 @@
-.live-topbar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 10px;
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--ink-secondary);
-}
+
 .live-title {
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
-.live-spacer { flex: 1; }
 .live-dot {
   width: 8px;
   height: 8px;
