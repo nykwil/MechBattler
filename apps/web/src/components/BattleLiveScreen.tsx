@@ -226,55 +226,71 @@ export function BattleLiveScreen({
 
           {/* Manual verb overrides (docs/08 §2). Chips toggle: active manual
               chip clicked again reverts that verb to auto. */}
-          <div className="live-orders">
-            <span className="live-orders-label">MOVE</span>
-            <span className={`hud-chip btn${moveMode === 'waypoint' ? ' active' : ''}`} title="Click the arena to set a waypoint · right-click reverts to auto">
-              waypoint
-            </span>
+          {/* Orders, ported to the prototype's .orders row: fixed-width .obtn
+              toggles and a flexible .seg throttle, state carried by aria-pressed.
+              The segment stays at the prototype's three throttles. A fourth AUTO
+              segment squeezed them until 'cruise' truncated, and it was redundant:
+              the Auto button already hands the throttle back to the autopilot. When
+              it holds the throttle the segment carries .off to say so, but stays
+              clickable, because clicking a throttle is how you take manual control. */}
+          <div className="live-orders orders">
             <button
-              type="button" className={`hud-chip btn${moveMode === 'hold' ? ' active' : ''}`}
+              type="button" className="obtn"
+              aria-pressed={moveMode === 'hold'}
               onClick={() => setManual((m) => ({ ...m, move: m.move === 'hold' ? 'auto' : 'hold' }))}
               title="Stand fast in place"
             >
-              hold
+              Hold
             </button>
-            {moveMode === 'waypoint' && (
-              <button
-                type="button" className={`hud-chip btn${manual.autoOnArrival ? ' active' : ''}`}
-                onClick={() => setManual((m) => ({ ...m, autoOnArrival: !m.autoOnArrival }))}
-                title="On arrival at the waypoint, clear every manual order and resume full auto"
-              >
-                auto on arrival
-              </button>
-            )}
-            <span className="live-orders-label">THROTTLE</span>
-            {THROTTLES.map((s) => (
-              <button
-                key={s} type="button"
-                className={`hud-chip btn${manual.throttle === s ? ' active' : ''}`}
-                onClick={() => setManual((m) => ({ ...m, throttle: m.throttle === s ? 'auto' : s }))}
-              >
-                {s}
-              </button>
-            ))}
-            <span className="live-orders-label">FACE</span>
+
+            <span
+              className={`seg${manual.throttle === 'auto' ? ' off' : ''}`}
+              role="group"
+              aria-label="Throttle"
+            >
+              {THROTTLES.map((s) => (
+                <button
+                  key={s} type="button"
+                  aria-pressed={manual.throttle === s}
+                  onClick={() => setManual((m) => ({ ...m, throttle: s }))}
+                >
+                  {s}
+                </button>
+              ))}
+            </span>
+
             <button
-              type="button" className={`hud-chip btn${manual.face !== 'auto' ? ' active' : ''}`}
+              type="button" className="obtn"
+              aria-pressed={manual.face !== 'auto'}
               onClick={cycleFace}
               title="Cycle: auto · track target · face travel direction · hold bearing (aim with an arena click)"
             >
-              {manual.face}
+              {manual.face === 'auto' ? 'Face' : manual.face}
             </button>
-            <span className="live-orders-spacer" />
+
             <button
-              type="button"
-              className={`hud-chip btn full-auto${isFullAuto(manual) ? ' active' : ''}`}
+              type="button" className="obtn"
+              aria-pressed={isFullAuto(manual)}
               onClick={() => setManual(FULL_AUTO)}
               title="Clear all manual orders; the autopilot resumes every verb"
             >
-              FULL AUTO
+              Auto
             </button>
           </div>
+
+          {moveMode === 'waypoint' && (
+            <div className="live-orders orders">
+              <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
+              <button
+                type="button" className="obtn"
+                aria-pressed={manual.autoOnArrival}
+                onClick={() => setManual((m) => ({ ...m, autoOnArrival: !m.autoOnArrival }))}
+                title="On arrival at the waypoint, clear every manual order and resume full auto"
+              >
+                On arrival
+              </button>
+            </div>
+          )}
 
           <BattleTicker view={view} tSec={tSec} names={names} />
           <BattleCaption view={view} />
