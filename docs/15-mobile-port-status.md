@@ -61,6 +61,7 @@ rather than accumulated:
 | Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
 | Production bundle | workshop renders and places correctly minified; dev views inert |
 | First load | 80.05 kB CSS / 329.71 kB JS; battle and lab chunks load on demand |
+| Run loop | front door → New run → Load → Launch → Fight · Live → report → Rematch, driven end to end at 390×844 |
 
 | Surface | Reached by | State |
 |---|---|---|

@@ -49,6 +49,12 @@ clipping that did not exist. `drive.mjs` uses
 `Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
 `overflowX` so a crop can never be mistaken for an overflow again.
 
+Wait on the specific thing you are about to assert, not its ancestor. A container
+exists before its children commit: gating on `.report-overlay` reported the battle
+report as having no buttons at all, which looked like a screen with no way out.
+Gating on `.report-banner-title` read it correctly — eight buttons, Replay, Report and
+Rematch among them.
+
 Put `--waitFor <selector>` between an action and the tap that depends on it. Without
 it, `--tapText` can fall back to a shortest-containing match and do the opposite of
 what you asked — tapping `Faults` before the sheet renders hits the readout bar,
