@@ -44,6 +44,20 @@ Every surface has been looked at and driven at a true 390×844 viewport, using
 `scripts/drive.mjs` (`npm run web:shot`). Tests alone were never sufficient — see
 §4.
 
+Measured across workshop, battle, report and salvage, all currently clean:
+
+| Property | Result |
+|---|---|
+| Horizontal overflow | none; nothing renders past the viewport edge |
+| Tap targets | nothing under 44px |
+| Rendered contrast | every text run clears AA against its *composited* background |
+| Accessible names | every interactive element named; void plate cells inert |
+| Console | no errors, warnings or exceptions |
+| Focus rings | real Tab produces a 2px outline on every control reached |
+| Sheet snaps | 96px / 55vh / 88vh exactly, as §8 specifies |
+| Reduced motion | all animation collapses; indicators settle visible, sheets still appear |
+| Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
+
 | Surface | Reached by | State |
 |---|---|---|
 | Workshop | `?view=workshop` | Ported and driven: arm, aim, rotate, place, detach, discard |
@@ -82,12 +96,34 @@ found by diffing against the prototype's *source*, or by driving the app.
 | All 22 parts in one list | Radiators ~1900px down a scrolling sheet | a driver tap that missed |
 | `<button>` inside `<button>` in salvage | Invalid HTML; the click may not arrive | reading the console |
 | `--ink-faint` on `--surface-raised` | 4.26 contrast, below AA, on sheet labels | contrast audit |
+| Ported `--cell: 40px` overrode §5's formula | Every plate cell 40px, under the 44px floor the design sets itself | measuring rendered boxes |
+| `font:` shorthand missed by two sweeps | 10px text in front door and salvage, under the 11px floor | driving two unvisited screens |
+| Multi-value and shorthand spacing missed | 62 declarations off the scale | grepping for what the sweep could not match |
+| Enemy gun chips were handler-less buttons | 28px focus stops that do nothing | tap-target measurement |
+| Report transport under-sized | 24px buttons, 24px tabs, 16px scrubber | tap-target measurement |
+| Enemy name in `--signal-red` | 4.38 rendered, under AA, using a token §4 marks UI-only | rendered-contrast measurement |
+| Unfilled threat marks in `--line-bright` | 1.87, under even the 3:1 graphical threshold | rendered-contrast measurement |
+| Three copies of the occupancy map | UI owning logic the sim exports | reviewing the diff |
 
-**My own tooling produced four false positives**, each of which nearly caused me to
-"fix" working code: a 390px PNG cropped from a 500px layout read as clipping; a
-scrim read as failing to cover; `--tapText` matching a container instead of its
-child; and an a11y scan not excluding `aria-hidden`. Measure, then believe — and
-sanity-check each new measurement before trusting it.
+**My own tooling produced six false positives**, each of which nearly had me "fix"
+working code:
+
+- a 390px PNG cropped from a 500px layout, read as clipping;
+- a scrim read as failing to cover, when it covered;
+- `--tapText` matching a container instead of its child (tapping *Faults*);
+- `--tapText` matching a shorter unrelated element (tapping *Widow* hit "Junkyard
+  Widow", which looked like a chassis-selection bug);
+- a scroll race making a tap silently miss, which looked like an invisible ghost;
+- an accessible-name scan not excluding `aria-hidden` subtrees.
+
+Two rules come out of that. Measure before believing a screenshot — and sanity-check
+each instrument before treating its output as evidence about the app. Every tool here
+has been wrong at least once.
+
+The complementary rule, from §4's table: a rule correctly declared is not a rule in
+effect. `--tap-min` was in the stylesheets and not in the rendering. The type scale
+was adopted for the syntax I had searched for. Contrast passed at token level and
+failed composited. Verify outcomes, not declarations.
 
 ## 5. Deliberate divergences from the prototypes
 
