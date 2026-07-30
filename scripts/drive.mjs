@@ -14,6 +14,9 @@
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
  *
+ * --waitFor <selector> blocks until the selector appears. It is ordered with the
+ * taps, so a wait can sit between an action and the tap that depends on it.
+ *
  * --slow throttles the network, so lazy-loading fallbacks can be seen rather than
  * assumed.
  *
@@ -53,6 +56,7 @@ const taps = args.reduce((acc, a, i) => {
   if (a === '--tap') return [...acc, { kind: 'selector', value: args[i + 1] }];
   if (a === '--tapText') return [...acc, { kind: 'text', value: args[i + 1] }];
   if (a === '--key') return [...acc, { kind: 'key', value: args[i + 1] }];
+  if (a === '--waitFor') return [...acc, { kind: 'wait', value: args[i + 1] }];
   return acc;
 }, []);
 
@@ -106,6 +110,21 @@ const chrome = spawn(chromeBinary(), [
 ], { stdio: 'ignore' });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Waits for a predicate to hold in the page. Fixed sleeps are why a tab-switch
+ * assertion read stale DOM about one run in three; waiting on the condition removes
+ * that class of flake instead of lengthening the guess.
+ */
+async function waitFor(expression, { timeoutMs = 8000, label = expression } = {}) {
+  const deadline = Date.now() + timeoutMs;
+  while (Date.now() < deadline) {
+    if (await evaluate(`Boolean(${expression})`)) return true;
+    await sleep(80);
+  }
+  console.error(`waitFor timed out: ${label}`);
+  return false;
+}
 
 async function targetWs() {
   for (let i = 0; i < 60; i += 1) {
@@ -193,10 +212,23 @@ if (args.includes('--slow')) {
 
 await send('Page.navigate', { url });
 await send('Page.setLifecycleEventsEnabled', { enabled: true });
-await sleep(2500);
+
+// Wait for React to mount rather than guessing at a load time.
+await waitFor('document.getElementById("root") && document.getElementById("root").children.length',
+  { timeoutMs: 20000, label: 'app mount' });
+
+
 
 for (const tap of taps) {
   const selector = tap.value;
+  if (tap.kind === 'wait') {
+    // Ordered waits matter more than longer sleeps. Tapping text before its element
+    // exists does not merely miss: --tapText falls back to the shortest containing
+    // match, which for 'Faults' is the readout bar, whose click closes the sheet the
+    // tab lives in. The tap succeeds and does the opposite of what was asked.
+    await waitFor(`document.querySelector(${JSON.stringify(selector)})`, { label: selector });
+    continue;
+  }
   if (tap.kind === 'key') {
     const k = KEYS[selector];
     if (!k) { console.error(`key: unknown ${selector}`); continue; }
@@ -225,6 +257,10 @@ for (const tap of taps) {
          return (starts[0] ?? all.sort(byLength)[0]);
        })()`
     : `document.querySelector(${JSON.stringify(selector)})`;
+  // Wait for the target to exist before measuring it, so a tap issued while React
+  // is still committing does not silently miss.
+  await waitFor(`${finder}`, { label: `element for ${selector}` });
+
   // Scroll into view first: sheet bodies scroll, and a part row 1900px down
   // reports a rect far outside the viewport, so the click lands on nothing.
   // Measure only after the scroll has settled -- reading the rect in the same

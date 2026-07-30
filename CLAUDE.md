@@ -49,6 +49,12 @@ clipping that did not exist. `drive.mjs` uses
 `Emulation.setDeviceMetricsOverride`, which has no such floor, and reports
 `overflowX` so a crop can never be mistaken for an overflow again.
 
+Put `--waitFor <selector>` between an action and the tap that depends on it. Without
+it, `--tapText` can fall back to a shortest-containing match and do the opposite of
+what you asked — tapping `Faults` before the sheet renders hits the readout bar,
+which closes the sheet the tab lives in. That looked like a one-in-three flake and
+was not a timing problem.
+
 `--key Tab` gives real keyboard focus, which is the only way to verify a
 `:focus-visible` ring actually renders — a rule in the stylesheet is not the same as
 an outline on the screen.
