@@ -365,3 +365,11 @@ button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--signal-amb
     padding-bottom:var(--space-4);border-bottom:1px solid var(--line-hairline);}
 }
 }
+
+/* The enemy strip is a compact mirror of the console, so its gun chips shrink
+   rather than getting their own component. */
+.battle-app .gun.compact {
+  min-height: 28px;
+  padding: 0 var(--space-2);
+}
+.battle-app .gun.compact .gun-rng { display: none; }

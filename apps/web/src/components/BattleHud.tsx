@@ -112,21 +112,33 @@ function WeaponSlot({
               ? { label: 'HOT', blurb: 'fire control holding at ≥115°C (shutdown at 130°C)' }
               : { label: 'HOLD', blurb: 'fire control holding' };
   return (
-    <div
-      className={cls}
-      title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '') + (onClick ? ' · click: auto → hold → force' : '')}
+    <button
+      type="button"
+      className={`gun${compact ? ' compact' : ''}${cls.includes('destroyed') ? ' dead' : ''}`}
+      aria-pressed={override === 'force'}
+      title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '')}
       onClick={onClick}
       onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
       onMouseLeave={onHover ? () => onHover(null) : undefined}
     >
-      <div className="hud-slot-fill" style={{ height: `${wf.readyFrac * 100}%` }} />
-      <span className="hud-slot-label">{shortName(wf.partId)}</span>
-      {wf.status === 'destroyed' && <span className="hud-slot-x">✕</span>}
-      {wf.status === 'shutdown' && <span className="hud-slot-x">♨</span>}
-      {wf.status === 'shed' && <span className="hud-slot-hold">PWR</span>}
-      {silence && <span className="hud-slot-hold">{silence.label}</span>}
-      {override && <span className={`hud-slot-ovr ${override}`}>{override === 'hold' ? '◦' : '▲'}</span>}
-    </div>
+      {/* Fill is time to next shot. The prototype learned to build these once and
+          update in place: rebuilding every frame ate taps between pointerdown and
+          pointerup and restarted the fill transition before it could finish. */}
+      <span className="gun-fill" style={{ width: `${wf.readyFrac * 100}%` }} />
+      <span className="gun-top">
+        <span className="gun-nm">{shortName(wf.partId)}</span>
+        <span className="gun-why">
+          {wf.status === 'destroyed' ? 'Dead'
+            : wf.status === 'shutdown' ? 'Hot'
+              : wf.status === 'shed' ? 'Power'
+                : silence ? silence.label
+                  : wf.readyFrac >= 1 ? 'Ready' : ''}
+        </span>
+      </span>
+      <span className="gun-rng">
+        <span className="gun-hint">{override ? (override === 'hold' ? 'held' : 'forced') : ''}</span>
+      </span>
+    </button>
   );
 }
 
@@ -318,20 +330,32 @@ export function BattleScene({
       </div>
 
 
-      {/* Your cockpit: portrait | gun bar | gauges + verb chips. */}
-      <div className="hud-cockpit" style={{ borderColor: MECH_COLORS[0] }}>
-        <div className="hud-portrait">
-          <span className="hud-name" style={{ color: MECH_COLORS[0] }}>{names[0]}</span>
-          <span className="hud-meter" title="Core HP">
-            <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / CORE_HP}%` }} />
-          </span>
-          <span className="hud-meter" title="Functional mass">
-            <span className="hud-meter-fill mass" style={{ width: `${100 * you.functionalMassFrac}%` }} />
-          </span>
+      {/* The console IS the mech's instrument panel: every instrument lives here,
+          and only map marks go on the glass above (docs/14 §12). */}
+      <div className="console">
+       <div className="con-main">
+        <div className="con-instruments">
+          <div className="con-bars">
+            <div className="cbar">
+              <span className="cbar-k">Core</span>
+              <span className="cbar-t">
+                <i className="cbar-f core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / CORE_HP}%` }} />
+              </span>
+              <span className="cbar-v">{Math.max(0, Math.round(you.coreHp))}</span>
+            </div>
+            {/* Functional mass only decides a timeout, so it gets a hairline
+                rather than a headline. */}
+            <div className="cbar tiny">
+              <span className="cbar-k">Mass</span>
+              <span className="cbar-t">
+                <i className="cbar-f mass" style={{ width: `${100 * you.functionalMassFrac}%` }} />
+              </span>
+              <span className="cbar-v">{Math.round(you.functionalMassFrac * 100)}%</span>
+            </div>
+          </div>
         </div>
 
-        <div className="hud-guns">
-          <div className="hud-gun-row">
+        <div className="gunrow" role="group" aria-label="Weapons">
             {you.weapons.length === 0 && <span className="hud-empty">no weapons</span>}
             {you.weapons.map((wf) => (
               <WeaponSlot
@@ -342,11 +366,10 @@ export function BattleScene({
                 onClick={onWeaponClick ? () => onWeaponClick(wf.instanceId) : undefined}
               />
             ))}
-          </div>
-          <div className="hud-gun-blurb">
-            {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · RANGE/ARC/HOT = why fire control holds · HOLD = your order'}
-          </div>
         </div>
+        <p className="con-foot">
+          {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · Range/Arc/Hot = why fire control holds'}
+        </p>
 
         <div className="hud-gauges">
           <Gauge
@@ -381,6 +404,7 @@ export function BattleScene({
             )}
           </div>
         </div>
+       </div>
       </div>
     </>
   );
