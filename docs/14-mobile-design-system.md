@@ -15,6 +15,9 @@ against the source. This document remains the record of the reasoning, and of th
 in §12 that the lost prototype's tests forced, but it is no longer the source of truth for
 what anything looks like.*
 
+*See `docs/15-mobile-port-status.md` for what was ported, how each surface was
+verified, and the one design decision still open.*
+
 *Superseded in detail: §5's per-edge-box-shadow note is now literal — the plate is the
 prototype's CSS grid of buttons, not the old SVG. §8's readout bar, sheets, part rows, plate
 views and intel strip all exist as the prototype's own components. §11's docking rails were
