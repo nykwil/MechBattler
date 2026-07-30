@@ -4,7 +4,7 @@ import {
   generateTerrain, getChassis, getPart, type Build, type TerrainType,
 } from '@mechbattler/sim';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, SCRAP_SELL_MULT, START_BUDGET,
+  BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, START_BUDGET, benchSellValue,
   repairCost, type BenchPart, type RunPhase,
 } from '../state/runState.js';
 import { buildTierBudget } from '@mechbattler/sim';
@@ -432,9 +432,7 @@ function benchSection(
       <div className="run-bench-title">Bench pool ({benchPool.length}/{BENCH_CAP}) — salvage awaiting a refit or a sale</div>
       {benchPool.map((b, i) => {
         const def = getPart(b.partId);
-        // Sell value scales with integrity (docs/04 §1's tier×8 is the
-        // pristine price) — otherwise buying junk and selling it mints scrap.
-        const value = Math.max(1, Math.round(def.tier * SCRAP_SELL_MULT * b.integrity));
+        const value = benchSellValue(def.tier, b.integrity);
         const fullRepairCost = repairCost(def.tier, b.integrity, 1);
         return (
           <div key={`${b.partId}-${i}`} className="run-bench-row">

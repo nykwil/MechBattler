@@ -41,6 +41,21 @@ export const SCRAP_SELL_MULT = GAME_CONTENT.economy.ownedScrapMultiplier;
  * wrecks are meant to be the real parts source (docs/04 §1).
  */
 export const SCRAP_BUY_MULT = GAME_CONTENT.economy.scrapyardBuyMultiplier;
+
+/**
+ * What a bench part fetches: docs/04 §1's tier x 8 is the *pristine* price, so it
+ * scales with integrity. Without that, junk bought cheap from the yard at an
+ * integrity discount could be sold at full price, and the round trip would mint
+ * scrap rather than cost it.
+ *
+ * It lived inline in RunPanel while the yard's buy price lives in
+ * packages/game/nodes.ts, so the two halves of the same trade could not be
+ * compared in one place, and the invariant they exist to preserve was never
+ * checked against the real generator.
+ */
+export function benchSellValue(tier: number, integrity: number): number {
+  return Math.max(1, Math.round(tier * SCRAP_SELL_MULT * integrity));
+}
 /** Loot integrity loses a further uniform 0..this on extraction. */
 export const EXTRACTION_WEAR_MAX = GAME_CONTENT.economy.extractionWearMax;
 export const BENCH_CAP = GAME_CONTENT.run.benchCap;
