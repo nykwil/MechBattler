@@ -52,9 +52,19 @@ const MECH_TEXT_COLORS = ['var(--signal-blue)', 'var(--signal-red-text)'] as con
 const HEAT_MIN_C = HEAT_AMBIENT_C;
 const HEAT_MAX_C = HEAT_DAMAGE_C;
 
+/**
+ * Which frame a time lands on. Derived from the tick rate rather than searched for:
+ * callers that need the *previous* frame were using frames.indexOf(frame), which is
+ * a linear scan of the whole battle on every render -- and worse, it depends on
+ * object identity, so a rebuilt frame array would silently return -1 and report a
+ * standing mech as moving at zero.
+ */
+export function frameIndexAt(view: BattleView, tSec: number): number {
+  return Math.min(view.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
+}
+
 export function frameAt(view: BattleView, tSec: number): BattleFrame | undefined {
-  const idx = Math.min(view.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
-  return view.frames[idx];
+  return view.frames[frameIndexAt(view, tSec)];
 }
 
 function shortName(partId: string): string {
@@ -150,9 +160,10 @@ function WeaponCones({ frame, weapons, color }: {
  * The point is that the spread is a *measured* consequence of range, your own
  * speed and the target's crossing -- not a fixed cone. Move faster and it widens.
  */
-function ShotSpread({ view, frame, mech }: {
+function ShotSpread({ view, frame, tSec, mech }: {
   view: BattleView;
   frame: BattleFrame;
+  tSec: number;
   mech: 0 | 1;
 }) {
   const me = frame.mechs[mech];
@@ -164,7 +175,7 @@ function ShotSpread({ view, frame, mech }: {
 
   const rangeM = Math.hypot(foe.x - me.x, foe.y - me.y);
   if (rangeM < 1) return null;
-  const idx = view.frames.indexOf(frame);
+  const idx = frameIndexAt(view, tSec);
   const prev = idx > 0 ? view.frames[idx - 1] : undefined;
   const mySpeed = prev
     ? Math.hypot(me.x - prev.mechs[mech].x, me.y - prev.mechs[mech].y) / TICK_S
@@ -674,7 +685,7 @@ export function BattleScene({
         ))}
         {/* Your spread only: the enemy's would double the marks on the same target
             and this is about reading your own gunnery. */}
-        <ShotSpread view={view} frame={frame} mech={0} />
+        <ShotSpread view={view} frame={frame} tSec={tSec} mech={0} />
 
         {([0, 1] as const).map((i) => (
           <MechGlyph key={i} frame={frame.mechs[i]} chassisId={view.mechs[i].chassisId} color={MECH_COLORS[i]} />

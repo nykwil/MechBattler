@@ -5,7 +5,7 @@ import {
   type BattleFrame,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
-import type { BattleView } from './BattleHud.js';
+import { frameIndexAt, type BattleView } from './BattleHud.js';
 import './BattleDiagnostics.css';
 
 /**
@@ -32,7 +32,7 @@ export function BattleDiagnostics({ view, frame, tSec }: {
   const chassis = getChassis(view.mechs[0].chassisId);
   const speeds = chassis.speedsMps;
 
-  const idx = view.frames.indexOf(frame);
+  const idx = frameIndexAt(view, tSec);
   const prev = idx > 0 ? view.frames[idx - 1] : undefined;
   const speed = prev ? Math.hypot(me.x - prev.mechs[0].x, me.y - prev.mechs[0].y) / TICK_S : 0;
   const heading = prev && speed > 0.01
