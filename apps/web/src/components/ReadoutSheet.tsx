@@ -28,7 +28,7 @@ export interface ExtraTab {
  */
 export function ReadoutSheet({
   open, onClose, chassis, build, parts, powerPriority, issues, onMovePriority, onBenchResult,
-  onAutoWire, extraTabs = [],
+  onAutoWire, extraTabs = [], initialTab,
 }: {
   open: boolean;
   onClose: () => void;
@@ -42,8 +42,14 @@ export function ReadoutSheet({
   /** Lays a functional conduit graph; the fix for most unpowered-part faults. */
   onAutoWire?: () => void;
   extraTabs?: ExtraTab[];
+  /**
+   * Which tab to open on. The run's memorial lives in the run tab, and the front
+   * door's "View the memorial" used to land on vitals -- a button that did not do
+   * what it said, with the thing it named three taps further in.
+   */
+  initialTab?: string;
 }) {
-  const [tab, setTab] = useState<Tab>('vitals');
+  const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? 'vitals');
   const profile = computeSpeedProfile(chassis, build);
   const tabs: { id: Tab; label: string }[] = [
     { id: 'vitals', label: 'vitals' },

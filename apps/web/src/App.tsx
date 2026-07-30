@@ -587,7 +587,14 @@ export default function App() {
       <TitleScreen
         run={run}
         profile={profile}
-        onContinue={() => { setWorkspace('workshop'); setScreen('workspace'); }}
+        onContinue={() => {
+          setWorkspace('workshop');
+          setScreen('workspace');
+          // On a finished run this button reads "View the memorial", and the
+          // memorial lives in the readout's run tab. It used to land on the
+          // workshop and leave you to find it three taps in.
+          if (run.phase === 'over') setReadoutOpen(true);
+        }}
         onNewRun={() => {
           if ((run.phase === 'active' || run.phase === 'prep')
             && !window.confirm('Abandon the active run and start over?')) return;
@@ -802,6 +809,8 @@ export default function App() {
 
       <ReadoutSheet
         open={readoutOpen}
+        // A finished run has one thing worth reading, and it is the memorial.
+        initialTab={run.phase === 'over' ? 'run' : undefined}
         onClose={() => setReadoutOpen(false)}
         chassis={chassis}
         build={build}
