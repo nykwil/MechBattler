@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { computeSpeedProfile, type Build, type ChassisSpec, type PlacedPart } from '@mechbattler/sim';
 import { Sheet } from './Sheet.js';
 import { StatsPanel } from './StatsPanel.js';
@@ -50,6 +50,13 @@ export function ReadoutSheet({
   initialTab?: string;
 }) {
   const [tab, setTab] = useState<Tab>((initialTab as Tab) ?? 'vitals');
+  // initialTab has to apply each time the sheet opens, not only at mount. This
+  // component stays mounted while closed, so setting it once meant a sheet the
+  // player had already opened on vitals would ignore it and show vitals again --
+  // exactly when the run has just ended and the memorial is the point.
+  useEffect(() => {
+    if (open && initialTab) setTab(initialTab as Tab);
+  }, [open, initialTab]);
   const profile = computeSpeedProfile(chassis, build);
   const tabs: { id: Tab; label: string }[] = [
     { id: 'vitals', label: 'vitals' },

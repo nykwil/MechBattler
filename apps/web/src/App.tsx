@@ -886,7 +886,14 @@ export default function App() {
                 unlocks,
               });
               if (outcome.kind === 'salvage') beginSalvage(outcome.pending);
-              else if (outcome.kind === 'lost') lost(outcome.cause);
+              else if (outcome.kind === 'lost') {
+                lost(outcome.cause);
+                // Losing the core ends the run. Closing the report used to leave
+                // you standing in the workshop with no indication of that at all
+                // -- the memorial existed, but nothing led you to it and nothing
+                // said the run was over. Show it.
+                setReadoutOpen(true);
+              }
             }
             setBattle(null);
           }}

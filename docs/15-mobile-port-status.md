@@ -226,7 +226,23 @@ design decision. It needs someone who owns the balance targets, not a port.
 
 ### What is not driven, and why
 
-The victory path into salvage. The wreck screen itself is verified via `?view=salvage`,
+**Resolved.** The victory path is now driven end to end and regression-tested by
+`npm run web:campaign`. Stripping the opponent's weapons through the driver's
+`--exec` makes the win decided, so the node takes about three minutes instead of
+half an hour of retries. Driving it is what found the bug that mattered: fighting
+from the intel sheet — the mobile path — settled nothing at all, so a win gave no
+purse, no salvage and no node.
+
+**Still not driven: the core-kill loss.** Losing ends the run, and that branch fires
+— observed once, `status: over`, cause "Core destroyed by Copper Vulture Sniper".
+But it cannot be forced. Five further attempts with a mech stripped to guns and a
+reactor all ended in mission-kill or judges instead, which keep the node. The
+`settleRunFight` unit tests cover the decision; what is unverified in a browser is
+only the wiring that shows the memorial when the run ends that way.
+
+The original note, kept because the reasoning still applies to the loss branch:
+
+The wreck screen itself is verified via `?view=salvage`,
 which runs the real `beginSalvage` and `createSalvageCandidates`, so the screen is
 exercised — but the transition from a *won* battle into it is not.
 
