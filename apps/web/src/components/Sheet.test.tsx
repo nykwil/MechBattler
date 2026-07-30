@@ -44,7 +44,9 @@ describe('Sheet', () => {
     const { container } = render(
       <Sheet open onClose={() => {}} label="Readout"><button>inner</button></Sheet>,
     );
-    const focusable = [...container.querySelectorAll<HTMLElement>('button')];
+    // Scoped to the panel: the scrim is a button too, but it lives outside the
+    // trap and carries tabIndex -1.
+    const focusable = [...container.querySelectorAll<HTMLElement>('.sheet button')];
     const last = focusable[focusable.length - 1];
     last.focus();
 
@@ -54,26 +56,63 @@ describe('Sheet', () => {
     expect(document.activeElement).toBe(focusable[0]);
   });
 
-  it('opens at half so the plate stays visible', () => {
+  it('opens at half, over a scrim that is present but clear', () => {
     const { container } = render(
       <Sheet open onClose={() => {}} label="Readout"><button>inner</button></Sheet>,
     );
     expect(container.querySelector('.sheet')?.className).toContain('sheet-half');
-    // No scrim at half: the plate behind must stay usable.
-    expect(container.querySelector('.scrim')).toBeNull();
+    // Present at every snap, or a tap outside a half sheet lands on nothing and
+    // the sheet cannot be dismissed by any means a phone has. Clear, so the plate
+    // behind stays readable.
+    const scrim = container.querySelector('.scrim');
+    expect(scrim).not.toBeNull();
+    expect(scrim?.className).toContain('scrim-clear');
   });
 
-  it('cycles snap on a handle tap and scrims only at full', () => {
+  it('is dismissed by a tap outside at every snap, not only at full', () => {
+    for (const snap of ['peek', 'half', 'full'] as const) {
+      let closed = false;
+      const { container, unmount } = render(
+        <Sheet open initialSnap={snap} onClose={() => { closed = true; }} label="Readout">
+          <button>inner</button>
+        </Sheet>,
+      );
+
+      fireEvent.click(container.querySelector('.scrim')!);
+
+      expect(closed, snap).toBe(true);
+      unmount();
+    }
+  });
+
+  it('closes on a handle tap, which is what the handle is for', () => {
+    // In the prototype this control is `id="s-close"`, labelled "Close parts".
+    // Cycling snaps here left the sheet with no dismissal affordance at all.
+    let closed = false;
     const { container } = render(
-      <Sheet open onClose={() => {}} label="Readout"><button>inner</button></Sheet>,
+      <Sheet open onClose={() => { closed = true; }} label="Readout"><button>inner</button></Sheet>,
     );
     const handle = container.querySelector('.handle-zone')!;
 
     fireEvent.pointerDown(handle, { clientY: 100 });
     fireEvent.pointerUp(handle);
 
+    expect(closed).toBe(true);
+  });
+
+  it('resizes rather than closes when the handle is dragged', () => {
+    let closed = false;
+    const { container } = render(
+      <Sheet open onClose={() => { closed = true; }} label="Readout"><button>inner</button></Sheet>,
+    );
+    const handle = container.querySelector('.handle-zone')!;
+
+    fireEvent.pointerDown(handle, { clientY: 300 });
+    fireEvent.pointerMove(handle, { clientY: 260 });
+    fireEvent.pointerUp(handle);
+
     expect(container.querySelector('.sheet')?.className).toContain('sheet-full');
-    expect(container.querySelector('.scrim')).not.toBeNull();
+    expect(closed).toBe(false);
   });
 });
 

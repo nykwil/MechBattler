@@ -13,7 +13,7 @@ function metaLine(def: PartDef): string {
 
 export function PartPalette({
   selectedPartId, onSelect, onHover, priceMult, scrap, visiblePartIds, ownedCounts,
-  readOnly, label = 'Salvage bin', category, lockedReason = 'Not unlocked yet',
+  readOnly, label = 'Salvage bin', category,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -23,18 +23,10 @@ export function PartPalette({
   priceMult?: number;
   scrap?: number;
   /**
-   * Equipment that can actually be fitted here. Parts outside the set are shown
-   * anyway, disabled and marked locked, rather than removed.
-   *
-   * They used to be filtered out. With 7 of 22 parts unlocked that left the REACTOR
-   * tab holding a single row and the others near-empty, so the builder read as
-   * broken rather than as gated — the prototype's catalogue was always complete.
-   * Showing the locked rows keeps the unlock economy and restores the shape of the
-   * catalogue, and doubles as the list of what there is to win.
+   * Equipment available in this context. Parts outside the set are not shown: the
+   * inventory lists what you have, not what exists.
    */
   visiblePartIds?: Set<string>;
-  /** Why the parts outside `visiblePartIds` cannot be fitted. */
-  lockedReason?: string;
   /** Physical owned-copy counts, used during active runs. */
   ownedCounts?: Map<string, number>;
   /** Active runs may only fit owned bench parts; the catalog is reference-only. */
@@ -50,13 +42,24 @@ export function PartPalette({
 }) {
   const byCategory = CATEGORY_ORDER.filter((cat) => !category || cat === category).map((cat) => ({
     cat, parts: Object.values(PARTS).filter(
-      (part) => part.category === cat && GAME_CONTENT.enabledPartIds.includes(part.id),
+      (part) => part.category === cat
+        && GAME_CONTENT.enabledPartIds.includes(part.id)
+        && (!visiblePartIds || visiblePartIds.has(part.id)),
     ),
   })).filter(({ parts }) => parts.length > 0);
 
   return (
     <div>
       {!category && <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>}
+      {byCategory.length === 0 && (
+        /* A category can hold nothing you own, and an empty panel reads as a broken
+           screen rather than an empty inventory. Say which it is. */
+        <p className="part-empty">
+          {readOnly
+            ? 'Nothing of this kind on the mech or the bench.'
+            : 'You have no equipment of this kind yet — wrecks carry more.'}
+        </p>
+      )}
       {byCategory.map(({ cat, parts }) => (
         <div className="category" key={cat}>
           {!category && <div className="category-label" style={{ color: 'var(--ink-secondary)' }}>
@@ -64,16 +67,14 @@ export function PartPalette({
             {CATEGORY_LABEL[cat]}
           </div>}
           {parts.map((def) => {
-            const locked = visiblePartIds !== undefined && !visiblePartIds.has(def.id);
-            const disabled = readOnly || locked;
+            const disabled = readOnly;
             return (
               <button
                 key={def.id}
                 type="button"
                 className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
                 disabled={disabled}
-                title={locked ? lockedReason
-                  : readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
+                title={readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
               onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
               onMouseEnter={() => onHover(def.id)}
               onMouseLeave={() => onHover(null)}
@@ -82,7 +83,6 @@ export function PartPalette({
               <div className="part-info">
                 <div className="part-name">
                   {def.name}
-                  {locked && <span className="part-locked">{lockedReason}</span>}
                   {ownedCounts?.has(def.id) && (
                     <span className="part-price">×{ownedCounts.get(def.id)}</span>
                   )}

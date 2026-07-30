@@ -14,40 +14,32 @@ const palette = (props: Partial<Parameters<typeof PartPalette>[0]> = {}) => rend
   />,
 );
 
-/** The row button for a part, found via the name the player reads. */
-const row = (name: RegExp) => screen.getByText(name).closest('button') as HTMLButtonElement | null;
-
 describe('game-facing equipment inventory', () => {
-  it('shows equipment the context does not allow, disabled rather than hidden', () => {
-    // Filtering these out left the reactor tab holding a single row and read as a
-    // broken screen. They are the list of what there is to win, so they stay on it.
+  it('renders only the equipment ids made available by the owning context', () => {
+    // The inventory lists what you have, not what exists.
     palette({ visiblePartIds: new Set(['W-MG']) });
 
-    expect(row(/Stitcher/)?.disabled).toBe(false);
-    const locked = row(/Judge/);
-    expect(locked).toBeTruthy();
-    expect(locked?.disabled).toBe(true);
+    expect(screen.getByText(/Stitcher/)).toBeTruthy();
+    expect(screen.queryByText(/Judge/)).toBeNull();
   });
 
-  it('names why a part cannot be fitted, in words and not by dimming alone', () => {
-    palette({ visiblePartIds: new Set(['W-MG']), lockedReason: 'Not owned' });
-
-    expect(screen.getAllByText('Not owned').length).toBeGreaterThan(0);
-    expect(row(/Judge/)?.title).toBe('Not owned');
-    expect(row(/Stitcher/)?.textContent).not.toContain('Not owned');
-  });
-
-  it('leaves every part fittable when the context sets no limit', () => {
+  it('lists everything when the context sets no limit', () => {
     palette();
 
-    expect(row(/Judge/)?.disabled).toBe(false);
-    expect(screen.queryByText('Locked')).toBeNull();
+    expect(screen.getByText(/Judge/)).toBeTruthy();
+    expect(screen.getByText(/Stitcher/)).toBeTruthy();
   });
 
-  it('disables everything during an active run, catalog included', () => {
-    palette({ visiblePartIds: new Set(['W-MG']), readOnly: true });
+  it('says an empty category is empty rather than rendering nothing', () => {
+    // A blank panel reads as a broken screen; owning none of a kind is ordinary.
+    palette({ visiblePartIds: new Set(), category: 'reactor' });
 
-    expect(row(/Stitcher/)?.disabled).toBe(true);
-    expect(row(/Judge/)?.disabled).toBe(true);
+    expect(screen.getByText(/no equipment of this kind yet/i)).toBeTruthy();
+  });
+
+  it('names the bench as the source when a run is under way', () => {
+    palette({ visiblePartIds: new Set(), category: 'reactor', readOnly: true });
+
+    expect(screen.getByText(/on the mech or the bench/i)).toBeTruthy();
   });
 });

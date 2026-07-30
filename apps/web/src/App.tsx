@@ -783,7 +783,6 @@ export default function App() {
         onSelect={(id) => { selectPalettePart(id); if (id) setPartsOpen(false); }}
         onHover={() => {}}
         visiblePartIds={palettePartIds}
-        lockedReason={runActive ? 'Not owned' : 'Locked'}
         ownedCounts={ownedPartCounts}
         readOnly={runActive}
         label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}

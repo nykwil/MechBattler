@@ -51,3 +51,8 @@
 .sheet-rail > .sheet-body {
   padding: var(--space-4);
 }
+
+/* Below full the scrim is invisible but still takes the tap, so tapping outside
+   always dismisses while the plate stays readable underneath. shell.css keeps the
+   prototype's tinted .scrim verbatim; this only clears it. */
+.scrim.scrim-clear { background: transparent; }

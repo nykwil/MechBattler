@@ -72,10 +72,6 @@ export function Sheet({
     }
   }, [onClose]);
 
-  function cycleSnap() {
-    setSnap((s) => SNAP_ORDER[(SNAP_ORDER.indexOf(s) + 1) % SNAP_ORDER.length]);
-  }
-
   function onHandlePointerDown(e: React.PointerEvent) {
     dragRef.current = { startY: e.clientY, moved: false };
   }
@@ -101,8 +97,12 @@ export function Sheet({
   function onHandlePointerUp() {
     const drag = dragRef.current;
     dragRef.current = null;
-    // A tap on the handle is a snap cycle; a drag has already moved it.
-    if (drag && !drag.moved) cycleSnap();
+    // A tap on the handle closes. In the prototype this control *is* the close
+    // button -- `id="s-close"`, aria-label "Close parts" -- and the port made it
+    // cycle snaps instead, which turned the sheet's only dismissal affordance into
+    // a resize control and left peek and half with no way out at all. Dragging
+    // still resizes; a tap ends the sheet, as it always did.
+    if (drag && !drag.moved) onClose();
   }
 
   if (docked) {
@@ -117,10 +117,20 @@ export function Sheet({
 
   return (
     <div className="sheet-layer" onKeyDown={onKeyDown}>
-      {/* Only full covers the plate, so peek and half get no scrim. */}
-      {snap === 'full' && (
-        <button className="scrim on" type="button" tabIndex={-1} aria-label="Close sheet" onClick={onClose} />
-      )}
+      {/* The scrim is present at every snap, as the prototype's single scrim is
+          (`scrim.classList.toggle('on', open)`). Rendering it only at full meant a
+          tap outside a peek or half sheet hit nothing, so the sheet could not be
+          dismissed by any means a phone has. It stays clear below full so the plate
+          is still readable -- the reason it was dropped -- but it still takes the
+          tap. Nothing on the plate is reachable behind an open sheet anyway:
+          arming a part closes the sheet. */}
+      <button
+        className={`scrim on${snap === 'full' ? '' : ' scrim-clear'}`}
+        type="button"
+        tabIndex={-1}
+        aria-label="Close sheet"
+        onClick={onClose}
+      />
       <div
         className={`sheet on sheet-${snap}`}
         role="dialog"
@@ -132,7 +142,9 @@ export function Sheet({
         <button
           type="button"
           className="handle-zone"
-          aria-label={`Resize ${label} sheet`}
+          /* Named for the tap, which is what a screen reader user can actually do
+             with it; dragging to resize is a pointer refinement on top. */
+          aria-label={`Close ${label}`}
           onPointerDown={onHandlePointerDown}
           onPointerMove={onHandlePointerMove}
           onPointerUp={onHandlePointerUp}
