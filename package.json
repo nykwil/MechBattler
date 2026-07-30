@@ -26,6 +26,7 @@
     "sim:diversity": "npm run diversity --workspace=@mechbattler/sim",
     "verify": "npm run game:test && npm run game:audit && npm run game:build && npm run game:balance -- 1 && npm run game:match-balance -- 1 && npm run sim:test && npm run sim:build && npm run sim:balance -- 10 && npm run sim:diversity -- 5 && npm run web:test && npm run web:build && npm run prototype:test && npm run prototype:build",
     "web:shot": "node scripts/drive.mjs",
-    "web:audit": "node scripts/audit.mjs"
+    "web:audit": "node scripts/audit.mjs",
+    "web:campaign": "node scripts/campaign-smoke.mjs"
   }
 }

@@ -41,6 +41,22 @@ Measure before believing a screenshot. Twice now an image has produced a false
 diagnosis — a 500px crop read as clipping, and a scrim read as failing to cover —
 and both times `--eval` showed nothing was wrong.
 
+`npm run web:campaign` drives one whole campaign node -- launch, fight, win, close
+the report, take salvage, strip -- and asserts the run actually moved. The audit
+checks screens; the campaign is a flow, and the bug that made the mobile interface
+unable to advance the run at all left every screen rendering perfectly.
+
+The win is made deterministic by stripping the opponent's weapons in localStorage
+before the fight, which is the only liberty it takes. A fair win is about one in
+eight (docs/15 §7), which is why that path went unverified for the whole port.
+
+**Edits are not live until vite has rebuilt.** Twice a change looked like it had
+failed when the browser was still being served the old module -- once for minutes.
+If a driven result contradicts the source, check what is actually served
+(`curl -s http://localhost:5160/src/App.tsx`) before believing it, and remember vite
+emits double quotes, so grep for `=== "active"` and not `=== 'active'`.
+`pm2 restart mechbattler-dev` clears it.
+
 `npm run web:audit` drives seven screens -- title, workshop, battle, report,
 salvage, run panel, scrapyard -- and fails on the invariants that have each been
 broken at least once: text under 11px, tap targets under 44px, overlapping targets,
