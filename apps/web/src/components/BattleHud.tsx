@@ -32,6 +32,12 @@ const TRACER_LINGER_S = 0.22;
 const FLASH_LINGER_S = 0.4;
 const MUZZLE_FLASH_S = 0.18;
 export const MECH_COLORS = ['var(--signal-blue)', 'var(--signal-red)'] as const;
+/**
+ * Text variants. --signal-red is documented UI-only in docs/14 §4 — it measured
+ * 4.38 rendered as the enemy's name, just under AA — so names use the token created
+ * for exactly that, while marks and borders keep the fill colour.
+ */
+const MECH_TEXT_COLORS = ['var(--signal-blue)', 'var(--signal-red-text)'] as const;
 /** Heat gauge span: ambient to the damage threshold (docs/01 §4 ladder). */
 const HEAT_MIN_C = 25;
 const HEAT_MAX_C = 150;
@@ -252,7 +258,7 @@ export function BattleScene({
     <>
       {/* Enemy strip (compact mirror of the cockpit). */}
       <div className="hud-enemy" style={{ borderColor: MECH_COLORS[1] }}>
-        <span className="hud-name" style={{ color: MECH_COLORS[1] }}>{names[1]}</span>
+        <span className="hud-name" style={{ color: MECH_TEXT_COLORS[1] }}>{names[1]}</span>
         <span className="hud-meter" title="Core HP">
           <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, foe.coreHp)) / CORE_HP}%` }} />
         </span>

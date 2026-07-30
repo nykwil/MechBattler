@@ -187,3 +187,11 @@
 .app .plate {
   --cell: min(var(--tap-min), calc((100cqw - var(--space-3) * 2 - var(--space-2) * 2 - 2px) / var(--plate-cols) - 1px));
 }
+
+/* Unfilled threat marks: decoration indicating absence, so they take the 3:1
+   graphical threshold rather than 4.5:1 body text. --line-bright measured 1.87,
+   under even that. --ink-faint clears it while staying clearly unfilled beside
+   the amber ones. The rating itself is on .threat's aria-label. */
+/* Doubled selector to outrank shell.css's own .threat-off, which is equal
+   specificity and wins on import order. */
+.threat-off.threat-off { color: var(--ink-faint); }

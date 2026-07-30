@@ -55,8 +55,8 @@ export function IntelSheet({
                   {o.elite && <span className="elite">Elite</span>}
                 </span>
                 <span className="threat" aria-label={`Threat ${o.threat} of 3`}>
-                  {'▲'.repeat(o.threat)}
-                  <span className="threat-off">{'▲'.repeat(3 - o.threat)}</span>
+                  <span aria-hidden="true">{'▲'.repeat(o.threat)}</span>
+                  <span className="threat-off" aria-hidden="true">{'▲'.repeat(3 - o.threat)}</span>
                 </span>
               </span>
               <span className="foe-chassis">

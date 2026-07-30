@@ -33,9 +33,9 @@ export function ActionBar({
           <button className="next-strip" type="button" onClick={onOpenIntel}>
             <span className="next-k">Next</span>
             <span className="next-name">{next.name}</span>
-            <span className="threat">
-              {'▲'.repeat(next.threat)}
-              <span className="threat-off">{'▲'.repeat(3 - next.threat)}</span>
+            <span className="threat" aria-label={`Threat ${next.threat} of 3`}>
+              <span aria-hidden="true">{'▲'.repeat(next.threat)}</span>
+              <span className="threat-off" aria-hidden="true">{'▲'.repeat(3 - next.threat)}</span>
             </span>
             <span className="next-caret" aria-hidden="true">›</span>
           </button>
