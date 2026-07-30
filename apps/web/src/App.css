@@ -251,6 +251,25 @@
    so it costs no height at all. The rule is (hover: none), not a width query: what
    decides this is whether a pointer exists, not how wide the screen is, and a
    touch laptop should keep it. */
+.battle-app .canopy { position: relative; }
+.battle-app .con-foot.hover-only {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: var(--space-2);
+  margin: 0;
+  z-index: 2;
+  padding: var(--space-1) var(--space-2);
+  background: rgba(13, 15, 19, 0.86);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-sm);
+  pointer-events: none;
+}
 @media (hover: none) {
   .battle-app .con-foot.hover-only { display: none; }
 }
+
+/* Power as a console bar. battle.css colours .cbar-f by role; these two are the
+   power variants, matching the gauge they replaced. */
+.battle-app .cbar-f.pwr { background: var(--signal-blue); }
+.battle-app .cbar-f.pwr-over { background: var(--signal-red); }

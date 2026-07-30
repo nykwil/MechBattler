@@ -612,6 +612,13 @@ export function BattleScene({
         ))}
         {arenaOverlay}
       </svg>
+      {/* Hover detail, laid on the glass rather than given a slot in the console.
+          It used to hold two permanent rows there -- the scarcest space on the
+          screen -- to describe an interaction a phone does not have. Absolute, so
+          it reserves nothing, and pointer-events: none so it cannot eat a tap. */}
+      {hoveredWeapon && (
+        <p className="con-foot hover-only">{weaponBlurb(getPart(hoveredWeapon))}</p>
+      )}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />
       </div>
@@ -661,6 +668,19 @@ export function BattleScene({
               </span>
               <span className="cbar-v">{Math.round(you.functionalMassFrac * 100)}%</span>
             </div>
+            {/* Power sits with the other bars rather than in a gauge row of its
+                own: there was room under Mass, and the row it used to live in
+                cost the console more height than one reading justified. */}
+            <div className="cbar tiny">
+              <span className="cbar-k">Pwr</span>
+              <span className="cbar-t">
+                <i
+                  className={`cbar-f ${you.demandKw > you.supplyKw ? 'pwr-over' : 'pwr'}`}
+                  style={{ width: `${Math.min(100, you.supplyKw > 0 ? (you.demandKw / you.supplyKw) * 100 : 0)}%` }}
+                />
+              </span>
+              <span className="cbar-v">{you.demandKw.toFixed(0)}/{you.supplyKw.toFixed(0)}</span>
+            </div>
           </div>
           {/* Full console height, as the prototype has it: the taller the column,
               the more precisely headroom to cutout can be read. */}
@@ -679,14 +699,7 @@ export function BattleScene({
               />
             ))}
         </div>
-        {/* Hover detail is a pointer affordance, so it exists only where a pointer
-            does. On a phone it could never be filled, yet it held two permanent
-            lines of console -- the scarcest space on the screen -- to say so. The
-            band and arc it used to reveal are on the gun chips now, which is where
-            a thumb can read them. */}
-        <p className="con-foot hover-only">
-          {hoveredWeapon ? weaponBlurb(getPart(hoveredWeapon)) : 'fill = time to next shot · Range/Arc/Hot = why fire control holds'}
-        </p>
+
 
         <div className="hud-gauges">
           {view.mechs[0].capacitorMaxKj > 0 && (
@@ -695,11 +708,6 @@ export function BattleScene({
               text={`${you.capacitorKj.toFixed(0)}/${view.mechs[0].capacitorMaxKj} kJ`}
             />
           )}
-          <Gauge
-            label="PWR" frac={you.supplyKw > 0 ? you.demandKw / you.supplyKw : 0}
-            cls={you.demandKw > you.supplyKw ? 'pwr-over' : 'pwr'}
-            text={`${you.demandKw.toFixed(0)}/${you.supplyKw.toFixed(0)} kW`}
-          />
           {/* Throttle and facing used to be restated here as chips, beside the
               controls that set them and show them. Only the terrain tile is left:
               nothing else in the console says what you are standing in, and it
