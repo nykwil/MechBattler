@@ -62,6 +62,7 @@ rather than accumulated:
 | Production bundle | workshop renders and places correctly minified; dev views inert |
 | First load | 80.05 kB CSS / 329.71 kB JS; battle and lab chunks load on demand |
 | Run loop | front door → New run → Load → Launch → Fight · Live → report → Rematch, driven end to end at 390×844 |
+| Salvage after a win | **not driven** — see below |
 
 | Surface | Reached by | State |
 |---|---|---|
@@ -203,6 +204,23 @@ Two things make it worth writing down rather than leaving in a report nobody ope
 
 Whether that is intended difficulty, a tuning gap, or a starter-kit problem is a game
 design decision. It needs someone who owns the balance targets, not a port.
+
+### What is not driven, and why
+
+The victory path into salvage. The wreck screen itself is verified via `?view=salvage`,
+which runs the real `beginSalvage` and `createSalvageCandidates`, so the screen is
+exercised — but the transition from a *won* battle into it is not.
+
+Reaching it means winning a node fight, and §7 is why that is hard: the starter
+blueprint wins about one first fight in eight. A driven attempt takes roughly three
+minutes end to end, so hunting a win costs about half an hour of wall clock for one
+sample. I stopped after six attempts, all defeats.
+
+Options for whoever picks this up, in increasing order of soundness: keep retrying;
+temporarily hand the player an overwhelming build, which verifies a path no real player
+takes; or extract the report-close handler in `App.tsx` — currently a long inline
+closure — so the victory branch can be unit-tested deterministically. The last is the
+only one that stays true after the balance question in §7 is answered either way.
 
 ## 8. Tooling
 
