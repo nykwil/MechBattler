@@ -4,6 +4,7 @@ import {
   type BattleEvent, type BattleFrame, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
+import { crossingSpeedMps } from '../lib/evade.js';
 import './BattlePlayback.css';
 
 /**
@@ -211,6 +212,24 @@ export function BattleScene({
   if (!frame) return null;
   const you = frame.mechs[0];
   const foe = frame.mechs[1];
+
+  /*
+   * Evade: your crossing speed across THEIR line of sight, which is how hard you
+   * are to hit. The prototype added this instrument with the note that it "is the
+   * single biggest term in whether you get hit, and it was nowhere on the HUD",
+   * and that was true of ours too.
+   *
+   * MechFrame carries position but no velocity, so it is differenced from the
+   * previous tick over the sim's own TICK_S. Derived from sim output only -- no
+   * combat constant is restated here.
+   */
+  const evadeMps = (() => {
+    const idx = Math.min(view.frames.length - 1, Math.max(0, Math.round(tSec / TICK_S) - 1));
+    const prev = view.frames[idx - 1];
+    return prev ? crossingSpeedMps(prev.mechs[0], you, foe, TICK_S) : 0;
+  })();
+  /** Full scale for the Evade bar; the prototype's reference for a fast crossing. */
+  const EVADE_FULL_MPS = 6;
   const heatFrac = (m: MechFrame) => (m.hottestCellC - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C);
 
   return (
@@ -342,6 +361,16 @@ export function BattleScene({
                 <i className="cbar-f core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / CORE_HP}%` }} />
               </span>
               <span className="cbar-v">{Math.max(0, Math.round(you.coreHp))}</span>
+            </div>
+            <div className="cbar">
+              <span className="cbar-k">Evade</span>
+              <span className="cbar-t">
+                <i
+                  className="cbar-f evade"
+                  style={{ width: `${Math.min(100, (evadeMps / EVADE_FULL_MPS) * 100)}%` }}
+                />
+              </span>
+              <span className="cbar-v">{evadeMps.toFixed(1)}</span>
             </div>
             {/* Functional mass only decides a timeout, so it gets a hairline
                 rather than a headline. */}
