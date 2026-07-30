@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   autopilotController, buildCapacitorMaxKj, withManualOrders, Battle,
+  SPEED_SETTING_FRACTIONS,
   type Build, type BattleReport, type ManualOrders, type SpeedSetting, type Vec2,
 } from '@mechbattler/sim';
 import type { OpponentDef } from '../lib/opponents.js';
 import { fmtTime } from '../lib/battleText.js';
 import { useBattle } from '../state/useBattle.js';
-import { BattleCaption, BattleScene, BattleTicker, type BattleView, type WeaponOverride } from './BattleHud.js';
+import { BattleCaption, BattleScene, BattleTicker, frameAt, type BattleView, type WeaponOverride } from './BattleHud.js';
 import './BattleReportScreen.css';
 import './BattlePlayback.css';
 import './BattleLiveScreen.css';
@@ -24,9 +25,22 @@ const LIVE_SPEEDS = [1, 2, 4] as const;
 /** Hold the decided battle on screen briefly so the killing blow reads. */
 const END_HOLD_S = 1.6;
 
-const THROTTLES: SpeedSetting[] = ['creep', 'cruise', 'flank'];
-/** Face-verb cycle (docs/08 §2): autopilot → force track → face travel → hold bearing. */
-const FACE_MODES = ['auto', 'target', 'movement', 'bearing'] as const;
+/**
+ * All four of the sim's settings, labelled with the fraction of top speed each
+ * actually commands. The percentages are SPEED_SETTING_FRACTIONS, not a UI guess:
+ * cruise is 65%, not the round 70% it looks like it should be. 'stationary' is on
+ * the segment now -- it is the 0% throttle, and leaving it off meant the control
+ * could not express a stop.
+ */
+const THROTTLES: SpeedSetting[] = ['stationary', 'creep', 'cruise', 'flank'];
+const throttlePct = (s: SpeedSetting) => `${Math.round(SPEED_SETTING_FRACTIONS[s] * 100)}%`;
+/**
+ * Face is what the sim models it as: MechFrame.faceMode is 'target' | 'bearing'
+ * and nothing else. The cycle used to carry a fourth 'movement' state, which made
+ * a two-way choice into a four-stop cycle nobody could predict from the label.
+ * Auto is not a face mode -- it is the autopilot holding the verb (docs/08 §2).
+ */
+const FACE_MODES = ['auto', 'target', 'bearing'] as const;
 type FaceMode = (typeof FACE_MODES)[number];
 
 interface ManualState {
@@ -77,7 +91,6 @@ export function BattleLiveScreen({
             throttle: m.throttle === 'auto' ? undefined : m.throttle,
             weapons: Object.keys(m.weapons).length > 0 ? m.weapons : undefined,
             face: m.face === 'auto' ? undefined
-              : m.face === 'movement' ? 'movement'
               : m.face === 'target' ? { mode: 'target' }
               : { mode: 'bearing', bearingRad: m.bearingRad },
           };
@@ -186,6 +199,16 @@ export function BattleLiveScreen({
 
   const moveMode = manual.move === 'auto' ? 'auto' : manual.move === 'hold' ? 'hold' : 'waypoint';
 
+  /**
+   * What the mech is actually doing this tick, straight from the sim's frame. When
+   * the autopilot holds throttle and face, the controls display these rather than a
+   * stale manual value -- the readout chips that used to say it separately were the
+   * redundancy, not the controls.
+   */
+  const live = frameAt(view, tSec)?.mechs[0];
+  /** Auto owns throttle and face together, so one flag drives both controls. */
+  const autoHolds = manual.throttle === 'auto' && manual.face === 'auto';
+
   return (
     /* Ported from docs/prototypes/mobile-battle.html: the console is the mech's
        instrument panel and the glass above it is the windshield. .battle-app scopes
@@ -243,36 +266,58 @@ export function BattleLiveScreen({
               Hold
             </button>
 
+            {/* Under Auto the segment shows what the autopilot is doing and says
+                so by being disabled, rather than going blank and leaving you to
+                guess. Taking manual control is the Auto button's job now: a
+                disabled control cannot also be the way out of the mode that
+                disabled it. */}
             <span
-              className={`seg${manual.throttle === 'auto' ? ' off' : ''}`}
+              className={`seg${autoHolds ? ' off' : ''}`}
               role="group"
-              aria-label="Throttle"
+              aria-label={autoHolds ? 'Throttle (autopilot)' : 'Throttle'}
             >
               {THROTTLES.map((s) => (
                 <button
                   key={s} type="button"
-                  aria-pressed={manual.throttle === s}
+                  disabled={autoHolds}
+                  aria-pressed={autoHolds ? live?.speedSetting === s : manual.throttle === s}
+                  title={`${s} — ${throttlePct(s)} of top speed`}
                   onClick={() => setManual((m) => ({ ...m, throttle: s }))}
                 >
-                  {s}
+                  {throttlePct(s)}
                 </button>
               ))}
             </span>
 
             <button
               type="button" className="obtn"
-              aria-pressed={manual.face !== 'auto'}
+              disabled={autoHolds}
+              aria-pressed={autoHolds ? false : manual.face !== 'auto'}
               onClick={cycleFace}
-              title="Cycle: auto · track target · face travel direction · hold bearing (aim with an arena click)"
+              title={autoHolds
+                ? `Autopilot is facing ${live?.faceMode === 'target' ? 'the target' : 'its heading'}`
+                : 'Face the target, or hold a direction (aim it with an arena click)'}
             >
-              {manual.face === 'auto' ? 'Face' : manual.face}
+              {autoHolds
+                ? (live?.faceMode === 'target' ? 'target' : 'direction')
+                : manual.face === 'auto' ? 'Face'
+                : manual.face === 'target' ? 'target' : 'direction'}
             </button>
 
             <button
               type="button" className="obtn"
               aria-pressed={isFullAuto(manual)}
-              onClick={() => setManual(FULL_AUTO)}
-              title="Clear all manual orders; the autopilot resumes every verb"
+              /* A toggle, not a one-way door. Throttle and face are disabled while
+                 auto holds them, so if this only ever entered auto there would be
+                 no way back out -- the same dead end the sheets had. Releasing
+                 seeds the manual verbs with what the autopilot was already doing,
+                 so taking control never jerks the mech. */
+              onClick={() => setManual((m) => (isFullAuto(m)
+                ? { ...m, throttle: live?.speedSetting ?? 'cruise', face: live?.faceMode ?? 'target' }
+                : FULL_AUTO))}
+              title={isFullAuto(manual)
+                ? 'Take manual control of throttle and facing'
+                : 'Clear all manual orders; the autopilot resumes every verb'}
             >
               Auto
             </button>

@@ -458,12 +458,11 @@ export function BattleScene({
             cls={you.demandKw > you.supplyKw ? 'pwr-over' : 'pwr'}
             text={`${you.demandKw.toFixed(0)}/${you.supplyKw.toFixed(0)} kW`}
           />
+          {/* Throttle and facing used to be restated here as chips, beside the
+              controls that set them and show them. Only the terrain tile is left:
+              nothing else in the console says what you are standing in, and it
+              changes cover, range and cooling. */}
           <div className="hud-verbs">
-            <span className="hud-chip active">{you.speedSetting}</span>
-            <span className="hud-chip active">{you.moveIntent}</span>
-            <span className={`hud-chip${you.faceMode === 'target' ? ' active' : ''}`} title="Facing order">
-              face: {you.faceMode}
-            </span>
             {you.tile !== 'open' && (
               <span
                 className={`hud-chip tile-${you.tile}`}
