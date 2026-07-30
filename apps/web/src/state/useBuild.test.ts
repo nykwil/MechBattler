@@ -164,3 +164,54 @@ describe('useBuild detach', () => {
     expect(result.current.state.powerPriority.indexOf(first)).toBe(rankBefore);
   });
 });
+
+/**
+ * The armed ghost must always be somewhere the plate can draw it. The plate only
+ * renders cells that exist on the chassis mask, so a ghost parked off-mask is
+ * invisible -- the player arms a part and sees nothing at all.
+ */
+describe('useBuild ghost visibility', () => {
+  it('never parks a fresh ghost off the chassis mask', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    const chassis = result.current.chassis;
+
+    for (const partId of ['U-CON', 'U-RAD', 'W-LAS', 'R-C40']) {
+      act(() => result.current.selectPart(null));
+      act(() => result.current.selectPart(partId));
+      const ghost = result.current.state.ghost;
+      expect(ghost, partId).not.toBeNull();
+      expect(chassis.mask[ghost!.y]?.[ghost!.x], `${partId} at ${ghost!.x},${ghost!.y}`).toBeTruthy();
+    }
+  });
+
+  it('still shows a ghost on a mask cell when nothing legal is left', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    const chassis = result.current.chassis;
+
+    // Fill every cell, so no origin can be legal.
+    act(() => {
+      const parts = [];
+      let n = 0;
+      for (let y = 0; y < chassis.height; y += 1) {
+        for (let x = 0; x < chassis.width; x += 1) {
+          if (!chassis.mask[y]?.[x]) continue;
+          if (x === chassis.coreCell.x && y === chassis.coreCell.y) continue;
+          n += 1;
+          parts.push({
+            instanceId: `f${n}`, partId: 'U-CON',
+            origin: { x, y }, rotation: 0 as const, integrity: 1,
+          });
+        }
+      }
+      result.current.loadBuild({ chassisId: 'CH-5', parts, powerPriority: [] });
+    });
+
+    act(() => result.current.selectPart('U-CON'));
+    const ghost = result.current.state.ghost;
+
+    expect(ghost).not.toBeNull();
+    expect(chassis.mask[ghost!.y]?.[ghost!.x]).toBeTruthy();
+    // And it is honest about being unplaceable rather than hiding.
+    expect(result.current.checkCandidate(ghost!.x, ghost!.y)).not.toBeNull();
+  });
+});

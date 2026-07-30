@@ -532,8 +532,9 @@ export default function App() {
     </div>
   ) : null;
 
+  // The inspector is its own detail sheet, opened by selection, so it is not also
+  // a readout tab.
   const mobileTabs = [
-    ...(inspectorNode ? [{ id: 'inspect', label: 'inspect', node: inspectorNode }] : []),
     { id: 'run', label: 'run', node: <>{runNode}{arenaNode}</> },
   ];
 
@@ -669,6 +670,21 @@ export default function App() {
             onOpenIntel={() => { setReadoutOpen(true); }}
           />
       </div>
+
+      {/* Selecting a placed part opens its detail, as the prototype does: the one
+          action a selected part offers is Detach (docs/14 §7), and it needs a
+          surface to live on. */}
+      {inspectorNode && (
+        <Sheet
+          open
+          onClose={() => selectInstance(null)}
+          label="Part detail"
+          initialSnap="half"
+        >
+          <div className="sheet-head"><span className="sheet-title">Part</span></div>
+          <div className="sheet-body">{inspectorNode}</div>
+        </Sheet>
+      )}
 
       {chassisOpen && (
         <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">

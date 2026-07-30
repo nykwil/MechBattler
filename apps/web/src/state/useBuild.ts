@@ -94,6 +94,15 @@ function defaultGhost(
       if (checkPlacement(chassis, parts, candidate, partDef) === null) return { x, y };
     }
   }
+  // No legal origin: still show the ghost so Place can explain itself (docs/14
+  // §6). It must land on a masked cell -- {0,0} is off-mask on most chassis, and
+  // the plate only renders ghost cells that exist, so the ghost would vanish and
+  // the player would arm a part and see nothing.
+  for (let y = 0; y < chassis.height; y += 1) {
+    for (let x = 0; x < chassis.width; x += 1) {
+      if (chassis.mask[y]?.[x]) return { x, y };
+    }
+  }
   return { x: 0, y: 0 };
 }
 

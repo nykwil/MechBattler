@@ -14,8 +14,10 @@
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
  *
- * --tap may be repeated; each waits for the selector, clicks its centre, and
- * settles before the next. The screenshot is taken after all taps.
+ * --tap and --tapText may be repeated and interleave in order; each clicks the
+ * element's centre and settles before the next, so React commits between steps.
+ * Measuring in the same expression that clicks will read stale DOM.
+ * The screenshot is taken after all taps.
  */
 import { writeFileSync } from 'node:fs';
 import { spawn } from 'node:child_process';
@@ -34,7 +36,13 @@ const flag = (name, dflt) => {
 };
 const width = Number(flag('w', 390));
 const height = Number(flag('h', 844));
-const taps = args.reduce((acc, a, i) => (a === '--tap' ? [...acc, args[i + 1]] : acc), []);
+// Ordered list of taps. --tap takes a selector; --tapText takes visible text,
+// for controls CSS cannot address (a part row by name, a button by label).
+const taps = args.reduce((acc, a, i) => {
+  if (a === '--tap') return [...acc, { kind: 'selector', value: args[i + 1] }];
+  if (a === '--tapText') return [...acc, { kind: 'text', value: args[i + 1] }];
+  return acc;
+}, []);
 
 const port = 9333 + Math.floor(Math.random() * 400);
 const chrome = spawn('google-chrome', [
@@ -96,13 +104,32 @@ await send('Page.navigate', { url });
 await send('Page.setLifecycleEventsEnabled', { enabled: true });
 await sleep(2500);
 
-for (const selector of taps) {
+for (const tap of taps) {
+  const selector = tap.value;
+  const finder = tap.kind === 'text'
+    ? `[...document.querySelectorAll('button, [role=tab], a')]
+         .find((e) => e.textContent.includes(${JSON.stringify(selector)}))`
+    : `document.querySelector(${JSON.stringify(selector)})`;
+  // Scroll into view first: sheet bodies scroll, and a part row 1900px down
+  // reports a rect far outside the viewport, so the click lands on nothing.
+  // Measure only after the scroll has settled -- reading the rect in the same
+  // expression that scrolls gives a stale position, which shows up as a tap that
+  // silently does nothing.
+  await evaluate(`(() => {
+    const el = ${finder};
+    if (el) el.scrollIntoView({ block: 'center', inline: 'center' });
+    return true;
+  })()`);
+  await sleep(300);
   const box = await evaluate(`(() => {
-    const el = document.querySelector(${JSON.stringify(selector)});
+    const el = ${finder};
     if (!el) return null;
     const r = el.getBoundingClientRect();
     return { x: r.x + r.width / 2, y: r.y + r.height / 2, w: r.width, h: r.height };
   })()`);
+  if (box && (box.y < 0 || box.y > height)) {
+    console.error(`tap: ${selector} still off-viewport at y=${Math.round(box.y)}`);
+  }
   if (!box) {
     console.error(`tap: no element for ${selector}`);
     continue;
