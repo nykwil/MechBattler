@@ -102,6 +102,10 @@ export function targetProfileMultAt(
   let mult = 1;
   for (const p of parts) {
     if (down.has(p.instanceId)) continue;
+    // tempC is the one term that cannot be recovered: the sim reads each part's own
+    // mean cell temperature, and a frame carries temperature for weapons only.
+    // Ambient is the closest honest stand-in, and it is exact for every modifier
+    // whose profile term does not vary with heat -- which is all of them today.
     mult *= effectiveMults(p, { tempC: HEAT_AMBIENT_C, speedMps: ctx.speedMps, tile: ctx.tile }).targetProfile;
   }
   return mult;

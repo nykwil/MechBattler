@@ -86,7 +86,12 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
     ? (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
       + MOVE_JITTER_MRAD_PER_MPS * speed * (mults?.moveJitter ?? 1)) * 0.001
     : 0;
-  const profileMult = targetProfileMultAt(view, foeBuild, tSec, 1, { speedMps: 0, tile: foe.tile });
+  // The target's own speed, derived from its last two frames the same way ours is.
+  // Passing 0 here was the very mistake this function exists to correct: a modifier
+  // whose profile term scales with speed would have been read as if the enemy were
+  // standing still, which is when it matters least.
+  const foeSpeed = prev ? Math.hypot(foe.x - prev.mechs[1].x, foe.y - prev.mechs[1].y) / TICK_S : 0;
+  const profileMult = targetProfileMultAt(view, foeBuild, tSec, 1, { speedMps: foeSpeed, tile: foe.tile });
   const halfWidthM = meanSilhouetteHalfWidthM(getChassis(view.mechs[1].chassisId))
     * (foe.tile === 'forest' ? FOREST_COVER_MULT : 1)
     * profileMult;
