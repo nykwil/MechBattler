@@ -1,8 +1,9 @@
-# 15 — Mobile port: state, verification, and the one open decision
+# 15 — Mobile port: state, verification, and what is still open
 
 *Written Jul 30 2026, on branch `mobile-first`. Records what was ported, how each
-surface was verified, what deliberately diverges from the prototypes, and the one
-decision still outstanding. Read `CLAUDE.md` first — it carries the working rules
+surface was verified, what deliberately diverges from the prototypes, and what is
+still outstanding — see §9, which is the section to read first if you are picking
+this up cold. Read `CLAUDE.md` first — it carries the working rules
 this document explains the reasoning behind.*
 
 ## 1. What happened, in the order it happened
@@ -60,9 +61,11 @@ rather than accumulated:
 | Reduced motion | all animation collapses; indicators settle visible, sheets still appear |
 | Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
 | Production bundle | workshop renders and places correctly minified; dev views inert |
-| First load | 80.05 kB CSS / 329.71 kB JS; battle and lab chunks load on demand |
+| First load | 81.5 kB CSS / 323.8 kB JS; battle and lab chunks load on demand |
 | Run loop | front door → New run → Load → Launch → Fight · Live → report → Rematch, driven end to end at 390×844 |
-| Salvage after a win | **not driven** — see below |
+| Salvage after a win | driven: win → report → wreck → take → strip → bench → fit → placed on the mech |
+| Run over | driven: a searched-for core-kill seed ends the run and shows the memorial |
+| Campaign loop | regression-tested by `npm run web:campaign`, with a proven negative control |
 
 | Surface | Reached by | State |
 |---|---|---|
@@ -370,3 +373,60 @@ npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png \
 `--tap`, `--tapText`, `--key` and `--media` interleave in order; `--eval` reports
 any measurement. It prints viewport, overflow and console diagnostics beside every
 image. Read those lines — the console one found a bug on its first run.
+
+
+## 9. Open at close
+
+Written when the working thread ended. Everything below is either a decision that is
+not the implementer's to make, or a gap named deliberately rather than papered over.
+
+### Decisions waiting on the owner
+
+**1. Merge `mobile-first` into `main`.** 113 commits. It publishes to the GitHub
+Pages demo and changes what desktop visitors see, so it was never done unasked.
+
+**2. The retry economy** (§7). A first fight is fair — 48.3% against a stated band of
+0.35–0.65. A retry wins one time in thirty-one. That is three separable calls:
+whether a lost fight strips parts permanently, whether a node should be
+re-attemptable in that state at all, and whether the retry should face a fresh
+opponent (the harness cycles them, so it usually draws the elite).
+`scripts/starter-odds.mjs` re-measures after any change. **The standing read that the
+starting blueprint is too weak is wrong** — buffing it would treat none of this.
+
+**3. Ammo on mobile.** The sim does not consume ammo (`diversity.ts` calls `U-AMMO` a
+dead placeholder until Track C). A placeholder was asked for and exists in the gun
+chip's hover blurb, but it does not fit on the chip itself beside band and arc at
+390px — it clipped when tried. Recommendation: leave it off the chip until the sim
+models it, rather than displace two real numbers with a fake one.
+
+### Gaps named on purpose
+
+- **Target part temperature in the diagnostics.** `targetProfileMultAt` passes
+  ambient. The sim reads each part's own mean cell temperature and a frame carries
+  temperature for weapons only. Exact for every modifier whose profile term does not
+  vary with heat, which is all of them today; wrong the moment one does.
+- **`foeBuild` is only wired in the live battle.** `BattlePlayback` passes a
+  `BattleReport` as its view and `MechReport` carries no build, so a diagnostics
+  overlay opened during replay would read a neutral target profile. The overlay is
+  only reachable live today, so this costs nothing until someone adds the toggle to
+  playback.
+- **Desktop arena letterboxes.** The map is square inside a ~560px column, so a wide
+  viewport leaves dead space either side inside the canopy. A consequence of capping
+  the SVG height to stop it painting over the console — cosmetic, and widening it
+  would mean inventing a desktop design, which docs/14 §15 says does not exist.
+- **Run panel and scrapyard were never designed for mobile** (docs/14 §15). They are
+  harmonised with the shell's tokens and driven, but nobody drew them.
+
+### The two lessons worth carrying
+
+**Screens passing tells you nothing about flows.** The mobile interface could not
+advance the campaign at all — fighting from the intel sheet settled nothing, so a win
+gave no purse, no salvage and no node — while every screen involved rendered
+perfectly. `npm run web:campaign` exists because of it.
+
+**An instrument must not hardcode what the model computes.** The spread and the
+diagnostics substituted constants for fire-control lag, weapon modifiers, terrain
+cover, target profile and target speed in turn — each found reviewing the fix for the
+previous one. All five now read what the sim reads. This is a specific hazard of
+building something to measure a model: attention goes to the output and the inputs
+get quietly invented.

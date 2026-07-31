@@ -132,6 +132,19 @@ There is no desktop design. The prototypes are phone designs; the builder's
 768px the shell holds a 560px column and centres it. docs/14 §11's docking rails
 described the prose design, not the prototype, and the prototype wins.
 
+A bounding box cannot see overlap. The arena SVG once painted over the console's
+first two bars while every rect reported them laid out, inside their container and
+visible — the screenshot was right and the measurement was inadequate, which is the
+reverse of the trap above. `document.elementFromPoint` at an element's centre is the
+check that settles it, and the audit uses it. Accept only the element itself or a
+descendant: an *ancestor* at that point is usually the thing painting over it.
+
+An instrument must not hardcode what the sim computes. The battle diagnostics and
+the shot spread substituted constants for fire-control lag, weapon modifiers,
+terrain cover, target profile and target speed in turn, and each was found only when
+reviewing the fix for the previous one. If you are drawing a number the sim also
+derives, read it from the sim or derive it from frames and events — never type it.
+
 ## The design source is the prototypes, not the prose
 
 `docs/prototypes/mobile-builder.html` and `mobile-battle.html` are the recovered
