@@ -75,3 +75,25 @@
   border: 1px solid var(--signal-amber-dim);
   border-radius: var(--radius-md);
 }
+
+/* Waypoint state, laid on the glass. It is transient — it appears the moment you
+   tap the arena and goes when the order clears — so it must not occupy the column:
+   as a flow row it took 95px from the arena and moved every instrument below it.
+   The bar itself ignores pointers so it cannot steal an arena tap; its button does
+   not, because it is a real control. */
+.battle-app .waypoint-bar {
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: var(--space-2);
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-sm);
+  background: rgba(13, 15, 19, 0.86);
+  pointer-events: none;
+}
+.battle-app .waypoint-bar .obtn { pointer-events: auto; flex: 0 0 auto; }

@@ -471,7 +471,8 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, foeBuild, diagnostics, onOpenLog,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, glassOverlay,
+  yourBuild, foeBuild, diagnostics, onOpenLog,
 }: {
   view: BattleView;
   tSec: number;
@@ -491,6 +492,12 @@ export function BattleScene({
   diagnostics?: boolean;
   /** Tapping the mech opens the log, as it does in the prototype. */
   onOpenLog?: () => void;
+  /**
+   * HTML laid on the glass, over the arena. For transient state that must not
+   * re-lay the cockpit — anything that appears and disappears belongs here rather
+   * than in the column, where it would move every instrument below it.
+   */
+  glassOverlay?: ReactNode;
   /** Your build, for the console's damage widget. Omitted where it is unknown. */
   yourBuild?: Build;
 }) {
@@ -769,6 +776,7 @@ export function BattleScene({
           It used to hold two permanent rows there -- the scarcest space on the
           screen -- to describe an interaction a phone does not have. Absolute, so
           it reserves nothing, and pointer-events: none so it cannot eat a tap. */}
+      {glassOverlay}
       {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} build={yourBuild} foeBuild={foeBuild} />}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />

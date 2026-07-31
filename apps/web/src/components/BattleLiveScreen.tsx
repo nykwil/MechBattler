@@ -271,6 +271,23 @@ export function BattleLiveScreen({
             arenaOverlay={ripple && <circle key={ripple.key} className="live-ripple" cx={ripple.x} cy={ripple.y} />}
             foeBuild={opponent.build}
             onOpenLog={() => setLogOpen(true)}
+            /* Setting a waypoint used to add a second orders row, which took 95px
+               from the arena and shifted the console, gun row and orders down the
+               screen — one tap on the glass re-laid the whole cockpit. It is on the
+               glass now, where appearing costs nothing. */
+            glassOverlay={moveMode === 'waypoint' ? (
+              <div className="waypoint-bar">
+                <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
+                <button
+                  type="button" className="obtn"
+                  aria-pressed={manual.autoOnArrival}
+                  onClick={() => setManual((m) => ({ ...m, autoOnArrival: !m.autoOnArrival }))}
+                  title="On arrival at the waypoint, clear every manual order and resume full auto"
+                >
+                  On arrival
+                </button>
+              </div>
+            ) : undefined}
             diagnostics={diag}
           />
 
@@ -349,20 +366,6 @@ export function BattleLiveScreen({
               Auto
             </button>
           </div>
-
-          {moveMode === 'waypoint' && (
-            <div className="live-orders orders">
-              <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
-              <button
-                type="button" className="obtn"
-                aria-pressed={manual.autoOnArrival}
-                onClick={() => setManual((m) => ({ ...m, autoOnArrival: !m.autoOnArrival }))}
-                title="On arrival at the waypoint, clear every manual order and resume full auto"
-              >
-                On arrival
-              </button>
-            </div>
-          )}
 
         </div>
 
