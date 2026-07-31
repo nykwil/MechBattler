@@ -8,6 +8,7 @@ import type { OpponentDef } from '../lib/opponents.js';
 import { fmtTime } from '../lib/battleText.js';
 import { useBattle } from '../state/useBattle.js';
 import { BattleCaption, BattleScene, BattleTicker, frameAt, type BattleView, type WeaponOverride } from './BattleHud.js';
+import { Sheet } from './Sheet.js';
 import './BattleDiagnostics.css';
 import './BattleReportScreen.css';
 import './BattlePlayback.css';
@@ -74,6 +75,7 @@ export function BattleLiveScreen({
   const [speed, setSpeed] = useState<(typeof LIVE_SPEEDS)[number]>(1);
   const [manual, setManual] = useState<ManualState>(FULL_AUTO);
   const [diag, setDiag] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
   // The controller runs inside battle.step() at 4 Hz and reads the ref; state
   // drives the button highlights (docs/08 §3).
   const manualRef = useRef(manual);
@@ -268,6 +270,7 @@ export function BattleLiveScreen({
             onWeaponClick={cycleWeapon}
             arenaOverlay={ripple && <circle key={ripple.key} className="live-ripple" cx={ripple.x} cy={ripple.y} />}
             foeBuild={opponent.build}
+            onOpenLog={() => setLogOpen(true)}
             diagnostics={diag}
           />
 
@@ -361,12 +364,24 @@ export function BattleLiveScreen({
             </div>
           )}
 
-          <BattleTicker view={view} tSec={tSec} names={names} />
-          <BattleCaption view={view} />
-          <div className="playback-caption">
-            keys: space pause · 1–9 cycle gun fire control · H hold position · F face mode · A full auto · right-click revert move
-          </div>
         </div>
+
+        {/* The log lives behind a tap on the mech, as it does in the prototype --
+            "Tap the mech for the log". It used to sit permanently under the orders
+            row, where it cost the arena a third of its height and, until the column
+            was constrained, simply ran off the bottom of the screen unseen. */}
+        <Sheet open={logOpen} onClose={() => setLogOpen(false)} label="Battle log" initialSnap="half">
+          <div className="sheet-head">
+            <span className="sheet-title">Battle log</span>
+          </div>
+          <div className="sheet-body">
+            <BattleTicker view={view} tSec={tSec} names={names} />
+            <BattleCaption view={view} />
+            <p className="playback-caption">
+              keys: space pause · 1–9 cycle gun fire control · H hold position · F face mode · A full auto · right-click revert move
+            </p>
+          </div>
+        </Sheet>
 
         {finished && <div className="live-endbanner">BATTLE DECIDED — preparing report…</div>}
       </div>

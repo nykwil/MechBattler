@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
@@ -132,6 +132,13 @@ function shortName(partId: string): string {
  */
 const AMMO_PLACEHOLDER = 'ammo — (not modelled yet)';
 
+/**
+ * Delivered only through the `title` attribute — a native tooltip, which is a real
+ * popup: it floats, costs no layout, and is plainly not part of the cockpit. There
+ * used to be a styled line rendered alongside it, which was the same text twice and
+ * looked like interface. This detail is a development aid, not a surface the final
+ * interface owns, so it should never occupy the cockpit's space.
+ */
 function weaponBlurb(def: PartDef): string {
   const w = def.weapon!;
   const speed = w.projectileSpeed === 'hitscan' ? 'hitscan' : `${w.projectileSpeed} m/s`;
@@ -298,12 +305,11 @@ function MechGlyph({ frame, chassisId, color }: { frame: MechFrame; chassisId: s
 export type WeaponOverride = 'hold' | 'force';
 
 function WeaponSlot({
-  wf, fired, compact, onHover, override, onClick,
+  wf, fired, compact, override, onClick,
 }: {
   wf: WeaponFrame;
   fired: boolean;
   compact?: boolean;
-  onHover?: (partId: string | null) => void;
   override?: WeaponOverride;
   onClick?: () => void;
 }) {
@@ -382,8 +388,6 @@ function WeaponSlot({
       aria-pressed={override === 'force'}
       title={weaponBlurb(def) + ovrText + (silence ? ` — ${silence.blurb}` : '')}
       onClick={onClick}
-      onMouseEnter={onHover ? () => onHover(wf.partId) : undefined}
-      onMouseLeave={onHover ? () => onHover(null) : undefined}
     >
       {body}
     </button>
@@ -467,7 +471,7 @@ function Gauge({
 }
 
 export function BattleScene({
-  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, foeBuild, diagnostics,
+  view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, yourBuild, foeBuild, diagnostics, onOpenLog,
 }: {
   view: BattleView;
   tSec: number;
@@ -485,10 +489,11 @@ export function BattleScene({
   foeBuild?: Build;
   /** Lay the movement and gunnery diagnostics on the glass (the fx toggle). */
   diagnostics?: boolean;
+  /** Tapping the mech opens the log, as it does in the prototype. */
+  onOpenLog?: () => void;
   /** Your build, for the console's damage widget. Omitted where it is unknown. */
   yourBuild?: Build;
 }) {
-  const [hoveredWeapon, setHoveredWeapon] = useState<string | null>(null);
   const frame = frameAt(view, tSec);
 
   // Shots fired just before `tSec` become tracers; hits also flash the target.
@@ -764,9 +769,6 @@ export function BattleScene({
           It used to hold two permanent rows there -- the scarcest space on the
           screen -- to describe an interaction a phone does not have. Absolute, so
           it reserves nothing, and pointer-events: none so it cannot eat a tap. */}
-      {hoveredWeapon && (
-        <p className="con-foot hover-only">{weaponBlurb(getPart(hoveredWeapon))}</p>
-      )}
       {diagnostics && <BattleDiagnostics view={view} frame={frame} tSec={tSec} build={yourBuild} foeBuild={foeBuild} />}
       <span className="corner tl" /><span className="corner tr" />
       <span className="corner bl" /><span className="corner br" />
@@ -788,6 +790,7 @@ export function BattleScene({
               events={view.events}
               tSec={tSec}
               coreFrac={Math.max(0, you.coreHp) / CORE_HP}
+              onOpen={onOpenLog}
             />
           )}
           <div className="con-bars">
@@ -842,7 +845,6 @@ export function BattleScene({
               <WeaponSlot
                 key={wf.instanceId} wf={wf}
                 fired={firedIds.has(`0:${wf.instanceId}`)}
-                onHover={setHoveredWeapon}
                 override={weaponOverrides?.[wf.instanceId]}
                 onClick={onWeaponClick ? () => onWeaponClick(wf.instanceId) : undefined}
               />
