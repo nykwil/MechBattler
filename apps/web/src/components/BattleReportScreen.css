@@ -10,17 +10,35 @@
   padding: var(--space-5);
 }
 
+/*
+ * On a phone the report is the same screen the fight was on, with a banner added --
+ * so it is full bleed, and the arena, console and gun row keep the size they had a
+ * second earlier. As a floating card it re-laid every element on the win: the arena
+ * went 390x433 to 308x308 and the gun row 44px tall to 18px, which read as a new
+ * screen that happened to contain the same things.
+ *
+ * The padded modal look is kept where there is room for it to be a modal.
+ */
+.report-overlay { padding: 0; }
+@media (min-width: 768px) {
+  .report-overlay { padding: var(--space-5); }
+}
+
 .report-panel {
-  width: min(680px, 100%);
-  max-height: calc(100vh - 48px);
+  width: 100%;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  /* No padding: the scene inside brings its own, and any here shrinks the arena
+     relative to the fight that just ended. The banner and the footer pad
+     themselves instead. */
+  padding: 0;
+  max-height: 100dvh;
   /* A column: the content scrolls, the actions keep their own space at the foot. */
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--bg-panel);
-  border: 1px solid var(--line-bright);
-  border-radius: var(--radius-md);
-  padding: var(--space-4);
 }
 
 .report-scroll {
@@ -203,4 +221,25 @@
 .report-tab.active {
   border-color: var(--signal-amber-dim);
   color: var(--ink-primary);
+}
+
+
+/* Above the breakpoint it becomes a card again, as it was designed. */
+@media (min-width: 768px) {
+  .report-panel {
+    width: min(680px, 100%);
+    max-width: min(680px, 100%);
+    max-height: calc(100vh - 48px);
+    border: 1px solid var(--line-bright);
+    border-radius: var(--radius-md);
+    padding: var(--space-4);
+  }
+}
+
+
+/* The panel is unpadded on a phone so the scene keeps its width; the two chrome
+   pieces that used to rely on that padding supply their own. */
+@media (max-width: 767px) {
+  .report-banner { margin-inline: var(--space-2); }
+  .report-actions { margin-inline: 0; padding-inline: var(--space-2); }
 }
