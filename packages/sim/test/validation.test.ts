@@ -69,10 +69,10 @@ describe('build validation (docs/02 §2, warn-only philosophy)', () => {
     const build: Build = {
       chassisId: 'CH-5',
       parts: [
-        part('whisper', 'R-E25', 0, 0),
-        part('las1', 'W-LAS', 2, 0),
-        part('las2', 'W-LAS', 0, 2, 90),
-        part('lump', 'R-C40', 4, 2),
+        { ...part('whisper', 'R-E25', 0, 3), origin: { regionId: 'body', x: 0, y: 3 } },
+        { ...part('las1', 'W-LAS', 1, 5), origin: { regionId: 'body', x: 1, y: 5 } },
+        { ...part('las2', 'W-LAS', 2, 4), origin: { regionId: 'body', x: 2, y: 4 } },
+        { ...part('lump', 'R-C40', 3, 0), origin: { regionId: 'right-shoulder', x: 3, y: 0 } },
       ],
       powerPriority: [],
     };

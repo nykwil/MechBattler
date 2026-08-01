@@ -18,12 +18,15 @@ function part(instanceId: string, partId: string, x: number, y: number, rotation
 
 /** CH-5 shooter: reactor + the given weapon (2×2 or line), wired by one conduit. */
 function shooterWith(weaponId: string): Build {
+  const weaponOrigin = weaponId === 'W-ION'
+    ? { regionId: 'body', x: 0, y: 4 }
+    : { regionId: 'body', x: 1, y: 3 };
   return {
     chassisId: 'CH-5',
     parts: [
-      part('reactor', 'R-C40', 3, 1),
-      part('con', 'U-CON', 2, 1),
-      part('wpn', weaponId, 0, 1),
+      { ...part('reactor', 'R-C40', 3, 2), origin: { regionId: 'body', x: 3, y: 2 } },
+      { ...part('con', 'U-CON', 3, 4), origin: { regionId: 'body', x: 3, y: 4 } },
+      { ...part('wpn', weaponId, weaponOrigin.x, weaponOrigin.y), origin: weaponOrigin },
     ],
     // Gun first so the 30 kW charged Static is not shed behind locomotion.
     powerPriority: ['wpn', CORE_INSTANCE_ID],
@@ -101,8 +104,10 @@ describe('the weapons cook and drain in a real battle', () => {
     const railTarget: Build = {
       chassisId: 'CH-5',
       parts: [
-        part('reactor', 'R-C40', 3, 1), part('cap', 'P-CAP2', 3, 3),
-        part('con', 'U-CON', 2, 1), part('arm', 'U-ARM', 0, 0),
+        { ...part('reactor', 'R-C40', 3, 2), origin: { regionId: 'body', x: 3, y: 2 } },
+        { ...part('cap', 'P-CAP2', 0, 3), origin: { regionId: 'body', x: 0, y: 3 } },
+        { ...part('con', 'U-CON', 2, 3), origin: { regionId: 'body', x: 2, y: 3 } },
+        { ...part('arm', 'U-ARM', 1, 0), origin: { regionId: 'left-shoulder', x: 1, y: 0 } },
       ],
       powerPriority: [CORE_INSTANCE_ID],
     };

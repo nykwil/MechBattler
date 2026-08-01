@@ -1,4 +1,4 @@
-import { TEMPLATES, checkPlacement, getChassis, getPart, type Build } from '@mechbattler/sim';
+import { TEMPLATES, getChassis, getPart, validateWholeBuildPlacement, type Build } from '@mechbattler/sim';
 import { GAME_CONTENT } from './content.js';
 import { generateRunNodes } from './nodes.js';
 import {
@@ -79,21 +79,28 @@ export function savedMechErrors(profile: PlayerProfile, build: Build): string[] 
     return errors;
   }
   const chassis = getChassis(build.chassisId);
-  const placed = [];
-  const ids = new Set<string>();
+  let allPartsKnown = true;
   for (const part of build.parts) {
     if (!profile.unlockedPartIds.includes(part.partId)) {
       errors.push(`Part ${part.partId} is not owned`);
       continue;
     }
-    if (ids.has(part.instanceId)) errors.push(`Duplicate part instance ${part.instanceId}`);
-    ids.add(part.instanceId);
     try {
-      const issue = checkPlacement(chassis, placed, part, getPart(part.partId));
-      if (issue) errors.push(`Illegal placement for ${part.instanceId}: ${issue.reason}`);
-      else placed.push(part);
+      getPart(part.partId);
     } catch {
       errors.push(`Unknown part ${part.partId}`);
+      allPartsKnown = false;
+    }
+  }
+  if (allPartsKnown) {
+    for (const issue of validateWholeBuildPlacement(chassis, build)) {
+      if (issue.target === 'part') {
+        errors.push(`Illegal placement for ${issue.instanceId}: ${issue.reason}`);
+      } else {
+        errors.push(
+          `Illegal ${issue.route?.kind ?? 'route'} at ${issue.route?.regionId ?? 'body'}:${issue.route?.x},${issue.route?.y}: ${issue.reason}`,
+        );
+      }
     }
   }
   return errors;

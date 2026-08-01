@@ -31,6 +31,7 @@ export const PARTS: Record<string, PartDef> = {
   'U-RAD': {
     id: 'U-RAD', name: 'Gill (radiator)', category: 'utility',
     shape: line(3), massKg: 100, hp: 25, tier: 2, perimeterOnly: true,
+    spatial: { transfersHeat: true, thermalConductance: 2 },
   },
   'U-HS': {
     id: 'U-HS', name: 'Brick (heat sink)', category: 'utility',

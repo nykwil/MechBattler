@@ -28,10 +28,11 @@ describe('physical mech adapter', () => {
     const cells = getOccupiedCells(placed, getPart(placed.partId));
     const rendered = physical.parts.find((part) => part.instanceId === 'ac')!;
 
-    expect(new Set(cells.map((cell) => cell.x)).size).toBe(2);
-    expect(new Set(cells.map((cell) => cell.y)).size).toBe(3);
-    expect(rendered.localSizeM[0]).toBeCloseTo(0.88);
-    expect(rendered.localSizeM[2]).toBeCloseTo(1.32);
+    const occupiedWidth = new Set(cells.map((cell) => cell.x)).size;
+    const occupiedDepth = new Set(cells.map((cell) => cell.y)).size;
+    expect(occupiedWidth * occupiedDepth).toBe(cells.length);
+    expect(rendered.localSizeM[0]).toBeCloseTo(occupiedWidth * 0.5 * 0.88);
+    expect(rendered.localSizeM[2]).toBeCloseTo(occupiedDepth * 0.5 * 0.88);
     expect(rendered.localPositionM[1]).toBeGreaterThan(physical.bodySizeM[1] / 2);
   });
 

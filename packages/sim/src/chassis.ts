@@ -18,6 +18,11 @@ function usableCells(mask: boolean[][]): number {
   return mask.reduce((sum, row) => sum + row.filter(Boolean).length, 0);
 }
 
+function cellsFromMask(regionId: string, mask: boolean[][]) {
+  return mask.flatMap((row, y) => row.flatMap((occupied, x) =>
+    occupied ? [{ regionId, x, y }] : []));
+}
+
 const vultureMask = maskFromRows([
   '.###.',
   '#####',
@@ -120,6 +125,21 @@ export const CHASSIS: Record<string, ChassisSpec> = {
         id: 'right-shoulder-joint',
         a: { regionId: 'body', x: 4, y: 2 },
         b: { regionId: 'right-shoulder', x: 3, y: 1 },
+      },
+    ],
+    locationZones: [
+      {
+        id: 'mule-articulated-shoulders',
+        cells: [
+          ...cellsFromMask('left-shoulder', muleLeftMask),
+          ...cellsFromMask('right-shoulder', muleRightMask),
+        ],
+        effect: {
+          id: 'articulated-shoulder',
+          name: 'Articulated shoulder',
+          description: 'Weapons fitted wholly in a shoulder gain +25 degrees of targeting arc.',
+          weaponArcBonusDeg: 25,
+        },
       },
     ],
   },

@@ -90,6 +90,15 @@ export function chipsFor(def: PartDef): Chip[] {
     case 'U-TC1': chips.push({ text: 'anti-strafe aim', kind: 'note' }); break;
     case 'U-ACT': chips.push({ text: '+15% speed', kind: 'note' }); break;
     case 'U-ARM': chips.push({ text: 'just gets hit', kind: 'note' }); break;
+    case 'U-TUR':
+      chips.push({ text: '+25° supported weapon arc', kind: 'note' });
+      chips.push({ text: 'support layer · carries 60 kW', kind: 'energy' });
+      break;
+    case 'U-SHELL':
+      chips.push({ text: '60 HP sealed armour', kind: 'note' });
+      chips.push({ text: 'covered heat ×1.25', kind: 'heat' });
+      chips.push({ text: 'blocks exterior cooling', kind: 'heat' });
+      break;
   }
   return chips;
 }

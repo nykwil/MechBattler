@@ -453,4 +453,26 @@ describe('saved mech blueprints', () => {
     expect(deleteSavedMech(replaced.profile, replaced.savedMech.id).savedMechs)
       .not.toContainEqual(expect.objectContaining({ id: replaced.savedMech.id }));
   });
+
+  it('rejects regional seams, equipment routes, and duplicate route layers in imported blueprints', () => {
+    const mule = structuredClone(TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!.build);
+    const profile = {
+      ...defaultProfile(),
+      unlockedChassisIds: ['CH-2', 'CH-5'],
+      unlockedPartIds: [...new Set([
+        ...defaultProfile().unlockedPartIds,
+        ...mule.parts.map((part) => part.partId),
+      ])],
+    };
+    mule.parts[0]!.origin = { regionId: 'body', x: 3, y: 1 };
+    mule.routes = [
+      { kind: 'wire', regionId: 'body', x: 1, y: 4 },
+      { kind: 'wire', regionId: 'body', x: 0, y: 2 },
+      { kind: 'wire', regionId: 'body', x: 0, y: 2 },
+    ];
+    const errors = savedMechErrors(profile, mule);
+    expect(errors.join('\n')).toContain('out-of-region');
+    expect(errors.join('\n')).toContain('route-on-equipment');
+    expect(errors.join('\n')).toContain('duplicate-route');
+  });
 });

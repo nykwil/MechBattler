@@ -1,5 +1,6 @@
 import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
+import { CHASSIS } from './chassis.js';
 import {
   WIRE_CAPACITY_KW,
   buildSpatialOccupancy,
@@ -100,7 +101,7 @@ export function resolveSpatialPower(
         for (const neighbor of occupancy.stacksByCell.get(neighborKey) ?? []) {
           if (neighbor.instanceId === placed.instanceId) continue;
           const neighborDef = getPart(neighbor.partId);
-          if (partCanTransfer(def) || partCanTransfer(neighborDef)) {
+          if (partCanTransfer(def) && partCanTransfer(neighborDef)) {
             addEdge(
               graph,
               partNode(placed.instanceId),
@@ -119,8 +120,7 @@ export function resolveSpatialPower(
         if (
           equipmentLayer(def) === 'support'
           || equipmentLayer(neighborDef) === 'support'
-          || partCanTransfer(def)
-          || partCanTransfer(neighborDef)
+          || (partCanTransfer(def) && partCanTransfer(neighborDef))
         ) {
           addEdge(
             graph,
@@ -252,5 +252,9 @@ export function resolveSpatialPower(
 }
 
 export function usesSpatialSystems(build: Build): boolean {
-  return Boolean(build.routes?.length || build.parts.some((part) => part.origin.regionId));
+  return Boolean(
+    CHASSIS[build.chassisId]?.regions?.length
+    || build.routes?.length
+    || build.parts.some((part) => part.origin.regionId),
+  );
 }

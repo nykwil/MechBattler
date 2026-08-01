@@ -25,7 +25,7 @@ const base = process.env.AUDIT_URL ?? 'http://localhost:5160';
 
 /** Disarm this node's opponents so the fight is a decided one. */
 const DISARM = `(() => {
-  const k = 'mechbattler-run-v2';
+  const k = 'mechbattler-run-v3';
   const r = JSON.parse(localStorage.getItem(k));
   const node = r.generatedNodes.find((n) => n.index === r.nodeIndex);
   for (const o of node.opponents) {
@@ -40,7 +40,7 @@ const DISARM = `(() => {
  * and reads pre-settlement state -- which briefly looked like salvage failing.
  */
 const REPORT = `(() => new Promise((res) => setTimeout(() => {
-  const r = JSON.parse(localStorage.getItem('mechbattler-run-v2'));
+  const r = JSON.parse(localStorage.getItem('mechbattler-run-v3'));
   res(JSON.stringify({
     fightsWon: r.fightsWon,
     battles: r.battlesCompleted,

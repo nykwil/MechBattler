@@ -32,7 +32,8 @@ import {
   buildThermalModel,
   type ThermalModel,
 } from './thermal.js';
-import { EXTERIOR_PASSIVE_K, buildSpatialOccupancy } from './spatial.js';
+import { EXTERIOR_PASSIVE_K, buildSpatialOccupancy, spatialCellKey } from './spatial.js';
+import { locationEffectsForPart } from './placementEffects.js';
 import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
 import type { TerrainType } from './terrain.js';
 
@@ -179,22 +180,6 @@ export class Simulation {
     }
     this.coreNetworkId = spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(chassis, build.parts);
 
-    const spatialOccupancy = buildSpatialOccupancy(chassis, build);
-    for (const stack of spatialOccupancy.stacksByCell.values()) {
-      const shell = [...stack].reverse().find((entry) =>
-        getPart(entry.partId).spatial?.coveredHeatMultiplier !== undefined);
-      if (!shell) continue;
-      const mult = getPart(shell.partId).spatial?.coveredHeatMultiplier ?? 1;
-      for (const entry of stack) {
-        if (entry.instanceId !== shell.instanceId) {
-          this.coveredHeatMultByInstance.set(
-            entry.instanceId,
-            Math.max(mult, this.coveredHeatMultByInstance.get(entry.instanceId) ?? 1),
-          );
-        }
-      }
-    }
-
     for (const p of build.parts) {
       const def = getPart(p.partId);
       if (def.category === 'reactor') this.reactorAvailableKw.set(p.instanceId, 0);
@@ -210,10 +195,54 @@ export class Simulation {
       if (staticM.harvestsHeat) this.heatHarvestIds.add(p.instanceId);
     }
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
+    this.refreshSpatialProtection();
     // Victory wrecks remain installed at 0% condition. They occupy/protect
     // cells but must not conduct power or function until repaired.
     for (const p of build.parts) {
       if (p.integrity <= 0) this.destroyPart(p.instanceId);
+    }
+  }
+
+  /** Re-evaluate sealed coverage when armour becomes or starts as a wreck. */
+  private refreshSpatialProtection(): void {
+    const occupancy = buildSpatialOccupancy(this.chassis, this.build);
+    const active = (instanceId: string) => {
+      const part = this.parts.find((candidate) => candidate.instanceId === instanceId);
+      return Boolean(part && part.integrity > 0 && !this.runtime.get(instanceId)?.destroyed);
+    };
+    const armourHeatMultByInstance = new Map<string, number>();
+    for (const stack of occupancy.stacksByCell.values()) {
+      const shell = [...stack].reverse().find((entry) =>
+        active(entry.instanceId)
+        && getPart(entry.partId).spatial?.coveredHeatMultiplier !== undefined);
+      if (!shell) continue;
+      const mult = getPart(shell.partId).spatial?.coveredHeatMultiplier ?? 1;
+      for (const entry of stack) {
+        if (entry.instanceId !== shell.instanceId) {
+          armourHeatMultByInstance.set(
+            entry.instanceId,
+            Math.max(mult, armourHeatMultByInstance.get(entry.instanceId) ?? 1),
+          );
+        }
+      }
+    }
+    for (const part of this.parts) {
+      const locationMult = locationEffectsForPart(this.chassis, part).heatMultiplier;
+      this.coveredHeatMultByInstance.set(
+        part.instanceId,
+        locationMult * (armourHeatMultByInstance.get(part.instanceId) ?? 1),
+      );
+    }
+    for (const cell of this.thermal.cells.values()) {
+      if (cell.instanceId === CORE_INSTANCE_ID || cell.isCoolant) continue;
+      const stack = occupancy.stacksByCell.get(spatialCellKey(this.chassis, {
+        regionId: cell.regionId, x: cell.x, y: cell.y,
+      })) ?? [];
+      const ownLayer = stack.find((entry) => entry.instanceId === cell.instanceId)?.layer;
+      cell.passiveCoolingBlocked = ownLayer !== 'armour' && stack.some((entry) =>
+        active(entry.instanceId)
+        && entry.layer === 'armour'
+        && getPart(entry.partId).spatial?.blocksPassiveCooling === true);
     }
   }
 
@@ -280,6 +309,13 @@ export class Simulation {
     for (const key of this.thermal.cellKeysByInstance.get(instanceId) ?? []) {
       this.thermal.cells.get(key)!.thermalMassKjPerC = 1.0;
     }
+    const destroyedDef = this.parts.find((part) => part.instanceId === instanceId);
+    if (destroyedDef && getPart(destroyedDef.partId).spatial?.transfersHeat === true) {
+      const destroyedCells = new Set(this.thermal.cellKeysByInstance.get(instanceId) ?? []);
+      this.thermal.edges = this.thermal.edges.filter((edge) =>
+        !destroyedCells.has(edge.aKey) && !destroyedCells.has(edge.bKey));
+    }
+    this.refreshSpatialProtection();
 
     const active = this.parts.filter((p) => !this.isDestroyed(p.instanceId));
     const spatialPower = usesSpatialSystems(this.build)

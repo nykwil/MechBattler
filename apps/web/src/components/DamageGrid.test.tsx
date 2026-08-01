@@ -60,6 +60,27 @@ describe('DamageGrid', () => {
     const container = renderGrid([destroyedAt(1, 'r1'), destroyedAt(2, 'w1')], 5);
     expect(container.querySelector('.dmg')?.getAttribute('aria-label')).toContain('2 parts destroyed');
   });
+
+  it('reveals a surviving payload after top armour is destroyed', () => {
+    const stacked: Build = {
+      chassisId: 'CH-5',
+      parts: [
+        { instanceId: 'support', partId: 'U-TUR', origin: { regionId: 'left-shoulder', x: 1, y: 0 }, rotation: 0, integrity: 1 },
+        { instanceId: 'weapon', partId: 'W-MG', origin: { regionId: 'left-shoulder', x: 1, y: 0 }, rotation: 0, integrity: 1 },
+        { instanceId: 'shell', partId: 'U-SHELL', origin: { regionId: 'left-shoulder', x: 1, y: 0 }, rotation: 0, integrity: 1 },
+      ],
+      routes: [],
+      powerPriority: [],
+    };
+    const before = render(<DamageGrid build={stacked} events={[]} tSec={0} coreFrac={1} />).container;
+    const after = render(
+      <DamageGrid build={stacked} events={[destroyedAt(1, 'shell')]} tSec={2} coreFrac={1} />,
+    ).container;
+    expect((before.querySelectorAll('.dmg-grid i')[1] as HTMLElement).style.background)
+      .toContain('--cat-structural');
+    expect((after.querySelectorAll('.dmg-grid i')[1] as HTMLElement).style.background)
+      .toContain('--cat-weapon');
+  });
 });
 
 const shotAt = (tSec: number, instanceId: string, damage: number): BattleEvent =>

@@ -71,6 +71,20 @@ describe('Plate', () => {
     expect(body.style.transform).toBe('translate(50%, 0%)');
   });
 
+  it('marks exterior cooling and authored location bonuses on the cells themselves', () => {
+    const { container } = renderPlate();
+    const shoulder = container.querySelector(
+      '[data-region="left-shoulder"][data-x="1"][data-y="0"]',
+    );
+
+    expect(shoulder?.classList.contains('exterior')).toBe(true);
+    expect(shoulder?.classList.contains('location-effect')).toBe(true);
+    expect(shoulder?.getAttribute('aria-label')).toContain('exterior cooling');
+    expect(shoulder?.getAttribute('aria-label')).toContain('Articulated shoulder');
+    expect(shoulder?.querySelector('.exterior-trait')).not.toBeNull();
+    expect(shoulder?.querySelector('.location-trait')?.textContent).toBe('⌒');
+  });
+
   it('draws each route from its offset centre only toward connected neighbours', () => {
     const part = {
       instanceId: 'coupler', partId: 'U-CON',

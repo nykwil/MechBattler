@@ -4,6 +4,7 @@ export * from './chassis.js';
 export * from './grid.js';
 export * from './spatial.js';
 export * from './spatialPower.js';
+export * from './placementEffects.js';
 export * from './thermal.js';
 export * from './simulation.js';
 export * from './derivedStats.js';

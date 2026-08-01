@@ -14,10 +14,13 @@
  */
 import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
+import { getChassis } from './chassis.js';
 import { dexp } from './dmath.js';
-import { computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from './grid.js';
+import { computeConnectivity, computeCoreNetwork, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, computePowerNetworks } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
+import { locationEffectsForPart, resolvePlacementEffects } from './placementEffects.js';
+import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
 
 export interface SpeedProfile {
   massT: number;
@@ -32,7 +35,9 @@ export interface SpeedProfile {
 export function computeSpeedProfile(chassis: ChassisSpec, build: Build): SpeedProfile {
   const massAndCoG = computeMassAndCoG(chassis, build.parts, build.routes);
   const scaled = computeLoadScaledSpeeds(chassis, massAndCoG);
-  const connected = computeConnectivity(build.parts).connectedInstanceIds;
+  const connected = usesSpatialSystems(build)
+    ? resolveSpatialPower(chassis, build).connectedInstanceIds
+    : computeConnectivity(build.parts).connectedInstanceIds;
   const boost = computePartSpeedMultiplier(build.parts, (part) => connected.has(part.instanceId));
   return {
     massT: massAndCoG.totalMassT,
@@ -65,27 +70,50 @@ export interface EnergyMargin {
   supplyKw: number;
   demandKw: number;
   marginKw: number;
+  networks: Array<{
+    networkId: string;
+    supplyKw: number;
+    demandKw: number;
+    marginKw: number;
+    instanceIds: string[];
+  }>;
 }
 
 /** docs/02 §6: "supply - demand with all weapons at max cadence at cruise." */
 export function computeEnergyMargin(chassis: ChassisSpec, build: Build): EnergyMargin {
-  const supplyKw = build.parts
-    .map((p) => getPart(p.partId))
-    .filter((d) => d.category === 'reactor')
-    .reduce((s, d) => s + d.reactor!.outputKw, 0);
-
   const profile = computeSpeedProfile(chassis, build);
   const cruiseSpeed = profile.fwd * SPEED_SETTING_FRACTIONS.cruise;
   const locomotionKw = 1.2 * profile.massT * cruiseSpeed;
-
-  const weaponsKw = weaponInstances(build).reduce((s, { def }) => s + averageDrawKw(def), 0);
-  const utilityKw = build.parts
-    .map((p) => getPart(p.partId))
-    .filter((d) => d.category === 'utility' && d.draw?.continuousKw)
-    .reduce((s, d) => s + (d.draw!.continuousKw ?? 0), 0);
-
-  const demandKw = locomotionKw + weaponsKw + utilityKw;
-  return { supplyKw, demandKw, marginKw: supplyKw - demandKw };
+  const spatial = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
+  const sourceNetworks = spatial?.networks ?? computePowerNetworks(build.parts).networks;
+  const networks = sourceNetworks.map((network) => {
+    const instanceIds = [...network.reactorInstanceIds, ...network.memberInstanceIds];
+    const supplyKw = network.reactorInstanceIds.reduce((sum, instanceId) => {
+      const part = build.parts.find((candidate) => candidate.instanceId === instanceId);
+      return sum + (part ? getPart(part.partId).reactor?.outputKw ?? 0 : 0);
+    }, 0);
+    const componentDemandKw = instanceIds.reduce((sum, instanceId) => {
+      const part = build.parts.find((candidate) => candidate.instanceId === instanceId);
+      if (!part) return sum;
+      const def = getPart(part.partId);
+      if (def.category === 'weapon') return sum + averageDrawKw(def);
+      return sum + (def.draw?.continuousKw ?? 0);
+    }, 0);
+    const carriesCore = spatial
+      ? network.networkId === spatial.coreNetworkId
+      : network.networkId === computeCoreNetwork(chassis, build.parts);
+    const demandKw = componentDemandKw + (carriesCore ? locomotionKw : 0);
+    return {
+      networkId: network.networkId,
+      supplyKw,
+      demandKw,
+      marginKw: supplyKw - demandKw,
+      instanceIds,
+    };
+  });
+  const supplyKw = networks.reduce((sum, network) => sum + network.supplyKw, 0);
+  const demandKw = networks.reduce((sum, network) => sum + network.demandKw, 0);
+  return { supplyKw, demandKw, marginKw: supplyKw - demandKw, networks };
 }
 
 export interface HeatBalance {
@@ -112,12 +140,14 @@ export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBala
   let coolingKw = 0;
   for (const p of build.parts) {
     const def = getPart(p.partId);
+    const placementHeatMult = resolvePlacementEffects(chassis, build, p.instanceId)?.effectiveHeatMultiplier ?? 1;
     let kw = 0;
-    if (def.weapon && def.heat?.heatPerShotKj) kw = def.heat.heatPerShotKj / def.weapon.cycleS;
+    if (def.weapon && def.heat?.heatPerShotKj) kw = (def.heat.heatPerShotKj / def.weapon.cycleS) * placementHeatMult;
     else if (def.reactor) {
       kw = Array.isArray(def.reactor.wasteHeatKw)
         ? (utilization > 0.5 ? def.reactor.wasteHeatKw[1] : def.reactor.wasteHeatKw[0])
         : def.reactor.wasteHeatKw;
+      kw *= placementHeatMult;
     }
     if (kw > 0) { heatInKw += kw; perSource.push({ partId: def.id, kw }); }
     if (def.id === 'U-RAD') coolingKw += RADIATOR_CAP_KW;
@@ -175,12 +205,15 @@ function hitProbabilityAt(def: PartDef, r: number): number {
   return clamp(1 - dexp(-1.6 * z), 0.02, 1.0);
 }
 
-export function computeWeaponEnvelope(part: PlacedPart, def: PartDef): RangeEnvelope {
+export function computeWeaponEnvelope(part: PlacedPart, def: PartDef, rangeMultiplier = 1): RangeEnvelope {
   const baseDps = (def.weapon!.damage * (def.weapon!.salvoCount ?? 1)) / def.weapon!.cycleS;
   const samples: { r: number; dps: number }[] = [];
-  const maxR = def.weapon!.falloff.rangeEnd * 1.3;
+  const maxR = def.weapon!.falloff.rangeEnd * 1.3 * rangeMultiplier;
   for (let r = 5; r <= maxR; r += 5) {
-    samples.push({ r, dps: baseDps * falloffAt(def, r) * hitProbabilityAt(def, r) });
+    samples.push({
+      r,
+      dps: baseDps * falloffAt(def, r / rangeMultiplier) * hitProbabilityAt(def, r),
+    });
   }
   const peakDps = Math.max(...samples.map((s) => s.dps), 0.0001);
   const above = samples.filter((s) => s.dps >= 0.5 * peakDps);
@@ -201,7 +234,12 @@ export interface IdealRangeBand {
 }
 
 export function computeIdealRangeBand(build: Build): IdealRangeBand {
-  const perWeapon = weaponInstances(build).map(({ part, def }) => computeWeaponEnvelope(part, def));
+  const chassis = getChassis(build.chassisId);
+  const perWeapon = weaponInstances(build).map(({ part, def }) => computeWeaponEnvelope(
+    part,
+    def,
+    locationEffectsForPart(chassis, part).weaponRangeMultiplier,
+  ));
   if (perWeapon.length === 0) return { perWeapon, bandStart: 0, bandEnd: 0, mismatched: false };
 
   const totalDps = perWeapon.reduce((s, w) => s + w.peakDps, 0);

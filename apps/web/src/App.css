@@ -167,6 +167,18 @@
   border: 1px solid var(--signal-amber);
   background: var(--bg-deep);
 }
+.cell.port-live::after {
+  border-color: var(--signal-green);
+  box-shadow: 0 0 6px rgba(111, 168, 90, .75);
+}
+.cell.bottleneck {
+  outline: 2px dashed var(--signal-red);
+  outline-offset: -3px;
+}
+.cell.radiator-linked {
+  outline: 1px solid var(--signal-blue);
+  outline-offset: -3px;
+}
 .port-links {
   position: absolute;
   inset: var(--space-2);
@@ -182,6 +194,23 @@
   vector-effect: non-scaling-stroke;
 }
 .app .plate .cell { z-index: 1; }
+.cell-trait {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.exterior-trait {
+  inset: 2px;
+  border-top: 1px solid rgba(90, 169, 199, .55);
+  border-left: 1px solid rgba(90, 169, 199, .55);
+}
+.location-trait {
+  right: 2px;
+  bottom: 0;
+  color: var(--signal-amber);
+  font: 10px/1 var(--font-mono);
+  text-shadow: 0 0 4px var(--bg-deep);
+}
 .route-path {
   --route-colour: var(--signal-green);
   --route-x: calc(50% - 3px);
@@ -195,6 +224,11 @@
   --route-colour: var(--signal-blue);
   --route-x: calc(50% + 3px);
   --route-y: calc(50% + 3px);
+}
+.route-path.bus.stranded { --route-colour: var(--signal-red); }
+.route-path.heat-pipe.isolated {
+  --route-colour: var(--signal-amber);
+  opacity: .72;
 }
 .route-arm,
 .route-node {

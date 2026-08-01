@@ -9,8 +9,9 @@
  * integrity; an ordinary shot never drills into a second equipment cell.
  *
  * Simplifications this pass (extend, don't silently inherit):
- *  - Mount arcs are always centered on chassis forward (side/rear mounts and
- *    location affinity are not implemented; docs/07 gap list).
+ *  - Mount arcs are always centered on chassis forward. Authored location
+ *    zones and turret supports can widen them, but side/rear arc centers are
+ *    not implemented yet.
  *  - The autopilot's weapon-enable check skips the one-tick brownout preview
  *    (docs/03 §7 item 4) -- it gates on arc, range, and temperature only.
  *  - Locomotion power draw inside Simulation uses the straight-line
@@ -25,6 +26,7 @@ import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
 import { buildSpatialOccupancy, exposedEquipmentTickets, type AttackDirection } from './spatial.js';
 import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { locationEffectsForPart } from './placementEffects.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
@@ -499,7 +501,18 @@ export class Combatant {
         bonus = Math.max(bonus, getPart(entry.partId).spatial?.weaponArcBonusDeg ?? 0);
       }
     }
-    return baseArcDeg + bonus;
+    const placed = this.build.parts.find((part) => part.instanceId === instanceId);
+    const locationBonus = placed
+      ? locationEffectsForPart(this.chassis, placed).weaponArcBonusDeg
+      : 0;
+    return Math.min(360, baseArcDeg + locationBonus + bonus);
+  }
+
+  weaponRangeMultiplier(instanceId: string): number {
+    const placed = this.build.parts.find((part) => part.instanceId === instanceId);
+    return placed
+      ? locationEffectsForPart(this.chassis, placed).weaponRangeMultiplier
+      : 1;
   }
 
   functionalMassFrac(): number {
@@ -788,7 +801,7 @@ export function estimateExpectedDps(
   shooterSpeedMps: number, targetLateralMps: number, snapshot: SimSnapshot | null,
   mods: DpsTerrainMods = {},
 ): number {
-  const rangeMult = mods.shooterRangeMult ?? 1;
+  const terrainRangeMult = mods.shooterRangeMult ?? 1;
   const coverMult = mods.targetCoverMult ?? 1;
   const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
@@ -799,6 +812,7 @@ export function estimateExpectedDps(
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
     const w = def.weapon!;
+    const rangeMult = terrainRangeMult * shooter.weaponRangeMultiplier(p.instanceId);
     if (rangeM > w.falloff.rangeEnd * 1.3 * rangeMult) continue;
     const m = effectiveMults(p, {
       tempC: shooter.sim.meanCellC(p.instanceId),
@@ -860,7 +874,10 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   for (const p of self.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !self.isPartFunctional(p.instanceId)) continue;
-    maxReachM = Math.max(maxReachM, def.weapon!.falloff.rangeEnd * 1.3);
+    maxReachM = Math.max(
+      maxReachM,
+      def.weapon!.falloff.rangeEnd * 1.3 * self.weaponRangeMultiplier(p.instanceId),
+    );
   }
   if (myTile === 'hill') maxReachM *= HILL_RANGE_MULT;
 
@@ -982,7 +999,9 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
-    const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+    const despawnRange = def.weapon!.falloff.rangeEnd * 1.3
+      * self.weaponRangeMultiplier(p.instanceId)
+      * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
     enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
   }
@@ -1431,7 +1450,9 @@ export class Battle {
       const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
       let gate: WeaponFrame['gate'] = null;
       if (!destroyed) {
-        const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+        const despawnRange = def.weapon!.falloff.rangeEnd * 1.3
+          * c.weaponRangeMultiplier(p.instanceId)
+          * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
         const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
         if (rangeToEnemy > despawnRange) gate = 'range';
         else if (bearingOffset > halfArc) gate = 'arc';
@@ -1513,7 +1534,8 @@ export class Battle {
     // envelope; a target in forest shows a reduced silhouette.
     const shooterTile = terrainAt(this.terrain, self.pos.x, self.pos.y);
     const targetTile = terrainAt(this.terrain, enemy.pos.x, enemy.pos.y);
-    const rangeMult = shooterTile === 'hill' ? HILL_RANGE_MULT : 1;
+    const rangeMult = self.weaponRangeMultiplier(instanceId)
+      * (shooterTile === 'hill' ? HILL_RANGE_MULT : 1);
     // Modifiers (docs/04 §4b): shooter's weapon mults + defender's profile.
     const shooterM = self.partMults(instanceId, shooterTile);
     const halfWidthM = enemy.projectedHalfWidthM(losDir)

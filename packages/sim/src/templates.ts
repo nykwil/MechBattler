@@ -90,12 +90,12 @@ function vultureSkirmisher(): Build {
 /** CH-5 Mule starter (docs/04 §6 "Mule gunline"): the tutorial-shaped build. */
 function muleGunline(): Build {
   const parts: PlacedPart[] = [
-    part('reactor', 'R-C40', 3, 1),
-    part('ac', 'W-AC', 1, 3),
-    part('con1', 'U-CON', 3, 3),
-    part('rad', 'U-RAD', 1, 0),
+    regionalPart('reactor', 'R-C40', 'body', 3, 2),
+    regionalPart('ac', 'W-AC', 'body', 1, 4, 90),
+    regionalPart('con1', 'U-CON', 'body', 1, 2),
+    regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
   ];
-  return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'ac'] };
+  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'ac'] };
 }
 
 /**
@@ -108,16 +108,16 @@ function muleGunline(): Build {
  */
 function muleSkirmisher(): Build {
   const parts: PlacedPart[] = [
-    part('reactor', 'R-E25', 3, 1),
-    part('mg1', 'W-MG', 1, 1),
-    part('con1', 'U-CON', 3, 3),
-    part('con2', 'U-CON', 2, 3),
-    part('mg2', 'W-MG', 1, 3, 90), // (1,3),(1,4)
-    part('arm1', 'U-ARM', 2, 0),
-    part('arm2', 'U-ARM', 3, 0),
-    part('arm3', 'U-ARM', 1, 0),
+    regionalPart('reactor', 'R-E25', 'body', 3, 2),
+    regionalPart('mg1', 'W-MG', 'left-shoulder', 1, 1),
+    regionalPart('con1', 'U-CON', 'body', 1, 2),
+    regionalPart('con2', 'U-CON', 'body', 1, 3),
+    regionalPart('mg2', 'W-MG', 'body', 1, 4, 90),
+    regionalPart('arm1', 'U-ARM', 'right-shoulder', 3, 0),
+    regionalPart('arm2', 'U-ARM', 'right-shoulder', 4, 0),
+    regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
   ];
-  return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
+  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
 }
 
 /**
@@ -128,41 +128,43 @@ function muleSkirmisher(): Build {
  */
 function muleLaserBoat(): Build {
   const parts: PlacedPart[] = [
-    part('reactorE', 'R-E25', 0, 1), // (0,1),(1,1),(0,2),(1,2)
-    part('reactorC', 'R-C40', 3, 1), // (3,1),(4,1),(3,2),(4,2)
-    // Bridge conduit: without it the two reactors are independent networks
-    // (docs/01 §3) and one laser starves on the 25 kW Whisper alone -- found
-    // the hard way when the harness showed las1 permanently browned out.
-    part('bridge', 'U-CON', 2, 1),
-    part('las1', 'W-LAS', 1, 3), // (1,3),(2,3),(3,3)
-    part('las2', 'W-LAS', 2, 0), // (2,0),(3,0),(4,0) -> (3,0) touches reactorC
-    part('pipe', 'U-PIPE', 2, 4),
-    part('rad', 'U-RAD', 1, 5), // (1,5),(2,5),(3,5)
-    part('arm1', 'U-ARM', 0, 3),
+    regionalPart('reactorE', 'R-E25', 'body', 0, 3),
+    regionalPart('reactorC', 'R-C40', 'body', 4, 3),
+    // Ordinary touching equipment now forms the central electrical spine.
+    regionalPart('bridge', 'U-CON', 'body', 2, 3),
+    regionalPart('pipe', 'U-PIPE', 'body', 3, 3),
+    regionalPart('las1', 'W-LAS', 'body', 1, 5),
+    regionalPart('las2', 'W-LAS', 'body', 3, 2),
+    regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
+    regionalPart('arm1', 'U-ARM', 'right-shoulder', 5, 1),
   ];
   // Stop-and-pop doctrine (docs/02 §2): guns above locomotion, so the boat
   // plants itself to keep both lasers charged instead of browning one out.
-  return { chassisId: 'CH-5', parts, powerPriority: ['las1', 'las2', CORE_INSTANCE_ID] };
+  return {
+    chassisId: 'CH-5', parts,
+    routes: [{ kind: 'coolant', regionId: 'body', x: 1, y: 2 }],
+    powerPriority: ['las1', 'las2', CORE_INSTANCE_ID],
+  };
 }
 
 /** CH-5 railgun sniper — the docs/02 §4 worked example, filling the whole grid. */
 function railgunMule(): Build {
   const parts: PlacedPart[] = [
-    part('rg', 'W-RG', 3, 0), // (3..4, 0..4)
-    part('reactor', 'R-C40', 0, 1), // (0..1, 1..2)
-    part('conA', 'U-CON', 2, 1),
-    part('conB', 'U-CON', 1, 3),
-    part('conC', 'U-CON', 2, 3),
-    part('cap1', 'P-CAP', 0, 3, 90), // (0,3),(0,4)
-    part('cap2', 'P-CAP', 1, 4, 90), // (1,4),(1,5)
-    part('cap3', 'P-CAP', 2, 4, 90), // (2,4),(2,5)
-    part('cap4', 'P-CAP', 1, 0), // (1,0),(2,0)
-    part('rad', 'U-RAD', 5, 1, 90), // (5,1),(5,2),(5,3)
-    part('arm1', 'U-ARM', 5, 4),
-    part('arm2', 'U-ARM', 3, 5),
-    part('arm3', 'U-ARM', 4, 5),
+    regionalPart('rg', 'W-RG', 'body', 0, 3, 90),
+    regionalPart('reactor', 'R-C40', 'right-shoulder', 3, 0),
+    regionalPart('conA', 'U-CON', 'left-shoulder', 1, 0),
+    regionalPart('conB', 'U-CON', 'left-shoulder', 2, 0),
+    regionalPart('conC', 'U-CON', 'body', 0, 2),
+    regionalPart('cap1', 'P-CAP', 'body', 4, 2),
+    regionalPart('cap2', 'P-CAP', 'body', 1, 5),
+    regionalPart('cap3', 'P-CAP', 'body', 3, 5),
+    regionalPart('cap4', 'P-CAP', 'body', 5, 3, 90),
+    regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
+    regionalPart('arm1', 'U-ARM', 'body', 1, 2),
+    regionalPart('arm2', 'U-ARM', 'body', 3, 2),
+    regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
   ];
-  return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'rg'] };
+  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'rg'] };
 }
 
 /** CH-7 Widow: orbits while facing (docs/03 §7) — the tracking-lag stress test. */

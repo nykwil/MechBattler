@@ -8,8 +8,8 @@ import { useBuild } from './useBuild.js';
  * that touch, keyboard, and assistive tech all share: arm, aim, commit.
  */
 describe('useBuild ghost placement', () => {
-  it('arms every catalog part at a placeable origin and orientation on an empty Mule', () => {
-    for (const partId of Object.keys(PARTS)) {
+  it('arms every standalone catalog part at a placeable origin and orientation on an empty Mule', () => {
+    for (const partId of Object.keys(PARTS).filter((id) => id !== 'U-SHELL')) {
       const { result, unmount } = renderHook(() => useBuild('CH-5'));
       act(() => result.current.selectPart(partId));
       const ghost = result.current.state.ghost!;
@@ -19,6 +19,19 @@ describe('useBuild ghost placement', () => {
       expect(result.current.state.parts, partId).toHaveLength(1);
       unmount();
     }
+  });
+
+  it('places a Carapace only over a compatible payload footprint', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('W-MG'));
+    act(() => result.current.place());
+    const weapon = result.current.state.parts[0]!;
+
+    act(() => result.current.selectPart('U-SHELL'));
+    expect(result.current.state.ghost).toEqual(weapon.origin);
+    act(() => result.current.place());
+
+    expect(result.current.state.parts.map((part) => part.partId)).toEqual(['W-MG', 'U-SHELL']);
   });
 
   it('automatically rotates a part when its authored orientation cannot fit', () => {
@@ -318,7 +331,9 @@ describe('useBuild aim centring', () => {
     act(() => result.current.aim(3, 3));
     const upright = result.current.state.ghost!;
 
-    expect(flat).toEqual({ regionId: 'body', x: 2, y: 5 });
+    // The regional body perimeter begins on row 2. The nearest legal
+    // horizontal radiator therefore hugs that exposed top edge.
+    expect(flat).toEqual({ regionId: 'body', x: 3, y: 2 });
     expect(upright).toEqual({ regionId: 'body', x: 5, y: 2 });
   });
 });

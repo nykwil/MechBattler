@@ -2,7 +2,7 @@
  * Thermal model construction: per-cell temperature state and the conduction
  * edges between them. See docs/02-power-heat-spec.md §3.
  */
-import type { ChassisSpec, PlacedPart, RouteCell } from './types.js';
+import type { Build, ChassisSpec, PlacedPart, RouteCell } from './types.js';
 import { getPart } from './catalog.js';
 import { getOccupiedCells, isPerimeterCell } from './grid.js';
 import { STATIC_CTX, effectiveMults } from './modifiers.js';
@@ -29,6 +29,8 @@ export interface ThermalCell {
   regionId: string;
   isCoolant: boolean;
   passiveCoolingBlocked: boolean;
+  /** Relative conductance of edges touching this cell. */
+  conductanceMult: number;
 }
 
 export interface ThermalEdge {
@@ -43,12 +45,22 @@ export interface ThermalModel {
   cellKeysByInstance: Map<string, string[]>;
 }
 
+export interface ThermalPathResolution {
+  radiatorLinkedCoolantCells: Set<string>;
+  isolatedCoolantCells: Set<string>;
+  radiatorLinkedInstanceIds: Set<string>;
+}
+
 const key = (x: number, y: number) => `${x},${y}`;
 
 export const CORE_INSTANCE_ID = '__core__';
 
 export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], routes: RouteCell[] = []): ThermalModel {
   const spatial = buildSpatialOccupancy(chassis, { parts, routes });
+  const functionalIds = new Set(parts.filter((part) => part.integrity > 0).map((part) => part.instanceId));
+  const disabledTransferIds = new Set(parts.filter((part) =>
+    part.integrity <= 0 && getPart(part.partId).spatial?.transfersHeat === true)
+    .map((part) => part.instanceId));
   const cells = new Map<string, ThermalCell>();
   const cellKeysByInstance = new Map<string, string[]>();
 
@@ -72,6 +84,7 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
       regionId: chassis.coreCell.regionId ?? regionIdAt(chassis, chassis.coreCell.x, chassis.coreCell.y) ?? 'body',
       isCoolant: false,
       passiveCoolingBlocked: false,
+      conductanceMult: 1,
     });
     cellKeysByInstance.set(CORE_INSTANCE_ID, [coreKey]);
   }
@@ -89,7 +102,9 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
       const stack = spatial.stacksByCell.get(spatialCellKey(chassis, ref)) ?? [];
       const ownLayer = equipmentLayer(def);
       const covered = ownLayer !== 'armour' && stack.some((entry) =>
-        entry.layer === 'armour' && getPart(entry.partId).spatial?.blocksPassiveCooling);
+        functionalIds.has(entry.instanceId)
+        && entry.layer === 'armour'
+        && getPart(entry.partId).spatial?.blocksPassiveCooling);
       keys.push(k);
       cells.set(k, {
         key: k,
@@ -99,12 +114,16 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
         partId: p.partId,
         tempC: AMBIENT_C,
         thermalMassKjPerC: thermalMass,
-        isPerimeter: isPerimeterCell(chassis, c.x, c.y),
+        // Regional cells use their own boundary. The separated shoulder/body
+        // projection must not make two visually distant cells shelter each
+        // other merely because their legacy x/y coordinates touch.
+        isPerimeter: isExteriorCell(chassis, ref),
         isHeatPipe: def.isHeatPipe === true,
         isRadiator: def.id === 'U-RAD',
         regionId: c.regionId ?? 'body',
         isCoolant: false,
         passiveCoolingBlocked: covered,
+        conductanceMult: def.spatial?.thermalConductance ?? (def.isHeatPipe ? 4 : 1),
       });
     }
     cellKeysByInstance.set(p.instanceId, keys);
@@ -127,6 +146,7 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
       regionId: route.regionId ?? 'body',
       isCoolant: true,
       passiveCoolingBlocked: false,
+      conductanceMult: COOLANT_CONDUCTANCE / CONDUCTION_K_NORMAL,
     });
   }
 
@@ -144,13 +164,12 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
     const cell = allCells[i]!;
     for (let j = i + 1; j < allCells.length; j++) {
       const neighbor = allCells[j]!;
+      if (disabledTransferIds.has(cell.instanceId) || disabledTransferIds.has(neighbor.instanceId)) continue;
       if (cell.regionId !== neighbor.regionId) continue;
       const distance = Math.abs(cell.x - neighbor.x) + Math.abs(cell.y - neighbor.y);
       if (distance > 1) continue;
       if (distance === 0 && cell.instanceId === neighbor.instanceId) continue;
-      const base = cell.isCoolant || neighbor.isCoolant
-        ? COOLANT_CONDUCTANCE
-        : cell.isHeatPipe || neighbor.isHeatPipe ? CONDUCTION_K_PIPE : CONDUCTION_K_NORMAL;
+      const base = CONDUCTION_K_NORMAL * Math.max(cell.conductanceMult, neighbor.conductanceMult);
       const k = base
         * (conductionByInstance.get(cell.instanceId) ?? 1)
         * (conductionByInstance.get(neighbor.instanceId) ?? 1);
@@ -168,7 +187,8 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
         return [...cells.values()].find((cell) => cell.instanceId === routeInstanceId) ?? null;
       }
       const stack = spatial.stacksByCell.get(spatialKey) ?? [];
-      const occupant = [...stack].reverse().find((entry) => getPart(entry.partId).spatial?.transfersHeat);
+      const occupant = [...stack].reverse().find((entry) =>
+        functionalIds.has(entry.instanceId) && getPart(entry.partId).spatial?.transfersHeat);
       if (!occupant) return null;
       return [...cells.values()].find((cell) =>
         cell.instanceId === occupant.instanceId && cell.x === ref.x && cell.y === ref.y) ?? null;
@@ -176,12 +196,47 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
     const a = endpoint(port.a);
     const b = endpoint(port.b);
     if (a && b) {
-      const k = a.isCoolant || b.isCoolant
-        ? COOLANT_CONDUCTANCE
-        : a.isHeatPipe || b.isHeatPipe ? CONDUCTION_K_PIPE : CONDUCTION_K_NORMAL;
+      const k = CONDUCTION_K_NORMAL * Math.max(a.conductanceMult, b.conductanceMult);
       edges.push({ aKey: a.key, bKey: b.key, k });
     }
   }
 
   return { cells, edges, cellKeysByInstance };
+}
+
+/** Static thermal topology for workshop diagnostics; no temperatures guessed. */
+export function resolveThermalPaths(
+  chassis: ChassisSpec,
+  build: Pick<Build, 'parts' | 'routes'>,
+): ThermalPathResolution {
+  const model = buildThermalModel(chassis, build.parts, build.routes);
+  const adjacency = new Map<string, string[]>();
+  for (const edge of model.edges) {
+    adjacency.set(edge.aKey, [...(adjacency.get(edge.aKey) ?? []), edge.bKey]);
+    adjacency.set(edge.bKey, [...(adjacency.get(edge.bKey) ?? []), edge.aKey]);
+  }
+  const radiatorLinkedCoolantCells = new Set<string>();
+  const isolatedCoolantCells = new Set<string>();
+  const radiatorLinkedInstanceIds = new Set<string>();
+  const visited = new Set<string>();
+  for (const start of model.cells.keys()) {
+    if (visited.has(start)) continue;
+    const component: ThermalCell[] = [];
+    const queue = [start];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      if (visited.has(current)) continue;
+      visited.add(current);
+      component.push(model.cells.get(current)!);
+      queue.push(...(adjacency.get(current) ?? []));
+    }
+    const linked = component.some((cell) => cell.isRadiator);
+    for (const cell of component) {
+      if (linked && !cell.isCoolant) radiatorLinkedInstanceIds.add(cell.instanceId);
+      if (!cell.isCoolant) continue;
+      const cellKey = `${cell.regionId}:${cell.x},${cell.y}`;
+      (linked ? radiatorLinkedCoolantCells : isolatedCoolantCells).add(cellKey);
+    }
+  }
+  return { radiatorLinkedCoolantCells, isolatedCoolantCells, radiatorLinkedInstanceIds };
 }

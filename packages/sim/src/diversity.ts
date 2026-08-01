@@ -59,9 +59,17 @@ function muleRedlineControl(): Build {
   const build = templateBuild('mule-laser-boat');
   // Build around an inherited flaw: the hot-running laser supplies the
   // temperature ramp while the pipe/radiator highway prevents a shutdown.
-  build.parts = build.parts.map((part) => part.instanceId === 'las1'
-    ? { ...part, modifiers: ['hot-running'] }
-    : part);
+  // Put that keystone on the exposed front row: the redline payoff is strong,
+  // so spatial construction must give opponents a way to dismantle it.
+  const first = build.parts.find((part) => part.instanceId === 'las1')!;
+  const second = build.parts.find((part) => part.instanceId === 'las2')!;
+  build.parts = build.parts
+    .filter((part) => part.instanceId !== 'arm1')
+    .map((part) => part.instanceId === 'las1'
+      ? { ...part, origin: { ...second.origin }, rotation: second.rotation, modifiers: ['hot-running'] }
+      : part.instanceId === 'las2'
+        ? { ...part, origin: { ...first.origin }, rotation: first.rotation }
+        : part);
   return build;
 }
 
@@ -76,8 +84,6 @@ function widowGunshipControl(): Build {
     placed('armR', 'U-ARM', 6, 2),
     placed('arm1', 'U-ARM', 1, 1),
     placed('arm2', 'U-ARM', 2, 1),
-    placed('arm3', 'U-ARM', 3, 1),
-    placed('arm4', 'U-ARM', 0, 3),
   ];
   return { chassisId: 'CH-7', parts, powerPriority: ['__core__', 'act', 'ac'] };
 }

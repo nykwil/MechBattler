@@ -1,5 +1,6 @@
 import { useMemo, type CSSProperties } from 'react';
-import { buildOccupancyMap, getChassis, getPart, type Build, type BattleEvent } from '@mechbattler/sim';
+import { buildSpatialOccupancy, getChassis, getPart, type Build, type BattleEvent } from '@mechbattler/sim';
+import { resolveWorkshopLayout } from '../lib/workshopLayout.js';
 
 /** Destroyed reads as a hatch as well as a colour — never colour alone (docs/14 §9). */
 const GONE: CSSProperties = {
@@ -62,22 +63,36 @@ export function DamageGrid({
     return Math.max(0, Math.min(1, remaining / pristine));
   };
 
-  // The sim owns this mapping; see Plate, which had the same copy.
-  const occupancy = useMemo(() => buildOccupancyMap(build.parts).byCell, [build.parts]);
+  const occupancy = useMemo(
+    () => buildSpatialOccupancy(chassis, build).stacksByProjectedCell,
+    [chassis, build],
+  );
+  const workshopLayout = useMemo(() => resolveWorkshopLayout(chassis), [chassis]);
 
   const cells = [];
   for (let y = 0; y < chassis.height; y += 1) {
     for (let x = 0; x < chassis.width; x += 1) {
       const key = `${x},${y}`;
-      if (!chassis.mask[y]?.[x]) {
-        cells.push(<i key={key} style={{ background: 'transparent' }} />);
+      const layoutCell = workshopLayout.cells.get(key);
+      if (!chassis.mask[y]?.[x] || !layoutCell) {
+        cells.push(<i key={key} style={{ display: 'none' }} />);
         continue;
       }
+      const position: CSSProperties = {
+        gridColumn: layoutCell.column,
+        gridRow: layoutCell.row,
+        ...(layoutCell.offsetX || layoutCell.offsetY
+          ? { transform: `translate(${layoutCell.offsetX * 100}%, ${layoutCell.offsetY * 100}%)` }
+          : {}),
+      };
       if (x === chassis.coreCell.x && y === chassis.coreCell.y) {
         cells.push(
           <i
             key={key}
+            data-x={x}
+            data-y={y}
             style={{
+              ...position,
               background: coreFrac <= 0 ? 'var(--signal-red)' : 'var(--signal-blue)',
               opacity: 0.35 + coreFrac * 0.65,
             }}
@@ -85,13 +100,18 @@ export function DamageGrid({
         );
         continue;
       }
-      const occ = occupancy.get(key);
-      if (!occ) {
-        cells.push(<i key={key} style={{ background: 'var(--bg-floor)' }} />);
+      const stack = occupancy.get(key) ?? [];
+      if (stack.length === 0) {
+        cells.push(<i key={key} data-x={x} data-y={y} style={{ ...position, background: 'var(--bg-floor)' }} />);
         continue;
       }
-      if (destroyed.has(occ.instanceId)) {
-        cells.push(<i key={key} style={GONE} />);
+      // Damage strips the stack top-down. Once armour is gone, reveal the
+      // surviving payload/support below instead of leaving a dead hatch over it.
+      const occ = [...stack].reverse().find((candidate) => {
+        return !destroyed.has(candidate.instanceId);
+      });
+      if (!occ) {
+        cells.push(<i key={key} data-x={x} data-y={y} style={{ ...position, ...GONE }} />);
         continue;
       }
       const placed = build.parts.find((p) => p.instanceId === occ.instanceId);
@@ -99,7 +119,10 @@ export function DamageGrid({
       cells.push(
         <i
           key={key}
+          data-x={x}
+          data-y={y}
           style={{
+            ...position,
             background: `var(--cat-${getPart(occ.partId).category})`,
             // Fades as the part wears, so a mech visibly comes apart.
             opacity: 0.3 + frac * 0.7,
@@ -120,7 +143,10 @@ export function DamageGrid({
     >
       <span
         className="dmg-grid"
-        style={{ gridTemplateColumns: `repeat(${chassis.width}, 8px)` }}
+        style={{
+          gridTemplateColumns: `repeat(${workshopLayout.width}, 8px)`,
+          gridTemplateRows: `repeat(${workshopLayout.height}, 8px)`,
+        }}
       >
         {cells}
       </span>

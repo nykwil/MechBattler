@@ -34,10 +34,13 @@ function inMask(chassis: ChassisSpec, x: number, y: number): boolean {
   return chassis.mask[y]?.[x] === true;
 }
 
-export function isPerimeterCell(chassis: ChassisSpec, x: number, y: number): boolean {
-  if (!inMask(chassis, x, y)) return false;
+export function isPerimeterCell(chassis: ChassisSpec, x: number, y: number, regionId?: string): boolean {
+  const region = regionId ? chassis.regions?.find((candidate) => candidate.id === regionId) : undefined;
+  const mask = region?.mask ?? chassis.mask;
+  const inSelectedMask = (cx: number, cy: number) => mask[cy]?.[cx] === true;
+  if (!inSelectedMask(x, y)) return false;
   const neighbors: [number, number][] = [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]];
-  return neighbors.some(([nx, ny]) => !inMask(chassis, nx, ny));
+  return neighbors.some(([nx, ny]) => !inSelectedMask(nx, ny));
 }
 
 const cellKey = (x: number, y: number) => `${x},${y}`;
@@ -76,7 +79,8 @@ export function checkPlacement(
     if (occupied.has(cellKey(x, y))) return { reason: 'overlap' };
   }
 
-  if (partDef.perimeterOnly && !cells.every(({ x, y }) => isPerimeterCell(chassis, x, y))) {
+  if (partDef.perimeterOnly && !cells.every(({ regionId, x, y }) =>
+    isPerimeterCell(chassis, x, y, regionId))) {
     return { reason: 'perimeter-required' };
   }
 

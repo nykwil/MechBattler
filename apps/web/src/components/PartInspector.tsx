@@ -1,5 +1,13 @@
 import { useMemo } from 'react';
-import { computeConnectivity, getPart, type PlacedPart } from '@mechbattler/sim';
+import {
+  computeConnectivity,
+  getPart,
+  resolvePlacementEffects,
+  resolveSpatialPower,
+  usesSpatialSystems,
+  type Build,
+  type ChassisSpec,
+} from '@mechbattler/sim';
 import { CATEGORY_COLOR, CATEGORY_LABEL } from '../lib/partVisuals.js';
 import { repairCost, SCRAP_SELL_MULT } from '../state/runState.js';
 import { ChipRow, ShapePreview } from './PartVisual.js';
@@ -16,21 +24,39 @@ export interface RunPartOps {
 }
 
 export function PartInspector({
-  parts, selectedInstanceId, onDetach, onDeselect, runOps,
+  chassis, build, selectedInstanceId, onDetach, onDeselect, runOps,
 }: {
-  parts: PlacedPart[];
+  chassis: ChassisSpec;
+  build: Build;
   selectedInstanceId: string;
   onDetach: (instanceId: string) => void;
   onDeselect: () => void;
   runOps?: RunPartOps;
 }) {
-  const placed = parts.find((p) => p.instanceId === selectedInstanceId);
-  const connectivity = useMemo(() => computeConnectivity(parts), [parts]);
+  const placed = build.parts.find((p) => p.instanceId === selectedInstanceId);
+  const connected = useMemo(() => usesSpatialSystems(build)
+    ? resolveSpatialPower(chassis, build).connectedInstanceIds
+    : computeConnectivity(build.parts).connectedInstanceIds, [chassis, build]);
+  const placement = useMemo(
+    () => resolvePlacementEffects(chassis, build, selectedInstanceId),
+    [chassis, build, selectedInstanceId],
+  );
   if (!placed) return null;
 
   const def = getPart(placed.partId);
   const drawsPower = Boolean(def.draw) || def.category === 'weapon';
-  const powered = connectivity.connectedInstanceIds.has(placed.instanceId);
+  const powered = connected.has(placed.instanceId);
+  const stackNames = placement?.cells[0]?.stackInstanceIds.map((instanceId) => {
+    const item = build.parts.find((part) => part.instanceId === instanceId);
+    return item ? getPart(item.partId).name.split(' (')[0] : instanceId;
+  }) ?? [];
+  const exposureText = placement
+    ? (['front', 'rear', 'left', 'right'] as const).map((direction) => {
+      const exposure = placement.exposure[direction];
+      const protectedText = exposure.protectedCellCount > 0 ? ` (+${exposure.protectedCellCount} protected)` : '';
+      return `${direction[0]!.toUpperCase()}${direction.slice(1)} ${exposure.directCellCount}${protectedText}`;
+    }).join(' · ')
+    : '';
 
   return (
     <div>
@@ -58,12 +84,59 @@ export function PartInspector({
           <span>Hit points</span>
           <span>{Math.round(def.hp * placed.integrity)} / {def.hp}{placed.integrity < 1 ? ` (${Math.round(placed.integrity * 100)}% integrity)` : ''}</span>
         </div>
-        <div className="inspector-row"><span>Position</span><span>({placed.origin.x}, {placed.origin.y}) · rot {placed.rotation}°</span></div>
+        <div className="inspector-row">
+          <span>Position</span>
+          <span>{placement?.regionNames.join(', ') || 'Body'} · ({placed.origin.x}, {placed.origin.y}) · rot {placed.rotation}°</span>
+        </div>
         {drawsPower && (
           <div className="inspector-row">
             <span>Power network</span>
             <span className={powered ? 'ok' : 'bad'}>{powered ? '● connected' : '● unpowered'}</span>
           </div>
+        )}
+        {placement && placement.exteriorCellCount > 0 && (
+          <div className="inspector-row">
+            <span>Exterior cooling</span>
+            <span className={placement.passiveCoolingCellCount > 0 ? 'ok' : 'bad'}>
+              {placement.passiveCoolingCellCount}/{placement.exteriorCellCount} cells active
+              {' · '}{placement.passiveCoolingKwPerC.toFixed(2)} kW/°C
+            </span>
+          </div>
+        )}
+        {placement && placement.portCellCount > 0 && (
+          <div className="inspector-row"><span>Port sockets</span><span>{placement.portCellCount} occupied</span></div>
+        )}
+        {placement && placement.location.effects.map((effect) => (
+          <div className="inspector-row" key={effect.zoneId}>
+            <span>{effect.name}</span><span>{effect.description}</span>
+          </div>
+        ))}
+        {placement?.baseWeaponArcDeg !== null && placement?.baseWeaponArcDeg !== undefined && (
+          <div className="inspector-row">
+            <span>Targeting arc</span>
+            <span>
+              {placement.baseWeaponArcDeg}°
+              {placement.location.weaponArcBonusDeg > 0 ? ` + ${placement.location.weaponArcBonusDeg}° location` : ''}
+              {placement.supportArcBonusDeg > 0 ? ` + ${placement.supportArcBonusDeg}° support` : ''}
+              {' = '}{placement.effectiveWeaponArcDeg}°
+            </span>
+          </div>
+        )}
+        {placement && placement.weaponRangeMultiplier !== 1 && (
+          <div className="inspector-row">
+            <span>Range from location</span><span>×{placement.weaponRangeMultiplier.toFixed(2)}</span>
+          </div>
+        )}
+        {placement && placement.effectiveHeatMultiplier !== 1 && (
+          <div className="inspector-row">
+            <span>Generated heat</span><span className="bad">×{placement.effectiveHeatMultiplier.toFixed(2)}</span>
+          </div>
+        )}
+        {stackNames.length > 1 && (
+          <div className="inspector-row"><span>Damage stack</span><span>{stackNames.join(' → ')}</span></div>
+        )}
+        {placement && (
+          <div className="inspector-row"><span>Direct exposure</span><span>{exposureText}</span></div>
         )}
       </div>
 

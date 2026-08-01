@@ -35,7 +35,13 @@
 > - Sealed armour multiplies covered equipment heat by 1.25 and blocks its
 >   exterior passive cooling. Uncovered exterior cells passively cool at
 >   0.01 kW per degree above ambient. Coolant uses the high-conductance thermal
->   layer.
+>   layer. A destroyed shell stops protecting, sealing, and heat-penalizing the
+>   payload beneath it; destroyed thermal bridge equipment also severs its path.
+> - Location effects are authored as reusable chassis-cell zones. A part earns a
+>   zone effect only when its whole footprint fits in that zone. Mule shoulder
+>   cells are `Articulated shoulder` locations and grant weapons +25 degrees of
+>   targeting arc; the same resolver supports authored range and heat modifiers.
+>   Exterior cooling and directional exposure are derived location effects.
 > - Accuracy decides hit or miss. A hit then samples uniformly from one ticket
 >   per directionally exposed equipment cell plus authored chassis tickets
 >   (Vulture 6, Mule 10, Widow 12, Bastion 18). Thus a Mule with six exposed
@@ -48,6 +54,12 @@
 > - Chassis damage persists after victories and costs 0.2 scrap per percentage
 >   point to repair. Disabled owned equipment remains fitted at 0% condition as
 >   a repairable wreck. Every battle defeat ends the run.
+> - Placement preview names the region and consequential bonuses before commit.
+>   Cell marks identify exterior cooling and authored location zones. Selecting
+>   a fitted part reports its port occupancy, power, active cooling, effective
+>   arc/range/heat, stack damage order, and direct/protected exposure from all
+>   four directions. Power and thermal overlays distinguish energized/stranded
+>   Bus, live/idle ports, bottlenecks, and radiator-linked/isolated heat pipe.
 > - Save schema v3 is an intentional reset. Pre-v3 profiles, runs, history, and
 >   blueprints are not migrated. Piercing, melee/final attacks, damaged ports,
 >   route damage, and per-region chassis HP remain future work.

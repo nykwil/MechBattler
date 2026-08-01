@@ -16,7 +16,7 @@ import type {
 } from './types.js';
 import { getPart } from './catalog.js';
 import { regionIdAt } from './chassis.js';
-import { getOccupiedCells } from './grid.js';
+import { checkPlacement, getOccupiedCells, type PlacementError } from './grid.js';
 
 export const ROUTE_MASS_KG: Record<RouteKind, number> = { wire: 15, coolant: 20 };
 export const WIRE_CAPACITY_KW = 60;
@@ -144,8 +144,9 @@ export function checkSpatialPartPlacement(
   const occupancy = buildSpatialOccupancy(chassis, build);
   const cells = getOccupiedCells(candidate, candidateDef).map((cell) => resolveCellRef(chassis, cell));
 
-  if (candidate.origin.regionId) {
-    const region = chassis.regions?.find((entry) => entry.id === candidate.origin.regionId);
+  if (chassis.regions?.length) {
+    const originRegionId = resolveCellRef(chassis, candidate.origin).regionId;
+    const region = chassis.regions.find((entry) => entry.id === originRegionId);
     if (!region || cells.some((cell) => cell.regionId !== region.id || !region.mask[cell.y]?.[cell.x])) {
       return { reason: 'out-of-region' };
     }
@@ -158,7 +159,13 @@ export function checkSpatialPartPlacement(
       if (placed && placed.instanceId !== candidate.instanceId) overlaps.set(placed.instanceId, placed);
     }
   }
-  if (overlaps.size === 0) return null;
+  if (overlaps.size === 0) {
+    // Armour is a cover layer, not free-standing structure. Payloads that can
+    // optionally use a support remain legal on their own.
+    return equipmentLayer(candidateDef) === 'armour'
+      ? { reason: 'incompatible-stack' }
+      : null;
+  }
   const overlappedParts = [...overlaps.values()];
   const below = overlappedParts.sort((a, b) =>
     LAYER_ORDER[equipmentLayer(getPart(b.partId))] - LAYER_ORDER[equipmentLayer(getPart(a.partId))])[0]!;
@@ -188,6 +195,55 @@ export function checkRoutePlacement(
   if (occupancy.stacksByCell.has(key)) return { reason: 'route-on-equipment' };
   if (occupancy.routesByCell.get(key)?.has(route.kind)) return { reason: 'duplicate-route' };
   return null;
+}
+
+export interface WholeBuildPlacementIssue {
+  target: 'part' | 'route';
+  instanceId?: string;
+  route?: RouteCell;
+  reason: SpatialPlacementReason | PlacementError['reason'] | 'duplicate-instance';
+}
+
+/**
+ * Authoritative physical validation for templates, persistence, imports, and
+ * the workshop. It deliberately exercises the same incremental placement
+ * rules as a player building the mech rather than trusting final occupancy.
+ */
+export function validateWholeBuildPlacement(
+  chassis: ChassisSpec,
+  build: Pick<Build, 'parts' | 'routes'>,
+): WholeBuildPlacementIssue[] {
+  const issues: WholeBuildPlacementIssue[] = [];
+  const placed: PlacedPart[] = [];
+  const instanceIds = new Set<string>();
+  const orderedParts = [...build.parts].sort((a, b) =>
+    LAYER_ORDER[equipmentLayer(getPart(a.partId))]
+    - LAYER_ORDER[equipmentLayer(getPart(b.partId))]);
+  for (const part of orderedParts) {
+    if (instanceIds.has(part.instanceId)) {
+      issues.push({ target: 'part', instanceId: part.instanceId, reason: 'duplicate-instance' });
+      continue;
+    }
+    instanceIds.add(part.instanceId);
+    const def = getPart(part.partId);
+    const base = checkPlacement(chassis, placed, part, def);
+    const spatial = base && base.reason !== 'overlap'
+      ? base
+      : checkSpatialPartPlacement(chassis, { parts: placed, routes: build.routes }, part, def);
+    if (spatial) {
+      issues.push({ target: 'part', instanceId: part.instanceId, reason: spatial.reason });
+    } else {
+      placed.push(part);
+    }
+  }
+
+  const routes: RouteCell[] = [];
+  for (const route of build.routes ?? []) {
+    const issue = checkRoutePlacement(chassis, { parts: placed, routes }, route);
+    if (issue) issues.push({ target: 'route', route, reason: issue.reason });
+    else routes.push(route);
+  }
+  return issues;
 }
 
 export interface ExposureTicket {

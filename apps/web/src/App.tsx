@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SPATIAL_DEMO_TEMPLATE, buildOccupancyMap, autoWire, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { SPATIAL_DEMO_TEMPLATE, applyAutoWire, buildOccupancyMap, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, resolvePlacementEffects, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
@@ -66,7 +66,7 @@ export default function App() {
   );
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
+    setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
     setRouteTool, placeRoute, setChassisIntegrity,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
@@ -246,10 +246,10 @@ export default function App() {
 
   const autoWireNow = useCallback(() => {
     if (runActive) return;
-    const { conduits } = autoWire(chassis, build);
-    if (conduits.length === 0) return;
-    addParts(conduits);
-  }, [chassis, build, addParts, runActive]);
+    const wired = applyAutoWire(chassis, build);
+    if (wired.result.conduits.length === 0 && wired.result.routes.length === 0) return;
+    loadBuild(wired.build);
+  }, [chassis, build, loadBuild, runActive]);
 
   useEffect(() => {
     setBenchResult(null);
@@ -312,6 +312,35 @@ export default function App() {
     const err = checkCandidate(state.ghost.x, state.ghost.y);
     return err ? (REJECTION_COPY[err.reason] ?? err.reason) : null;
   }, [state.selectedPartId, state.ghost, checkCandidate]);
+
+  const ghostPlacementSummary = useMemo(() => {
+    if (!state.selectedPartId || !state.ghost || ghostReason) return null;
+    const preview = {
+      instanceId: '__placement-preview__',
+      partId: state.selectedPartId,
+      origin: { ...state.ghost },
+      rotation: state.rotation,
+      integrity: state.placeExtras.integrity,
+      modifiers: state.placeExtras.modifiers,
+      variant: state.placeExtras.variant,
+    };
+    const previewBuild = { ...build, parts: [...state.parts, preview] };
+    const effects = resolvePlacementEffects(chassis, previewBuild, preview.instanceId);
+    if (!effects) return null;
+    const facts = [effects.regionNames.join(', ')];
+    if (effects.location.weaponArcBonusDeg > 0) {
+      facts.push(`+${effects.location.weaponArcBonusDeg}° location arc`);
+    }
+    if (effects.supportArcBonusDeg > 0) facts.push(`+${effects.supportArcBonusDeg}° support arc`);
+    if (effects.passiveCoolingCellCount > 0) {
+      facts.push(`${effects.passiveCoolingCellCount} exterior cooling ${effects.passiveCoolingCellCount === 1 ? 'cell' : 'cells'}`);
+    }
+    if (effects.effectiveHeatMultiplier > 1) facts.push(`heat ×${effects.effectiveHeatMultiplier.toFixed(2)}`);
+    if (effects.portCellCount > 0) facts.push(`${effects.portCellCount} port ${effects.portCellCount === 1 ? 'socket' : 'sockets'}`);
+    if (effects.stackAboveInstanceIds.length + effects.stackBelowInstanceIds.length > 0) facts.push('joins stack');
+    return facts.filter(Boolean).join(' · ');
+  }, [build, chassis, ghostReason, state.ghost, state.parts, state.placeExtras,
+      state.rotation, state.selectedPartId]);
 
   const readoutStats = useMemo(() => {
     const profile = computeSpeedProfile(chassis, build);
@@ -482,7 +511,8 @@ export default function App() {
   const inspectorNode = state.selectedInstanceId ? (
     <div className="section">
       <PartInspector
-        parts={state.parts}
+        chassis={chassis}
+        build={build}
         selectedInstanceId={state.selectedInstanceId}
         onDetach={detach}
         onDeselect={() => selectInstance(null)}
@@ -767,6 +797,7 @@ export default function App() {
             armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}
             moving={state.detached !== null}
             reason={ghostReason}
+            preview={ghostPlacementSummary}
             onCancel={() => {
               const discarding = state.detached !== null;
               const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';

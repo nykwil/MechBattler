@@ -4,9 +4,11 @@ import {
   buildSpatialOccupancy,
   computeConnectivity,
   getPart,
+  isExteriorCell,
   isPortCell,
   regionIdAt,
   resolveSpatialPower,
+  resolveThermalPaths,
   spatialCellKey,
   usesSpatialSystems,
   type ChassisSpec,
@@ -17,6 +19,7 @@ import {
 } from '@mechbattler/sim';
 import type { OverlayMode } from '../state/useBuild.js';
 import { thermalColor } from '../lib/thermalColor.js';
+import { resolveWorkshopLayout } from '../lib/workshopLayout.js';
 
 type RouteDirection = 'up' | 'right' | 'down' | 'left';
 const ROUTE_NEIGHBORS: Array<{
@@ -33,12 +36,16 @@ const ROUTE_NEIGHBORS: Array<{
 function RoutePath({
   kind,
   directions,
+  energized = true,
 }: {
   kind: RouteKind;
   directions: Set<RouteDirection>;
+  energized?: boolean;
 }) {
   return (
-    <span className={`route-path ${kind === 'wire' ? 'bus' : 'heat-pipe'}`} aria-hidden="true">
+    <span className={`route-path ${kind === 'wire'
+      ? `bus ${energized ? 'energized' : 'stranded'}`
+      : `heat-pipe ${energized ? 'linked' : 'isolated'}`}`} aria-hidden="true">
       {[...directions].map((direction) => (
         <span key={direction} className={`route-arm route-${direction}`} />
       ))}
@@ -118,71 +125,17 @@ export function Plate({
     () => buildSpatialOccupancy(chassis, { parts, routes }),
     [chassis, parts, routes],
   );
-  const workshopLayout = useMemo(() => {
-    const cells = new Map<string, {
-      column: number;
-      row: number;
-      regionId?: string;
-      offsetX: number;
-      offsetY: number;
-    }>();
-    if (!chassis.regions?.length) {
-      for (let y = 0; y < chassis.height; y += 1) {
-        for (let x = 0; x < chassis.width; x += 1) {
-          if (chassis.mask[y]?.[x]) {
-            cells.set(`${x},${y}`, { column: x + 1, row: y + 1, offsetX: 0, offsetY: 0 });
-          }
-        }
-      }
-      return { cells, width: chassis.width, height: chassis.height, regions: [] };
-    }
+  const workshopLayout = useMemo(() => resolveWorkshopLayout(chassis), [chassis]);
 
-    let width = 0;
-    let height = 0;
-    const regions = chassis.regions.map((region) => {
-      const occupied: Array<{ x: number; y: number }> = [];
-      for (let y = 0; y < region.height; y += 1) {
-        for (let x = 0; x < region.width; x += 1) {
-          if (region.mask[y]?.[x]) occupied.push({ x, y });
-        }
-      }
-      const minX = Math.min(...occupied.map((cell) => cell.x));
-      const maxX = Math.max(...occupied.map((cell) => cell.x));
-      const minY = Math.min(...occupied.map((cell) => cell.y));
-      const maxY = Math.max(...occupied.map((cell) => cell.y));
-      const origin = region.workshopOrigin ?? { x: minX, y: minY };
-      const offset = region.workshopOffset ?? { x: 0, y: 0 };
-      for (const cell of occupied) {
-        cells.set(`${cell.x},${cell.y}`, {
-          column: origin.x + cell.x - minX + 1,
-          row: origin.y + cell.y - minY + 1,
-          regionId: region.id,
-          offsetX: offset.x,
-          offsetY: offset.y,
-        });
-      }
-      const visualWidth = maxX - minX + 1;
-      const visualHeight = maxY - minY + 1;
-      width = Math.max(width, origin.x + visualWidth);
-      height = Math.max(height, origin.y + visualHeight);
-      return {
-        id: region.id,
-        name: region.name,
-        columnStart: origin.x + 1,
-        columnEnd: origin.x + visualWidth + 1,
-        rowStart: origin.y + 1,
-        rowEnd: origin.y + visualHeight + 1,
-        offsetPercentX: (offset.x / visualWidth) * 100,
-        offsetPercentY: (offset.y / visualHeight) * 100,
-      };
-    });
-    return { cells, width, height, regions };
-  }, [chassis]);
-
-  const powered = useMemo(
+  const spatialPower = useMemo(
     () => usesSpatialSystems({ chassisId: chassis.id, parts, routes, powerPriority: [] })
-      ? resolveSpatialPower(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] }).connectedInstanceIds
-      : computeConnectivity(parts).connectedInstanceIds,
+      ? resolveSpatialPower(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] })
+      : null,
+    [chassis, parts, routes],
+  );
+  const powered = spatialPower?.connectedInstanceIds ?? computeConnectivity(parts).connectedInstanceIds;
+  const thermalPaths = useMemo(
+    () => resolveThermalPaths(chassis, { parts, routes }),
     [chassis, parts, routes],
   );
 
@@ -343,16 +296,44 @@ export function Plate({
       };
       let label = `column ${x + 1}, row ${y + 1}, `;
       const regionId = regionIdAt(chassis, x, y);
+      const cellRef = { regionId: regionId ?? undefined, x, y };
       const routeKinds = regionId
-        ? spatial.routesByCell.get(spatialCellKey(chassis, { regionId, x, y }))
+        ? spatial.routesByCell.get(spatialCellKey(chassis, cellRef))
         : undefined;
       if (regionId && chassis.regions) {
         classes.push('regional');
         label += `${chassis.regions.find((region) => region.id === regionId)?.name ?? regionId}, `;
       }
-      if (isPortCell(chassis, { regionId: regionId ?? undefined, x, y })) {
+      const exterior = isExteriorCell(chassis, cellRef);
+      if (exterior) {
+        classes.push('exterior');
+        label += 'exterior cooling, ';
+      }
+      const locationEffects = (chassis.locationZones ?? [])
+        .filter((zone) => zone.cells.some((cell) =>
+          spatialCellKey(chassis, cell) === spatialCellKey(chassis, cellRef)))
+        .map((zone) => zone.effect);
+      if (locationEffects.length > 0) {
+        classes.push('location-effect');
+        label += `${locationEffects.map((effect) => effect.name).join(', ')}, `;
+      }
+      if (isPortCell(chassis, cellRef)) {
         classes.push('port');
-        label += 'port, ';
+        const cellSpatialKey = spatialCellKey(chassis, cellRef);
+        const electricalPort = (chassis.ports ?? []).find((port) =>
+          spatialCellKey(chassis, port.a) === cellSpatialKey
+          || spatialCellKey(chassis, port.b) === cellSpatialKey);
+        const endpointEnergized = (endpoint: Parameters<typeof spatialCellKey>[1]) => {
+          const endpointKey = spatialCellKey(chassis, endpoint);
+          if (spatialPower?.energizedWireCells.has(endpointKey)) return true;
+          return (spatial.stacksByCell.get(endpointKey) ?? [])
+            .some((entry) => powered.has(entry.instanceId));
+        };
+        const live = electricalPort
+          ? endpointEnergized(electricalPort.a) && endpointEnergized(electricalPort.b)
+          : false;
+        classes.push(live ? 'port-live' : 'port-idle');
+        label += `port, electrical link ${live ? 'energized' : 'idle'}, `;
       }
 
       if (isCore) {
@@ -366,6 +347,14 @@ export function Plate({
         // In Parts view the hatch is the only cue for a dead part, so keep it.
         // Power view already says it in position and colour, so drop the noise.
         if (!live && needsPower(def) && overlay !== 'power') classes.push('unpowered');
+        if (spatialPower?.bottleneckInstanceIds.includes(occ.instanceId)) {
+          classes.push('bottleneck');
+          label += 'electrical bottleneck, ';
+        }
+        if (overlay === 'thermal' && thermalPaths.radiatorLinkedInstanceIds.has(occ.instanceId)) {
+          classes.push('radiator-linked');
+          label += 'thermal path reaches a radiator, ';
+        }
         const selected = selectedInstanceId === occ.instanceId;
         if (selected) classes.push('sel');
         const same = (dx: number, dy: number) =>
@@ -379,13 +368,13 @@ export function Plate({
       }
       if (routeKinds?.has('wire') && routeKinds.has('coolant')) {
         classes.push('route-both');
-        label += ', bus and heat-pipe routes';
+        label += `, ${spatialPower?.energizedWireCells.has(spatialCellKey(chassis, cellRef)) ? 'energized' : 'stranded'} bus and ${thermalPaths.radiatorLinkedCoolantCells.has(spatialCellKey(chassis, cellRef)) ? 'radiator-linked' : 'isolated'} heat-pipe routes`;
       } else if (routeKinds?.has('wire')) {
         classes.push('route-wire');
-        label += ', bus route';
+        label += `, ${spatialPower?.energizedWireCells.has(spatialCellKey(chassis, cellRef)) ? 'energized' : 'stranded'} bus route`;
       } else if (routeKinds?.has('coolant')) {
         classes.push('route-coolant');
-        label += ', heat-pipe route';
+        label += `, ${thermalPaths.radiatorLinkedCoolantCells.has(spatialCellKey(chassis, cellRef)) ? 'radiator-linked' : 'isolated'} heat-pipe route`;
       }
 
       if (ghost.has(key)) {
@@ -438,11 +427,21 @@ export function Plate({
             }
           }}
         >
+          {exterior && <span className="cell-trait exterior-trait" aria-hidden="true" />}
+          {locationEffects.length > 0 && <span className="cell-trait location-trait" aria-hidden="true">⌒</span>}
           {regionId && routeKinds?.has('wire') && (
-            <RoutePath kind="wire" directions={routeDirections('wire', regionId, x, y)} />
+            <RoutePath
+              kind="wire"
+              directions={routeDirections('wire', regionId, x, y)}
+              energized={spatialPower?.energizedWireCells.has(spatialCellKey(chassis, { regionId, x, y })) ?? false}
+            />
           )}
           {regionId && routeKinds?.has('coolant') && (
-            <RoutePath kind="coolant" directions={routeDirections('coolant', regionId, x, y)} />
+            <RoutePath
+              kind="coolant"
+              directions={routeDirections('coolant', regionId, x, y)}
+              energized={thermalPaths.radiatorLinkedCoolantCells.has(spatialCellKey(chassis, { regionId, x, y }))}
+            />
           )}
         </button>,
       );
@@ -530,7 +529,9 @@ export function Plate({
           Empty chassis.<br />Start with a reactor — open Parts.
         </p>
       )}
-      <p className="plate-caption">{OVERLAY_CAPTION[overlay]}</p>
+      <p className="plate-caption">
+        {OVERLAY_CAPTION[overlay]} · cyan corner = exterior · ⌒ = location bonus
+      </p>
     </div>
   );
 }

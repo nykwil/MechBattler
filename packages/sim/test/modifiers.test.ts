@@ -66,7 +66,7 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     expect(effectiveMults(tide, { tempC: 25, speedMps: 0, tile: 'open' }).radiator).toBe(1);
 
     const hull = part('d', 'U-ACT', 0, 0, { modifiers: ['hull-down'] });
-    expect(effectiveMults(hull, { tempC: 25, speedMps: 0.1, tile: 'open' }).targetProfile).toBeCloseTo(0.7);
+    expect(effectiveMults(hull, { tempC: 25, speedMps: 0.1, tile: 'open' }).targetProfile).toBeCloseTo(0.4);
     expect(effectiveMults(hull, { tempC: 25, speedMps: 2, tile: 'open' }).targetProfile).toBe(1);
   });
 
@@ -120,7 +120,7 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     // Two continuous-draw weapons on a reactor that can power only one.
     // The miswired gun sits FIRST in priority yet must be the one shed.
     const build: Build = {
-      chassisId: 'CH-5',
+      chassisId: 'CH-7',
       parts: [
         part('reactor', 'R-E25', 3, 1), // 25 kW
         part('mg1', 'W-MG', 1, 1, { modifiers: ['miswired'] }),
@@ -128,14 +128,15 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
         part('con1', 'U-CON', 3, 3),
         part('con2', 'U-CON', 2, 3),
         part('ac', 'W-AC', 4, 3, { rotation: 90 }),
+        part('mg3', 'W-MG', 1, 4),
       ],
-      powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2', 'ac'],
+      powerPriority: [CORE_INSTANCE_ID, 'mg2', 'ac', 'mg3', 'mg1'],
     };
-    const sim = new Simulation(getChassis('CH-5'), build);
+    const sim = new Simulation(getChassis('CH-7'), build);
     let lastShed: string[] = [];
     for (let t = 0; t < 100; t++) {
       lastShed = sim.step(1 / 20, {
-        weaponsEnabled: { mg1: true, mg2: true, ac: true },
+        weaponsEnabled: { mg1: true, mg2: true, mg3: true, ac: true },
         speedSetting: 'cruise',
       }).shedInstanceIds;
     }

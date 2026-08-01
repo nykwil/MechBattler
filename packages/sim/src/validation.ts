@@ -9,6 +9,7 @@ import { getPart } from './catalog.js';
 import { buildOccupancyMap, computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
 import { averageDrawKw, computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
 import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { validateWholeBuildPlacement } from './spatial.js';
 
 export type IssueSeverity = 'error' | 'warn' | 'hint';
 
@@ -28,7 +29,9 @@ export interface BuildIssue {
     | 'part-runs-hot'
     | 'radiator-far'
     | 'ammo-cookoff-risk'
-    | 'electrical-bottleneck';
+    | 'electrical-bottleneck'
+    | 'illegal-placement'
+    | 'illegal-route';
   message: string;
   /** Parts to highlight on the grid, when the issue is part-specific. */
   instanceIds: string[];
@@ -36,9 +39,18 @@ export interface BuildIssue {
 
 export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] {
   const issues: BuildIssue[] = [];
-  if (build.parts.length === 0) return issues;
-
   // --- Errors: physical impossibilities -------------------------------------
+  for (const physical of validateWholeBuildPlacement(chassis, build)) {
+    issues.push({
+      severity: 'error',
+      code: physical.target === 'part' ? 'illegal-placement' : 'illegal-route',
+      message: physical.target === 'part'
+        ? `${physical.instanceId} is illegally fitted: ${physical.reason}`
+        : `${physical.route?.kind ?? 'Route'} at ${physical.route?.regionId ?? 'body'}:${physical.route?.x},${physical.route?.y} is illegal: ${physical.reason}`,
+      instanceIds: physical.instanceId ? [physical.instanceId] : [],
+    });
+  }
+  if (build.parts.length === 0) return issues;
   const spatialPower = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
   const { connectedInstanceIds } = spatialPower ?? computeConnectivity(build.parts);
   const unpowered = build.parts.filter((p) => {

@@ -1,26 +1,38 @@
 import { describe, expect, it } from 'vitest';
-import { TEMPLATES } from '../src/templates.js';
+import { SPATIAL_DEMO_TEMPLATE, TEMPLATES } from '../src/templates.js';
 import { PERK_TEMPLATES } from '../src/diversity.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
 import { checkPlacement, computeConnectivity, computeCoreNetwork } from '../src/grid.js';
+import { checkRoutePlacement, checkSpatialPartPlacement } from '../src/spatial.js';
+import { resolveSpatialPower, usesSpatialSystems } from '../src/spatialPower.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '../src/harness.js';
 
 describe('template roster is layout-legal and fully powered', () => {
-  for (const t of [...TEMPLATES, ...PERK_TEMPLATES]) {
+  for (const t of [...TEMPLATES, ...PERK_TEMPLATES, SPATIAL_DEMO_TEMPLATE]) {
     it(`${t.id}: every part placement is legal`, () => {
       const chassis = getChassis(t.build.chassisId);
       const placed: typeof t.build.parts = [];
       for (const p of t.build.parts) {
-        const error = checkPlacement(chassis, placed, p, getPart(p.partId));
+        const base = checkPlacement(chassis, placed, p, getPart(p.partId));
+        const error = base && base.reason !== 'overlap'
+          ? base
+          : checkSpatialPartPlacement(chassis, { parts: placed, routes: t.build.routes }, p);
         expect(error, `${t.id}/${p.instanceId}: ${JSON.stringify(error)}`).toBeNull();
         placed.push(p);
+      }
+      const routes: NonNullable<typeof t.build.routes> = [];
+      for (const route of t.build.routes ?? []) {
+        const error = checkRoutePlacement(chassis, { parts: t.build.parts, routes }, route);
+        expect(error, `${t.id}/${route.kind}:${route.regionId}:${route.x},${route.y}`).toBeNull();
+        routes.push(route);
       }
     });
 
     it(`${t.id}: every power-drawing part and the core are connected`, () => {
       const chassis = getChassis(t.build.chassisId);
-      const { connectedInstanceIds } = computeConnectivity(t.build.parts);
+      const spatial = usesSpatialSystems(t.build) ? resolveSpatialPower(chassis, t.build) : null;
+      const { connectedInstanceIds } = spatial ?? computeConnectivity(t.build.parts);
       for (const p of t.build.parts) {
         const def = getPart(p.partId);
         const drawsPower = Boolean(def.draw) || def.category === 'capacitor';
@@ -28,7 +40,10 @@ describe('template roster is layout-legal and fully powered', () => {
           expect(connectedInstanceIds.has(p.instanceId), `${t.id}/${p.instanceId} unpowered`).toBe(true);
         }
       }
-      expect(computeCoreNetwork(chassis, t.build.parts), `${t.id} core unpowered`).not.toBeNull();
+      expect(
+        spatial ? spatial.coreNetworkId : computeCoreNetwork(chassis, t.build.parts),
+        `${t.id} core unpowered`,
+      ).not.toBeNull();
     });
   }
 });

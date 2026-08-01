@@ -10,7 +10,7 @@
  * The bar keeps the `armed` class in both states; it governs height, not arming.
  */
 export function ActionBar({
-  armedName, moving, reason, next, onCancel, onRotate, onPlace, onOpenParts, onOpenIntel,
+  armedName, moving, reason, preview, next, onCancel, onRotate, onPlace, onOpenParts, onOpenIntel,
 }: {
   /** Null when nothing is armed. */
   armedName: string | null;
@@ -18,6 +18,8 @@ export function ActionBar({
   moving: boolean;
   /** Why the ghost cannot be placed; null when it can. */
   reason: string | null;
+  /** Effective location facts for a legal ghost placement. */
+  preview?: string | null;
   onCancel: () => void;
   onRotate: () => void;
   onPlace: () => void;
@@ -56,7 +58,7 @@ export function ActionBar({
     <div className="actionbar armed">
       <span className="armed-strip">
         <span className="armed-name">{moving ? 'Moving ' : ''}{armedName}</span>
-        <span className={`armed-why ${reason ? '' : 'ok'}`}>{reason ?? 'Clear to place'}</span>
+        <span className={`armed-why ${reason ? '' : 'ok'}`}>{reason ?? preview ?? 'Clear to place'}</span>
       </span>
       <span className="armed-controls">
         {/* A detached part is already off the plate, so backing out discards it. */}

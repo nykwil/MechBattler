@@ -13,32 +13,18 @@ import { SIM_VERSION, fnv1a, simContentHash } from '../src/version.js';
 import { Battle, runBattle } from '../src/combat.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import type { Build, PlacedPart } from '../src/types.js';
+import { TEMPLATES } from '../src/templates.js';
 
 function part(instanceId: string, partId: string, x: number, y: number, rotation: 0 | 90 = 0): PlacedPart {
   return { instanceId, partId, origin: { x, y }, rotation, integrity: 1 };
 }
 
 function gunline(): Build {
-  return {
-    chassisId: 'CH-5',
-    parts: [
-      part('reactor', 'R-C40', 3, 1), part('ac', 'W-AC', 1, 3),
-      part('con1', 'U-CON', 3, 3), part('rad', 'U-RAD', 1, 0), part('arm1', 'U-ARM', 2, 1),
-    ],
-    powerPriority: [CORE_INSTANCE_ID, 'ac'],
-  };
+  return structuredClone(TEMPLATES.find((template) => template.id === 'mule-gunline')!.build);
 }
 
 function skirmisher(): Build {
-  return {
-    chassisId: 'CH-5',
-    parts: [
-      part('reactor', 'R-E25', 3, 1), part('mg1', 'W-MG', 1, 1),
-      part('con1', 'U-CON', 3, 3), part('con2', 'U-CON', 2, 3),
-      part('mg2', 'W-MG', 1, 3, 90), part('arm1', 'U-ARM', 2, 0),
-    ],
-    powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'],
-  };
+  return structuredClone(TEMPLATES.find((template) => template.id === 'mule-skirmisher')!.build);
 }
 
 describe('dmath: deterministic transcendentals (docs/11 M1)', () => {
@@ -122,12 +108,13 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
   });
 });
 
-// Re-pinned Jul 31 2026 for sim 2.0's authored Mule regions and catalog labels;
-// the outcome, duration, and shot counts did not change.
+// Re-pinned Aug 1 2026 after the golden fixture moved to the legal canonical
+// regional Mule templates. This intentionally replaces the legacy seam-
+// crossing layouts that spatial sim 2.0 no longer accepts.
 const GOLDEN = {
   winner: 0 as const,
   reason: 'chassis-failure',
-  durationS: 43.05,
-  shots: [57, 306],
-  finalHash: 4120201451,
+  durationS: 59.5,
+  shots: [79, 213],
+  finalHash: 3950555330,
 };

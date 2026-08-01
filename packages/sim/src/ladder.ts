@@ -9,10 +9,11 @@
  * pipes — wiring is structure tax, laid free by auto-wire, so fill parts
  * never get crowded out of the budget by their own plumbing.
  */
-import type { Build, PlacedPart, Rotation } from './types.js';
+import type { Build, CellRef, PlacedPart, Rotation } from './types.js';
 import { getPart } from './catalog.js';
-import { getChassis } from './chassis.js';
-import { checkPlacement } from './grid.js';
+import { getChassis, regionIdAt } from './chassis.js';
+import { checkPlacement, getOccupiedCells } from './grid.js';
+import { checkSpatialPartPlacement, spatialCellKey } from './spatial.js';
 import { applyAutoWire } from './autowire.js';
 import { TEMPLATES, type TemplateDef } from './templates.js';
 import { Pcg32 } from './rng.js';
@@ -97,6 +98,7 @@ export function generateOpponent({
 
   const chassis = getChassis(pick.t.build.chassisId);
   const parts: PlacedPart[] = structuredClone(pick.t.build.parts);
+  let routes = structuredClone(pick.t.build.routes ?? []);
   const powerPriority = [...pick.t.build.powerPriority];
   let remaining = budget - pick.base;
   let weaponsAdded = 0;
@@ -104,10 +106,14 @@ export function generateOpponent({
 
   // All mask cells in a seeded order — each fill part scans for its first
   // legal placement (checkPlacement handles overlap, core, perimeter rules).
-  const cells: { x: number; y: number }[] = [];
+  const cells: CellRef[] = [];
   for (let y = 0; y < chassis.height; y++) {
     for (let x = 0; x < chassis.width; x++) {
-      if (chassis.mask[y]?.[x]) cells.push({ x, y });
+      if (chassis.mask[y]?.[x]) cells.push({
+        ...(chassis.regions ? { regionId: regionIdAt(chassis, x, y) ?? undefined } : {}),
+        x,
+        y,
+      });
     }
   }
 
@@ -128,7 +134,11 @@ export function generateOpponent({
           instanceId: '__gen-candidate__', partId,
           origin: cell, rotation, integrity: 1,
         };
-        if (checkPlacement(chassis, parts, candidate, def) === null) {
+        const base = checkPlacement(chassis, parts, candidate, def);
+        const spatial = base && base.reason !== 'overlap'
+          ? base
+          : checkSpatialPartPlacement(chassis, { parts, routes }, candidate, def);
+        if (spatial === null) {
           placed = { ...candidate, instanceId: `gen-${partId}-${++genN}` };
           break outer;
         }
@@ -140,6 +150,8 @@ export function generateOpponent({
       continue;
     }
     parts.push(placed);
+    const stampedCells = new Set(getOccupiedCells(placed, def).map((cell) => spatialCellKey(chassis, cell)));
+    routes = routes.filter((route) => !stampedCells.has(spatialCellKey(chassis, route)));
     remaining -= def.tier;
     if (def.category === 'weapon') weaponsAdded++;
     if (drawsFromReactor(partId)) powerPriority.push(placed.instanceId);
@@ -148,7 +160,7 @@ export function generateOpponent({
   // Wiring is free structure: power everything the fill added. A fill part
   // that landed in a pocket no conduit path can reach gets dropped again —
   // generated mechs never field dead weight (R4: no unexplainable passengers).
-  const wired = applyAutoWire(chassis, { chassisId: chassis.id, parts, powerPriority });
+  const wired = applyAutoWire(chassis, { chassisId: chassis.id, parts, routes, powerPriority });
   let build = wired.build;
   const unreachable = new Set(wired.result.unreachableInstanceIds.filter((id) => id.startsWith('gen-')));
   if (unreachable.size > 0) {

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   Combatant,
   SPATIAL_DEMO_TEMPLATE,
+  Simulation,
   buildSpatialOccupancy,
   buildThermalModel,
   checkPlacement,
@@ -10,7 +11,11 @@ import {
   exposedEquipmentTickets,
   getChassis,
   getPart,
+  locationEffectsForPart,
+  resolvePlacementEffects,
   resolveSpatialPower,
+  resolveThermalPaths,
+  validateWholeBuildPlacement,
   type PlacedPart,
 } from '../src/index.js';
 
@@ -69,6 +74,17 @@ describe('regional construction foundation', () => {
     };
     expect(checkSpatialPartPlacement(chassis, build, bad, getPart(bad.partId))?.reason)
       .toBe('footprint-mismatch');
+
+    const floatingShell: PlacedPart = {
+      instanceId: 'floating-shell', partId: 'U-SHELL',
+      origin: { regionId: 'left-shoulder', x: 1, y: 0 }, rotation: 0, integrity: 1,
+    };
+    expect(checkSpatialPartPlacement(chassis, { parts: [], routes: [] }, floatingShell)?.reason)
+      .toBe('incompatible-stack');
+
+    const reversed = structuredClone(build);
+    reversed.parts.reverse();
+    expect(validateWholeBuildPlacement(chassis, reversed)).toEqual([]);
   });
 
   it('carries power through routed ports and breaks only the disconnected side', () => {
@@ -155,6 +171,113 @@ describe('regional construction foundation', () => {
     expect(thermal.edges.some((edge) =>
       (edge.aKey === a!.key && edge.bKey === b!.key)
       || (edge.aKey === b!.key && edge.bKey === a!.key))).toBe(true);
+  });
+
+  it('reports whether a heat-pipe path actually reaches a radiator', () => {
+    const build = {
+      chassisId: 'CH-5',
+      parts: [
+        { instanceId: 'reactor', partId: 'R-E25', origin: { regionId: 'body', x: 0, y: 3 }, rotation: 0 as const, integrity: 1 },
+        { instanceId: 'radiator', partId: 'U-RAD', origin: { regionId: 'left-shoulder', x: 0, y: 1 }, rotation: 0 as const, integrity: 1 },
+      ],
+      routes: [{ kind: 'coolant' as const, regionId: 'body', x: 1, y: 2 }],
+      powerPriority: [],
+    };
+    const linked = resolveThermalPaths(chassis, build);
+    expect(linked.radiatorLinkedCoolantCells.has('body:1,2')).toBe(true);
+    expect(linked.radiatorLinkedInstanceIds.has('reactor')).toBe(true);
+
+    build.parts = build.parts.filter((part) => part.instanceId !== 'radiator');
+    const isolated = resolveThermalPaths(chassis, build);
+    expect(isolated.isolatedCoolantCells.has('body:1,2')).toBe(true);
+  });
+
+  it('resolves location, stack, cooling, and exposure from one shared placement result', () => {
+    const build = demo();
+    const effects = resolvePlacementEffects(chassis, build, 'mg');
+
+    expect(effects?.regionNames).toEqual(['Left shoulder']);
+    expect(effects?.location.effects.map((effect) => effect.id)).toEqual(['articulated-shoulder']);
+    expect(effects?.location.weaponArcBonusDeg).toBe(25);
+    expect(effects?.supportArcBonusDeg).toBe(25);
+    expect(effects?.effectiveWeaponArcDeg).toBe(140);
+    expect(effects?.armourHeatMultiplier).toBe(1.25);
+    expect(effects?.passiveCoolingCellCount).toBe(0);
+    expect(effects?.stackAboveInstanceIds).toEqual(['shell']);
+    expect(effects?.stackBelowInstanceIds).toEqual(['turret']);
+    expect(effects?.exposure.front).toEqual({ directCellCount: 0, protectedCellCount: 2 });
+
+    const combatant = new Combatant(build, { x: 0, y: 0 }, 0);
+    expect(combatant.weaponArcDeg('mg', getPart('W-MG').weapon!.mountArcDeg)).toBe(140);
+  });
+
+  it('stops destroyed armour from sealing or protecting the payload beneath it', () => {
+    const build = demo();
+    build.parts.find((part) => part.instanceId === 'shell')!.integrity = 0;
+    const effects = resolvePlacementEffects(chassis, build, 'mg');
+
+    expect(effects?.armourHeatMultiplier).toBe(1);
+    expect(effects?.passiveCoolingCellCount).toBe(2);
+    expect(effects?.exposure.front).toEqual({ directCellCount: 2, protectedCellCount: 0 });
+  });
+
+  it('updates sealed cooling and thermal bridges when equipment is destroyed', () => {
+    const armoured = new Simulation(chassis, demo());
+    const weaponCells = armoured.thermal.cellKeysByInstance.get('mg') ?? [];
+    expect(weaponCells.every((key) => armoured.thermal.cells.get(key)?.passiveCoolingBlocked)).toBe(true);
+
+    armoured.destroyPart('shell');
+    expect(weaponCells.every((key) => !armoured.thermal.cells.get(key)?.passiveCoolingBlocked)).toBe(true);
+
+    const bridgeBuild = {
+      chassisId: 'CH-5',
+      parts: [
+        { instanceId: 'left-manifold', partId: 'U-PIPE', origin: { regionId: 'left-shoulder', x: 2, y: 1 }, rotation: 0 as const, integrity: 1 },
+        { instanceId: 'body-manifold', partId: 'U-PIPE', origin: { regionId: 'body', x: 1, y: 2 }, rotation: 0 as const, integrity: 1 },
+      ],
+      routes: [],
+      powerPriority: [],
+    };
+    const bridged = new Simulation(chassis, bridgeBuild);
+    const leftCells = new Set(bridged.thermal.cellKeysByInstance.get('left-manifold'));
+    expect(bridged.thermal.edges.some((edge) =>
+      leftCells.has(edge.aKey) || leftCells.has(edge.bKey))).toBe(true);
+
+    bridged.destroyPart('left-manifold');
+    expect(bridged.thermal.edges.some((edge) =>
+      leftCells.has(edge.aKey) || leftCells.has(edge.bKey))).toBe(false);
+  });
+
+  it('treats a separated regional edge as exterior for equipment cooling', () => {
+    const bridge: PlacedPart = {
+      instanceId: 'bridge', partId: 'U-CON',
+      origin: { regionId: 'left-shoulder', x: 2, y: 1 }, rotation: 0, integrity: 1,
+    };
+    const thermal = buildThermalModel(chassis, [bridge]);
+    expect(thermal.cells.get('2,1')?.isPerimeter).toBe(true);
+  });
+
+  it('supports authored range and heat zones without putting bonuses on reusable parts', () => {
+    const weapon: PlacedPart = {
+      instanceId: 'weapon', partId: 'W-MG',
+      origin: { regionId: 'left-shoulder', x: 1, y: 0 }, rotation: 0, integrity: 1,
+    };
+    const custom = structuredClone(chassis);
+    custom.locationZones!.push({
+      id: 'test-zone',
+      cells: [
+        { regionId: 'left-shoulder', x: 1, y: 0 },
+        { regionId: 'left-shoulder', x: 2, y: 0 },
+      ],
+      effect: {
+        id: 'test-tradeoff', name: 'Test tradeoff', description: 'Test only',
+        weaponRangeMultiplier: 0.95, heatMultiplier: 1.1,
+      },
+    });
+    const effects = locationEffectsForPart(custom, weapon);
+    expect(effects.weaponArcBonusDeg).toBe(25);
+    expect(effects.weaponRangeMultiplier).toBeCloseTo(0.95);
+    expect(effects.heatMultiplier).toBeCloseTo(1.1);
   });
 });
 
