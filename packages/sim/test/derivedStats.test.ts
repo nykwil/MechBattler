@@ -63,7 +63,7 @@ describe('burst DPS (docs/03 §5, closed form)', () => {
       powerPriority: [],
     };
     const dps = computeBurstDps(build);
-    expect(dps.totalDps).toBeCloseTo(1.5 / 0.1 + 12 / 0.75, 5);
+    expect(dps.totalDps).toBeCloseTo(1.5 / 0.1 + 11.5 / 0.75, 5);
   });
 });
 

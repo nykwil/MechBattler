@@ -4,13 +4,20 @@ import {
   CORE_INSTANCE_ID,
   MODIFIERS,
   checkPlacement,
+  checkRoutePlacement,
+  checkSpatialPartPlacement,
   getChassis,
   getOccupiedCells,
   getPart,
+  regionIdAt,
+  spatialCellKey,
+  type CellRef,
   type Build,
   type PlacedPart,
   type PlacementError,
   type Rotation,
+  type RouteCell,
+  type RouteKind,
 } from '@mechbattler/sim';
 
 export type OverlayMode = 'parts' | 'power' | 'thermal';
@@ -18,6 +25,8 @@ export type OverlayMode = 'parts' | 'power' | 'thermal';
 interface EditorState {
   chassisId: string;
   parts: PlacedPart[];
+  routes: RouteCell[];
+  chassisIntegrity: number;
   powerPriority: string[];
   /** Palette part armed for placement. Mutually exclusive with selectedInstanceId. */
   selectedPartId: string | null;
@@ -31,7 +40,7 @@ interface EditorState {
    * arrow keys, and only an explicit commit writes it into `parts`. Null exactly
    * when nothing is armed.
    */
-  ghost: { x: number; y: number } | null;
+  ghost: CellRef | null;
   /**
    * Set while the armed part came off the plate via detach (docs/14 §7). The
    * part keeps its identity across the round trip, so re-placing is a move
@@ -42,6 +51,7 @@ interface EditorState {
   detached: { instanceId: string; priorityIndex: number | null } | null;
   rotation: Rotation;
   overlay: OverlayMode;
+  routeTool: RouteKind | null;
   nextSeq: number;
 }
 
@@ -49,6 +59,7 @@ type Action =
   | { type: 'SET_CHASSIS'; chassisId: string }
   | { type: 'SELECT_PART'; partId: string | null; extras?: Partial<Pick<PlacedPart, 'integrity' | 'modifiers' | 'variant'> & { instanceId: string }> }
   | { type: 'SET_INTEGRITY'; instanceId: string; integrity: number }
+  | { type: 'SET_CHASSIS_INTEGRITY'; integrity: number }
   | { type: 'APPLY_MODIFIER'; instanceId: string; modifierId: string }
   | { type: 'SELECT_INSTANCE'; instanceId: string | null }
   | { type: 'ROTATE' }
@@ -60,7 +71,9 @@ type Action =
   | { type: 'ADD_PARTS'; parts: PlacedPart[] }
   | { type: 'LOAD_BUILD'; build: Build }
   | { type: 'MOVE_PRIORITY'; instanceId: string; direction: -1 | 1 }
-  | { type: 'SET_OVERLAY'; overlay: OverlayMode };
+  | { type: 'SET_OVERLAY'; overlay: OverlayMode }
+  | { type: 'SET_ROUTE_TOOL'; kind: RouteKind | null }
+  | { type: 'PLACE_ROUTE'; x: number; y: number };
 
 function drawsFromReactorPriority(partId: string): boolean {
   const def = getPart(partId);
@@ -83,6 +96,65 @@ function dims(partId: string, rotation: Rotation): { w: number; h: number } {
   };
 }
 
+function placementErrorAt(
+  chassisId: string,
+  parts: PlacedPart[],
+  routes: RouteCell[],
+  partId: string,
+  rotation: Rotation,
+  origin: CellRef,
+): PlacementError | null {
+  const chassis = getChassis(chassisId);
+  const partDef = getPart(partId);
+  const candidate: PlacedPart = {
+    instanceId: '__preview__', partId, origin, rotation, integrity: 1,
+  };
+  const base = checkPlacement(chassis, parts, candidate, partDef);
+  if (base && base.reason !== 'overlap') return base;
+  return checkSpatialPartPlacement(chassis, { parts, routes }, candidate, partDef);
+}
+
+/**
+ * Finds the legal origin nearest a centred tap. Prefer the region actually
+ * tapped, so aiming at a shoulder cannot silently throw the part into the body.
+ */
+function nearestLegalGhost(
+  chassisId: string,
+  partId: string,
+  rotation: Rotation,
+  targetX: number,
+  targetY: number,
+): CellRef | null {
+  const chassis = getChassis(chassisId);
+  const { w, h } = dims(partId, rotation);
+  const desiredX = Math.max(0, Math.min(chassis.width - w, targetX - (w >> 1)));
+  const desiredY = Math.max(0, Math.min(chassis.height - h, targetY - (h >> 1)));
+  const preferredRegion = regionIdAt(chassis, targetX, targetY);
+  const legal: Array<CellRef & { distance: number; preferred: boolean }> = [];
+
+  for (let y = 0; y <= chassis.height - h; y += 1) {
+    for (let x = 0; x <= chassis.width - w; x += 1) {
+      const regionId = regionIdAt(chassis, x, y);
+      if (!regionId) continue;
+      const origin = { regionId, x, y };
+      // Snap only around fixed chassis geometry. Existing equipment and routes
+      // must not make a tap teleport to some unrelated free cell: landing on an
+      // occupied cell should still show the useful overlap/stacking reason.
+      if (placementErrorAt(chassisId, [], [], partId, rotation, origin)) continue;
+      legal.push({
+        ...origin,
+        distance: Math.abs(x - desiredX) + Math.abs(y - desiredY),
+        preferred: regionId === preferredRegion,
+      });
+    }
+  }
+
+  legal.sort((a, b) => Number(b.preferred) - Number(a.preferred)
+    || a.distance - b.distance || a.y - b.y || a.x - b.x);
+  const best = legal[0];
+  return best ? { regionId: best.regionId, x: best.x, y: best.y } : null;
+}
+
 /**
  * Where a freshly armed part's ghost starts (docs/14 §6). Row-major first legal
  * origin, so the ghost lands somewhere it can actually be committed and the
@@ -90,21 +162,37 @@ function dims(partId: string, rotation: Rotation): { w: number; h: number } {
  * build has no room left — the ghost still shows, and Place stays disabled with
  * the reason, which is the honest state rather than refusing to arm.
  */
-function defaultGhost(
+function firstLegalGhost(
   chassisId: string,
   parts: PlacedPart[],
+  routes: RouteCell[],
   partId: string,
   rotation: Rotation,
-): { x: number; y: number } {
+): CellRef | null {
   const chassis = getChassis(chassisId);
-  const partDef = getPart(partId);
   for (let y = 0; y < chassis.height; y += 1) {
     for (let x = 0; x < chassis.width; x += 1) {
-      const candidate: PlacedPart = {
-        instanceId: '__ghost__', partId, origin: { x, y }, rotation, integrity: 1,
-      };
-      if (checkPlacement(chassis, parts, candidate, partDef) === null) return { x, y };
+      const origin = { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y };
+      if (!placementErrorAt(chassisId, parts, routes, partId, rotation, origin)) {
+        return origin;
+      }
     }
+  }
+  return null;
+}
+
+function defaultPlacement(
+  chassisId: string,
+  parts: PlacedPart[],
+  routes: RouteCell[],
+  partId: string,
+): { ghost: CellRef; rotation: Rotation } {
+  const chassis = getChassis(chassisId);
+  // Keep the authored orientation when possible. If it cannot fit anywhere,
+  // rotate automatically rather than arming an illegal seam-crossing ghost.
+  for (const rotation of [0, 90, 180, 270] as Rotation[]) {
+    const ghost = firstLegalGhost(chassisId, parts, routes, partId, rotation);
+    if (ghost) return { ghost, rotation };
   }
   // No legal origin: still show the ghost so Place can explain itself (docs/14
   // §6). It must land on a masked cell -- {0,0} is off-mask on most chassis, and
@@ -112,17 +200,22 @@ function defaultGhost(
   // the player would arm a part and see nothing.
   for (let y = 0; y < chassis.height; y += 1) {
     for (let x = 0; x < chassis.width; x += 1) {
-      if (chassis.mask[y]?.[x]) return { x, y };
+      if (chassis.mask[y]?.[x]) {
+        return {
+          ghost: { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y },
+          rotation: 0,
+        };
+      }
     }
   }
-  return { x: 0, y: 0 };
+  return { ghost: { x: 0, y: 0 }, rotation: 0 };
 }
 
 function initialState(chassisId: string): EditorState {
   return {
-    chassisId, parts: [], powerPriority: [CORE_INSTANCE_ID],
+    chassisId, parts: [], routes: [], chassisIntegrity: 1, powerPriority: [CORE_INSTANCE_ID],
     selectedPartId: null, placeExtras: { integrity: 1 }, selectedInstanceId: null,
-    ghost: null, detached: null, rotation: 0, overlay: 'parts', nextSeq: 1,
+    ghost: null, detached: null, rotation: 0, overlay: 'parts', routeTool: null, nextSeq: 1,
   };
 }
 
@@ -131,13 +224,17 @@ function reducer(state: EditorState, action: Action): EditorState {
     case 'SET_CHASSIS':
       return initialState(action.chassisId);
     case 'SELECT_PART':
+      const placement = action.partId
+        ? defaultPlacement(state.chassisId, state.parts, state.routes, action.partId)
+        : null;
       return {
         ...state, selectedPartId: action.partId,
         placeExtras: { integrity: 1, ...action.extras },
-        selectedInstanceId: null, rotation: 0,
+        selectedInstanceId: null, rotation: placement?.rotation ?? 0,
         // Arming shows a ghost; disarming clears it. docs/14 §6.
-        ghost: action.partId ? defaultGhost(state.chassisId, state.parts, action.partId, 0) : null,
+        ghost: placement?.ghost ?? null,
         detached: null,
+        routeTool: null,
       };
     case 'SET_INTEGRITY':
       return {
@@ -145,6 +242,8 @@ function reducer(state: EditorState, action: Action): EditorState {
         parts: state.parts.map((p) =>
           p.instanceId === action.instanceId ? { ...p, integrity: action.integrity } : p),
       };
+    case 'SET_CHASSIS_INTEGRITY':
+      return { ...state, chassisIntegrity: Math.max(0, Math.min(1, action.integrity)) };
     case 'APPLY_MODIFIER':
       // Machinist (docs/04 §4b): one mod per part, permanent.
       const incoming = MODIFIERS[action.modifierId];
@@ -169,6 +268,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         selectedPartId: null,
         ghost: null,
         detached: null,
+        routeTool: null,
       };
     case 'ROTATE': {
       // The ghost holds its origin through a rotation, so Rotate reads as
@@ -182,8 +282,11 @@ function reducer(state: EditorState, action: Action): EditorState {
         ...state,
         rotation,
         ghost: {
-          x: Math.max(0, Math.min(chassis.width - w, state.ghost.x)),
-          y: Math.max(0, Math.min(chassis.height - h, state.ghost.y)),
+          ...(() => {
+            const x = Math.max(0, Math.min(chassis.width - w, state.ghost.x));
+            const y = Math.max(0, Math.min(chassis.height - h, state.ghost.y));
+            return { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y };
+          })(),
         },
       };
     }
@@ -209,7 +312,7 @@ function reducer(state: EditorState, action: Action): EditorState {
           variant: placed.variant,
         },
         selectedInstanceId: null,
-        ghost: { x: placed.origin.x, y: placed.origin.y },
+        ghost: { ...placed.origin },
         rotation: placed.rotation,
         detached: {
           instanceId: placed.instanceId,
@@ -225,11 +328,22 @@ function reducer(state: EditorState, action: Action): EditorState {
       if (!state.selectedPartId) return state;
       const chassis = getChassis(state.chassisId);
       const { w, h } = dims(state.selectedPartId, state.rotation);
+      const legal = nearestLegalGhost(
+        state.chassisId,
+        state.selectedPartId,
+        state.rotation,
+        action.x,
+        action.y,
+      );
+      if (legal) return { ...state, ghost: legal };
+      const x = Math.max(0, Math.min(chassis.width - w, action.x - (w >> 1)));
+      const y = Math.max(0, Math.min(chassis.height - h, action.y - (h >> 1)));
       return {
         ...state,
         ghost: {
-          x: Math.max(0, Math.min(chassis.width - w, action.x - (w >> 1))),
-          y: Math.max(0, Math.min(chassis.height - h, action.y - (h >> 1))),
+          regionId: regionIdAt(chassis, x, y) ?? undefined,
+          x,
+          y,
         },
       };
     }
@@ -244,13 +358,46 @@ function reducer(state: EditorState, action: Action): EditorState {
       return {
         ...state,
         ghost: {
-          x: Math.min(Math.max(state.ghost.x + action.dx, 0), chassis.width - w),
-          y: Math.min(Math.max(state.ghost.y + action.dy, 0), chassis.height - h),
+          ...(() => {
+            const x = Math.min(Math.max(state.ghost.x + action.dx, 0), chassis.width - w);
+            const y = Math.min(Math.max(state.ghost.y + action.dy, 0), chassis.height - h);
+            return { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y };
+          })(),
         },
       };
     }
     case 'SET_OVERLAY':
       return { ...state, overlay: action.overlay };
+    case 'SET_ROUTE_TOOL':
+      return {
+        ...state,
+        routeTool: action.kind,
+        selectedPartId: null,
+        selectedInstanceId: null,
+        ghost: null,
+        detached: null,
+      };
+    case 'PLACE_ROUTE': {
+      if (!state.routeTool) return state;
+      const chassis = getChassis(state.chassisId);
+      const route: RouteCell = {
+        kind: state.routeTool,
+        regionId: regionIdAt(chassis, action.x, action.y) ?? undefined,
+        x: action.x,
+        y: action.y,
+      };
+      const routeKey = spatialCellKey(chassis, route);
+      const existing = state.routes.find((candidate) =>
+        candidate.kind === route.kind && spatialCellKey(chassis, candidate) === routeKey);
+      if (existing) {
+        return {
+          ...state,
+          routes: state.routes.filter((candidate) => candidate !== existing),
+        };
+      }
+      if (checkRoutePlacement(chassis, { parts: state.parts, routes: state.routes }, route)) return state;
+      return { ...state, routes: [...state.routes, route] };
+    }
     case 'PLACE': {
       if (!state.selectedPartId || !state.ghost) return state;
       const chassis = getChassis(state.chassisId);
@@ -259,10 +406,19 @@ function reducer(state: EditorState, action: Action): EditorState {
       const { instanceId: _preservedId, ...partExtras } = state.placeExtras;
       const candidate: PlacedPart = {
         instanceId, partId: state.selectedPartId,
-        origin: { x: state.ghost.x, y: state.ghost.y }, rotation: state.rotation, ...partExtras,
+        origin: { ...state.ghost }, rotation: state.rotation, ...partExtras,
       };
-      const error = checkPlacement(chassis, state.parts, candidate, partDef);
-      if (error) return state;
+      const baseError = checkPlacement(chassis, state.parts, candidate, partDef);
+      const spatialError = checkSpatialPartPlacement(
+        chassis,
+        { parts: state.parts, routes: state.routes },
+        candidate,
+        partDef,
+      );
+      if ((baseError && baseError.reason !== 'overlap') || spatialError) return state;
+      const stampedCells = new Set(
+        getOccupiedCells(candidate, partDef).map((cell) => spatialCellKey(chassis, cell)),
+      );
       let powerPriority = state.powerPriority;
       if (drawsFromReactorPriority(state.selectedPartId)) {
         const restoreAt = state.detached?.priorityIndex;
@@ -281,6 +437,7 @@ function reducer(state: EditorState, action: Action): EditorState {
       return {
         ...state,
         parts: [...state.parts, candidate],
+        routes: state.routes.filter((route) => !stampedCells.has(spatialCellKey(chassis, route))),
         powerPriority,
         detached: null,
         nextSeq: state.placeExtras.instanceId ? state.nextSeq : state.nextSeq + 1,
@@ -307,6 +464,8 @@ function reducer(state: EditorState, action: Action): EditorState {
       return {
         ...initialState(action.build.chassisId),
         parts: [...action.build.parts],
+        routes: [...(action.build.routes ?? [])],
+        chassisIntegrity: action.build.chassisIntegrity ?? 1,
         powerPriority: [...action.build.powerPriority],
         nextSeq: Math.max(maxSeq, action.build.parts.length) + 1,
       };
@@ -336,21 +495,29 @@ export function useBuild(defaultChassisId: string) {
 
   const chassis = useMemo(() => getChassis(state.chassisId), [state.chassisId]);
   const build: Build = useMemo(
-    () => ({ chassisId: state.chassisId, parts: state.parts, powerPriority: state.powerPriority }),
-    [state.chassisId, state.parts, state.powerPriority],
+    () => ({
+      chassisId: state.chassisId,
+      parts: state.parts,
+      routes: state.routes,
+      chassisIntegrity: state.chassisIntegrity,
+      powerPriority: state.powerPriority,
+    }),
+    [state.chassisId, state.parts, state.routes, state.chassisIntegrity, state.powerPriority],
   );
 
   const checkCandidate = useCallback(
     (x: number, y: number): PlacementError | null => {
       if (!state.selectedPartId) return null;
-      const partDef = getPart(state.selectedPartId);
-      const candidate: PlacedPart = {
-        instanceId: '__preview__', partId: state.selectedPartId,
-        origin: { x, y }, rotation: state.rotation, integrity: 1,
-      };
-      return checkPlacement(chassis, state.parts, candidate, partDef);
+      return placementErrorAt(
+        chassis.id,
+        state.parts,
+        state.routes,
+        state.selectedPartId,
+        state.rotation,
+        { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y },
+      );
     },
-    [chassis, state.parts, state.selectedPartId, state.rotation],
+    [chassis, state.parts, state.routes, state.selectedPartId, state.rotation],
   );
 
   const previewCells = useCallback(
@@ -358,11 +525,17 @@ export function useBuild(defaultChassisId: string) {
       if (!state.selectedPartId) return [];
       const partDef = getPart(state.selectedPartId);
       return getOccupiedCells(
-        { instanceId: '__preview__', partId: state.selectedPartId, origin: { x, y }, rotation: state.rotation, integrity: 1 },
+        {
+          instanceId: '__preview__',
+          partId: state.selectedPartId,
+          origin: { regionId: regionIdAt(chassis, x, y) ?? undefined, x, y },
+          rotation: state.rotation,
+          integrity: 1,
+        },
         partDef,
       );
     },
-    [state.selectedPartId, state.rotation],
+    [chassis, state.selectedPartId, state.rotation],
   );
 
   return {
@@ -375,6 +548,7 @@ export function useBuild(defaultChassisId: string) {
     ) =>
       dispatch({ type: 'SELECT_PART', partId: id, extras }),
     setIntegrity: (instanceId: string, integrity: number) => dispatch({ type: 'SET_INTEGRITY', instanceId, integrity }),
+    setChassisIntegrity: (integrity: number) => dispatch({ type: 'SET_CHASSIS_INTEGRITY', integrity }),
     applyModifier: (instanceId: string, modifierId: string) => dispatch({ type: 'APPLY_MODIFIER', instanceId, modifierId }),
     selectInstance: (id: string | null) => dispatch({ type: 'SELECT_INSTANCE', instanceId: id }),
     rotate: () => dispatch({ type: 'ROTATE' }),
@@ -387,6 +561,8 @@ export function useBuild(defaultChassisId: string) {
     loadBuild: (b: Build) => dispatch({ type: 'LOAD_BUILD', build: b }),
     movePriority: (instanceId: string, direction: -1 | 1) => dispatch({ type: 'MOVE_PRIORITY', instanceId, direction }),
     setOverlay: (overlay: OverlayMode) => dispatch({ type: 'SET_OVERLAY', overlay }),
+    setRouteTool: (kind: RouteKind | null) => dispatch({ type: 'SET_ROUTE_TOOL', kind }),
+    placeRoute: (x: number, y: number) => dispatch({ type: 'PLACE_ROUTE', x, y }),
     checkCandidate,
     previewCells,
   };

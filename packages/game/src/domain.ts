@@ -37,6 +37,8 @@ export function buildToMech(build: Build, source: PartInstance['provenance']['so
       origin: part.origin,
       rotation: part.rotation,
     })),
+    routes: structuredClone(build.routes ?? []),
+    chassisIntegrity: build.chassisIntegrity ?? 1,
     powerPriority: [...build.powerPriority],
   };
 }
@@ -53,6 +55,8 @@ export function mechToBuild(mech: MechInstance): Build {
       origin: part.origin,
       rotation: part.rotation,
     })),
+    routes: structuredClone(mech.routes ?? []),
+    chassisIntegrity: mech.chassisIntegrity,
     powerPriority: [...mech.powerPriority],
   };
 }
@@ -92,27 +96,23 @@ export function repairCost(tier: number, fromIntegrity: number, toIntegrity: num
 
 export function settlePlayerDamage(run: RunInstance, report: BattleReport): RunInstance {
   const hp = new Map(report.mechs[0].partsFinalHp.map((part) => [part.instanceId, part.hpFrac]));
-  const lost: InstalledPart[] = [];
-  const parts = run.mech.parts.flatMap((part) => {
+  const disabled: InstalledPart[] = [];
+  const parts = run.mech.parts.map((part) => {
     const integrity = Math.max(0, Math.min(1, hp.get(part.id) ?? part.integrity));
-    if (integrity <= 0) {
-      lost.push(part);
-      return [];
-    }
-    return [{ ...part, integrity }];
+    if (integrity <= 0) disabled.push(part);
+    return { ...part, integrity };
   });
-  const liveIds = new Set(parts.map((part) => part.id));
   return {
     ...run,
     battlesCompleted: run.battlesCompleted + 1,
     mech: {
       ...run.mech,
       parts,
-      powerPriority: run.mech.powerPriority.filter((id) => liveIds.has(id) || id === '__core__'),
+      chassisIntegrity: report.mechs[0].chassisIntegrityFrac,
     },
     events: [
       ...run.events,
-      ...lost.map((part) => ({
+      ...disabled.map((part) => ({
         type: 'part-lost' as const,
         nodeIndex: run.nodeIndex,
         partId: part.partId,
@@ -125,15 +125,14 @@ export function settlePlayerDamage(run: RunInstance, report: BattleReport): RunI
 /** Lightweight adapter for UI editors that still hold a sim Build directly. */
 export function settleBuildDamage(build: Build, report: BattleReport): Build {
   const hp = new Map(report.mechs[0].partsFinalHp.map((part) => [part.instanceId, part.hpFrac]));
-  const parts = build.parts.flatMap((part) => {
+  const parts = build.parts.map((part) => {
     const integrity = Math.max(0, Math.min(1, hp.get(part.instanceId) ?? part.integrity));
-    return integrity <= 0 ? [] : [{ ...part, integrity }];
+    return { ...part, integrity };
   });
-  const liveIds = new Set(parts.map((part) => part.instanceId));
   return {
     ...build,
     parts,
-    powerPriority: build.powerPriority.filter((id) => liveIds.has(id) || id === '__core__'),
+    chassisIntegrity: report.mechs[0].chassisIntegrityFrac,
   };
 }
 
@@ -236,10 +235,9 @@ export function settleBattle(args: {
     ],
     events: [...damaged.events, battleEvent],
   };
-  if (args.report.winner === 1 && args.report.reason === 'core-kill') {
-    return defeatRun(settled, `Core destroyed by ${args.opponentName}`);
+  if (args.report.winner !== 0) {
+    return defeatRun(settled, `Defeated by ${args.opponentName}: ${args.report.reason}`);
   }
-  if (args.report.winner !== 0) return settled;
   const purse = Math.round(
     (GAME_CONTENT.economy.purseBase + GAME_CONTENT.economy.pursePerNode * settled.nodeIndex)
     * (args.elite ? GAME_CONTENT.economy.elitePurseMultiplier : 1),
@@ -383,6 +381,8 @@ export function recoverWreck(run: RunInstance): RunInstance {
         origin: { ...part.origin },
         rotation: part.rotation,
       })),
+      routes: structuredClone(preview.replacementBuild.routes ?? []),
+      chassisIntegrity: 1,
       powerPriority: [...preview.replacementBuild.powerPriority],
     },
     bench: [...run.bench, ...preview.stowedParts],

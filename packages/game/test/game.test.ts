@@ -109,7 +109,7 @@ describe('game content', () => {
   it('has one route for every enabled part and no dead ammo placeholder', () => {
     const audit = auditGameContent();
     expect(audit.errors).toEqual([]);
-    expect(audit.counts.enabledParts).toBe(22);
+    expect(audit.counts.enabledParts).toBe(24);
     expect(GAME_CONTENT.enabledPartIds).not.toContain('U-AMMO');
   });
 
@@ -142,7 +142,7 @@ describe('game content', () => {
 
 describe('run domain', () => {
   it('round-trips a sim build through owned instances', () => {
-    expect(mechToBuild(buildToMech(template.build))).toEqual(template.build);
+    expect(mechToBuild(buildToMech(template.build))).toMatchObject(template.build);
   });
 
   it('creates deterministic versioned runs', () => {
@@ -150,12 +150,12 @@ describe('run domain', () => {
     const b = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     expect(a).toEqual(b);
     expect(a.scrap).toBe(30);
-    expect(a.schemaVersion).toBe(2);
+    expect(a.schemaVersion).toBe(3);
     expect(a.generatedNodes).toHaveLength(12);
     expect(a.generatedNodes.filter((node) => node.kind === 'scrapyard')).toHaveLength(2);
   });
 
-  it('persists damage and removes destroyed player parts', () => {
+  it('persists damage and keeps destroyed player parts as repairable wrecks', () => {
     const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     const first = template.build.parts[0]!;
     const second = template.build.parts[1]!;
@@ -170,7 +170,7 @@ describe('run domain', () => {
         report().mechs[1],
       ],
     }));
-    expect(next.mech.parts.some((part) => part.id === first.instanceId)).toBe(false);
+    expect(next.mech.parts.find((part) => part.id === first.instanceId)?.integrity).toBe(0);
     expect(next.mech.parts.find((part) => part.id === second.instanceId)?.integrity).toBe(0.42);
     expect(next.battlesCompleted).toBe(1);
   });
@@ -397,14 +397,14 @@ describe('match instances and round-depth checkpoints', () => {
 });
 
 describe('migration', () => {
-  it('grandfathers legacy profile unlocks and history', () => {
+  it('resets legacy profile unlocks and history for the spatial schema', () => {
     const profile = migrateProfile(
       { unlockedChassis: ['CH-2', 'CH-5'], unlockedParts: ['W-RG'] },
       [{ kitName: 'Old', fightsWon: 2, cause: 'Lost', victorious: false, endedAt: '2026-01-01' }],
     );
-    expect(profile.unlockedPartIds).toEqual(expect.arrayContaining([...GAME_CONTENT.initialPartIds, 'W-RG']));
-    expect(profile.grandfatheredPartIds).toEqual(['W-RG']);
-    expect(profile.history).toHaveLength(1);
+    expect(profile.unlockedPartIds).toEqual(GAME_CONTENT.initialPartIds);
+    expect(profile.grandfatheredPartIds).toEqual([]);
+    expect(profile.history).toHaveLength(0);
     expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Vulture Skirmisher']);
   });
 
@@ -416,7 +416,7 @@ describe('migration', () => {
     expect(savedMechErrors(migrated, migrated.savedMechs[0]!.build)).toEqual([]);
   });
 
-  it('assigns stable ids to legacy bench parts', () => {
+  it('rejects legacy runs instead of inventing spatial topology', () => {
     const legacyBuild: Build = template.build;
     const migrated = migrateRun({
       data: {
@@ -425,8 +425,7 @@ describe('migration', () => {
       },
       build: legacyBuild,
     });
-    expect(migrated?.bench[0]?.id).toBe('legacy-bench-12-0');
-    expect(migrated?.mech.parts[0]?.provenance.source).toBe('legacy');
+    expect(migrated).toBeNull();
   });
 });
 

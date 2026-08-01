@@ -24,7 +24,7 @@ import {
 
 export const RUN_LENGTH = GAME_CONTENT.run.length;
 export const STARTING_SCRAP = GAME_CONTENT.economy.startingScrap;
-const STORAGE_KEY = 'mechbattler-run-v2';
+const STORAGE_KEY = 'mechbattler-run-v3';
 const LEGACY_STORAGE_KEY = 'mechbattler-run';
 
 // --- Economy dials (docs/04 §1-§2, §8 — tuning deferred by design) ----------
@@ -127,7 +127,7 @@ interface StoredRun {
 
 function load(): StoredRun | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const migrated = migrateRun(JSON.parse(raw));
     if (!migrated) return null;

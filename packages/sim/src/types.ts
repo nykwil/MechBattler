@@ -22,7 +22,38 @@ export interface CellOffset {
   dy: number;
 }
 
+/** A cell in one local chassis region. `regionId` is optional on legacy data. */
+export interface CellRef {
+  regionId?: string;
+  x: number;
+  y: number;
+}
+
 export type Rotation = 0 | 90 | 180 | 270;
+
+export type EquipmentLayer = 'support' | 'payload' | 'armour';
+export type RouteKind = 'wire' | 'coolant';
+
+export interface PartSpatialSpec {
+  /** Damage/occupancy order: armour sits above payload, payload above support. */
+  layer?: EquipmentLayer;
+  /** Which layer may sit immediately below this part. */
+  stacksOn?: EquipmentLayer[];
+  /** Maximum electrical load that can pass through this part's cells. */
+  electricalCapacityKw?: number;
+  /** Electrical relay override. Equipment conducts by default; `false` opts out. */
+  transfersPower?: boolean;
+  /** Relative thermal conductance through this part's cells. */
+  thermalConductance?: number;
+  /** Allows heat/coolant transfer through this part's cells and ports. */
+  transfersHeat?: boolean;
+  /** Multiplies generated heat for equipment directly beneath this shell. */
+  coveredHeatMultiplier?: number;
+  /** Prevents the exterior passive-cooling bonus beneath this shell. */
+  blocksPassiveCooling?: boolean;
+  /** Arc granted to a weapon directly above this support. */
+  weaponArcBonusDeg?: number;
+}
 
 /** Reactor supply characteristics. See docs/02-power-heat-spec.md §2. */
 export interface ReactorSpec {
@@ -123,6 +154,27 @@ export interface PartDef {
   thermalMassPerCell?: number;
   /** Chassis speed multiplier while this connected utility is functional and powered. */
   speedMult?: number;
+  /** Shared spatial-system behavior. Omitted parts are payload by default. */
+  spatial?: PartSpatialSpec;
+}
+
+export interface ChassisRegionSpec {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  /** Region-local validity expressed in the common workshop projection. */
+  mask: boolean[][];
+  /** Top-left position of this region in the separated workshop layout. */
+  workshopOrigin?: { x: number; y: number };
+  /** Fractional cell offset for centering differently sized regional grids. */
+  workshopOffset?: { x: number; y: number };
+}
+
+export interface ChassisPortSpec {
+  id: string;
+  a: CellRef;
+  b: CellRef;
 }
 
 export interface ChassisSpec {
@@ -133,18 +185,26 @@ export interface ChassisSpec {
   height: number;
   /** mask[y][x] === true means the cell exists on this chassis. */
   mask: boolean[][];
-  coreCell: { x: number; y: number };
+  coreCell: CellRef;
   ratedMassT: number;
   speedsMps: { fwd: number; strafe: number; rev: number };
   turnRateDegS: number;
   accelMps2: number;
+  /** Optional regional topology. Flat legacy chassis implicitly have one `body` region. */
+  regions?: ChassisRegionSpec[];
+  /** Immutable inter-region sockets. Electrical endpoint equipment can draw through the link. */
+  ports?: ChassisPortSpec[];
+  /** Number of non-equipment tickets in the directional hit pool. */
+  chassisHitTickets: number;
+  /** Global structural body pool. Ordinary hits never target the old core cell. */
+  maxIntegrity: number;
 }
 
 export interface PlacedPart {
   /** Unique instance id (a chassis can have multiple of the same part id). */
   instanceId: string;
   partId: string;
-  origin: { x: number; y: number };
+  origin: CellRef;
   rotation: Rotation;
   /** 0-1, salvage integrity. 1.0 = pristine. See docs/04 §3. */
   integrity: number;
@@ -154,9 +214,17 @@ export interface PlacedPart {
   variant?: Partial<Record<'damage' | 'cycleS' | 'dispersionMrad' | 'hp', number>>;
 }
 
+export interface RouteCell extends CellRef {
+  kind: RouteKind;
+}
+
 export interface Build {
   chassisId: string;
   parts: PlacedPart[];
+  /** Free workshop infrastructure. Bus and heat-pipe routes may share a cell. */
+  routes?: RouteCell[];
+  /** Persistent global body condition, 0..1. Omitted means pristine. */
+  chassisIntegrity?: number;
   /** Ordered highest-to-lowest; brownout sheds from the end first. See docs/02 §2. */
   powerPriority: string[];
 }

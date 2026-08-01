@@ -44,7 +44,7 @@ describe('budget-driven opponent generation (docs/10 M4, docs/04 §5)', () => {
     const gen = generateOpponent({ budget: 14, seed: 11 });
     const foe = generateOpponent({ budget: 14, seed: 12 });
     const report = runBattle({ builds: [gen.build, foe.build], seed: 3 });
-    expect(['core-kill', 'mission-kill', 'judges']).toContain(report.reason);
+    expect(['chassis-failure', 'mission-kill', 'judges']).toContain(report.reason);
     expect(headlineWeapon(gen.build)).not.toBeNull();
   });
 });

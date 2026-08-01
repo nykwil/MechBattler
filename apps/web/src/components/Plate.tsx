@@ -1,14 +1,51 @@
 import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   buildOccupancyMap,
+  buildSpatialOccupancy,
   computeConnectivity,
   getPart,
+  isPortCell,
+  regionIdAt,
+  resolveSpatialPower,
+  spatialCellKey,
+  usesSpatialSystems,
   type ChassisSpec,
   type PartDef,
   type PlacedPart,
+  type RouteCell,
+  type RouteKind,
 } from '@mechbattler/sim';
 import type { OverlayMode } from '../state/useBuild.js';
 import { thermalColor } from '../lib/thermalColor.js';
+
+type RouteDirection = 'up' | 'right' | 'down' | 'left';
+const ROUTE_NEIGHBORS: Array<{
+  direction: RouteDirection;
+  dx: number;
+  dy: number;
+}> = [
+  { direction: 'up', dx: 0, dy: -1 },
+  { direction: 'right', dx: 1, dy: 0 },
+  { direction: 'down', dx: 0, dy: 1 },
+  { direction: 'left', dx: -1, dy: 0 },
+];
+
+function RoutePath({
+  kind,
+  directions,
+}: {
+  kind: RouteKind;
+  directions: Set<RouteDirection>;
+}) {
+  return (
+    <span className={`route-path ${kind === 'wire' ? 'bus' : 'heat-pipe'}`} aria-hidden="true">
+      {[...directions].map((direction) => (
+        <span key={direction} className={`route-arm route-${direction}`} />
+      ))}
+      <span className="route-node" />
+    </span>
+  );
+}
 
 /**
  * The plate, ported from the mobile builder prototype
@@ -59,11 +96,13 @@ function wasteHeatKw(def: PartDef): number {
 }
 
 export function Plate({
-  chassis, parts, overlay, selectedInstanceId, ghostCells, ghostLegal,
-  thermalSnapshot, onCellActivate,
+  chassis, parts, routes = [], routeTool = null, overlay, selectedInstanceId, ghostCells, ghostLegal,
+  thermalSnapshot, onCellActivate, onRouteCell = () => {},
 }: {
   chassis: ChassisSpec;
   parts: PlacedPart[];
+  routes?: RouteCell[];
+  routeTool?: RouteKind | null;
   overlay: OverlayMode;
   selectedInstanceId: string | null;
   /** Cells the armed part would occupy; empty when nothing is armed. */
@@ -71,14 +110,129 @@ export function Plate({
   ghostLegal: boolean;
   thermalSnapshot: Record<string, number> | null;
   onCellActivate: (x: number, y: number) => void;
+  onRouteCell?: (x: number, y: number) => void;
 }) {
   // The sim owns this mapping; both this and DamageGrid had a copy of it.
   const occupancy = useMemo(() => buildOccupancyMap(parts).byCell, [parts]);
+  const spatial = useMemo(
+    () => buildSpatialOccupancy(chassis, { parts, routes }),
+    [chassis, parts, routes],
+  );
+  const workshopLayout = useMemo(() => {
+    const cells = new Map<string, {
+      column: number;
+      row: number;
+      regionId?: string;
+      offsetX: number;
+      offsetY: number;
+    }>();
+    if (!chassis.regions?.length) {
+      for (let y = 0; y < chassis.height; y += 1) {
+        for (let x = 0; x < chassis.width; x += 1) {
+          if (chassis.mask[y]?.[x]) {
+            cells.set(`${x},${y}`, { column: x + 1, row: y + 1, offsetX: 0, offsetY: 0 });
+          }
+        }
+      }
+      return { cells, width: chassis.width, height: chassis.height, regions: [] };
+    }
+
+    let width = 0;
+    let height = 0;
+    const regions = chassis.regions.map((region) => {
+      const occupied: Array<{ x: number; y: number }> = [];
+      for (let y = 0; y < region.height; y += 1) {
+        for (let x = 0; x < region.width; x += 1) {
+          if (region.mask[y]?.[x]) occupied.push({ x, y });
+        }
+      }
+      const minX = Math.min(...occupied.map((cell) => cell.x));
+      const maxX = Math.max(...occupied.map((cell) => cell.x));
+      const minY = Math.min(...occupied.map((cell) => cell.y));
+      const maxY = Math.max(...occupied.map((cell) => cell.y));
+      const origin = region.workshopOrigin ?? { x: minX, y: minY };
+      const offset = region.workshopOffset ?? { x: 0, y: 0 };
+      for (const cell of occupied) {
+        cells.set(`${cell.x},${cell.y}`, {
+          column: origin.x + cell.x - minX + 1,
+          row: origin.y + cell.y - minY + 1,
+          regionId: region.id,
+          offsetX: offset.x,
+          offsetY: offset.y,
+        });
+      }
+      const visualWidth = maxX - minX + 1;
+      const visualHeight = maxY - minY + 1;
+      width = Math.max(width, origin.x + visualWidth);
+      height = Math.max(height, origin.y + visualHeight);
+      return {
+        id: region.id,
+        name: region.name,
+        columnStart: origin.x + 1,
+        columnEnd: origin.x + visualWidth + 1,
+        rowStart: origin.y + 1,
+        rowEnd: origin.y + visualHeight + 1,
+        offsetPercentX: (offset.x / visualWidth) * 100,
+        offsetPercentY: (offset.y / visualHeight) * 100,
+      };
+    });
+    return { cells, width, height, regions };
+  }, [chassis]);
 
   const powered = useMemo(
-    () => computeConnectivity(parts).connectedInstanceIds,
-    [parts],
+    () => usesSpatialSystems({ chassisId: chassis.id, parts, routes, powerPriority: [] })
+      ? resolveSpatialPower(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] }).connectedInstanceIds
+      : computeConnectivity(parts).connectedInstanceIds,
+    [chassis, parts, routes],
   );
+
+  const coreRegionId = chassis.coreCell.regionId
+    ?? regionIdAt(chassis, chassis.coreCell.x, chassis.coreCell.y)
+    ?? 'body';
+
+  function portEndpointAccepts(kind: RouteKind, ref: Parameters<typeof spatialCellKey>[1]): boolean {
+    const key = spatialCellKey(chassis, ref);
+    if (spatial.routesByCell.get(key)?.has(kind)) return true;
+    const stack = spatial.stacksByCell.get(key) ?? [];
+    // Any equipment fitted over an electrical port can consume from that
+    // socket. Thermal ports still require explicitly heat-transfer equipment.
+    if (kind === 'wire') return stack.length > 0;
+    return stack.some((entry) => {
+      const def = getPart(entry.partId);
+      return Boolean(def.spatial?.transfersHeat || def.isHeatPipe);
+    });
+  }
+
+  function routeDirections(kind: RouteKind, regionId: string, x: number, y: number): Set<RouteDirection> {
+    const directions = new Set<RouteDirection>();
+    for (const neighbor of ROUTE_NEIGHBORS) {
+      const neighborRef = { regionId, x: x + neighbor.dx, y: y + neighbor.dy };
+      const neighborKey = spatialCellKey(chassis, neighborRef);
+      const connectsToRoute = spatial.routesByCell.get(neighborKey)?.has(kind);
+      const connectsToEquipment = (spatial.stacksByCell.get(neighborKey)?.length ?? 0) > 0;
+      const connectsToCore = neighborRef.regionId === coreRegionId
+        && neighborRef.x === chassis.coreCell.x && neighborRef.y === chassis.coreCell.y;
+      if (connectsToRoute || connectsToEquipment || connectsToCore) {
+        directions.add(neighbor.direction);
+      }
+    }
+
+    const currentKey = spatialCellKey(chassis, { regionId, x, y });
+    for (const port of chassis.ports ?? []) {
+      const aKey = spatialCellKey(chassis, port.a);
+      const bKey = spatialCellKey(chassis, port.b);
+      const other = currentKey === aKey ? port.b : currentKey === bKey ? port.a : null;
+      if (!other || !portEndpointAccepts(kind, other)) continue;
+      const hereLayout = workshopLayout.cells.get(`${x},${y}`);
+      const otherLayout = workshopLayout.cells.get(`${other.x},${other.y}`);
+      if (!hereLayout || !otherLayout) continue;
+      const dx = (otherLayout.column + otherLayout.offsetX) - (hereLayout.column + hereLayout.offsetX);
+      const dy = (otherLayout.row + otherLayout.offsetY) - (hereLayout.row + hereLayout.offsetY);
+      if (Math.abs(dx) > Math.abs(dy)) directions.add(dx > 0 ? 'right' : 'left');
+      else directions.add(dy > 0 ? 'down' : 'up');
+    }
+    return directions;
+  }
 
   const ghost = useMemo(() => {
     const set = new Set<string>();
@@ -111,6 +265,7 @@ export function Plate({
   // Enter selects whatever is under it. Without this an unarmed keyboard user
   // could only reach cells by tabbing through all of them in document order.
   const plateRef = useRef<HTMLDivElement>(null);
+  const routePointerHandled = useRef(false);
   const firstCell = useMemo(() => {
     for (let y = 0; y < chassis.height; y += 1) {
       for (let x = 0; x < chassis.width; x += 1) if (chassis.mask[y]?.[x]) return { x, y };
@@ -157,22 +312,48 @@ export function Plate({
     for (let x = 0; x < chassis.width; x += 1) {
       const key = `${x},${y}`;
       const inMask = Boolean(chassis.mask[y]?.[x]);
+      const layoutCell = workshopLayout.cells.get(key);
 
-      if (!inMask) {
+      if (!inMask || !layoutCell) {
         // Off-mask positions still occupy a grid slot, so they carry role=gridcell
         // -- a row's children must all be gridcells -- but are hidden and
         // untabbable, since there is nothing there to interact with.
         cells.push(
-          <span key={key} className="cell void" role="gridcell" aria-hidden="true" />,
+          <span
+            key={key}
+            className="cell void"
+            role="gridcell"
+            aria-hidden="true"
+            style={{ display: 'none' }}
+          />,
         );
         continue;
       }
 
       const isCore = x === chassis.coreCell.x && y === chassis.coreCell.y;
-      const occ = occupancy.get(key);
+      const stack = spatial.stacksByProjectedCell.get(key) ?? [];
+      const occ = stack[stack.length - 1] ?? occupancy.get(key);
       const classes = ['cell'];
-      const style: CSSProperties = {};
+      const style: CSSProperties = {
+        gridColumn: layoutCell.column,
+        gridRow: layoutCell.row,
+        ...(layoutCell.offsetX || layoutCell.offsetY
+          ? { transform: `translate(${layoutCell.offsetX * 100}%, ${layoutCell.offsetY * 100}%)` }
+          : {}),
+      };
       let label = `column ${x + 1}, row ${y + 1}, `;
+      const regionId = regionIdAt(chassis, x, y);
+      const routeKinds = regionId
+        ? spatial.routesByCell.get(spatialCellKey(chassis, { regionId, x, y }))
+        : undefined;
+      if (regionId && chassis.regions) {
+        classes.push('regional');
+        label += `${chassis.regions.find((region) => region.id === regionId)?.name ?? regionId}, `;
+      }
+      if (isPortCell(chassis, { regionId: regionId ?? undefined, x, y })) {
+        classes.push('port');
+        label += 'port, ';
+      }
 
       if (isCore) {
         classes.push('core');
@@ -196,6 +377,16 @@ export function Plate({
       } else {
         label += 'empty';
       }
+      if (routeKinds?.has('wire') && routeKinds.has('coolant')) {
+        classes.push('route-both');
+        label += ', bus and heat-pipe routes';
+      } else if (routeKinds?.has('wire')) {
+        classes.push('route-wire');
+        label += ', bus route';
+      } else if (routeKinds?.has('coolant')) {
+        classes.push('route-coolant');
+        label += ', heat-pipe route';
+      }
 
       if (ghost.has(key)) {
         classes.push(ghostLegal ? 'ghost-ok' : 'ghost-bad');
@@ -216,10 +407,44 @@ export function Plate({
           role="gridcell"
           data-x={x}
           data-y={y}
+          data-region={regionId ?? undefined}
           aria-label={label}
           style={style}
-          onClick={() => onCellActivate(x, y)}
-        />,
+          // Route painting starts on pointer-down so dragging can continue through
+          // neighbouring cells. Click remains a keyboard/touch fallback, but is
+          // consumed after a handled pointer-down so release cannot toggle twice.
+          onClick={() => {
+            if (!routeTool) {
+              onCellActivate(x, y);
+            } else if (routePointerHandled.current) {
+              routePointerHandled.current = false;
+            } else {
+              onRouteCell(x, y);
+            }
+          }}
+          onPointerDown={(event) => {
+            if (!routeTool || event.button !== 0) return;
+            event.preventDefault();
+            routePointerHandled.current = true;
+            onRouteCell(x, y);
+          }}
+          onPointerCancel={() => { routePointerHandled.current = false; }}
+          onPointerEnter={(event) => {
+            // A browser may emit pointer-enter while moving the pointer into the
+            // pressed cell, before pointer-down reaches React. Only extend a drag
+            // after this plate has handled its starting press.
+            if (routeTool && routePointerHandled.current && event.buttons === 1) {
+              onRouteCell(x, y);
+            }
+          }}
+        >
+          {regionId && routeKinds?.has('wire') && (
+            <RoutePath kind="wire" directions={routeDirections('wire', regionId, x, y)} />
+          )}
+          {regionId && routeKinds?.has('coolant') && (
+            <RoutePath kind="coolant" directions={routeDirections('coolant', regionId, x, y)} />
+          )}
+        </button>,
       );
     }
     // role="row" is required between grid and gridcell; display:contents keeps
@@ -240,12 +465,63 @@ export function Plate({
         aria-rowcount={chassis.height}
         aria-colcount={chassis.width}
         style={{
-          gridTemplateColumns: `repeat(${chassis.width}, var(--cell))`,
+          gridTemplateColumns: `repeat(${workshopLayout.width}, var(--cell))`,
+          gridTemplateRows: `repeat(${workshopLayout.height}, var(--cell))`,
           // --plate-cols feeds the responsive --cell in App.css (docs/14 §5).
-          '--plate-cols': chassis.width,
+          '--plate-cols': workshopLayout.width,
         } as CSSProperties}
       >
+        {(chassis.ports?.length ?? 0) > 0 && (
+          <svg
+            className="port-links"
+            aria-hidden="true"
+            viewBox={`0 0 ${workshopLayout.width * 100} ${workshopLayout.height * 100}`}
+            preserveAspectRatio="none"
+          >
+            {chassis.ports?.map((port) => {
+              const a = workshopLayout.cells.get(`${port.a.x},${port.a.y}`);
+              const b = workshopLayout.cells.get(`${port.b.x},${port.b.y}`);
+              if (!a || !b) return null;
+              return (
+                <line
+                  key={port.id}
+                  className="port-link"
+                  x1={(a.column - 0.5 + a.offsetX) * 100}
+                  y1={(a.row - 0.5 + a.offsetY) * 100}
+                  x2={(b.column - 0.5 + b.offsetX) * 100}
+                  y2={(b.row - 0.5 + b.offsetY) * 100}
+                />
+              );
+            })}
+          </svg>
+        )}
         {rows}
+        {workshopLayout.regions.length > 0 && parts.length === 0 && ghostCells.length === 0 && (
+          <div
+            className="region-labels"
+            aria-hidden="true"
+            style={{
+              gridTemplateColumns: `repeat(${workshopLayout.width}, var(--cell))`,
+              gridTemplateRows: `repeat(${workshopLayout.height}, var(--cell))`,
+            }}
+          >
+            {workshopLayout.regions.map((region) => (
+              <span
+                className="region-label"
+                key={region.id}
+                style={{
+                  gridColumn: `${region.columnStart} / ${region.columnEnd}`,
+                  gridRow: `${region.rowStart} / ${region.rowEnd}`,
+                  ...(region.offsetPercentX || region.offsetPercentY
+                    ? { transform: `translate(${region.offsetPercentX}%, ${region.offsetPercentY}%)` }
+                    : {}),
+                }}
+              >
+                <span>{region.name}</span>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
       {/* Hidden once a ghost is on the plate: mid-placement the instruction is
           already being followed, and it prints over the thing being aimed. */}

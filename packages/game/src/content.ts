@@ -6,7 +6,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'first-blood', name: 'First Blood',
     description: 'Win one battle.',
     criterion: { all: [{ kind: 'battle-won' }] },
-    unlockPartIds: ['R-C40', 'W-AC', 'U-HS'],
+    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL'],
   },
   {
     id: 'clean-machine', name: 'Clean Machine',
@@ -80,6 +80,7 @@ export const GAME_CONTENT: GameContent = {
     scrapyardBuyMultiplier: 12,
     extractionWearMax: 0.2,
     repairCostPerPoint: 0.4,
+    chassisRepairCostPerPoint: 0.2,
     machinistBaseCost: 25,
     chassisRecoveryBaseCost: 20,
     chassisRecoveryPerCell: 2,

@@ -58,9 +58,10 @@
 }
 .wreck-row {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
   width: 100%;
+  min-height: var(--tap-min);
   text-align: left;
   background: none;
   border: none;

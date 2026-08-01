@@ -29,13 +29,102 @@ function renderPlate(over: Partial<Parameters<typeof Plate>[0]> = {}) {
 const laser = { instanceId: 'l1', partId: 'W-LAS', origin: { x: 1, y: 1 }, rotation: 0 as const, integrity: 1 };
 
 describe('Plate', () => {
-  it('is a grid whose columns come from the chassis', () => {
+  it('labels the empty shoulder/body layout without covering an active build', () => {
+    const empty = renderPlate();
+    expect([...empty.container.querySelectorAll('.region-label')].map((node) => node.textContent))
+      .toEqual(['Left shoulder', 'Body', 'Right shoulder']);
+
+    const active = renderPlate({ parts: [laser] });
+    expect(active.container.querySelector('.region-labels')).toBeNull();
+  });
+
+  it('shows separated regions, immutable ports, and layered routes', () => {
+    const { container } = renderPlate({
+      routes: [
+        { kind: 'wire', regionId: 'body', x: 0, y: 2 },
+        { kind: 'coolant', regionId: 'body', x: 0, y: 2 },
+        { kind: 'wire', regionId: 'left-shoulder', x: 2, y: 1 },
+        { kind: 'coolant', regionId: 'left-shoulder', x: 2, y: 1 },
+        { kind: 'wire', regionId: 'body', x: 1, y: 2 },
+        { kind: 'coolant', regionId: 'body', x: 1, y: 2 },
+      ],
+    });
+    expect(container.querySelector('[data-region="body"][data-x="0"][data-y="2"]')
+      ?.classList.contains('route-both')).toBe(true);
+    const shoulderPort = container.querySelector(
+      '[data-region="left-shoulder"][data-x="2"][data-y="1"]',
+    );
+    expect(shoulderPort?.classList.contains('port')).toBe(true);
+    const busDownArm = shoulderPort?.querySelector('.route-path.bus .route-arm.route-down');
+    expect(busDownArm).not.toBeNull();
+    // `.down` is an unrelated status-chip class with padding; route directions
+    // must stay namespaced or the vertical arm renders as a duplicate thick line.
+    expect(busDownArm?.classList.contains('down')).toBe(false);
+    expect(shoulderPort?.querySelector('.route-path.heat-pipe .route-arm.route-down')).not.toBeNull();
+    expect(container.querySelectorAll('.port-link')).toHaveLength(2);
+    const left = container.querySelector('[data-region="left-shoulder"][data-x="1"][data-y="0"]') as HTMLElement;
+    const right = container.querySelector('[data-region="right-shoulder"][data-x="3"][data-y="0"]') as HTMLElement;
+    const body = container.querySelector('[data-region="body"][data-x="0"][data-y="2"]') as HTMLElement;
+    expect(left.style.gridColumn).toBe('2');
+    expect(right.style.gridColumn).toBe('5');
+    expect(body.style.gridRow).toBe('4');
+    expect(body.style.transform).toBe('translate(50%, 0%)');
+  });
+
+  it('draws each route from its offset centre only toward connected neighbours', () => {
+    const part = {
+      instanceId: 'coupler', partId: 'U-CON',
+      origin: { regionId: 'body', x: 1, y: 3 }, rotation: 0 as const, integrity: 1,
+    };
+    const { container } = renderPlate({
+      parts: [part],
+      routes: [
+        { kind: 'wire', regionId: 'body', x: 0, y: 2 },
+        { kind: 'wire', regionId: 'body', x: 0, y: 3 },
+        { kind: 'coolant', regionId: 'body', x: 0, y: 3 },
+      ],
+    });
+    const routed = container.querySelector(
+      '[data-region="body"][data-x="0"][data-y="3"]',
+    );
+
+    expect(routed?.querySelector('.route-path.bus .route-arm.route-up')).not.toBeNull();
+    expect(routed?.querySelector('.route-path.bus .route-arm.route-right')).not.toBeNull();
+    expect(routed?.querySelector('.route-path.bus .route-arm.route-left')).toBeNull();
+    expect(routed?.querySelector('.route-path.heat-pipe .route-arm.route-right')).not.toBeNull();
+    expect(routed?.querySelector('.route-path.bus')).not.toBeNull();
+    expect(routed?.querySelector('.route-path.heat-pipe')).not.toBeNull();
+  });
+
+  it('draws an energized port connection toward equipment fitted over its linked socket', () => {
+    const portGun = {
+      instanceId: 'port-gun', partId: 'W-MG',
+      origin: { regionId: 'left-shoulder', x: 1, y: 1 }, rotation: 0 as const, integrity: 1,
+    };
+    const { container } = renderPlate({
+      parts: [portGun],
+      routes: [{ kind: 'wire', regionId: 'body', x: 1, y: 2 }],
+    });
+    const bodyPort = container.querySelector(
+      '[data-region="body"][data-x="1"][data-y="2"]',
+    );
+    const gunPort = container.querySelector(
+      '[data-region="left-shoulder"][data-x="2"][data-y="1"]',
+    );
+
+    expect(bodyPort?.querySelector('.route-path.bus .route-arm.route-up')).not.toBeNull();
+    expect(gunPort?.classList.contains('filled')).toBe(true);
+    expect(gunPort?.classList.contains('port')).toBe(true);
+  });
+
+  it('is a logical chassis grid rendered in the authored workshop layout', () => {
     const { chassis, container } = renderPlate();
     const plate = container.querySelector('.plate') as HTMLElement;
 
     expect(plate.getAttribute('role')).toBe('grid');
     expect(plate.getAttribute('aria-colcount')).toBe(String(chassis.width));
-    expect(plate.style.gridTemplateColumns).toBe(`repeat(${chassis.width}, var(--cell))`);
+    expect(plate.style.gridTemplateColumns).toBe('repeat(7, var(--cell))');
+    expect(plate.style.gridTemplateRows).toBe('repeat(7, var(--cell))');
   });
 
   it('gives every real cell its own button and accessible name', () => {
@@ -105,6 +194,37 @@ describe('Plate', () => {
 
     // Placement is the caller's decision: a tap only aims (docs/14 §6).
     expect(taps).toHaveLength(1);
+  });
+
+  it('routes once across the complete pointer-down and click sequence', () => {
+    const routed: [number, number][] = [];
+    const activated: [number, number][] = [];
+    const { container } = renderPlate({
+      routeTool: 'wire',
+      onRouteCell: (x, y) => routed.push([x, y]),
+      onCellActivate: (x, y) => activated.push([x, y]),
+    });
+    const cell = container.querySelector('[data-region="body"][data-x="0"][data-y="2"]')!;
+
+    // Browsers emit click after pointer-up. Routing owns pointer-down, so the
+    // later click must not dispatch the same toggle a second time.
+    fireEvent.pointerEnter(cell, { buttons: 1 });
+    expect(routed).toEqual([]);
+    // jsdom does not provide PointerEvent; MouseEvent still gives React the
+    // primary-button fields for a pointerdown event.
+    fireEvent(cell, new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    fireEvent.click(cell);
+
+    expect(routed).toEqual([[0, 2]]);
+    expect(activated).toEqual([]);
+
+    // Touch emulation and assistive activation can provide click without a
+    // preceding pointerdown; that fallback must still paint exactly once.
+    const fallbackCell = container.querySelector(
+      '[data-region="body"][data-x="0"][data-y="3"]',
+    )!;
+    fireEvent.click(fallbackCell);
+    expect(routed).toEqual([[0, 2], [0, 3]]);
   });
 
   it('shows the empty-chassis hint only while empty', () => {

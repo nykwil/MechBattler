@@ -108,6 +108,124 @@
   max-width: 32ch;
 }
 
+.route-tools {
+  display: flex;
+  flex: 0 0 48px;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+  background: var(--bg-panel);
+  border-bottom: 1px solid var(--line-hairline);
+}
+.route-tools button {
+  min-width: 0;
+  flex: 1 1 0;
+  min-height: var(--tap-min);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-md);
+  background: var(--bg-inset);
+  color: var(--ink-secondary);
+  font: var(--text-2xs) var(--font-mono);
+  text-transform: uppercase;
+}
+.route-tools button[aria-pressed="true"] {
+  border-color: var(--signal-blue);
+  color: var(--signal-blue);
+}
+.route-tools button:disabled { opacity: .38; }
+
+.plate { position: relative; }
+.region-labels {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 5;
+  display: grid;
+  pointer-events: none;
+}
+.region-label {
+  display: grid;
+  place-items: center;
+  color: var(--signal-amber);
+  font: 8px/1 var(--font-mono);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.region-label > span {
+  padding: 3px 4px;
+  border: 1px solid rgba(232, 162, 61, .35);
+  border-radius: var(--radius-sm);
+  background: rgba(10, 13, 18, .82);
+  white-space: nowrap;
+}
+.cell.port::after {
+  content: "";
+  position: absolute;
+  inset: 35%;
+  z-index: 2;
+  transform: rotate(45deg);
+  border: 1px solid var(--signal-amber);
+  background: var(--bg-deep);
+}
+.port-links {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 0;
+  width: calc(100% - var(--space-2) * 2);
+  height: calc(100% - var(--space-2) * 2);
+  pointer-events: none;
+}
+.port-link {
+  stroke: rgba(232, 162, 61, .55);
+  stroke-width: 3;
+  stroke-dasharray: 10 7;
+  vector-effect: non-scaling-stroke;
+}
+.app .plate .cell { z-index: 1; }
+.route-path {
+  --route-colour: var(--signal-green);
+  --route-x: calc(50% - 3px);
+  --route-y: calc(50% - 3px);
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+.route-path.heat-pipe {
+  --route-colour: var(--signal-blue);
+  --route-x: calc(50% + 3px);
+  --route-y: calc(50% + 3px);
+}
+.route-arm,
+.route-node {
+  position: absolute;
+  display: block;
+  background: var(--route-colour);
+  box-shadow: 0 0 3px color-mix(in srgb, var(--route-colour) 55%, transparent);
+}
+.route-arm.route-left,
+.route-arm.route-right {
+  top: calc(var(--route-y) - 1.5px);
+  height: 3px;
+}
+.route-arm.route-left { left: 0; width: var(--route-x); }
+.route-arm.route-right { left: var(--route-x); right: 0; }
+.route-arm.route-up,
+.route-arm.route-down {
+  left: calc(var(--route-x) - 1.5px);
+  width: 3px;
+}
+.route-arm.route-up { top: 0; height: var(--route-y); }
+.route-arm.route-down { top: var(--route-y); bottom: 0; }
+.route-node {
+  left: var(--route-x);
+  top: var(--route-y);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+}
+
 /* .battle-app is only a style scope for the ported battle stylesheet -- the
    prototype's own root was the page, so it carries no positioning. Every surface
    that renders BattleHud needs it, or the console falls back to unstyled text.

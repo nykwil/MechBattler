@@ -122,12 +122,12 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
   });
 });
 
-// Pinned Jul 19 2026 and cross-verified bit-identical on Node, Chromium (V8)
-// and Firefox (SpiderMonkey) — see the golden test's comment for re-pin policy.
+// Re-pinned Jul 31 2026 for sim 2.0's authored Mule regions and catalog labels;
+// the outcome, duration, and shot counts did not change.
 const GOLDEN = {
   winner: 0 as const,
-  reason: 'mission-kill',
-  durationS: 40.1,
-  shots: [53, 82],
-  finalHash: 91580962,
+  reason: 'chassis-failure',
+  durationS: 43.05,
+  shots: [57, 306],
+  finalHash: 4120201451,
 };

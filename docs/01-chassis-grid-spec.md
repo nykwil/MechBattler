@@ -1,5 +1,11 @@
 # Spec 01 — Chassis Grid
 
+> **Sim 2.0 spatial update:** ordinary combat no longer walks a penetration ray
+> through successive grid cells or kills the reserved core directly. See
+> `mechbattler_spatial_construction_mechanics.md` for the implemented regional,
+> routing, stacking, exposed-ticket, and global chassis-integrity rules. The
+> older ray/core passages below are retained as historical design context.
+
 The unique centerpiece. Parts are polyominoes placed on a masked 2D cell grid; power routing
 is physical; damage is locational. This doc is also home to the **canonical part catalog**
 (placement + mass + HP); power/heat stats live in `02-power-heat-spec.md` and ballistic stats
@@ -40,6 +46,16 @@ everything out. That re-layout *is* the reward gameplay.
 
 ## 3. Power routing (mandatory, physical)
 
+In the regional spatial model, free **Bus** routing handles ordinary runs and
+may occupy both endpoints of a port to cross between regions. A port is also a
+socket: a gun or other equipment fitted directly over one endpoint draws power
+when the linked endpoint is energized. All edge-adjacent fitted components
+conduct the standard 60 kW. `U-CON` is a compact, damageable **Power coupler**
+for filling a deliberate connection point when no useful equipment belongs
+there; Bus routing crosses empty cells without consuming equipment space.
+The legacy flat build rules below remain in force for builds that do not opt into
+spatial routes.
+
 - Every part with a power draw must be **connected** to a reactor.
 - Connection rule: a part is connected if it is **edge-adjacent to a reactor, or
   edge-adjacent to a conduit that has a conduit-path to a reactor**. Diagonals don't count.
@@ -56,6 +72,12 @@ big builds with spread-out parts must spend cells on conduit trunks — the "rer
 everything" fantasy appears exactly when the chassis gets crowded.
 
 ## 4. Heat topology (passive conduction + optional loops)
+
+Likewise, free **Heat pipe** routing may cross a port when its linked endpoints
+are routed. `U-PIPE` is the damageable **Thermal manifold** alternative for
+heat-transfer equipment, including port bridges. Both provide the same 4×
+conduction rate, but only the manifold occupies equipment space and can be
+destroyed.
 
 Full thermal model in `02-power-heat-spec.md`. Grid-relevant rules:
 
@@ -93,8 +115,8 @@ Stats in other columns live in their pillar's spec. Tier drives salvage/repair c
 
 | ID | Name | Shape | Mass | HP | Tier | Placement rules |
 |---|---|---|---|---|---|---|
-| U-CON | Bus (conduit) | 1×1 | 15 kg | 10 | 1 | — |
-| U-PIPE | Sweat (heat pipe) | 1×1 | 20 kg | 10 | 1 | — |
+| U-CON | Power coupler | 1×1 | 15 kg | 10 | 1 | Conductive equipment; can bridge a regional port |
+| U-PIPE | Thermal manifold | 1×1 | 20 kg | 10 | 1 | Heat-transfer equipment; can bridge a regional port |
 | U-RAD | Gill (radiator) | 1×3 | 100 kg | 25 | 2 | Perimeter cells only |
 | U-HS | Brick (heat sink) | 1×1 | 60 kg | 20 | 1 | — |
 | U-ARM | Plate (armor) | 1×1 | 150 kg | 60 | 1 | — |

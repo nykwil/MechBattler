@@ -17,9 +17,7 @@ import {
   type SavedMech,
 } from '@mechbattler/game';
 
-const PROFILE_KEY = 'mechbattler-profile-v2';
-const LEGACY_PROFILE_KEY = 'mechbattler-profile';
-const LEGACY_HISTORY_KEY = 'mechbattler-history';
+const PROFILE_KEY = 'mechbattler-profile-v3';
 export const HISTORY_MAX = 10;
 
 export type Profile = PlayerProfile;
@@ -60,7 +58,7 @@ function readJson(key: string): unknown {
 function loadProfile(): PlayerProfile {
   const current = readJson(PROFILE_KEY);
   if (current) return migrateProfile(current);
-  return migrateProfile(readJson(LEGACY_PROFILE_KEY), readJson(LEGACY_HISTORY_KEY));
+  return defaultProfile();
 }
 
 function save(profile: PlayerProfile): void {
@@ -162,6 +160,8 @@ export function useProfile() {
             origin: part.origin,
             rotation: part.rotation,
           })),
+          routes: structuredClone(record.finalBuild.routes ?? []),
+          chassisIntegrity: record.finalBuild.chassisIntegrity ?? 1,
           powerPriority: record.finalBuild.powerPriority,
         } : undefined,
         unlockedPartIds: record.unlockedPartIds,

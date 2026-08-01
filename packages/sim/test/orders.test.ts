@@ -6,6 +6,7 @@ import {
 } from '../src/combat.js';
 import { TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
+import { getChassis } from '../src/chassis.js';
 
 function muleGunline(): Build {
   const parts: PlacedPart[] = [
@@ -64,7 +65,7 @@ describe('the order channel (RTS verbs, docs/03 §7)', () => {
     expect(report.arena).toEqual({ lengthM: 240, widthM: 240 });
     const first = report.frames[0]!;
     expect(first.mechs[0].x).toBeLessThan(first.mechs[1].x); // mech 0 spawns on -x
-    expect(first.mechs[0].coreHp).toBe(50);
+    expect(first.mechs[0].coreHp).toBe(getChassis('CH-5').maxIntegrity);
 
     const bare = runBattle({ builds: [muleGunline(), muleGunline()], seed: 31, recordFrames: false });
     expect(bare.frames).toEqual([]);

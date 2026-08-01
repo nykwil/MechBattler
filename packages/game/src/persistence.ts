@@ -1,14 +1,9 @@
 import { TEMPLATES, checkPlacement, getChassis, getPart, type Build } from '@mechbattler/sim';
-import type { Profile as LegacyProfile, RunRecord as LegacyRunRecord } from './legacy-types.js';
 import { GAME_CONTENT } from './content.js';
-import { buildToMech } from './domain.js';
 import { generateRunNodes } from './nodes.js';
 import {
   GAME_SAVE_VERSION,
-  type LegacyStoredRun,
-  type PartInstance,
   type PlayerProfile,
-  type RunHistoryRecord,
   type RunInstance,
   type SavedMech,
 } from './types.js';
@@ -53,30 +48,11 @@ export function migrateProfile(raw: unknown, legacyHistory: unknown = []): Playe
     current.savedMechs ??= legalStarterBlueprint(current.unlockedChassisIds, current.unlockedPartIds);
     return current;
   }
-  const legacy = (raw && typeof raw === 'object' ? raw : {}) as Partial<LegacyProfile>;
-  const legacyPartIds = legacy.unlockedParts ?? [];
-  const unlockedPartIds = [...new Set([...GAME_CONTENT.initialPartIds, ...legacyPartIds])];
-  const unlockedChassisIds = [
-    ...new Set([...GAME_CONTENT.initialChassisIds, ...(legacy.unlockedChassis ?? [])]),
-  ];
-  const records = Array.isArray(legacyHistory) ? legacyHistory as LegacyRunRecord[] : [];
-  const history: RunHistoryRecord[] = records.map((record, index) => ({
-    runId: `legacy-${index}`,
-    kitName: record.kitName,
-    fightsWon: record.fightsWon,
-    cause: record.cause,
-    victorious: record.victorious,
-    endedAt: record.endedAt,
-  }));
-  return {
-    schemaVersion: GAME_SAVE_VERSION,
-    unlockedChassisIds,
-    unlockedPartIds,
-    completedChallengeIds: [],
-    grandfatheredPartIds: [...legacyPartIds],
-    savedMechs: legalStarterBlueprint(unlockedChassisIds, unlockedPartIds),
-    history,
-  };
+  // v3 deliberately resets all older progression/build/run formats. Spatial
+  // topology changes placement and damage semantics too deeply to pretend an
+  // old blueprint is the same machine.
+  void legacyHistory;
+  return defaultProfile();
 }
 
 function pristineBlueprint(build: Build): Build {
@@ -89,6 +65,8 @@ function pristineBlueprint(build: Build): Build {
       rotation: part.rotation,
       integrity: 1,
     })),
+    routes: structuredClone(build.routes ?? []),
+    chassisIntegrity: 1,
     powerPriority: [...build.powerPriority],
   };
 }
@@ -161,35 +139,9 @@ export function migrateRun(raw: unknown): RunInstance | null {
     current.earnedPartIds ??= [];
     current.earnedChallengeIds ??= [];
     current.events ??= [];
+    current.mech.routes ??= [];
+    current.mech.chassisIntegrity ??= 1;
     return current;
   }
-  const legacy = raw as Partial<LegacyStoredRun>;
-  if (!legacy.data || !legacy.build) return null;
-  const bench: PartInstance[] = (legacy.data.benchPool ?? []).map((part, index) => ({
-    id: `legacy-bench-${legacy.data!.seed}-${index}`,
-    partId: part.partId,
-    integrity: part.integrity,
-    modifiers: part.modifiers,
-    variant: part.variant,
-    provenance: { source: 'legacy' },
-  }));
-  return {
-    schemaVersion: GAME_SAVE_VERSION,
-    id: `run-${legacy.data.seed.toString(16)}`,
-    seed: legacy.data.seed,
-    status: legacy.prep ? 'prep' : 'active',
-    nodeIndex: legacy.data.nodeIndex,
-    scrap: legacy.data.scrap,
-    fightsWon: legacy.data.fightsWon,
-    battlesCompleted: legacy.data.fightsWon,
-    kitName: legacy.data.kitName,
-    earnedChassisIds: [],
-    earnedPartIds: [],
-    earnedChallengeIds: [],
-    generatedNodes: generateRunNodes(legacy.data.seed),
-    mech: buildToMech(legacy.build, 'legacy'),
-    bench,
-    yardRerolled: legacy.data.yardRerolled,
-    events: [],
-  };
+  return null;
 }

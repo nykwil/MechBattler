@@ -30,7 +30,7 @@ export interface SpeedProfile {
 
 /** docs/03-combat-spec.md §3: load and CoG-offset modifiers on chassis-rated speeds. */
 export function computeSpeedProfile(chassis: ChassisSpec, build: Build): SpeedProfile {
-  const massAndCoG = computeMassAndCoG(chassis, build.parts);
+  const massAndCoG = computeMassAndCoG(chassis, build.parts, build.routes);
   const scaled = computeLoadScaledSpeeds(chassis, massAndCoG);
   const connected = computeConnectivity(build.parts).connectedInstanceIds;
   const boost = computePartSpeedMultiplier(build.parts, (part) => connected.has(part.instanceId));

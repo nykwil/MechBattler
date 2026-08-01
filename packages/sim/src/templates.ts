@@ -19,6 +19,52 @@ function part(instanceId: string, partId: string, x: number, y: number, rotation
   return { instanceId, partId, origin: { x, y }, rotation, integrity: 1 };
 }
 
+function regionalPart(
+  instanceId: string,
+  partId: string,
+  regionId: string,
+  x: number,
+  y: number,
+  rotation: 0 | 90 | 180 | 270 = 0,
+): PlacedPart {
+  return { instanceId, partId, origin: { regionId, x, y }, rotation, integrity: 1 };
+}
+
+/** Spatial-system teaching build: ports, routes, a full turret stack, and redundancy. */
+export function muleSpatialDemo(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-E25', 'body', 0, 3),
+    regionalPart('turret', 'U-TUR', 'left-shoulder', 1, 0),
+    regionalPart('mg', 'W-MG', 'left-shoulder', 1, 0),
+    regionalPart('shell', 'U-SHELL', 'left-shoulder', 1, 0),
+    regionalPart('carbine', 'W-CB', 'right-shoulder', 3, 0),
+    regionalPart('sink', 'U-HS', 'right-shoulder', 5, 1),
+  ];
+  return {
+    chassisId: 'CH-5',
+    parts,
+    routes: [
+      { kind: 'wire', regionId: 'body', x: 0, y: 2 },
+      { kind: 'wire', regionId: 'body', x: 1, y: 2 },
+      { kind: 'wire', regionId: 'left-shoulder', x: 2, y: 1 },
+      { kind: 'wire', regionId: 'body', x: 2, y: 3 },
+      { kind: 'wire', regionId: 'body', x: 3, y: 2 },
+      { kind: 'wire', regionId: 'body', x: 4, y: 2 },
+      { kind: 'wire', regionId: 'right-shoulder', x: 3, y: 1 },
+      { kind: 'wire', regionId: 'right-shoulder', x: 4, y: 1 },
+      // Bus and heat pipe share these cells without consuming equipment space.
+      { kind: 'coolant', regionId: 'body', x: 0, y: 2 },
+      { kind: 'coolant', regionId: 'body', x: 1, y: 2 },
+      { kind: 'coolant', regionId: 'left-shoulder', x: 2, y: 1 },
+      { kind: 'coolant', regionId: 'body', x: 4, y: 2 },
+      { kind: 'coolant', regionId: 'right-shoulder', x: 3, y: 1 },
+      { kind: 'coolant', regionId: 'right-shoulder', x: 4, y: 1 },
+    ],
+    chassisIntegrity: 1,
+    powerPriority: [CORE_INSTANCE_ID, 'carbine', 'turret', 'mg'],
+  };
+}
+
 /**
  * CH-2 Vulture starter, kernel retuned Jul 2026 (docs/07): the original
  * twin-MG loadout forced a 16-cell scout to cross 60+ m of fire to reach its
@@ -48,19 +94,17 @@ function muleGunline(): Build {
     part('ac', 'W-AC', 1, 3),
     part('con1', 'U-CON', 3, 3),
     part('rad', 'U-RAD', 1, 0),
-    part('arm1', 'U-ARM', 2, 1),
-    part('arm2', 'U-ARM', 4, 0),
   ];
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'ac'] };
 }
 
 /**
  * CH-5 twin-MG brawler: cheap sustained fire, electric and cool. The final
- * Build Week fitting pass added two front-row plates after fixed-seed battle
+ * Build Week fitting pass added front-row plating after fixed-seed battle
  * telemetry showed range access -- not heat or power -- was the generalist's
  * failure: it lost both MGs before closing against longer-ranged builds.
- * Keeping the twin-MG keystone preserves its brawler identity; the two cheap
- * plates are exactly the fitting-only recovery that docs/05 R10 calls for.
+ * Keeping the twin-MG keystone preserves its brawler identity; the cheap
+ * plates are the fitting-only recovery that docs/05 R10 calls for.
  */
 function muleSkirmisher(): Build {
   const parts: PlacedPart[] = [
@@ -72,7 +116,6 @@ function muleSkirmisher(): Build {
     part('arm1', 'U-ARM', 2, 0),
     part('arm2', 'U-ARM', 3, 0),
     part('arm3', 'U-ARM', 1, 0),
-    part('arm4', 'U-ARM', 4, 0),
   ];
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
 }
@@ -95,9 +138,7 @@ function muleLaserBoat(): Build {
     part('las2', 'W-LAS', 2, 0), // (2,0),(3,0),(4,0) -> (3,0) touches reactorC
     part('pipe', 'U-PIPE', 2, 4),
     part('rad', 'U-RAD', 1, 5), // (1,5),(2,5),(3,5)
-    part('cap', 'P-CAP', 4, 3, 90), // (4,3),(4,4)
     part('arm1', 'U-ARM', 0, 3),
-    part('arm2', 'U-ARM', 5, 3),
   ];
   // Stop-and-pop doctrine (docs/02 §2): guns above locomotion, so the boat
   // plants itself to keep both lasers charged instead of browning one out.
@@ -200,3 +241,11 @@ export const TEMPLATES: TemplateDef[] = [
   { id: 'vulture-sniper', name: 'Vulture Sniper', blurb: 'Fast carbine kiter; ram-air cooled, fragile.', build: vultureSniper() },
   { id: 'bastion-tank', name: 'Bastion Tank', blurb: 'Slow armored siege gun; stable, deletes up close.', build: bastionTank() },
 ];
+
+/** Factory teaching blueprint, kept outside the canonical balance cohort. */
+export const SPATIAL_DEMO_TEMPLATE: TemplateDef = {
+  id: 'mule-spatial-demo',
+  name: 'Mule Spatial Rig',
+  blurb: 'Three regions, routed ports, armoured turret, and a fragile pod chain.',
+  build: muleSpatialDemo(),
+};

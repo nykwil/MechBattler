@@ -49,9 +49,9 @@ describe('DamageGrid', () => {
     expect(container.querySelector('.dmg')?.getAttribute('aria-label')).toContain('0 parts destroyed');
   });
 
-  it('reports core state in the accessible name', () => {
+  it('reports chassis state in the accessible name', () => {
     expect(renderGrid([], 0, 0.5).querySelector('.dmg')?.getAttribute('aria-label'))
-      .toContain('core at 50%');
+      .toContain('chassis at 50%');
     // A dead core turns the cell red rather than dimming a blue one to nothing.
     expect(renderGrid([], 0, 0).innerHTML).toContain('--signal-red');
   });

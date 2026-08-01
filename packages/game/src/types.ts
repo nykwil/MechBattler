@@ -1,6 +1,6 @@
 import type { BattleReport, Build, PlacedPart, Rotation } from '@mechbattler/sim';
 
-export const GAME_SAVE_VERSION = 2;
+export const GAME_SAVE_VERSION = 3;
 export const MATCH_SAVE_VERSION = 1;
 export const CHECKPOINT_SAVE_VERSION = 1;
 
@@ -27,6 +27,8 @@ export interface InstalledPart extends PartInstance {
 export interface MechInstance {
   chassisId: string;
   parts: InstalledPart[];
+  routes?: Build['routes'];
+  chassisIntegrity: number;
   powerPriority: string[];
 }
 
@@ -246,6 +248,7 @@ export interface EconomyConfig {
   scrapyardBuyMultiplier: number;
   extractionWearMax: number;
   repairCostPerPoint: number;
+  chassisRepairCostPerPoint: number;
   machinistBaseCost: number;
   chassisRecoveryBaseCost: number;
   chassisRecoveryPerCell: number;

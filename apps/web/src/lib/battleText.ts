@@ -1,7 +1,8 @@
-import { getPart, CORE_INSTANCE_ID, type BattleEvent, type BattleReport, type MechOrder } from '@mechbattler/sim';
+import { getPart, CHASSIS_INSTANCE_ID, CORE_INSTANCE_ID, type BattleEvent, type BattleReport, type MechOrder } from '@mechbattler/sim';
 
 export function partName(partId: string): string {
   if (partId === CORE_INSTANCE_ID) return 'Core';
+  if (partId === CHASSIS_INSTANCE_ID) return 'Chassis';
   return getPart(partId).name;
 }
 
@@ -12,6 +13,7 @@ export function fmtTime(tSec: number): string {
 }
 
 export const REASON_TEXT: Record<BattleReport['reason'], string> = {
+  'chassis-failure': 'chassis integrity failed',
   'core-kill': 'core destroyed',
   'mission-kill': 'mission kill — no functional weapons, surrender',
   judges: "judges' decision — most functional mass remaining",

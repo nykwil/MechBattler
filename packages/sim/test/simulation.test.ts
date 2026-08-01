@@ -111,13 +111,10 @@ describe('radiators measurably reduce heat (docs/02 §3-4)', () => {
     const withRadiator = run(buildWithLaser(true));
 
     expect(withRadiator.peak).toBeLessThan(withoutRadiator.peak);
-    // docs/02 §5's "no radiator shuts down after ~40s" is a rough design-time
-    // estimate; the real tick simulation (measured, not guessed -- rule R5)
-    // puts it closer to ~70s for this exact fixture, but the qualitative
-    // claim -- heat has nowhere to go without a radiator, so it eventually
-    // shuts down -- holds.
-    expect(withoutRadiator.everShutdown).toBe(true);
-    // docs/02 §5: one radiator keeps it hovering below the 130C shutdown line.
+    // Exterior cells now shed 0.01 kW/°C passively, so this exposed laser
+    // stabilizes below shutdown even without a radiator; the radiator still
+    // buys a large, measurable safety margin.
+    expect(withoutRadiator.peak).toBeGreaterThan(100);
     expect(withRadiator.everShutdown).toBe(false);
   });
 });

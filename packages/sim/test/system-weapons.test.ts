@@ -25,7 +25,8 @@ function shooterWith(weaponId: string): Build {
       part('con', 'U-CON', 2, 1),
       part('wpn', weaponId, 0, 1),
     ],
-    powerPriority: [CORE_INSTANCE_ID, 'wpn'],
+    // Gun first so the 30 kW charged Static is not shed behind locomotion.
+    powerPriority: ['wpn', CORE_INSTANCE_ID],
   };
 }
 
@@ -89,19 +90,21 @@ describe('the weapons cook and drain in a real battle', () => {
       return peak;
     };
     expect(peakEnemyTemp('W-MG')).toBeLessThan(35);   // MG deposits no enemy heat
-    expect(peakEnemyTemp('W-SC')).toBeGreaterThan(70); // flamer cooks it
+    // Most accurate hits land on chassis tickets now; equipment hits still
+    // carry enough Scald heat to rise clearly above the inert MG control.
+    expect(peakEnemyTemp('W-SC')).toBeGreaterThan(40);
   });
 
   it('the ion cannon leaves a cap-fed enemy with less stored charge than an MG does', () => {
-    // A railgun mule banks charge in a Reservoir; under ion fire it should hold
-    // measurably less at the sampled tick than under harmless MG fire.
+    // An idle Reservoir stays full under MG fire; Static drains it on every
+    // successful mech hit, including a chassis-ticket impact.
     const railTarget: Build = {
       chassisId: 'CH-5',
       parts: [
         part('reactor', 'R-C40', 3, 1), part('cap', 'P-CAP2', 3, 3),
-        part('con', 'U-CON', 2, 1), part('rg', 'W-RG', 0, 0),
+        part('con', 'U-CON', 2, 1), part('arm', 'U-ARM', 0, 0),
       ],
-      powerPriority: [CORE_INSTANCE_ID, 'rg'],
+      powerPriority: [CORE_INSTANCE_ID],
     };
     const enemyCharge = (weaponId: string): number => {
       const battle = new Battle({
@@ -116,6 +119,6 @@ describe('the weapons cook and drain in a real battle', () => {
 
   it('a flamer-armed mech still resolves a battle to a normal decision', () => {
     const report = runBattle({ builds: [shooterWith('W-SC'), targetDummyBuild()], seed: 1, spawnDistanceM: 30 });
-    expect(['core-kill', 'mission-kill', 'judges']).toContain(report.reason);
+    expect(['chassis-failure', 'mission-kill', 'judges']).toContain(report.reason);
   });
 });

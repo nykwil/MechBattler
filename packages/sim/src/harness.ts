@@ -89,7 +89,7 @@ export function runRoundRobin(
       const b = templates[j]!;
       const result: MatchupResult = {
         a: a.id, b: b.id, aWins: 0, bWins: 0, draws: 0, avgDurationS: 0,
-        reasons: { 'core-kill': 0, 'mission-kill': 0, judges: 0 },
+        reasons: { 'chassis-failure': 0, 'core-kill': 0, 'mission-kill': 0, judges: 0 },
       };
       for (let s = 0; s < seedsPerPair; s++) {
         // Alternate spawn sides so any side asymmetry washes out.

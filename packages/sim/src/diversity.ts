@@ -78,8 +78,6 @@ function widowGunshipControl(): Build {
     placed('arm2', 'U-ARM', 2, 1),
     placed('arm3', 'U-ARM', 3, 1),
     placed('arm4', 'U-ARM', 0, 3),
-    placed('arm5', 'U-ARM', 6, 3),
-    placed('arm6', 'U-ARM', 3, 5),
   ];
   return { chassisId: 'CH-7', parts, powerPriority: ['__core__', 'act', 'ac'] };
 }
@@ -196,7 +194,7 @@ export function auditPartDifferentiation(): PartDifferentiationFinding[] {
     { parts: 'R-E25 vs R-C40', verdict: 'distinct', evidence: '25 kW instant/cool electric vs 40 kW lagged/hot combustion at the same tier.' },
     { parts: 'W-CB vs W-LAS', verdict: 'overlap-watch', evidence: 'Similar precision bands; carbine pays continuous tracking/recoil while laser pays charge spikes, hitscan premium, and heat.' },
     { parts: 'W-MG vs W-AC', verdict: 'distinct', evidence: '2-cell cheap close saturation vs 6-cell midrange recoil platform with 8x damage packets.' },
-    { parts: 'U-TC1 vs gyrostabilized', verdict: 'distinct', evidence: 'TC counters target lateral motion for 3 kW; gyro counters own motion but adds 25% weapon mass.' },
+    { parts: 'U-TC1 vs gyrostabilized', verdict: 'distinct', evidence: 'TC counters target lateral motion for 3 kW; gyro counters own motion but adds substantial weapon mass.' },
     { parts: 'U-ACT', verdict: 'distinct', evidence: '2 cells + 4 kW buy a capped 15% translation-speed boost; perk variants bend terrain or stillness.' },
     { parts: 'U-AMMO', verdict: 'dead-placeholder', evidence: 'Adds cook-off risk but ballistics do not consume ammo yet; not a positive fitting choice until Track C ammo lands.' },
   ];

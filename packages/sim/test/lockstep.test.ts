@@ -104,7 +104,7 @@ describe('20 Hz manual response (docs/11 M2)', () => {
     ls.runToEnd();
     expect(ls.finished).toBe(true);
     const report = ls.battle.report();
-    expect(['core-kill', 'mission-kill', 'judges']).toContain(report.reason);
+    expect(['chassis-failure', 'mission-kill', 'judges']).toContain(report.reason);
   });
 });
 

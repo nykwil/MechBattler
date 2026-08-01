@@ -31,7 +31,7 @@ export function DamageGrid({
   build: Build;
   events: BattleEvent[];
   tSec: number;
-  /** 0..1 of core HP, which tints the core cell as the prototype does. */
+  /** 0..1 of global chassis integrity, represented by the central body marker. */
   coreFrac: number;
   onOpen?: () => void;
 }) {
@@ -46,7 +46,7 @@ export function DamageGrid({
       // `mech` on a shot is the shooter, so the opponent's shots are our damage.
       if (e.type === 'shot' && e.mech === 1) {
         for (const d of e.damaged ?? []) {
-          if (d.instanceId === '__core__') continue;
+          if (d.instanceId === '__core__' || d.instanceId === '__chassis__') continue;
           taken.set(d.instanceId, (taken.get(d.instanceId) ?? 0) + d.damage);
         }
       }
@@ -116,7 +116,7 @@ export function DamageGrid({
       type="button"
       className="dmg"
       onClick={onOpen}
-      aria-label={`Your mech — ${lost} ${lost === 1 ? 'part' : 'parts'} destroyed, core at ${Math.round(coreFrac * 100)}%`}
+      aria-label={`Your mech — ${lost} ${lost === 1 ? 'part' : 'parts'} destroyed, chassis at ${Math.round(coreFrac * 100)}%`}
     >
       <span
         className="dmg-grid"

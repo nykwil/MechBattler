@@ -1,7 +1,7 @@
 /**
  * Grid placement, connectivity, and mass/CoG. See docs/01-chassis-grid-spec.md.
  */
-import type { CellOffset, ChassisSpec, PartDef, PlacedPart, Rotation } from './types.js';
+import type { CellOffset, CellRef, ChassisSpec, PartDef, PlacedPart, Rotation, RouteCell } from './types.js';
 import { getPart } from './catalog.js';
 import { STATIC_CTX, effectiveMults } from './modifiers.js';
 import { dhypot } from './dmath.js';
@@ -18,11 +18,12 @@ export function rotateShape(shape: CellOffset[], rotation: Rotation): CellOffset
 }
 
 /** Absolute occupied cells for a placed part, normalized so the min corner sits at origin+offset. */
-export function getOccupiedCells(placed: PlacedPart, partDef: PartDef): { x: number; y: number }[] {
+export function getOccupiedCells(placed: PlacedPart, partDef: PartDef): CellRef[] {
   const rotated = rotateShape(partDef.shape, placed.rotation);
   const minDx = Math.min(...rotated.map((c) => c.dx));
   const minDy = Math.min(...rotated.map((c) => c.dy));
   return rotated.map((c) => ({
+    ...(placed.origin.regionId ? { regionId: placed.origin.regionId } : {}),
     x: placed.origin.x + (c.dx - minDx),
     y: placed.origin.y + (c.dy - minDy),
   }));
@@ -46,7 +47,10 @@ function parseCellKey(key: string): [number, number] {
 }
 
 export interface PlacementError {
-  reason: 'out-of-mask' | 'overlap' | 'perimeter-required' | 'core-occupied';
+  reason:
+    | 'out-of-mask' | 'overlap' | 'perimeter-required' | 'core-occupied'
+    | 'out-of-region' | 'route-on-equipment' | 'duplicate-route'
+    | 'incompatible-stack' | 'footprint-mismatch';
 }
 
 /** Checks whether `candidate` can legally be placed given the parts already on the chassis. */
@@ -337,7 +341,7 @@ export function computePartSpeedMultiplier(
   return mult;
 }
 
-export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): MassAndCoG {
+export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[], routes: RouteCell[] = []): MassAndCoG {
   const structuralMassKg = chassis.ratedMassT * 1000 * 0.3;
   const center = { x: (chassis.width - 1) / 2, y: (chassis.height - 1) / 2 };
   const halfDiagonal = dhypot(chassis.width / 2, chassis.height / 2);
@@ -356,6 +360,12 @@ export function computeMassAndCoG(chassis: ChassisSpec, parts: PlacedPart[]): Ma
       momentX += perCellMass * c.x;
       momentY += perCellMass * c.y;
     }
+  }
+  for (const route of routes) {
+    const routeMassKg = route.kind === 'wire' ? 15 : 20;
+    massKg += routeMassKg;
+    momentX += routeMassKg * route.x;
+    momentY += routeMassKg * route.y;
   }
 
   const cog = massKg > 0 ? { x: momentX / massKg, y: momentY / massKg } : center;

@@ -82,8 +82,8 @@ export function chipsFor(def: PartDef): Chip[] {
   }
 
   switch (def.id) {
-    case 'U-CON': chips.push({ text: 'routes power', kind: 'note' }); break;
-    case 'U-PIPE': chips.push({ text: 'moves heat ×4', kind: 'heat' }); break;
+    case 'U-CON': chips.push({ text: 'bridges power', kind: 'note' }); break;
+    case 'U-PIPE': chips.push({ text: 'bridges heat ×4', kind: 'heat' }); break;
     case 'U-RAD': chips.push({ text: 'cools 6 kW', kind: 'cool' }); break;
     case 'U-HS': chips.push({ text: 'soaks heat ×6', kind: 'cool' }); break;
     case 'U-AMMO': chips.push({ text: 'cook-off @ 180°C', kind: 'dmg' }); break;

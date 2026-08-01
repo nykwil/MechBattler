@@ -191,24 +191,30 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'fever-cycle': {
     id: 'fever-cycle', name: 'Fever cycle', kind: 'mod',
-    blurb: 'hotter than 50 °C cycles faster · weapon draw ×1.25',
-    tradeoff: 'Pays 25% more power at every temperature and must sustain a hot firing rhythm.',
+    blurb: 'hotter than 50 °C cycles faster · weapon draw ×1.15',
+    tradeoff: 'Pays 15% more power at every temperature and must sustain a hot firing rhythm.',
     maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    // 50 °C → ×1.0, 100 °C → ×0.5. The onset is above a cold weapon's
+    // 50 °C → ×1.0, 100 °C → ×0.85. The onset is above a cold weapon's
     // normal operating band but reachable by a deliberately hot-running fit.
     apply: (m, ctx) => {
-      m.drawKw *= 1.25;
-      m.cycleS *= Math.max(0.5, 1 - Math.max(0, ctx.tempC - 50) * 0.01);
+      m.drawKw *= 1.15;
+      m.cycleS *= Math.max(0.85, 1 - Math.max(0, ctx.tempC - 50) * 0.003);
     },
   },
   'cold-bore': {
     id: 'cold-bore', name: 'Cold bore', kind: 'mod',
-    blurb: 'dispersion ×0.5 below 40 °C · damage ×0.9 always',
-    tradeoff: 'Trades 10% damage for an overcooled opening accuracy window.',
+    blurb: 'below 40 °C: dispersion ×0.5, damage ×1.15 · damage ×0.95 always',
+    tradeoff: 'Gets a hard overcooled opening, then deals 5% less damage after warming.',
     maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    apply: (m, ctx) => { m.damage *= 0.9; if (ctx.tempC < 40) m.dispersionMrad *= 0.5; },
+    apply: (m, ctx) => {
+      m.damage *= 0.95;
+      if (ctx.tempC < 40) {
+        m.damage *= 1.15;
+        m.dispersionMrad *= 0.5;
+      }
+    },
   },
   'tidecooler': {
     id: 'tidecooler', name: 'Tidecooler', kind: 'mod',
@@ -218,11 +224,11 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'gyrostabilized': {
     id: 'gyrostabilized', name: 'Gyrostabilized', kind: 'mod',
-    blurb: 'own movement aim jitter ×0.5 · weapon mass ×1.25',
-    tradeoff: 'The reinforced mount adds 25% weapon mass and worsens load/CoG pressure.',
+    blurb: 'own movement aim jitter ×0.75 · weapon mass ×1.35',
+    tradeoff: 'The reinforced mount adds 35% weapon mass and worsens load/CoG pressure.',
     maxCopiesPerBuild: 1,
     appliesTo: isWeapon,
-    apply: (m) => { m.moveJitter *= 0.5; m.massKg *= 1.25; },
+    apply: (m) => { m.moveJitter *= 0.75; m.massKg *= 1.35; },
   },
   'hull-down': {
     id: 'hull-down', name: 'Hull-down suspension', kind: 'mod',

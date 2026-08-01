@@ -61,7 +61,7 @@ export interface RunBalanceReport {
   totals: {
     runs: number;
     completed: number;
-    coreLosses: number;
+    chassisLosses: number;
     attemptLimitLosses: number;
     matches: number;
     playerWins: number;
@@ -78,7 +78,7 @@ export interface RunBalanceReport {
     avgInstalledParts: number;
     matches: number;
     winRate: number;
-    coreLossRate: number;
+    chassisLossRate: number;
     avgDurationS: number;
     avgPlayerDamage: number;
   }>;
@@ -118,7 +118,7 @@ export interface CheckpointMatchBalanceReport {
     checkpoints: number;
     matches: number;
     winRate: number;
-    coreLossRate: number;
+    chassisLossRate: number;
     avgDurationS: number;
     avgPlayerDamage: number;
     avgPlayerPartsLost: number;
@@ -212,7 +212,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
   const errors: string[] = [];
   const warnings: string[] = [];
   let completed = 0;
-  let coreLosses = 0;
+  let chassisLosses = 0;
   let attemptLimitLosses = 0;
   let runCount = 0;
   let chassisRecoveries = 0;
@@ -292,7 +292,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
         }
       }
       if (run.victorious) completed++;
-      else if (run.cause?.startsWith('Core destroyed')) coreLosses++;
+      else if (run.cause?.endsWith(': chassis-failure')) chassisLosses++;
     }
   }
 
@@ -330,8 +330,8 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
       winRate: round(
         depthMatches.filter((match) => match.won).length / Math.max(1, depthMatches.length),
       ),
-      coreLossRate: round(
-        depthMatches.filter((match) => match.winner === 1 && match.reason === 'core-kill').length
+      chassisLossRate: round(
+        depthMatches.filter((match) => match.winner === 1 && match.reason === 'chassis-failure').length
         / Math.max(1, depthMatches.length),
       ),
       avgDurationS: round(mean(depthMatches.map((match) => match.durationS))),
@@ -352,7 +352,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
   const totals = {
     runs: runCount,
     completed,
-    coreLosses,
+    chassisLosses,
     attemptLimitLosses,
     matches: matchRecords.length,
     playerWins: matchRecords.filter((match) => match.winner === 0).length,
@@ -483,8 +483,8 @@ export function runCheckpointMatchHarness(
           depthMatches.filter((record) => record.winner === 0).length
           / Math.max(1, depthMatches.length),
         ),
-        coreLossRate: round(
-          depthMatches.filter((record) => record.winner === 1 && record.reason === 'core-kill').length
+        chassisLossRate: round(
+          depthMatches.filter((record) => record.winner === 1 && record.reason === 'chassis-failure').length
           / Math.max(1, depthMatches.length),
         ),
         avgDurationS: round(mean(depthMatches.map((record) => record.durationS))),

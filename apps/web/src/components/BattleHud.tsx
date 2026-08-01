@@ -1,6 +1,6 @@
 import { useMemo, type ReactNode } from 'react';
 import {
-  getChassis, getPart, CELL_SIZE_M, CORE_HP, TICK_S,
+  getChassis, getPart, CELL_SIZE_M, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
   computeHitModel, effectiveMults, meanSilhouetteHalfWidthM, FOREST_COVER_MULT,
   MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
@@ -592,6 +592,8 @@ export function BattleScene({
   if (!frame) return null;
   const you = frame.mechs[0];
   const foe = frame.mechs[1];
+  const yourBodyMax = getChassis(view.mechs[0].chassisId).maxIntegrity;
+  const foeBodyMax = getChassis(view.mechs[1].chassisId).maxIntegrity;
 
   /*
    * Evade: your crossing speed across THEIR line of sight, which is how hard you
@@ -617,8 +619,8 @@ export function BattleScene({
       {/* Enemy strip (compact mirror of the cockpit). */}
       <div className="hud-enemy" style={{ borderColor: MECH_COLORS[1] }}>
         <span className="hud-name" style={{ color: MECH_TEXT_COLORS[1] }}>{names[1]}</span>
-        <span className="hud-meter" title="Core HP">
-          <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, foe.coreHp)) / CORE_HP}%` }} />
+        <span className="hud-meter" title="Chassis integrity">
+          <span className="hud-meter-fill core" style={{ width: `${(100 * Math.max(0, foe.coreHp)) / foeBodyMax}%` }} />
         </span>
         <span className="hud-meter" title="Functional mass">
           <span className="hud-meter-fill mass" style={{ width: `${100 * foe.functionalMassFrac}%` }} />
@@ -797,15 +799,15 @@ export function BattleScene({
               build={yourBuild}
               events={view.events}
               tSec={tSec}
-              coreFrac={Math.max(0, you.coreHp) / CORE_HP}
+              coreFrac={Math.max(0, you.coreHp) / yourBodyMax}
               onOpen={onOpenLog}
             />
           )}
           <div className="con-bars">
             <div className="cbar">
-              <span className="cbar-k">Core</span>
+              <span className="cbar-k">Body</span>
               <span className="cbar-t">
-                <i className="cbar-f core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / CORE_HP}%` }} />
+                <i className="cbar-f core" style={{ width: `${(100 * Math.max(0, you.coreHp)) / yourBodyMax}%` }} />
               </span>
               <span className="cbar-v">{Math.max(0, Math.round(you.coreHp))}</span>
             </div>

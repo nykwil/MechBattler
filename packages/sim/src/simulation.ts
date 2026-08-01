@@ -23,6 +23,7 @@
 import type { ChassisSpec, PlacedPart, Build } from './types.js';
 import { getPart } from './catalog.js';
 import { computeCoreNetwork, computeLoadScaledSpeeds, computeMassAndCoG, computePowerNetworks } from './grid.js';
+import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
 import {
   AMBIENT_C,
   CORE_INSTANCE_ID,
@@ -31,6 +32,7 @@ import {
   buildThermalModel,
   type ThermalModel,
 } from './thermal.js';
+import { EXTERIOR_PASSIVE_K, buildSpatialOccupancy } from './spatial.js';
 import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
 import type { TerrainType } from './terrain.js';
 
@@ -143,6 +145,7 @@ export class Simulation {
   private runtime = new Map<string, InstanceRuntime>();
   private networks: ReturnType<typeof computePowerNetworks>['networks'];
   private networkIdByInstance = new Map<string, string>();
+  private routeCapacityKwByInstance = new Map<string, number>();
   private coreNetworkId: string | null;
   /** Load- and CoG-derated forward speed (docs/03 §3), shared with derivedStats.ts's workshop stats. */
   private loadScaledFwdMps: number;
@@ -152,24 +155,45 @@ export class Simulation {
   private firstPriorityIds = new Set<string>();
   /** Capacitor instances that harvest their cells' heat into charge (Thermocouple skin). */
   private heatHarvestIds = new Set<string>();
+  private coveredHeatMultByInstance = new Map<string, number>();
 
   constructor(chassis: ChassisSpec, build: Build) {
     this.chassis = chassis;
     this.build = build;
     this.parts = build.parts;
-    this.thermal = buildThermalModel(chassis, build.parts);
-    const massAndCoG = computeMassAndCoG(chassis, build.parts);
+    this.thermal = buildThermalModel(chassis, build.parts, build.routes);
+    const massAndCoG = computeMassAndCoG(chassis, build.parts, build.routes);
     this.massT = massAndCoG.totalMassT;
     this.loadScaledFwdMps = computeLoadScaledSpeeds(chassis, massAndCoG).fwd;
 
-    const { networks } = computePowerNetworks(build.parts);
+    const spatialPower = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
+    const { networks } = spatialPower ?? computePowerNetworks(build.parts);
     this.networks = networks;
     for (const net of networks) {
       for (const id of [...net.reactorInstanceIds, ...net.memberInstanceIds]) {
         this.networkIdByInstance.set(id, net.networkId);
       }
+      for (const [id, capacity] of Object.entries(
+        (net as typeof net & { capacityKwByInstance?: Record<string, number> }).capacityKwByInstance ?? {},
+      )) this.routeCapacityKwByInstance.set(id, capacity);
     }
-    this.coreNetworkId = computeCoreNetwork(chassis, build.parts);
+    this.coreNetworkId = spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(chassis, build.parts);
+
+    const spatialOccupancy = buildSpatialOccupancy(chassis, build);
+    for (const stack of spatialOccupancy.stacksByCell.values()) {
+      const shell = [...stack].reverse().find((entry) =>
+        getPart(entry.partId).spatial?.coveredHeatMultiplier !== undefined);
+      if (!shell) continue;
+      const mult = getPart(shell.partId).spatial?.coveredHeatMultiplier ?? 1;
+      for (const entry of stack) {
+        if (entry.instanceId !== shell.instanceId) {
+          this.coveredHeatMultByInstance.set(
+            entry.instanceId,
+            Math.max(mult, this.coveredHeatMultByInstance.get(entry.instanceId) ?? 1),
+          );
+        }
+      }
+    }
 
     for (const p of build.parts) {
       const def = getPart(p.partId);
@@ -186,6 +210,11 @@ export class Simulation {
       if (staticM.harvestsHeat) this.heatHarvestIds.add(p.instanceId);
     }
     this.runtime.set(CORE_INSTANCE_ID, freshRuntime());
+    // Victory wrecks remain installed at 0% condition. They occupy/protect
+    // cells but must not conduct power or function until repaired.
+    for (const p of build.parts) {
+      if (p.integrity <= 0) this.destroyPart(p.instanceId);
+    }
   }
 
   /** Capacitor charge levels in build-parts order — for lockstep state hashing. */
@@ -253,15 +282,22 @@ export class Simulation {
     }
 
     const active = this.parts.filter((p) => !this.isDestroyed(p.instanceId));
-    const { networks } = computePowerNetworks(active);
+    const spatialPower = usesSpatialSystems(this.build)
+      ? resolveSpatialPower(this.chassis, { ...this.build, parts: active }, new Set(active.map((part) => part.instanceId)))
+      : null;
+    const { networks } = spatialPower ?? computePowerNetworks(active);
     this.networks = networks;
     this.networkIdByInstance = new Map();
+    this.routeCapacityKwByInstance = new Map();
     for (const net of networks) {
       for (const id of [...net.reactorInstanceIds, ...net.memberInstanceIds]) {
         this.networkIdByInstance.set(id, net.networkId);
       }
+      for (const [id, capacity] of Object.entries(
+        (net as typeof net & { capacityKwByInstance?: Record<string, number> }).capacityKwByInstance ?? {},
+      )) this.routeCapacityKwByInstance.set(id, capacity);
     }
-    this.coreNetworkId = computeCoreNetwork(this.chassis, active);
+    this.coreNetworkId = spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(this.chassis, active);
   }
 
   private reactorsInNetwork(networkId: string): PlacedPart[] {
@@ -352,7 +388,7 @@ export class Simulation {
       }
       if (rt.capDrawnKj >= def.draw.capFedEnergyPerShotKj) {
         shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage * M(p.instanceId).damage });
-        if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj);
+        if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
         rt.capDrawnKj = 0;
         rt.cooldownRemainingS = def.weapon!.cycleS * M(p.instanceId).cycleS;
       }
@@ -431,6 +467,13 @@ export class Simulation {
         totalDemandKw += kw;
         const rt = this.runtime.get(id)!;
         const tentative = runningTotal + kw;
+        const routeCapacity = this.routeCapacityKwByInstance.get(id) ?? Infinity;
+        if (kw > routeCapacity) {
+          rt.isShed = true;
+          rt.shedSinceT ??= this.tSec;
+          shedInstanceIds.push(id);
+          continue;
+        }
 
         if (rt.isShed) {
           const elapsedOk = rt.shedSinceT !== null && this.tSec - rt.shedSinceT >= HYSTERESIS_MIN_OFF_S;
@@ -495,13 +538,13 @@ export class Simulation {
           rt.cycleTimer -= cycleS;
           const totalDamage = def.weapon!.damage * eff.damage * (def.weapon!.salvoCount ?? 1);
           shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage });
-          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj);
+          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
         }
       } else if (def.draw?.chargedEnergyPerShotKj) {
         rt.chargeKj += kw * dtSec;
         if (rt.chargeKj >= def.draw.chargedEnergyPerShotKj) {
           shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage: def.weapon!.damage * eff.damage });
-          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj);
+          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
           rt.chargeKj = 0;
           rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
         }
@@ -518,14 +561,14 @@ export class Simulation {
       const wasteKw = Array.isArray(def.reactor!.wasteHeatKw)
         ? (utilization <= 0.5 ? def.reactor!.wasteHeatKw[0] : def.reactor!.wasteHeatKw[1])
         : def.reactor!.wasteHeatKw;
-      addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, wasteKw * dtSec);
+      addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, wasteKw * dtSec * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
     }
 
     // --- 7b. Modifier heat (Hot-running, Leaky): extra emission while the
     // part is connected and alive ---
     for (const [id, m] of multsById) {
       if (m.extraHeatKw <= 0 || this.isDestroyed(id) || !this.networkIdByInstance.has(id)) continue;
-      addHeat(this.thermal.cellKeysByInstance.get(id)!, m.extraHeatKw * dtSec);
+      addHeat(this.thermal.cellKeysByInstance.get(id)!, m.extraHeatKw * dtSec * (this.coveredHeatMultByInstance.get(id) ?? 1));
     }
 
     // --- 8. Apply deposited heat ---
@@ -566,6 +609,14 @@ export class Simulation {
         const cell = this.thermal.cells.get(key)!;
         cell.tempC -= (raw * factor * ramAir * dtSec) / cell.thermalMassKjPerC;
       }
+    }
+
+    // Exterior cells radiate a small amount without a dedicated radiator.
+    // A sealed shell cools itself but blocks this bonus on the equipment below.
+    for (const cell of this.thermal.cells.values()) {
+      if (!cell.isPerimeter || cell.passiveCoolingBlocked || cell.tempC <= AMBIENT_C) continue;
+      const qKj = EXTERIOR_PASSIVE_K * (cell.tempC - AMBIENT_C) * dtSec;
+      cell.tempC -= qKj / cell.thermalMassKjPerC;
     }
 
     // --- 10b. Thermocouple skin (docs/04 §4b): a modded capacitor bleeds its

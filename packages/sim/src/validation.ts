@@ -8,6 +8,7 @@ import type { Build, ChassisSpec } from './types.js';
 import { getPart } from './catalog.js';
 import { buildOccupancyMap, computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
 import { averageDrawKw, computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
+import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
 
 export type IssueSeverity = 'error' | 'warn' | 'hint';
 
@@ -26,7 +27,8 @@ export interface BuildIssue {
     | 'part-overheats'
     | 'part-runs-hot'
     | 'radiator-far'
-    | 'ammo-cookoff-risk';
+    | 'ammo-cookoff-risk'
+    | 'electrical-bottleneck';
   message: string;
   /** Parts to highlight on the grid, when the issue is part-specific. */
   instanceIds: string[];
@@ -37,7 +39,8 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   if (build.parts.length === 0) return issues;
 
   // --- Errors: physical impossibilities -------------------------------------
-  const { connectedInstanceIds } = computeConnectivity(build.parts);
+  const spatialPower = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
+  const { connectedInstanceIds } = spatialPower ?? computeConnectivity(build.parts);
   const unpowered = build.parts.filter((p) => {
     const def = getPart(p.partId);
     const needsPower = Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
@@ -53,7 +56,7 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   }
 
   const hasReactor = build.parts.some((p) => getPart(p.partId).category === 'reactor');
-  if (hasReactor && computeCoreNetwork(chassis, build.parts) === null) {
+  if (hasReactor && (spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(chassis, build.parts)) === null) {
     issues.push({
       severity: 'error',
       code: 'core-unpowered',
@@ -63,7 +66,18 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   }
 
   // Cap-fed weapons need at least one capacitor on their own network (docs/02 §2).
-  const { networks } = computePowerNetworks(build.parts);
+  const { networks } = spatialPower ?? computePowerNetworks(build.parts);
+  if (spatialPower && spatialPower.bottleneckInstanceIds.length > 0) {
+    issues.push({
+      severity: 'error',
+      code: 'electrical-bottleneck',
+      message: `Electrical bottleneck — ${spatialPower.bottleneckInstanceIds.map((id) => {
+        const part = build.parts.find((candidate) => candidate.instanceId === id);
+        return part ? getPart(part.partId).name.split(' ')[0] : id;
+      }).join(', ')} demands more than its route can carry`,
+      instanceIds: spatialPower.bottleneckInstanceIds,
+    });
+  }
   const capStarved = build.parts.filter((p) => {
     const def = getPart(p.partId);
     if (!def.draw?.capFedEnergyPerShotKj) return false;
@@ -108,7 +122,7 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
     });
   }
 
-  const mass = computeMassAndCoG(chassis, build.parts);
+  const mass = computeMassAndCoG(chassis, build.parts, build.routes);
   if (mass.totalMassT > chassis.ratedMassT) {
     const loadPct = Math.round((mass.totalMassT / chassis.ratedMassT) * 100);
     issues.push({
@@ -199,6 +213,9 @@ export function computeHeatAdvice(
     if (def.id === 'U-RAD') radiatorCells.push(...cells);
     if (def.isHeatPipe) for (const c of cells) pipeCells.add(`${c.x},${c.y}`);
   }
+  for (const route of build.routes ?? []) {
+    if (route.kind === 'coolant') pipeCells.add(`${route.x},${route.y}`);
+  }
 
   const peaks = build.parts
     .map((p) => {
@@ -230,8 +247,8 @@ export function computeHeatAdvice(
       const fix = radiatorCells.length === 0
         ? 'add a Gill radiator on a perimeter cell next to it — radiators are the only way heat leaves the mech'
         : touchesPipe
-          ? 'its pipe path or radiator cannot keep up — add another Gill near it'
-          : 'run a chain of Sweat heat pipes from it to your Gill so the heat drains instead of pooling (pipes conduct 4× faster than structure)';
+          ? 'its heat-pipe path or radiator cannot keep up — add another Gill near it'
+          : 'run a heat-pipe route from it to your Gill so the heat drains instead of pooling (heat pipes conduct 4× faster than structure)';
       issues.push({
         severity: 'warn',
         code: 'part-overheats',
@@ -243,7 +260,7 @@ export function computeHeatAdvice(
       issues.push({
         severity: 'hint',
         code: 'part-runs-hot',
-        message: `${name} levels off around ${Math.round(peak)}°C — above the 100°C warning line. It works, but one hot-running salvage quirk or lost radiator tips it into shutdown; a Sweat pipe path to a Gill buys margin`,
+        message: `${name} levels off around ${Math.round(peak)}°C — above the 100°C warning line. It works, but one hot-running salvage quirk or lost radiator tips it into shutdown; a heat-pipe route to a Gill buys margin`,
         instanceIds: [p.instanceId],
       });
       hotHints++;
@@ -261,7 +278,7 @@ export function computeHeatAdvice(
       issues.push({
         severity: 'hint',
         code: 'radiator-far',
-        message: `Your nearest Gill is ${dist} cells from ${shortName(hottest.p.partId)} (your hottest part) — heat crawls through ordinary parts at 0.03 kW/°C, so it barely arrives. Bridge the gap with Sweat pipes, or move the radiator next door`,
+        message: `Your nearest Gill is ${dist} cells from ${shortName(hottest.p.partId)} (your hottest part) — heat crawls through ordinary parts at 0.03 kW/°C, so it barely arrives. Bridge the gap with a heat-pipe route, or move the radiator next door`,
         instanceIds: [hottest.p.instanceId],
       });
     }

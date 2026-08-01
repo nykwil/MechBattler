@@ -52,12 +52,14 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
   it('dynamic modifiers read only simulated context: temp, speed, terrain', () => {
     const fever = part('a', 'W-AC', 0, 0, { modifiers: ['fever-cycle'] });
     expect(effectiveMults(fever, { tempC: 25, speedMps: 0, tile: 'open' }).cycleS).toBe(1);
-    expect(effectiveMults(fever, { tempC: 100, speedMps: 0, tile: 'open' }).cycleS).toBeCloseTo(0.5);
-    expect(effectiveMults(fever, { tempC: 300, speedMps: 0, tile: 'open' }).cycleS).toBe(0.5); // floor
+    expect(effectiveMults(fever, { tempC: 100, speedMps: 0, tile: 'open' }).cycleS).toBeCloseTo(0.85);
+    expect(effectiveMults(fever, { tempC: 300, speedMps: 0, tile: 'open' }).cycleS).toBe(0.85); // floor
 
     const bore = part('b', 'W-AC', 0, 0, { modifiers: ['cold-bore'] });
     expect(effectiveMults(bore, { tempC: 30, speedMps: 0, tile: 'open' }).dispersionMrad).toBeCloseTo(0.5);
+    expect(effectiveMults(bore, { tempC: 30, speedMps: 0, tile: 'open' }).damage).toBeCloseTo(1.0925);
     expect(effectiveMults(bore, { tempC: 80, speedMps: 0, tile: 'open' }).dispersionMrad).toBe(1);
+    expect(effectiveMults(bore, { tempC: 80, speedMps: 0, tile: 'open' }).damage).toBeCloseTo(0.95);
 
     const tide = part('c', 'U-RAD', 0, 0, { modifiers: ['tidecooler'] });
     expect(effectiveMults(tide, { tempC: 25, speedMps: 0, tile: 'water' }).radiator).toBe(2);

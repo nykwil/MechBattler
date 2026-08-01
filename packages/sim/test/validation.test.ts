@@ -113,7 +113,7 @@ describe('heat advice (prescriptive, from predicted temps)', () => {
     const advice = computeHeatAdvice(chassis, laserBuild, temps(145));
     const hot = advice.find((i) => i.code === 'part-overheats');
     expect(hot?.severity).toBe('warn');
-    expect(hot?.message).toContain('Sweat');
+    expect(hot?.message).toContain('heat-pipe route');
     expect(hot?.instanceIds).toEqual(['las']);
   });
 

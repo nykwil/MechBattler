@@ -1,5 +1,13 @@
 # Spec 03 — Combat
 
+> **Sim 2.0 targeting update:** accuracy now resolves hit/miss, followed by
+> uniform sampling from directionally exposed equipment-cell tickets plus
+> authored chassis tickets. Stack overkill enters global chassis integrity and
+> does not continue into a second equipment cell. Chassis failure and weapon
+> mission-kill are the live defeat paths; every run battle defeat ends the run.
+> See `mechbattler_spatial_construction_mechanics.md` for the authoritative
+> vertical-slice contract. Ray/50% penetration passages below are historical.
+
 Real-time 2D top-down arena. Projectile- and movement-based (BattleTech boardgame DNA), fully
 playable hands-off (rule R3), controllable through exactly four verbs (rule R2). Runs on the
 shared sim core at 20 Hz.

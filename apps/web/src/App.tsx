@@ -1,5 +1,5 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { buildOccupancyMap, autoWire, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { SPATIAL_DEMO_TEMPLATE, buildOccupancyMap, autoWire, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
@@ -30,7 +30,7 @@ import { PartsSheet } from './components/PartsSheet.js';
 import { IntelSheet } from './components/IntelSheet.js';
 import { Sheet } from './components/Sheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
-import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
+import { GAME_CONTENT, createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
 
 const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
@@ -45,6 +45,9 @@ const REJECTION_COPY: Record<string, string> = {
   'out-of-mask': 'Hangs off the chassis',
   'core-occupied': 'The core cell is reserved',
   'perimeter-required': 'Needs a chassis rim cell',
+  'out-of-region': 'Crosses a region seam',
+  'incompatible-stack': 'Those parts cannot stack',
+  'footprint-mismatch': 'Stack footprints must match',
 };
 
 export default function App() {
@@ -64,6 +67,7 @@ export default function App() {
   const {
     state, chassis, build, chassisOptions,
     setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, addParts, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
+    setRouteTool, placeRoute, setChassisIntegrity,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
 
@@ -94,6 +98,9 @@ export default function App() {
   const runPrep = run.phase === 'prep';
   const runScrap = runActive ? run.data.scrap : 0;
   const benchUsed = runActive ? run.data.benchPool.length : 0;
+  const bodyRepairCost = Math.ceil(
+    (1 - state.chassisIntegrity) * 100 * GAME_CONTENT.economy.chassisRepairCostPerPoint - 1e-9,
+  );
 
   // Memorial (docs/10 M6): a finished run is recorded once.
   const historyPushedRef = useRef(false);
@@ -682,19 +689,66 @@ export default function App() {
             </div>
           </header>
 
+          <div className="route-tools" role="group" aria-label="Routing tool">
+            <button
+              type="button"
+              aria-pressed={state.routeTool === 'wire'}
+              onClick={() => setRouteTool('wire')}
+            >
+              Bus
+            </button>
+            <button
+              type="button"
+              aria-pressed={state.routeTool === 'coolant'}
+              onClick={() => setRouteTool('coolant')}
+            >
+              Heat pipe
+            </button>
+            <button
+              type="button"
+              disabled={!state.routeTool}
+              onClick={() => setRouteTool(null)}
+            >
+              Done
+            </button>
+            {!runActive && !runPrep && (
+              <button type="button" onClick={() => loadBuild(structuredClone(SPATIAL_DEMO_TEMPLATE.build))}>
+                Demo
+              </button>
+            )}
+            {runActive && state.chassisIntegrity < 1 && (
+              <button
+                type="button"
+                disabled={bodyRepairCost > runScrap}
+                onClick={() => {
+                  if (bodyRepairCost > runScrap) return;
+                  addScrap(-bodyRepairCost);
+                  setChassisIntegrity(1);
+                }}
+                aria-label={`Repair chassis for ${bodyRepairCost} scrap`}
+              >
+                Body {Math.round(state.chassisIntegrity * 100)}%
+              </button>
+            )}
+          </div>
+
           <Plate
             chassis={chassis}
             parts={state.parts}
+            routes={state.routes}
+            routeTool={state.routeTool}
             overlay={state.overlay}
             selectedInstanceId={state.selectedInstanceId}
             ghostCells={state.ghost && state.selectedPartId ? previewCells(state.ghost.x, state.ghost.y) : []}
             ghostLegal={Boolean(state.ghost) && ghostReason === null}
             thermalSnapshot={benchResult?.cellTempsFinalC ?? predictedTemps}
             onCellActivate={(x, y) => {
+              if (state.routeTool) { placeRoute(x, y); return; }
               // Armed: a tap aims the ghost. Otherwise it selects what is there.
               if (state.selectedPartId) { aim(x, y); return; }
               selectInstance(cellOwners.get(`${x},${y}`)?.instanceId ?? null);
             }}
+            onRouteCell={placeRoute}
           />
 
           <Readout
@@ -869,8 +923,7 @@ export default function App() {
           onRematchSameSeed={() => fight(battle.opponent, battle.mode, battle.report.seed)}
           onClose={() => {
             // A closed run-fight report settles the node (docs/10 M1): a win
-            // advances the ladder; losing the core ends the run. Other losses
-            // (mission-kill, judges) keep the node — pick again or refit.
+            // advances the ladder; every defeat ends this roguelike run.
             if (runFightRef.current) {
               runFightRef.current = false;
               recordBattle();
@@ -888,7 +941,7 @@ export default function App() {
               if (outcome.kind === 'salvage') beginSalvage(outcome.pending);
               else if (outcome.kind === 'lost') {
                 lost(outcome.cause);
-                // Losing the core ends the run. Closing the report used to leave
+                // A defeat ends the run. Closing the report used to leave
                 // you standing in the workshop with no indication of that at all
                 // -- the memorial existed, but nothing led you to it and nothing
                 // said the run was over. Show it.

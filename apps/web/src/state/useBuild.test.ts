@@ -1,5 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { PARTS } from '@mechbattler/sim';
 import { useBuild } from './useBuild.js';
 
 /**
@@ -7,6 +8,55 @@ import { useBuild } from './useBuild.js';
  * that touch, keyboard, and assistive tech all share: arm, aim, commit.
  */
 describe('useBuild ghost placement', () => {
+  it('arms every catalog part at a placeable origin and orientation on an empty Mule', () => {
+    for (const partId of Object.keys(PARTS)) {
+      const { result, unmount } = renderHook(() => useBuild('CH-5'));
+      act(() => result.current.selectPart(partId));
+      const ghost = result.current.state.ghost!;
+
+      expect(result.current.checkCandidate(ghost.x, ghost.y), partId).toBeNull();
+      act(() => result.current.place());
+      expect(result.current.state.parts, partId).toHaveLength(1);
+      unmount();
+    }
+  });
+
+  it('automatically rotates a part when its authored orientation cannot fit', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('W-RG'));
+
+    expect(result.current.state.rotation).toBe(90);
+    const ghost = result.current.state.ghost!;
+    expect(result.current.checkCandidate(ghost.x, ghost.y)).toBeNull();
+  });
+
+  it('places ordinary multi-cell equipment wholly inside a visible region', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+
+    act(() => result.current.selectPart('U-RAD'));
+    act(() => result.current.aim(3, 4));
+    const ghost = result.current.state.ghost!;
+
+    expect(ghost.regionId).toBe('body');
+    expect(result.current.checkCandidate(ghost.x, ghost.y)).toBeNull();
+    act(() => result.current.place());
+    expect(result.current.state.parts).toHaveLength(1);
+    expect(result.current.state.parts[0].origin.regionId).toBe('body');
+  });
+
+  it('snaps a centred tap to a legal shoulder origin before placing', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+
+    act(() => result.current.selectPart('R-E25'));
+    act(() => result.current.aim(1, 1));
+    const ghost = result.current.state.ghost!;
+
+    expect(ghost).toEqual({ regionId: 'left-shoulder', x: 1, y: 0 });
+    expect(result.current.checkCandidate(ghost.x, ghost.y)).toBeNull();
+    act(() => result.current.place());
+    expect(result.current.state.parts).toHaveLength(1);
+  });
+
   it('arms a part with a ghost on a legal cell, placing nothing', () => {
     const { result } = renderHook(() => useBuild('CH-5'));
 
@@ -35,7 +85,7 @@ describe('useBuild ghost placement', () => {
     act(() => result.current.place());
 
     expect(result.current.state.parts).toHaveLength(1);
-    expect(result.current.state.parts[0].origin).toEqual({ x: 2, y: 3 });
+    expect(result.current.state.parts[0].origin).toEqual({ regionId: 'body', x: 2, y: 3 });
   });
 
   it('nudges the ghost and clamps it inside the chassis', () => {
@@ -50,7 +100,7 @@ describe('useBuild ghost placement', () => {
     expect(result.current.state.ghost).toEqual({ x: 0, y: 0 });
 
     act(() => result.current.nudge(1, 0));
-    expect(result.current.state.ghost).toEqual({ x: 1, y: 0 });
+    expect(result.current.state.ghost).toEqual({ regionId: 'left-shoulder', x: 1, y: 0 });
   });
 
   it('refuses to commit an illegal ghost', () => {
@@ -75,7 +125,7 @@ describe('useBuild ghost placement', () => {
     act(() => result.current.rotate());
 
     // Rotate must read as turning in place, not as moving the part.
-    expect(result.current.state.ghost).toEqual({ x: 2, y: 2 });
+    expect(result.current.state.ghost).toEqual({ regionId: 'body', x: 1, y: 2 });
     expect(result.current.state.rotation).toBe(90);
   });
 });
@@ -100,7 +150,7 @@ describe('useBuild detach', () => {
 
     expect(result.current.state.parts).toHaveLength(0);
     expect(result.current.state.selectedPartId).toBe('U-CON');
-    expect(result.current.state.ghost).toEqual({ x: 2, y: 3 });
+    expect(result.current.state.ghost).toEqual({ regionId: 'body', x: 2, y: 3 });
     expect(result.current.state.detached?.instanceId).toBe(instanceId);
   });
 
@@ -116,7 +166,7 @@ describe('useBuild detach', () => {
 
     expect(result.current.state.parts).toHaveLength(1);
     expect(result.current.state.parts[0].instanceId).toBe(instanceId);
-    expect(result.current.state.parts[0].origin).toEqual({ x: 1, y: 1 });
+    expect(result.current.state.parts[0].origin).toEqual({ regionId: 'left-shoulder', x: 1, y: 1 });
     expect(result.current.state.nextSeq).toBe(seqBefore);
     expect(result.current.state.detached).toBeNull();
   });
@@ -227,7 +277,7 @@ describe('useBuild aim centring', () => {
     const { result } = renderHook(() => useBuild('CH-5'));
     act(() => result.current.selectPart('U-CON'));
     act(() => result.current.aim(3, 3));
-    expect(result.current.state.ghost).toEqual({ x: 3, y: 3 });
+    expect(result.current.state.ghost).toEqual({ regionId: 'body', x: 3, y: 3 });
   });
 
   it('centres a multi-cell part on the tapped cell', () => {
@@ -235,14 +285,16 @@ describe('useBuild aim centring', () => {
     // Lump is 2x2, so its origin sits one cell up and left of the tap.
     act(() => result.current.selectPart('R-C40'));
     act(() => result.current.aim(3, 3));
-    expect(result.current.state.ghost).toEqual({ x: 2, y: 2 });
+    // The geometrically centred origin would cover the immutable core, so the
+    // aim snaps one cell right to the nearest legal body origin.
+    expect(result.current.state.ghost).toEqual({ regionId: 'body', x: 3, y: 2 });
   });
 
-  it('clamps against the near edge rather than going negative', () => {
+  it('snaps an off-mask corner tap into the nearest shoulder', () => {
     const { result } = renderHook(() => useBuild('CH-5'));
     act(() => result.current.selectPart('R-C40'));
     act(() => result.current.aim(0, 0));
-    expect(result.current.state.ghost).toEqual({ x: 0, y: 0 });
+    expect(result.current.state.ghost).toEqual({ regionId: 'left-shoulder', x: 1, y: 0 });
   });
 
   it('clamps against the far edge so the footprint stays on the chassis', () => {
@@ -252,8 +304,7 @@ describe('useBuild aim centring', () => {
     act(() => result.current.aim(chassis.width - 1, chassis.height - 1));
 
     const ghost = result.current.state.ghost!;
-    expect(ghost.x).toBe(chassis.width - 2);
-    expect(ghost.y).toBe(chassis.height - 2);
+    expect(ghost).toEqual({ regionId: 'body', x: chassis.width - 2, y: chassis.height - 3 });
   });
 
   it('accounts for rotation when centring', () => {
@@ -267,8 +318,8 @@ describe('useBuild aim centring', () => {
     act(() => result.current.aim(3, 3));
     const upright = result.current.state.ghost!;
 
-    expect(flat).toEqual({ x: 2, y: 3 });
-    expect(upright).toEqual({ x: 3, y: 2 });
+    expect(flat).toEqual({ regionId: 'body', x: 2, y: 5 });
+    expect(upright).toEqual({ regionId: 'body', x: 5, y: 2 });
   });
 });
 
@@ -311,13 +362,59 @@ describe('useBuild footprint clamping', () => {
 
   it('keeps a rotation harmless when the part still fits', () => {
     const { result } = renderHook(() => useBuild('CH-5'));
-    act(() => result.current.selectPart('U-RAD'));
-    act(() => result.current.aim(2, 2));
+    act(() => result.current.selectPart('R-C40'));
+    act(() => result.current.aim(4, 4));
     const before = result.current.state.ghost!;
 
     act(() => result.current.rotate());
 
     // Well inside the chassis, so Rotate turns in place and moves nothing.
     expect(result.current.state.ghost).toEqual(before);
+  });
+});
+
+describe('useBuild persistent routing tool', () => {
+  it('paints multiple wire cells, then layers coolant until Done', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.setRouteTool('wire'));
+    act(() => result.current.placeRoute(0, 2));
+    act(() => result.current.placeRoute(0, 3));
+    expect(result.current.state.routeTool).toBe('wire');
+    expect(result.current.state.routes).toHaveLength(2);
+
+    act(() => result.current.setRouteTool('coolant'));
+    act(() => result.current.placeRoute(0, 2));
+    expect(result.current.state.routes.filter((route) => route.x === 0 && route.y === 2))
+      .toHaveLength(2);
+    act(() => result.current.setRouteTool(null));
+    expect(result.current.state.routeTool).toBeNull();
+  });
+
+  it('paints port endpoints and toggles an existing route layer off', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.setRouteTool('wire'));
+    act(() => result.current.placeRoute(2, 1)); // left shoulder port endpoint
+    expect(result.current.state.routes).toEqual([
+      { kind: 'wire', regionId: 'left-shoulder', x: 2, y: 1 },
+    ]);
+    act(() => result.current.placeRoute(0, 2));
+    act(() => result.current.placeRoute(0, 2));
+    expect(result.current.state.routes).toHaveLength(1);
+  });
+
+  it('stamps both routing layers out from beneath newly placed equipment', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.setRouteTool('wire'));
+    act(() => result.current.placeRoute(0, 2));
+    act(() => result.current.setRouteTool('coolant'));
+    act(() => result.current.placeRoute(0, 2));
+    expect(result.current.state.routes).toHaveLength(2);
+
+    act(() => result.current.selectPart('U-CON'));
+    act(() => result.current.aim(0, 2));
+    act(() => result.current.place());
+
+    expect(result.current.state.parts).toHaveLength(1);
+    expect(result.current.state.routes).toEqual([]);
   });
 });

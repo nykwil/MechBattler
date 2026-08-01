@@ -52,7 +52,7 @@ describe('round-robin harness (docs/05 R4)', () => {
       battles: 10,
       matchups: [{
         a: 'alpha', b: 'beta', aWins: 9, bWins: 1, draws: 0, avgDurationS: 20,
-        reasons: { 'core-kill': 10, 'mission-kill': 0, judges: 0 },
+        reasons: { 'chassis-failure': 10, 'core-kill': 0, 'mission-kill': 0, judges: 0 },
       }],
       standings: [
         { id: 'alpha', budget: 8, wins: 9, losses: 1, draws: 0, winRate: 0.9 },

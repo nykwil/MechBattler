@@ -100,7 +100,10 @@ export function BattleReportScreen({
                 <div className="report-stat-row"><span>Shots</span><span>{m.shotsHit}/{m.shotsFired} ({hitPct}%)</span></div>
                 <div className="report-stat-row"><span>Damage dealt</span><span>{m.damageDealt.toFixed(0)}</span></div>
                 <div className="report-stat-row"><span>Parts lost</span><span>{m.partsLost.length}</span></div>
-                <div className="report-stat-row"><span>Core HP</span><span>{Math.max(0, m.coreHpRemaining).toFixed(0)}</span></div>
+                <div className="report-stat-row">
+                  <span>Chassis</span>
+                  <span>{Math.round(m.chassisIntegrityFrac * 100)}%</span>
+                </div>
                 <div className="report-stat-row"><span>Functional mass</span><span>{Math.round(m.functionalMassFrac * 100)}%</span></div>
               </div>
             );

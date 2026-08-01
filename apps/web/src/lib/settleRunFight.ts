@@ -22,12 +22,11 @@ export interface BattleUnlocks {
 export type RunFightOutcome =
   | { kind: 'salvage'; pending: PendingSalvage }
   | { kind: 'lost'; cause: string }
-  /** Mission-kill and judge losses keep the node: pick again or refit. */
-  | { kind: 'keep-node' };
+  | { kind: 'ignored' };
 
 /**
- * Settles a closed run fight (docs/10 M1). Salvage settles the node before the ladder
- * advances; losing the core ends the run; every other loss keeps the node.
+ * Settles a closed run fight. Salvage settles a win before the ladder advances;
+ * every defeat ends the roguelike run.
  *
  * Pure: it reads the report and run state and returns what should happen. The caller
  * owns the side effects, which is what makes the victory branch reachable in a test —
@@ -76,9 +75,9 @@ export function settleRunFight({
     };
   }
 
-  if (report.winner === 1 && report.reason === 'core-kill') {
-    return { kind: 'lost', cause: `Core destroyed by ${opponent.name}` };
+  if (report.winner !== 0) {
+    return { kind: 'lost', cause: `Defeated by ${opponent.name}: ${report.reason}` };
   }
 
-  return { kind: 'keep-node' };
+  return { kind: 'ignored' };
 }

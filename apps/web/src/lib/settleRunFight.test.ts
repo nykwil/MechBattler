@@ -70,18 +70,17 @@ describe('settleRunFight', () => {
     expect(purse(elite)).toBeGreaterThan(purse(shallow));
   });
 
-  it('ends the run when the core is destroyed', () => {
+  it('ends the run on chassis failure', () => {
     const outcome = settleRunFight({
-      report: reportWith({ winner: 1, reason: 'core-kill' }), opponent, run: activeRun(), unlocks,
+      report: reportWith({ winner: 1, reason: 'chassis-failure' }), opponent, run: activeRun(), unlocks,
     });
-    expect(outcome).toEqual({ kind: 'lost', cause: `Core destroyed by ${opponent.name}` });
+    expect(outcome).toEqual({ kind: 'lost', cause: `Defeated by ${opponent.name}: chassis-failure` });
   });
 
-  it('keeps the node on a mission-kill or judged loss', () => {
+  it('ends the run on a mission-kill or judged loss', () => {
     for (const reason of ['mission-kill', 'judges'] as const) {
       const outcome = settleRunFight({ report: reportWith({ winner: 1, reason }), opponent, run: activeRun(), unlocks });
-      // Pick again or refit; the run continues.
-      expect(outcome.kind, reason).toBe('keep-node');
+      expect(outcome.kind, reason).toBe('lost');
     }
   });
 
@@ -90,6 +89,6 @@ describe('settleRunFight', () => {
       report: reportWith({ winner: 0 }), opponent, run: { phase: 'none' }, unlocks,
     });
     // Free-play wins settle nothing: there is no node to advance.
-    expect(outcome.kind).toBe('keep-node');
+    expect(outcome.kind).toBe('ignored');
   });
 });

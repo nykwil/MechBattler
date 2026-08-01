@@ -3,11 +3,10 @@
  * See docs/03-combat-spec.md. Headless and rendering-free (rule R6) -- a
  * renderer is a playback layer over the tick states / battle report.
  *
- * Shot resolution (decided Jul 2026, see docs/03 §5 note): every shot's real
- * bearing is sampled (aim bearing + seeded gaussian dispersion) and resolved
- * as an instant ray against the target's oriented grid footprint. Real
- * geometry, real entry cells; no travel time yet. Projectile flight time +
- * dead reckoning layer on later without changing this interface.
+ * Shot resolution (spatial sim 2.0): the seeded accuracy model decides whether
+ * the mech is hit, then an exposed equipment-cell/chassis ticket is sampled
+ * uniformly. A selected stack resolves top-down and surplus enters global body
+ * integrity; an ordinary shot never drills into a second equipment cell.
  *
  * Simplifications this pass (extend, don't silently inherit):
  *  - Mount arcs are always centered on chassis forward (side/rear mounts and
@@ -24,6 +23,8 @@ import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
+import { buildSpatialOccupancy, exposedEquipmentTickets, type AttackDirection } from './spatial.js';
+import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
@@ -47,8 +48,9 @@ export const DEFAULT_SPAWN_DISTANCE_M = 160;
  *  must stand and fight. */
 export const DEFAULT_ARENA_LENGTH_M = 240;
 export const DEFAULT_ARENA_WIDTH_M = 240;
-/** The core is not a catalog part; its HP needs prototype validation (add to docs/03 §10). */
+/** @deprecated Kept in the sim hash/API for replay compatibility; live body HP is chassis-authored. */
 export const CORE_HP = 50;
+export const CHASSIS_INSTANCE_ID = '__chassis__';
 export const SURRENDER_DELAY_S = 3;
 /**
  * Stagger (docs/03 §3): a hit knocks a mech off balance when its momentum
@@ -194,9 +196,10 @@ export type Controller = (ctx: ControllerContext) => MechOrder[];
 
 export interface ShotResolution {
   hit: boolean;
-  /** Instance ids damaged along the penetration path, in order, with damage dealt. '__core__' for the core. */
+  /** Stack layers damaged in order; `__chassis__` is global body integrity. */
   damaged: { instanceId: string; partId: string; damage: number }[];
   entryCell?: { x: number; y: number };
+  targetKind?: 'equipment' | 'chassis';
 }
 
 export type BattleEvent =
@@ -210,7 +213,7 @@ export type BattleEvent =
   | { tSec: number; type: 'order'; mech: 0 | 1; order: MechOrder }
   | { tSec: number; type: 'victory'; winner: 0 | 1 | 'draw'; reason: VictoryReason };
 
-export type VictoryReason = 'core-kill' | 'mission-kill' | 'judges';
+export type VictoryReason = 'chassis-failure' | 'core-kill' | 'mission-kill' | 'judges';
 
 /** One weapon's fire-control state in a playback tick (HUD ability-bar data). */
 export interface WeaponFrame {
@@ -279,6 +282,9 @@ export interface MechReport {
   /** Functional part mass remaining / total part mass, for judges' decisions (docs/03 §1). */
   functionalMassFrac: number;
   coreHpRemaining: number;
+  chassisIntegrityRemaining: number;
+  chassisIntegrityMax: number;
+  chassisIntegrityFrac: number;
 }
 
 export interface BattleReport {
@@ -325,7 +331,8 @@ export class Combatant {
   /** Actual turn rate last tick, for the >45 deg/s dispersion penalty (docs/03 §5). */
   lastTurnRateRadS = 0;
 
-  coreHp = CORE_HP;
+  /** Kept as `coreHp` in playback for format compatibility; now body integrity. */
+  coreHp: number;
   hpByInstance = new Map<string, number>();
   private heatDamageSeen = new Map<string, number>();
   private occupancy: ReturnType<typeof buildOccupancyMap>;
@@ -342,11 +349,14 @@ export class Combatant {
     this.chassis = getChassis(build.chassisId);
     this.sim = new Simulation(this.chassis, build);
     this.band = computeIdealRangeBand(build);
-    this.speeds = computeLoadScaledSpeeds(this.chassis, computeMassAndCoG(this.chassis, build.parts));
+    this.speeds = computeLoadScaledSpeeds(this.chassis, computeMassAndCoG(this.chassis, build.parts, build.routes));
     this.pos = pos;
     this.facingRad = facingRad;
     this.occupancy = buildOccupancyMap(build.parts);
-    const connected = computeConnectivity(build.parts).connectedInstanceIds;
+    this.coreHp = this.chassis.maxIntegrity * Math.max(0, Math.min(1, build.chassisIntegrity ?? 1));
+    const connected = usesSpatialSystems(build)
+      ? resolveSpatialPower(this.chassis, build).connectedInstanceIds
+      : computeConnectivity(build.parts).connectedInstanceIds;
     let partMass = 0;
     for (const p of build.parts) {
       const def = getPart(p.partId);
@@ -476,6 +486,22 @@ export class Combatant {
     );
   }
 
+  weaponArcDeg(instanceId: string, baseArcDeg: number): number {
+    const occupancy = buildSpatialOccupancy(this.chassis, this.build);
+    const cells = occupancy.cellsByInstance.get(instanceId) ?? [];
+    let bonus = 0;
+    for (const cell of cells) {
+      const stack = occupancy.stacksByCell.get(`${cell.regionId}:${cell.x},${cell.y}`) ?? [];
+      for (const entry of stack) {
+        if (entry.instanceId === instanceId || !this.isPartFunctional(entry.instanceId)) continue;
+        const runtime = this.sim.instanceRuntime.get(entry.instanceId);
+        if (runtime?.isShed || runtime?.isShutdown) continue;
+        bonus = Math.max(bonus, getPart(entry.partId).spatial?.weaponArcBonusDeg ?? 0);
+      }
+    }
+    return baseArcDeg + bonus;
+  }
+
   functionalMassFrac(): number {
     if (this.totalPartMassKg <= 0) return 1;
     let functional = 0;
@@ -535,7 +561,74 @@ export class Combatant {
     return false;
   }
 
+  private attackDirection(dirWorld: Vec2): AttackDirection {
+    const dForward = dirWorld.x * this.forward().x + dirWorld.y * this.forward().y;
+    const dRight = dirWorld.x * this.right().x + dirWorld.y * this.right().y;
+    if (Math.abs(dForward) >= Math.abs(dRight)) return dForward < 0 ? 'front' : 'rear';
+    return dRight > 0 ? 'left' : 'right';
+  }
+
+  private damageChassis(damage: number, damaged: ShotResolution['damaged']): void {
+    if (damage <= 0 || this.coreHp <= 0) return;
+    const dealt = Math.min(this.coreHp, damage);
+    this.coreHp -= dealt;
+    damaged.push({ instanceId: CHASSIS_INSTANCE_ID, partId: CHASSIS_INSTANCE_ID, damage: dealt });
+  }
+
   /**
+   * Uniform exposed-face sampling. Accuracy decides whether the mech is hit;
+   * this chooses one visible equipment cell or one authored chassis ticket.
+   * Equipment overkill resolves the selected stack and then the chassis only.
+   */
+  applySpatialHit(dirWorld: Vec2, damage: number, ticketRoll: number): ShotResolution {
+    const direction = this.attackDirection(dirWorld);
+    const equipment = exposedEquipmentTickets(
+      this.chassis,
+      this.build,
+      direction,
+      (instanceId) => this.isPartFunctional(instanceId),
+    );
+    const totalTickets = equipment.length + this.chassis.chassisHitTickets;
+    if (totalTickets <= 0) return { hit: false, damaged: [] };
+    const selected = Math.min(totalTickets - 1, Math.floor(ticketRoll * totalTickets));
+    const damaged: ShotResolution['damaged'] = [];
+
+    if (selected >= equipment.length) {
+      this.damageChassis(damage, damaged);
+      return { hit: true, damaged, targetKind: 'chassis' };
+    }
+
+    const ticket = equipment[selected]!;
+    let remaining = damage;
+    for (const instanceId of ticket.stackInstanceIds) {
+      if (remaining <= 0 || !this.isPartFunctional(instanceId)) continue;
+      const placed = this.build.parts.find((part) => part.instanceId === instanceId);
+      if (!placed) continue;
+      const hp = this.hpByInstance.get(instanceId) ?? 0;
+      const dealt = Math.min(hp, remaining);
+      this.hpByInstance.set(instanceId, hp - dealt);
+      damaged.push({ instanceId, partId: placed.partId, damage: dealt });
+      remaining -= dealt;
+      if (hp - dealt <= 0) this.sim.destroyPart(instanceId);
+      else {
+        remaining = 0;
+        break;
+      }
+    }
+    // No traversal into another equipment cell. Surplus tears into the body.
+    this.damageChassis(remaining, damaged);
+    return {
+      hit: true,
+      damaged,
+      entryCell: { x: ticket.cell.x, y: ticket.cell.y },
+      targetKind: 'equipment',
+    };
+  }
+
+  /**
+   * Legacy penetration resolver retained for historical replay/unit coverage.
+   * Live combat calls applySpatialHit instead.
+   *
    * Resolves a world-space ray (a shot that intersected this mech) into
    * locational damage per docs/01 §5 and docs/03 §6: entry cell on the struck
    * perimeter, occupant takes the damage, overkill penetrates inward along
@@ -887,7 +980,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     const def = getPart(p.partId);
     if (def.category !== 'weapon') continue;
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
-    const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
+    const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
     const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
@@ -1339,7 +1432,7 @@ export class Battle {
       let gate: WeaponFrame['gate'] = null;
       if (!destroyed) {
         const despawnRange = def.weapon!.falloff.rangeEnd * 1.3 * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
-        const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
+        const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
         if (rangeToEnemy > despawnRange) gate = 'range';
         else if (bearingOffset > halfArc) gate = 'arc';
         else if (tempC >= HEAT_FIRE_HOLD_C) gate = 'heat';
@@ -1428,7 +1521,7 @@ export class Battle {
       * enemy.profileMult(targetTile);
     const model = computeHitModel({
       rangeM: range,
-      sigmaRad: this.effectiveDispersionRad(self, def, aimBearing, shooterM),
+      sigmaRad: this.effectiveDispersionRad(self, instanceId, def, aimBearing, shooterM),
       lateralSpeedMps: enemy.lateralSpeedMps(losDir),
       lagS,
       projectileSpeed: weapon.projectileSpeed,
@@ -1442,28 +1535,18 @@ export class Battle {
       const hitRoll = this.rng.nextFloat() < model.pHit;
       let result: ShotResolution = { hit: false, damaged: [] };
       if (hitRoll) {
-        // The shot lands: sample where across the silhouette (truncated
-        // gaussian), then run the ray for entry cell + penetration.
-        let offsetM = 0;
-        for (let tries = 0; tries < 8; tries++) {
-          offsetM = this.rng.gaussian() * model.sigmaM;
-          if (Math.abs(offsetM) <= halfWidthM) break;
-          if (tries === 7) offsetM = (this.rng.nextFloat() * 2 - 1) * halfWidthM;
-        }
-        const perp: Vec2 = { x: -losDir.y, y: losDir.x };
-        const impact = add(enemy.pos, scale(perp, offsetM));
-        result = enemy.applyRay(
-          self.pos, norm(sub(impact, self.pos)), damagePerProjectile,
-          Math.min(0.5 * shooterM.overkillCarry, 0.95), // Ram bore (docs/04 §4b)
-        );
+        // Accuracy answers "did the mech get hit?" Locational resolution then
+        // samples the exposed equipment/chassis pool uniformly; zero spread
+        // therefore does not bore repeatedly through the centerline.
+        result = enemy.applySpatialHit(losDir, damagePerProjectile, this.rng.nextFloat());
       }
       const dealt = result.damaged.reduce((sum, d) => sum + d.damage, 0);
       if (result.hit) {
         stats.shotsHit++;
         stats.damageDealt += dealt;
         for (const d of result.damaged) {
-          if (d.instanceId !== CORE_INSTANCE_ID && !enemy.isPartFunctional(d.instanceId) && (enemy.hpByInstance.get(d.instanceId) ?? 1) <= 0) {
-            // Only log the destruction once (applyRay already marked it in the sim).
+          if (d.instanceId !== CORE_INSTANCE_ID && d.instanceId !== CHASSIS_INSTANCE_ID && !enemy.isPartFunctional(d.instanceId) && (enemy.hpByInstance.get(d.instanceId) ?? 1) <= 0) {
+            // Only log the destruction once (the hit resolver already marked it in the sim).
             if (!this.events.some((e) => e.type === 'part-destroyed' && e.mech !== i && e.instanceId === d.instanceId)) {
               this.events.push({ tSec: this.tSec, type: 'part-destroyed', mech: (1 - i) as 0 | 1, instanceId: d.instanceId, partId: d.partId, cause: 'damage' });
             }
@@ -1497,10 +1580,10 @@ export class Battle {
   }
 
   /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
-  private effectiveDispersionRad(self: Combatant, def: PartDef, aimBearing: number, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
+  private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
     let mrad = def.weapon!.dispersionMrad * m.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * len(self.vel) * m.moveJitter;
     if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1.3;
-    const halfArc = (def.weapon!.mountArcDeg / 2) * (Math.PI / 180);
+    const halfArc = (self.weaponArcDeg(instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const offset = Math.abs(wrapAngle(aimBearing - self.facingRad));
     if (halfArc > 0 && offset > 0.75 * halfArc) mrad *= 1.25;
     if (this.tSec < self.staggerDispersionUntilS) mrad *= 1.5;
@@ -1510,10 +1593,10 @@ export class Battle {
   private checkVictory(): void {
     const [a, b] = this.combatants;
 
-    const coreDead = [a.coreHp <= 0, b.coreHp <= 0];
-    if (coreDead[0] || coreDead[1]) {
-      const winner = coreDead[0] && coreDead[1] ? 'draw' : coreDead[0] ? 1 : 0;
-      this.declare(winner, 'core-kill');
+    const chassisDead = [a.coreHp <= 0, b.coreHp <= 0];
+    if (chassisDead[0] || chassisDead[1]) {
+      const winner = chassisDead[0] && chassisDead[1] ? 'draw' : chassisDead[0] ? 1 : 0;
+      this.declare(winner, 'chassis-failure');
       return;
     }
 
@@ -1599,6 +1682,9 @@ export class Battle {
         })),
         functionalMassFrac: self.functionalMassFrac(),
         coreHpRemaining: self.coreHp,
+        chassisIntegrityRemaining: self.coreHp,
+        chassisIntegrityMax: self.chassis.maxIntegrity,
+        chassisIntegrityFrac: self.coreHp / self.chassis.maxIntegrity,
       };
     }) as [MechReport, MechReport];
     return {
