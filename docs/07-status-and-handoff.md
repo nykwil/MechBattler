@@ -46,8 +46,8 @@ prototype's acceptance tests; 06 catalogs the emergent synergy space.
   `BattleReport` event log (shots, sheds, shutdowns, part losses, victory) — the renderer
   and post-battle report both read this. Sanity fights land at 13–30 s. **40/40 tests.**
 - **Stat-based hit model + orbiting** (03 §5): `computeHitModel` is pure and exported (the
-  workshop can chart hit% curves); strafe-capable chassis (spiders) orbit inside their
-  band. Measured at 40 m vs an orbiting Widow: AC 64% hits (87% with TC, ~100% vs head-on
+  workshop can chart hit% curves); strafe-capable chassis can orbit inside their
+  band. A historical orbit test measured AC 64% hits (87% with TC, ~100% vs head-on
   targets); rocket pod ~83% at its closer band but pays 5× the railgun's escape time at
   range. Speed is a defensive stat, muzzle velocity a real balance dial, and the targeting
   computer their purchasable counter — all live today. Cycle weapons enter battle loaded
@@ -135,10 +135,10 @@ What the sweep taught us (all legible, all physical):
    default priority browned the guns out while closing (stop-and-pop: guns above
    locomotion). All three fixes are player-visible workshop moves, not engine changes.
 
-Current standings (railgun 96%/budget 21, gunline 71%, vulture-skirmisher 60%, sniper 59%,
-mule-skirmisher 44%, tank 33%, laser-boat 29%, orbiter 7%). Weakest kernels now:
-**widow-orbiter** (7% — hitscan lasers and carbines ignore its evasion; likely wants more
-guns or its own carbine) and the tank's generalist score (fine — it's a specialist).
+Historical eight-template standings (railgun 96%/budget 21, gunline 71%,
+vulture-skirmisher 60%, sniper 59%, mule-skirmisher 44%, tank 33%, laser-boat
+29%, retired orbiter 7%). The active roster now excludes that retired fourth
+chassis; the tank's low generalist score remains acceptable because it is a specialist.
 Per-network CANNOT-SUSTAIN warnings (the laser-boat trap) are a good validation follow-up.
 
 ## Balance harness (docs/05 R4) — built, in use (Jul 2026)
@@ -160,7 +160,7 @@ Standings after tuning pass 1 (20 seeds/pair; adapt sweep: 12 HARD, down from 19
 | mule-skirmisher | 44% | 7 | Honest brawler |
 | bastion-tank | 33% | 29 | Specialist: adapts into any matchup with armor (0%→90–100%) |
 | mule-laser-boat | 29% | 14 | Resurrected from 0% (bridge conduit + stop-and-pop + retune) |
-| widow-orbiter | **7%** | 6 | Weakest kernel: hitscan/carbines ignore its evasion |
+| retired-orbiter | **7%** | 6 | Historical, no longer in the active roster |
 
 **Before trusting the R4 flags**: budget-match the roster into brackets with elite
 counterparts of each archetype. The known adaptation asymmetry: armor is a universal
@@ -199,8 +199,8 @@ were rejected.
 The accepted content-only change added two tier-1 front plates to Mule Skirmisher while
 preserving its twin-MG kernel. The identical 280-battle cohort finished at 8 / 28 healthy,
 37-point spread, and these standings: Vulture Skirmisher 66%, Mule Gunline 64%, Vulture
-Sniper 60%, Widow Orbiter 54%, Mule Skirmisher 50%, Railgun Mule 44%, Mule Laser Boat
-33%, Bastion Tank 29%. Mule's former 0–100 losses to Vulture and Widow softened to 20–80
+Sniper 60%, retired Orbiter 54%, Mule Skirmisher 50%, Railgun Mule 44%, Mule Laser Boat
+33%, Bastion Tank 29%. Mule's former 0–100 losses to Vulture and the retired orbiter softened to 20–80
 and 30–70; Gunline remains a documented 0–100 HARD counter. Bastion was deliberately
 unchanged because it still beats both sniper kernels 100–0, validating its specialist
 identity. No global simulation, autopilot, weapon, chassis, or terrain rules changed.
@@ -373,7 +373,7 @@ lock-in concept (00 backlog).
    system): bins hold finite shots, feed adjacent/conduit-connected ballistic weapons;
    ballistics become power-cheap but cell/ammo-hungry vs. energy (watts+heat) vs. railgun
    (capacitor infrastructure). Also an economy hook (reloads cost scrap).
-2. Widow-orbiter kernel fix (7%) + budget brackets with elite templates + the weapon
+2. Retired orbiter kernel investigation (historical) + budget brackets with elite templates + the weapon
    efficiency table (dps per tier-point / kW-draw / kW-heat / cell / kg).
 3. Servo-booster adaptation op (the light-mech fitting lever).
 4. System-attacking weapons ✅ *shipped Jul 22 2026 (content pass)* — **Scald (W-SC)**

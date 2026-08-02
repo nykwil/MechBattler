@@ -130,10 +130,9 @@ padding, 16 px plate padding, and 2 px border. Width is always the binding const
 |---|---|---|---|
 | Vulture CH-2 | 5×4 | 44 | 44 |
 | Mule CH-5 | 6×6 | 44 | 44 |
-| Widow CH-7 | 7×7 | 44 | 44 |
 | Bastion CH-9 | 8×9 | **40** | **42** |
 
-Three of four chassis hit 44 px. Bastion cannot — eight columns at 44 needs 352 px of grid
+Two of three chassis hit 44 px. Bastion cannot — eight columns at 44 needs 352 px of grid
 plus ~42 px of chrome, wider than the phone. A bounded exception, still a third larger than
 the 30 px cells the desktop build uses.
 
@@ -414,9 +413,8 @@ defender a stationary target and gain no evasion. Measured exchange (my hit% −
 orbit at 1.5 m/s strafe and is therefore a gun platform by construction.
 
 If a fast chassis feels weak the lever is its **strafe**, not the penalty model — the Vulture can
-only fight with 33% of its speed (3.0 of 9.0) while the Widow has 90% (4.5 of 5.0), which is
-exactly why `opponents.ts` calls the Widow the one that "orbits inside its band." That is a content
-change in `chassis.ts`, not a rules change.
+only fight with 33% of its speed (3.0 of 9.0). That is a content change in `chassis.ts`, not a
+rules change.
 
 **UI consequence: crossing speed must be on the HUD.** It is the biggest term in whether anyone
 gets hit and it was invisible. Your own crossing now shows as an **Evade** bar in the console

@@ -79,12 +79,12 @@ svg.arena > *{pointer-events:none;}
 .con-instruments{display:flex;align-items:stretch;gap:var(--space-3);}
 
 /* damage widget: your mech, damaged in place */
-.dmg{flex:0 0 auto;display:grid;place-items:center;padding:var(--space-2);
+.dmg{flex:0 0 auto;align-self:center;display:grid;place-items:center;padding:var(--space-2);
   min-width:var(--tap-min);min-height:var(--tap-min);
   background:var(--bg-inset);border:1px solid var(--line-hairline);
   border-radius:var(--radius-sm);cursor:pointer;}
 .dmg-grid{display:grid;gap:1px;pointer-events:none;}
-.dmg-grid i{width:8px;height:8px;display:block;border-radius:1px;}
+.dmg-grid i{width:var(--dmg-cell,8px);height:var(--dmg-cell,8px);display:block;border-radius:1px;}
 
 /* core / hull / mass */
 .con-bars{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center;gap:5px;}

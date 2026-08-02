@@ -13,6 +13,7 @@
     "game:balance": "npm run balance --workspace=@mechbattler/game",
     "game:checkpoints": "npm run checkpoints --workspace=@mechbattler/game",
     "game:match-balance": "npm run match-balance --workspace=@mechbattler/game",
+    "game:loop": "npm run loop --workspace=@mechbattler/game --",
     "sim:test": "npm run test --workspace=@mechbattler/sim",
     "sim:build": "npm run build --workspace=@mechbattler/sim",
     "web:dev": "npm run dev --workspace=@mechbattler/web",

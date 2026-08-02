@@ -35,12 +35,11 @@ chassis's rated values at **rated mass**; overloading degrades them (formula in
 
 | ID | Name | Type | Grid (usable cells) | Rated mass | Fwd / Strafe / Rev (m/s) | Turn (°/s) | Notes |
 |---|---|---|---|---|---|---|---|
-| CH-2 | Vulture | Scout biped | 5×4 mask (16) | 3.0 t | 9.0 / 3.0 / 2.5 | 150 | Starter option A |
-| CH-5 | Mule | Quad | 6×6 mask (30) | 6.0 t | 6.0 / 4.0 / 3.0 | 90 | Starter option B |
-| CH-7 | Widow | Spider | 7×7 mask (36) | 7.0 t | 5.0 / 4.5 / 4.5 | 120 | Near-omnidirectional |
-| CH-9 | Bastion | Assault biped | 8×9 mask (55) | 12.0 t | 4.0 / 1.5 / 1.2 | 45 | Boss-tier salvage |
+| CH-2 | Vulture | Scout biped | 3 regions / 5×4 projection (16) | 3.0 t | 9.0 / 3.0 / 2.5 | 150 | Hardpoints grant weapons +10% range |
+| CH-5 | Mule | Quad | 3 regions / 6×6 projection (30) | 6.0 t | 6.0 / 4.0 / 3.0 | 90 | Shoulder weapons gain +25° arc; fresh-account starter |
+| CH-9 | Bastion | Assault biped | 3 regions / 8×9 projection (55) | 12.0 t | 4.0 / 1.5 / 1.2 | 45 | Hull equipment generates 15% less heat |
 
-Chassis are themselves salvage (boss drops only, see `04-salvage-economy-spec.md`).
+Chassis are themselves salvage (defeating a frame unlocks it; see `04-salvage-economy-spec.md`).
 Transplanting to a new chassis moves all parts to an unplaced pool; the player re-lays
 everything out. That re-layout *is* the reward gameplay.
 

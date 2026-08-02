@@ -1,6 +1,6 @@
-import type { BattleReport, Build, PlacedPart, Rotation } from '@mechbattler/sim';
+import type { BattleReport, Build, CellRef, PlacedPart, Rotation } from '@mechbattler/sim';
 
-export const GAME_SAVE_VERSION = 3;
+export const GAME_SAVE_VERSION = 4;
 export const MATCH_SAVE_VERSION = 1;
 export const CHECKPOINT_SAVE_VERSION = 1;
 
@@ -20,7 +20,7 @@ export interface PartInstance {
 }
 
 export interface InstalledPart extends PartInstance {
-  origin: { x: number; y: number };
+  origin: CellRef;
   rotation: Rotation;
 }
 
@@ -36,7 +36,7 @@ export interface SalvageCandidate extends PartInstance {
   /** Original enemy id maps the wreck back to its battle power priority. */
   sourceInstanceId?: string;
   /** Enemy-wreck placement retained so the actual defeated mech can be shown. */
-  origin: { x: number; y: number };
+  origin: CellRef;
   rotation: Rotation;
   destroyed: boolean;
   scrapValue: number;
@@ -143,6 +143,7 @@ export type RunEvent =
   | { type: 'repair'; nodeIndex: number; partInstanceId: string; integrity: number; cost: number }
   | { type: 'scrap'; nodeIndex: number; partInstanceId: string; scrapGained: number }
   | { type: 'refit'; nodeIndex: number; partInstanceId: string; installed: boolean }
+  | { type: 'refit-build'; nodeIndex: number; installedIds: string[]; benchedIds: string[] }
   | { type: 'scrapyard'; nodeIndex: number; partInstanceId: string; cost: number }
   | {
     type: 'chassis-recovery';
@@ -280,6 +281,7 @@ export interface GameContent {
   schemaVersion: number;
   economy: EconomyConfig;
   run: RunConfig;
+  enabledChassisIds: string[];
   enabledPartIds: string[];
   initialPartIds: string[];
   initialChassisIds: string[];
@@ -287,6 +289,13 @@ export interface GameContent {
   enemyFillPartIds: string[];
   starterKits: StarterKitDefinition[];
   challenges: ChallengeDefinition[];
+  progressionTargets: {
+    oneHour: {
+      battleCount: number;
+      chassisIds: string[];
+      partIds: string[];
+    };
+  };
 }
 
 export interface BattleChallengeSummary {

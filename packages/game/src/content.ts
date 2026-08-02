@@ -1,4 +1,4 @@
-import { PARTS } from '@mechbattler/sim';
+import { BRANCH_PROBE_TEMPLATES, PARTS, TEMPLATES } from '@mechbattler/sim';
 import type { ChallengeDefinition, GameContent } from './types.js';
 
 export const CHALLENGES: ChallengeDefinition[] = [
@@ -66,9 +66,20 @@ export const CHALLENGES: ChallengeDefinition[] = [
 
 export const INITIAL_PART_IDS = ['R-E25', 'W-MG', 'W-CB', 'U-CON', 'U-PIPE', 'U-RAD', 'U-ARM'];
 export const ENABLED_PART_IDS = Object.keys(PARTS).filter((id) => id !== 'U-AMMO');
+export const ENABLED_CHASSIS_IDS = ['CH-2', 'CH-5', 'CH-9'];
+export const ONE_HOUR_PART_IDS = [
+  ...INITIAL_PART_IDS,
+  'R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL',
+  'U-TC1', 'W-LAS', 'U-ACT',
+];
+export const GAMEPLAY_TEMPLATES = [...TEMPLATES, ...BRANCH_PROBE_TEMPLATES];
+
+export function getGameplayTemplate(id: string) {
+  return GAMEPLAY_TEMPLATES.find((template) => template.id === id);
+}
 
 export const GAME_CONTENT: GameContent = {
-  schemaVersion: 3,
+  schemaVersion: 4,
   economy: {
     startingScrap: 30,
     purseBase: 20,
@@ -104,15 +115,23 @@ export const GAME_CONTENT: GameContent = {
     balanceTargetWinRateMin: 0.35,
     balanceTargetWinRateMax: 0.65,
   },
+  enabledChassisIds: ENABLED_CHASSIS_IDS,
   enabledPartIds: ENABLED_PART_IDS,
   initialPartIds: INITIAL_PART_IDS,
-  initialChassisIds: ['CH-2'],
+  initialChassisIds: ['CH-5'],
   scrapyardPartIds: ENABLED_PART_IDS.filter((id) => !PARTS[id]!.isConduit && !PARTS[id]!.isHeatPipe),
   enemyFillPartIds: ENABLED_PART_IDS.filter((id) => !PARTS[id]!.isConduit && !PARTS[id]!.isHeatPipe),
   starterKits: [
-    { templateId: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast, cool, shallow — a carbine scout with close-in teeth.' },
-    { templateId: 'mule-gunline', name: 'Mule Gunline', blurb: 'The tutorial-shaped build: one autocannon, one firing line.' },
-    { templateId: 'mule-laser-boat', name: 'Mule Tinkerer', blurb: 'Hybrid reactors and a heat-pipe highway — a heat puzzle from fight 1.' },
+    { templateId: 'mule-skirmisher', name: 'Mule Skirmisher', blurb: 'Flexible middle frame: protected close fire with room to branch.' },
+    { templateId: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast, exposed hardpoints reward keeping a firing line.' },
+    { templateId: 'probe-bastion-casemate', name: 'Bastion Casemate', blurb: 'Large armored frame built around a heat-spreading hull.' },
   ],
   challenges: CHALLENGES,
+  progressionTargets: {
+    oneHour: {
+      battleCount: 8,
+      chassisIds: ENABLED_CHASSIS_IDS,
+      partIds: ONE_HOUR_PART_IDS,
+    },
+  },
 };

@@ -24,7 +24,7 @@ import {
 
 export const RUN_LENGTH = GAME_CONTENT.run.length;
 export const STARTING_SCRAP = GAME_CONTENT.economy.startingScrap;
-const STORAGE_KEY = 'mechbattler-run-v3';
+const STORAGE_KEY = 'mechbattler-run-v4';
 const LEGACY_STORAGE_KEY = 'mechbattler-run';
 
 // --- Economy dials (docs/04 §1-§2, §8 — tuning deferred by design) ----------

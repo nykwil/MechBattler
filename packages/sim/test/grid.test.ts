@@ -5,7 +5,7 @@ import type { PlacedPart } from '../src/types.js';
 
 describe('chassis masks', () => {
   it('report a usable cell count for every starter chassis', () => {
-    for (const id of ['CH-2', 'CH-5', 'CH-7', 'CH-9']) {
+    for (const id of ['CH-2', 'CH-5', 'CH-9']) {
       const chassis = getChassis(id);
       const count = getUsableCellCount(chassis);
       expect(count).toBeGreaterThan(10);

@@ -120,23 +120,26 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     // Two continuous-draw weapons on a reactor that can power only one.
     // The miswired gun sits FIRST in priority yet must be the one shed.
     const build: Build = {
-      chassisId: 'CH-7',
+      chassisId: 'CH-5',
       parts: [
-        part('reactor', 'R-E25', 3, 1), // 25 kW
-        part('mg1', 'W-MG', 1, 1, { modifiers: ['miswired'] }),
-        part('mg2', 'W-MG', 1, 3),
-        part('con1', 'U-CON', 3, 3),
-        part('con2', 'U-CON', 2, 3),
-        part('ac', 'W-AC', 4, 3, { rotation: 90 }),
-        part('mg3', 'W-MG', 1, 4),
+        { ...part('reactor', 'R-E25', 3, 3), origin: { regionId: 'body', x: 3, y: 3 } },
+        { ...part('mg1', 'W-MG', 3, 1, { modifiers: ['miswired'] }), origin: { regionId: 'right-shoulder', x: 3, y: 1 } },
+        { ...part('mg2', 'W-MG', 1, 1), origin: { regionId: 'left-shoulder', x: 1, y: 1 } },
+        { ...part('ac', 'W-AC', 1, 3), origin: { regionId: 'body', x: 1, y: 3 } },
+        { ...part('act', 'U-ACT', 3, 5), origin: { regionId: 'body', x: 3, y: 5 } },
+        { ...part('tc', 'U-TC1', 5, 3), origin: { regionId: 'body', x: 5, y: 3 } },
       ],
-      powerPriority: [CORE_INSTANCE_ID, 'mg2', 'ac', 'mg3', 'mg1'],
+      routes: [
+        { kind: 'wire', regionId: 'body', x: 1, y: 2 },
+        { kind: 'wire', regionId: 'body', x: 4, y: 2 },
+      ],
+      powerPriority: [CORE_INSTANCE_ID, 'mg2', 'ac', 'act', 'tc', 'mg1'],
     };
-    const sim = new Simulation(getChassis('CH-7'), build);
+    const sim = new Simulation(getChassis('CH-5'), build);
     let lastShed: string[] = [];
     for (let t = 0; t < 100; t++) {
       lastShed = sim.step(1 / 20, {
-        weaponsEnabled: { mg1: true, mg2: true, mg3: true, ac: true },
+        weaponsEnabled: { mg1: true, mg2: true, ac: true },
         speedSetting: 'cruise',
       }).shedInstanceIds;
     }

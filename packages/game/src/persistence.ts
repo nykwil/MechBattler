@@ -1,5 +1,5 @@
-import { TEMPLATES, getChassis, getPart, validateWholeBuildPlacement, type Build } from '@mechbattler/sim';
-import { GAME_CONTENT } from './content.js';
+import { getChassis, getPart, validateWholeBuildPlacement, type Build } from '@mechbattler/sim';
+import { GAME_CONTENT, getGameplayTemplate } from './content.js';
 import { generateRunNodes } from './nodes.js';
 import {
   GAME_SAVE_VERSION,
@@ -15,12 +15,12 @@ function legalStarterBlueprint(
   unlockedPartIds: string[],
 ): SavedMech[] {
   const starter = GAME_CONTENT.starterKits.find((kit) => {
-    const template = TEMPLATES.find((candidate) => candidate.id === kit.templateId);
+    const template = getGameplayTemplate(kit.templateId);
     return Boolean(template)
       && unlockedChassisIds.includes(template!.build.chassisId)
       && template!.build.parts.every((part) => unlockedPartIds.includes(part.partId));
   });
-  const template = starter && TEMPLATES.find((candidate) => candidate.id === starter.templateId);
+  const template = starter && getGameplayTemplate(starter.templateId);
   return starter && template ? [{
     id: `factory-${starter.templateId}`,
     name: starter.name,
@@ -48,9 +48,8 @@ export function migrateProfile(raw: unknown, legacyHistory: unknown = []): Playe
     current.savedMechs ??= legalStarterBlueprint(current.unlockedChassisIds, current.unlockedPartIds);
     return current;
   }
-  // v3 deliberately resets all older progression/build/run formats. Spatial
-  // topology changes placement and damage semantics too deeply to pretend an
-  // old blueprint is the same machine.
+  // v4 deliberately resets older profiles and runs. The active roster now has
+  // three regional chassis, so legacy flat coordinates are not equivalent.
   void legacyHistory;
   return defaultProfile();
 }

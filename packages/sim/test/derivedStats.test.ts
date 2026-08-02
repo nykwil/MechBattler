@@ -38,10 +38,18 @@ describe('energy margin (docs/02 §6)', () => {
   it('matches supply minus the sum of locomotion, weapon, and utility demand', () => {
     const chassis = getChassis('CH-2');
     const parts: PlacedPart[] = [
-      { instanceId: 'reactor', partId: 'R-E25', origin: { x: 0, y: 1 }, rotation: 0, integrity: 1 },
-      { instanceId: 'mg', partId: 'W-MG', origin: { x: 2, y: 2 }, rotation: 0, integrity: 1 },
+      { instanceId: 'reactor', partId: 'R-E25', origin: { regionId: 'right-hardpoint', x: 3, y: 1 }, rotation: 0, integrity: 1 },
+      { instanceId: 'mg', partId: 'W-MG', origin: { regionId: 'left-hardpoint', x: 0, y: 1 }, rotation: 0, integrity: 1 },
     ];
-    const build: Build = { chassisId: chassis.id, parts, powerPriority: [] };
+    const build: Build = {
+      chassisId: chassis.id,
+      parts,
+      routes: [
+        { kind: 'wire', regionId: 'body', x: 2, y: 0 },
+        { kind: 'wire', regionId: 'body', x: 2, y: 2 },
+      ],
+      powerPriority: [],
+    };
     const profile = computeSpeedProfile(chassis, build);
     const margin = computeEnergyMargin(chassis, build);
 

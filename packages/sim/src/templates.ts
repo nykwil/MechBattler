@@ -5,6 +5,8 @@
  * connectivity), so harness results reflect build quality, not layout bugs.
  */
 import type { Build, PlacedPart } from './types.js';
+import { applyAutoWire } from './autowire.js';
+import { getChassis } from './chassis.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 
 export interface TemplateDef {
@@ -13,10 +15,6 @@ export interface TemplateDef {
   /** One-line archetype description (doubles as intel-card blurb). */
   blurb: string;
   build: Build;
-}
-
-function part(instanceId: string, partId: string, x: number, y: number, rotation: 0 | 90 | 180 | 270 = 0): PlacedPart {
-  return { instanceId, partId, origin: { x, y }, rotation, integrity: 1 };
 }
 
 function regionalPart(
@@ -28,6 +26,11 @@ function regionalPart(
   rotation: 0 | 90 | 180 | 270 = 0,
 ): PlacedPart {
   return { instanceId, partId, origin: { regionId, x, y }, rotation, integrity: 1 };
+}
+
+/** Canonical authored fits always carry the same deterministic free routing as the workshop. */
+function wired(build: Build): Build {
+  return applyAutoWire(getChassis(build.chassisId), build).build;
 }
 
 /** Spatial-system teaching build: ports, routes, a full turret stack, and redundancy. */
@@ -76,15 +79,14 @@ export function muleSpatialDemo(): Build {
  */
 function vultureSkirmisher(): Build {
   const parts: PlacedPart[] = [
-    part('reactor', 'R-E25', 3, 1),
-    part('con1', 'U-CON', 2, 2),
-    part('con2', 'U-CON', 1, 2),
-    part('cb', 'W-CB', 0, 1, 90), // (0,1),(0,2)
-    part('mg', 'W-MG', 2, 0), // (2,0),(3,0)
-    part('rad', 'U-RAD', 1, 3), // (1,3),(2,3),(3,3)
-    part('arm1', 'U-ARM', 1, 0),
+    regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
+    regionalPart('cb', 'W-CB', 'left-hardpoint', 0, 1),
+    regionalPart('mg', 'W-MG', 'left-hardpoint', 0, 2),
+    regionalPart('sink', 'U-HS', 'body', 2, 3),
+    regionalPart('arm1', 'U-ARM', 'body', 2, 0),
+    regionalPart('arm2', 'U-ARM', 'right-hardpoint', 3, 0),
   ];
-  return { chassisId: 'CH-2', parts, powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg'] };
+  return wired({ chassisId: 'CH-2', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg'] });
 }
 
 /** CH-5 Mule starter (docs/04 §6 "Mule gunline"): the tutorial-shaped build. */
@@ -95,7 +97,7 @@ function muleGunline(): Build {
     regionalPart('con1', 'U-CON', 'body', 1, 2),
     regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
   ];
-  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'ac'] };
+  return wired({ chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'ac'] });
 }
 
 /**
@@ -117,7 +119,7 @@ function muleSkirmisher(): Build {
     regionalPart('arm2', 'U-ARM', 'right-shoulder', 4, 0),
     regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
   ];
-  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
+  return wired({ chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] });
 }
 
 /**
@@ -140,11 +142,11 @@ function muleLaserBoat(): Build {
   ];
   // Stop-and-pop doctrine (docs/02 §2): guns above locomotion, so the boat
   // plants itself to keep both lasers charged instead of browning one out.
-  return {
+  return wired({
     chassisId: 'CH-5', parts,
     routes: [{ kind: 'coolant', regionId: 'body', x: 1, y: 2 }],
     powerPriority: ['las1', 'las2', CORE_INSTANCE_ID],
-  };
+  });
 }
 
 /** CH-5 railgun sniper — the docs/02 §4 worked example, filling the whole grid. */
@@ -164,25 +166,7 @@ function railgunMule(): Build {
     regionalPart('arm2', 'U-ARM', 'body', 3, 2),
     regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
   ];
-  return { chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'rg'] };
-}
-
-/** CH-7 Widow: orbits while facing (docs/03 §7) — the tracking-lag stress test. */
-function widowOrbiter(): Build {
-  const parts: PlacedPart[] = [
-    part('reactor', 'R-E25', 4, 1), // (4,1),(5,1),(4,2),(5,2)
-    part('con1', 'U-CON', 4, 3),
-    part('mg1', 'W-MG', 2, 1), // (2,1),(3,1)
-    // Build Week tuning pass: a carbine gives the orbiting chassis a way to
-    // establish its game plan before entering the MG band, replacing rather
-    // than stacking with the second MG. The baseline harness exposed a 24%
-    // overall win rate and repeated 0-100 matchups.
-    part('cb', 'W-CB', 2, 4),
-    part('con2', 'U-CON', 4, 4),
-    part('arm1', 'U-ARM', 3, 0),
-    part('arm2', 'U-ARM', 2, 5),
-  ];
-  return { chassisId: 'CH-7', parts, powerPriority: [CORE_INSTANCE_ID, 'cb', 'mg1'] };
+  return wired({ chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'rg'] });
 }
 
 /**
@@ -193,14 +177,15 @@ function widowOrbiter(): Build {
  */
 function vultureSniper(): Build {
   const parts: PlacedPart[] = [
-    part('reactor', 'R-E25', 3, 1), // (3,1),(4,1),(3,2),(4,2)
-    part('cb', 'W-CB', 1, 2), // (1,2),(2,2) -> (2,2) touches reactor (3,2)
-    part('rad', 'U-RAD', 1, 0), // (1,0),(2,0),(3,0)
-    part('arm1', 'U-ARM', 0, 1),
-    part('arm2', 'U-ARM', 1, 1),
-    part('arm3', 'U-ARM', 0, 2),
+    regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
+    regionalPart('cb', 'W-CB', 'left-hardpoint', 1, 0, 90),
+    regionalPart('coldSink', 'U-HS', 'left-hardpoint', 0, 2),
+    regionalPart('sink', 'U-HS', 'body', 2, 3),
+    regionalPart('arm1', 'U-ARM', 'left-hardpoint', 0, 1),
+    regionalPart('arm2', 'U-ARM', 'body', 2, 0),
+    regionalPart('arm3', 'U-ARM', 'right-hardpoint', 3, 0),
   ];
-  return { chassisId: 'CH-2', parts, powerPriority: [CORE_INSTANCE_ID, 'cb'] };
+  return wired({ chassisId: 'CH-2', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'cb'] });
 }
 
 /**
@@ -213,24 +198,82 @@ function vultureSniper(): Build {
  */
 function bastionTank(): Build {
   const parts: PlacedPart[] = [
-    part('reactor', 'R-C90', 3, 4), // (3-5, 4-6)
-    part('br', 'W-BR', 1, 4), // (1-2, 4-6) -> (2,4) touches reactor (3,4)
-    part('radBottom', 'U-RAD', 2, 8), // (2,3,4 @ y8) perimeter
-    part('radLeft', 'U-RAD', 0, 2, 90), // (0, 2-4) perimeter
-    part('hs1', 'U-HS', 6, 4),
-    part('hs2', 'U-HS', 6, 5),
-    part('hs3', 'U-HS', 6, 6),
-    // Front armor onion (rows 0-1) + flank plates.
-    part('a00', 'U-ARM', 2, 0), part('a01', 'U-ARM', 3, 0),
-    part('a02', 'U-ARM', 4, 0), part('a03', 'U-ARM', 5, 0),
-    part('a10', 'U-ARM', 1, 1), part('a11', 'U-ARM', 2, 1),
-    part('a12', 'U-ARM', 3, 1), part('a13', 'U-ARM', 4, 1),
-    part('a14', 'U-ARM', 5, 1), part('a15', 'U-ARM', 6, 1),
-    part('a20', 'U-ARM', 1, 2), part('a21', 'U-ARM', 2, 2),
-    part('a22', 'U-ARM', 6, 2), part('a23', 'U-ARM', 7, 2),
-    part('a30', 'U-ARM', 7, 3), part('a31', 'U-ARM', 7, 4),
+    regionalPart('reactor', 'R-C90', 'hull', 3, 3),
+    regionalPart('br', 'W-BR', 'left-sponson', 0, 2),
+    regionalPart('radRight', 'U-RAD', 'right-sponson', 7, 2, 90),
+    regionalPart('radBottom', 'U-RAD', 'hull', 2, 8),
+    regionalPart('hs1', 'U-HS', 'hull', 2, 6),
+    regionalPart('hs2', 'U-HS', 'hull', 3, 6),
+    regionalPart('hs3', 'U-HS', 'hull', 4, 6),
+    regionalPart('a00', 'U-ARM', 'hull', 2, 0),
+    regionalPart('a01', 'U-ARM', 'hull', 3, 0),
+    regionalPart('a02', 'U-ARM', 'hull', 4, 0),
+    regionalPart('a03', 'U-ARM', 'hull', 5, 0),
+    regionalPart('a10', 'U-ARM', 'left-sponson', 1, 1),
+    regionalPart('a11', 'U-ARM', 'hull', 2, 1),
+    regionalPart('a12', 'U-ARM', 'hull', 3, 1),
+    regionalPart('a13', 'U-ARM', 'hull', 4, 1),
+    regionalPart('a14', 'U-ARM', 'hull', 5, 1),
+    regionalPart('a15', 'U-ARM', 'right-sponson', 6, 1),
   ];
-  return { chassisId: 'CH-9', parts, powerPriority: [CORE_INSTANCE_ID, 'br'] };
+  return wired({ chassisId: 'CH-9', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'br'] });
+}
+
+function vultureCloseScout(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
+    regionalPart('mg1', 'W-MG', 'left-hardpoint', 0, 1),
+    regionalPart('mg2', 'W-MG', 'left-hardpoint', 0, 2),
+    regionalPart('armBodyFront', 'U-ARM', 'body', 2, 0),
+    regionalPart('armBodyRear', 'U-ARM', 'body', 2, 3),
+    regionalPart('armRight', 'U-ARM', 'right-hardpoint', 3, 0),
+  ];
+  return wired({ chassisId: 'CH-2', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] });
+}
+
+function bastionAutocannonCasemate(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-C40', 'hull', 3, 3),
+    regionalPart('ac', 'W-AC', 'left-sponson', 0, 2),
+    regionalPart('rad', 'U-RAD', 'right-sponson', 7, 2, 90),
+    regionalPart('tc', 'U-TC1', 'hull', 5, 3),
+    regionalPart('arm0', 'U-ARM', 'hull', 2, 0),
+    regionalPart('arm1', 'U-ARM', 'hull', 3, 0),
+    regionalPart('arm2', 'U-ARM', 'hull', 4, 0),
+    regionalPart('arm3', 'U-ARM', 'hull', 5, 0),
+  ];
+  return wired({ chassisId: 'CH-9', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'tc', 'ac'] });
+}
+
+function bastionLaserBunker(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-C40', 'hull', 3, 3),
+    regionalPart('laserFront', 'W-LAS', 'hull', 2, 0),
+    regionalPart('laserRear', 'W-LAS', 'hull', 2, 7),
+    regionalPart('radLeft', 'U-RAD', 'left-sponson', 0, 2, 90),
+    regionalPart('radRight', 'U-RAD', 'right-sponson', 7, 2, 90),
+    regionalPart('sink', 'U-HS', 'hull', 5, 7),
+    regionalPart('arm0', 'U-ARM', 'hull', 2, 1),
+    regionalPart('arm1', 'U-ARM', 'hull', 3, 1),
+    regionalPart('arm2', 'U-ARM', 'hull', 4, 1),
+  ];
+  return wired({ chassisId: 'CH-9', parts, routes: [], powerPriority: ['laserFront', 'laserRear', CORE_INSTANCE_ID] });
+}
+
+function bastionSuppressionStride(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-E25', 'hull', 3, 3),
+    regionalPart('mgLeft', 'W-MG', 'left-sponson', 0, 2),
+    regionalPart('mgRight', 'W-MG', 'right-sponson', 6, 2),
+    regionalPart('act', 'U-ACT', 'hull', 3, 6),
+    regionalPart('arm0', 'U-ARM', 'hull', 2, 0),
+    regionalPart('arm1', 'U-ARM', 'hull', 3, 0),
+    regionalPart('arm2', 'U-ARM', 'hull', 4, 0),
+    regionalPart('arm3', 'U-ARM', 'hull', 5, 0),
+    regionalPart('armLeft', 'U-ARM', 'left-sponson', 1, 5),
+    regionalPart('armRight', 'U-ARM', 'right-sponson', 6, 5),
+  ];
+  return wired({ chassisId: 'CH-9', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'act', 'mgLeft', 'mgRight'] });
 }
 
 export const TEMPLATES: TemplateDef[] = [
@@ -239,9 +282,21 @@ export const TEMPLATES: TemplateDef[] = [
   { id: 'mule-skirmisher', name: 'Mule Skirmisher', blurb: 'Twin-MG brawler, cheap sustained fire.', build: muleSkirmisher() },
   { id: 'mule-laser-boat', name: 'Mule Laser Boat', blurb: 'Hybrid reactors, heat-pipe highway to one radiator.', build: muleLaserBoat() },
   { id: 'railgun-mule', name: 'Railgun Mule', blurb: 'The docs/02 §4 worked example: cap-fed alpha strikes.', build: railgunMule() },
-  { id: 'widow-orbiter', name: 'Widow Orbiter', blurb: 'Spider that orbits inside its band; hard to track.', build: widowOrbiter() },
   { id: 'vulture-sniper', name: 'Vulture Sniper', blurb: 'Fast carbine kiter; ram-air cooled, fragile.', build: vultureSniper() },
   { id: 'bastion-tank', name: 'Bastion Tank', blurb: 'Slow armored siege gun; stable, deletes up close.', build: bastionTank() },
+];
+
+/** One-hour branch probes: three legal, materially different starts per active chassis. */
+export const BRANCH_PROBE_TEMPLATES: TemplateDef[] = [
+  { id: 'probe-vulture-range', name: 'Vulture Range Skirmisher', blurb: 'Long-sight carbine with close defense.', build: vultureSkirmisher() },
+  { id: 'probe-vulture-cold', name: 'Vulture Cold-bore Sniper', blurb: 'Overcooled precision opening.', build: vultureSniper() },
+  { id: 'probe-vulture-close', name: 'Vulture Armored Scout', blurb: 'Twin-MG close scout with a protected body.', build: vultureCloseScout() },
+  { id: 'probe-mule-gunline', name: 'Mule Autocannon Gunline', blurb: 'Combustion autocannon firing line.', build: muleGunline() },
+  { id: 'probe-mule-thermal', name: 'Mule Laser Platform', blurb: 'Hybrid heat-managed laser platform.', build: muleLaserBoat() },
+  { id: 'probe-mule-brawler', name: 'Mule Armored Brawler', blurb: 'Cheap sustained fire behind armor.', build: muleSkirmisher() },
+  { id: 'probe-bastion-casemate', name: 'Bastion Autocannon Casemate', blurb: 'Protected, targeted sustained fire.', build: bastionAutocannonCasemate() },
+  { id: 'probe-bastion-thermal', name: 'Bastion Laser Bunker', blurb: 'Casemate heat spreading and paired radiators.', build: bastionLaserBunker() },
+  { id: 'probe-bastion-suppression', name: 'Bastion Suppression Stride', blurb: 'Armored twin-MG platform with powered mobility.', build: bastionSuppressionStride() },
 ];
 
 /** Factory teaching blueprint, kept outside the canonical balance cohort. */

@@ -59,7 +59,7 @@ rather than accumulated:
 | Focus rings | real Tab produces a 2px outline on every control reached |
 | Sheet snaps | 96px / 55vh / 88vh exactly, as §8 specifies |
 | Reduced motion | all animation collapses; indicators settle visible, sheets still appear |
-| Cell size | Vulture 44, Mule 44, Widow 44, Bastion 40 — §5's table and its one exception |
+| Cell size | Vulture 44, Mule 44, Bastion 40 — §5's table and its one exception |
 | Production bundle | workshop renders and places correctly minified; dev views inert |
 | First load | 81.5 kB CSS / 323.8 kB JS; battle and lab chunks load on demand |
 | Run loop | front door → New run → Load → Launch → Fight · Live → report → Rematch, driven end to end at 390×844 |
@@ -145,8 +145,8 @@ working code:
 - a 390px PNG cropped from a 500px layout, read as clipping;
 - a scrim read as failing to cover, when it covered;
 - `--tapText` matching a container instead of its child (tapping *Faults*);
-- `--tapText` matching a shorter unrelated element (tapping *Widow* hit "Junkyard
-  Widow", which looked like a chassis-selection bug);
+- `--tapText` matching a shorter unrelated chassis label on an opponent card,
+  which looked like a chassis-selection bug;
 - a scroll race making a tap silently miss, which looked like an invisible ghost;
 - an accessible-name scan not excluding `aria-hidden` subtrees;
 - a Chrome profile shared by port number, so a stale mid-run state rendered over the
@@ -331,7 +331,7 @@ purse, no salvage and no node.
 **Now driven: the core-kill loss.** Rather than hope for one, search for it: the
 sim is deterministic, so a seed that produces a core-kill can be found and that
 opponent injected into a live run. Seed 1's first node-1 opponent does it in 13.2 s.
-Driven end to end — `status: over`, cause "Core destroyed by Ashen Widow Orbiter",
+Driven end to end — `status: over`, with a generated opponent core-kill cause,
 and the memorial shown on the run tab, which was the one line that had never been
 observed in a browser.
 

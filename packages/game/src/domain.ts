@@ -5,6 +5,7 @@ import {
   checkPlacement,
   getChassis,
   getPart,
+  validateWholeBuildPlacement,
   modifierIdsFor,
   type BattleReport,
   type Build,
@@ -588,6 +589,86 @@ export function refitPart(
     mech: { ...run.mech, parts: [...run.mech.parts, candidate] },
     bench: run.bench.filter((part) => part.id !== partInstanceId),
     events: [...run.events, { type: 'refit', nodeIndex: run.nodeIndex, partInstanceId, installed: true }],
+  };
+}
+
+/**
+ * Replace a whole fitted layout atomically. The proposed Build supplies only
+ * placement, routing, and priority; owned instance condition and provenance
+ * always come from the run. Invalid proposals throw without mutating state.
+ */
+export function applyValidatedRefit(run: RunInstance, proposed: Build): RunInstance {
+  if (proposed.chassisId !== run.mech.chassisId) {
+    throw new Error('A normal refit cannot change chassis');
+  }
+  const owned = new Map(
+    [...run.mech.parts, ...run.bench].map((part) => [part.id, part] as const),
+  );
+  if (owned.size !== run.mech.parts.length + run.bench.length) {
+    throw new Error('Run inventory contains duplicate instance ids');
+  }
+  const installedIds = new Set<string>();
+  const installed = proposed.parts.map((placement): InstalledPart => {
+    if (installedIds.has(placement.instanceId)) {
+      throw new Error(`Duplicate proposed instance ${placement.instanceId}`);
+    }
+    installedIds.add(placement.instanceId);
+    const instance = owned.get(placement.instanceId);
+    if (!instance || instance.partId !== placement.partId) {
+      throw new Error(`Proposed part ${placement.instanceId} is not owned`);
+    }
+    return {
+      ...instance,
+      origin: { ...placement.origin },
+      rotation: placement.rotation,
+    };
+  });
+  const bench = [...owned.values()].filter((part) => !installedIds.has(part.id)).map((part) => {
+    const { origin: _origin, rotation: _rotation, ...instance } = part as InstalledPart;
+    return instance;
+  });
+  if (bench.length > GAME_CONTENT.run.benchCap) {
+    throw new Error(`Refit exceeds bench capacity ${GAME_CONTENT.run.benchCap}`);
+  }
+  const authoritativeBuild: Build = {
+    chassisId: proposed.chassisId,
+    parts: installed.map((part) => ({
+      instanceId: part.id,
+      partId: part.partId,
+      integrity: part.integrity,
+      modifiers: part.modifiers,
+      variant: part.variant,
+      origin: { ...part.origin },
+      rotation: part.rotation,
+    })),
+    routes: structuredClone(proposed.routes ?? []),
+    chassisIntegrity: run.mech.chassisIntegrity,
+    powerPriority: [...proposed.powerPriority],
+  };
+  const issues = validateWholeBuildPlacement(getChassis(proposed.chassisId), authoritativeBuild);
+  if (issues.length > 0) {
+    throw new Error(`Invalid refit: ${issues.map((issue) => issue.reason).join(', ')}`);
+  }
+  const liveIds = new Set(installed.map((part) => part.id));
+  const powerPriority = [...new Set(proposed.powerPriority.filter(
+    (id) => id === CORE_INSTANCE_ID || liveIds.has(id),
+  ))];
+  if (!powerPriority.includes(CORE_INSTANCE_ID)) powerPriority.unshift(CORE_INSTANCE_ID);
+  return {
+    ...run,
+    mech: {
+      ...run.mech,
+      parts: installed,
+      routes: structuredClone(proposed.routes ?? []),
+      powerPriority,
+    },
+    bench,
+    events: [...run.events, {
+      type: 'refit-build',
+      nodeIndex: run.nodeIndex,
+      installedIds: installed.map((part) => part.id),
+      benchedIds: bench.map((part) => part.id),
+    }],
   };
 }
 

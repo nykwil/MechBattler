@@ -35,7 +35,7 @@ verify it on the test bench, and see it pay off (or fail) legibly in the arena* 
 
 | Synergy | Physics | Archetype |
 |---|---|---|
-| **Armor skinning × doctrine facing** | Hits land on the perimeter cells of the side you show. Front-skin armor + "face target" doctrine = armor actually gets used. A spider that orbits needs armor *everywhere* — or nowhere | Biped gunline vs spider skirmisher |
+| **Armor skinning × doctrine facing** | Hits sample directionally visible equipment cells. Front armor + "face target" doctrine makes protection matter, while flank pressure exposes a different ticket set | Gunline vs mobile skirmisher |
 | **Radiator placement × kiting** | A kiter shows its rear while retreating — rear-mounted radiators on a kiting build get shot off exactly when needed most. Put cooling on the face you *don't* show | Range builds |
 | **Sacrificial meat** | Overkill penetrates at 50%, wreck cells absorb at 25%. Cheap 1×1 parts layered in front of the core are ablative armor that costs scrap, not function | "Onion" builds on big chassis |
 | **Conduit loops** | A ring topology means any single conduit kill leaves an alternate path. Costs cells; pure redundancy | Large-chassis trunk builds |
@@ -49,7 +49,7 @@ verify it on the test bench, and see it pay off (or fail) legibly in the arena* 
 | **Envelope matching** | The ideal range band is the intersection of weapon envelopes. All-brawl or all-snipe = tight band, confident autopilot. Mixed = disjoint band, the workshop warns, the mech dithers | Themed arsenals beat "good stuff" piles |
 | **Targeting computer × precision** | U-TC1 raises prediction quality 0.40 → 0.75 (counter-juke). Worthless on a shotgun spread, transformative on a 1.2 mrad railgun | Sniper builds |
 | **Creep discipline** | Precision weapons trigger autopilot creep (dispersion ×0.7). A precision build is *automatically* a slow build — pair with long envelopes so slow is safe | Railgun/laser platforms |
-| **Strafe profile × facing** | Spiders (strafe ≈ forward) orbit while keeping guns and front armor on target. Bipeds pay strafe penalties for the same behavior — the chassis *is* a doctrine | Widow orbit builds |
+| **Shoulder articulation × facing** | Mule shoulder weapons gain +25° arc, allowing a mobile gunline to keep firing through turns; body-mounted weapons pay their authored arc | Mule shoulder builds |
 | **Stationary turret** | Destination "none" is legal: zero locomotion draw frees the whole reactor for guns and cooling. Pure area denial; pays for it in salvage position | "Bunker" builds |
 | **Mission-kill hunting** | Shooting weapons off (they're perimeter parts by rule) triggers surrender and leaves non-weapon loot pristine. A precise low-DPS build farms *better salvage* than an alpha-striker | Economy-optimized runs (04 §2) |
 

@@ -7,3 +7,4 @@ export * from './matches.js';
 export * from './balance.js';
 export * from './persistence.js';
 export * from './audit.js';
+export * from './progression.js';

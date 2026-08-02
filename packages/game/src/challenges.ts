@@ -3,6 +3,7 @@ import type {
   BattleChallengeSummary,
   ChallengeDefinition,
   ChallengePredicate,
+  GameContent,
   PlayerProfile,
 } from './types.js';
 
@@ -87,5 +88,38 @@ export function applyChallengeProgress(
       unlockedPartIds: [...unlocked],
     },
     gains,
+  };
+}
+
+export interface BattleOutcomeProgress {
+  profile: PlayerProfile;
+  gains: ChallengeGains & { chassisIds: string[] };
+}
+
+/** Pure profile update shared by the browser and deterministic headless loops. */
+export function applyBattleOutcomeProgress(
+  profile: PlayerProfile,
+  content: Pick<GameContent, 'challenges' | 'enabledChassisIds'>,
+  report: BattleReport,
+  enemyBuild: Build,
+): BattleOutcomeProgress {
+  const challengeResult = applyChallengeProgress(
+    profile,
+    content.challenges,
+    summarizeBattleForChallenges(report, enemyBuild),
+  );
+  const unlockedChassis = new Set(challengeResult.profile.unlockedChassisIds);
+  const chassisIds: string[] = [];
+  if (
+    report.winner === 0
+    && content.enabledChassisIds.includes(enemyBuild.chassisId)
+    && !unlockedChassis.has(enemyBuild.chassisId)
+  ) {
+    unlockedChassis.add(enemyBuild.chassisId);
+    chassisIds.push(enemyBuild.chassisId);
+  }
+  return {
+    profile: { ...challengeResult.profile, unlockedChassisIds: [...unlockedChassis] },
+    gains: { ...challengeResult.gains, chassisIds },
   };
 }

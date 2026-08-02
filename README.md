@@ -21,19 +21,29 @@ No account, API key, installation, or sample data is required for the live demo.
 
 ## Measured diversity result
 
-The final pass stopped chasing equal damage numbers and tested whether coherent builds create distinct choices. Four representative perk builds were added beside the eight canonical archetypes and run through a fixed 5-seed, 330-battle round robin. Each perk was also compared with its unmodified control against every canonical opponent on the same seeds.
+The current pass tests whether coherent builds create distinct choices across the
+three active regional chassis. Four representative perk builds sit beside seven
+canonical archetypes in a fixed 5-seed, 275-battle round robin. Each perk is also
+compared with its unmodified control against every canonical opponent on the same seeds.
 
 | Diversity guardrail | Final evidence |
 |---|---:|
-| Chassis with at least two coherent identities | 4 / 4 |
+| Chassis with at least two coherent identities | 3 / 3 |
 | Perks with a positive matchup niche | 4 / 4 |
 | Perk builds above 70% overall | 0 |
 | Dead perks in the representative cohort | 0 |
-| Vulture free cells after coherent fittings | 2–4 |
+| Vulture free cells after coherent fittings | 5 |
 
-The accepted perks are conditional trades, not flat upgrades: Cold Bore exchanges 10% damage for overcooled accuracy; Fever Cycle pays 25% more draw to accelerate above 50°C; Gyrostabilized adds 25% weapon mass to reduce movement jitter; Hull-down adds a powered two-cell Stride and mass for a smaller stationary profile. Their aggregate control deltas range from −7 to +3 points, but each earns a +20 or +40 point matchup niche. One Fever per build and one mod per part are enforced to block automatic stacking loops.
+The accepted perks are conditional trades, not flat upgrades: Cold Bore pays a
+small always-on damage penalty for an overcooled opening; Fever Cycle pays 15%
+more draw and needs a deliberate heat ramp; Gyrostabilized adds 15% weapon mass
+to reduce movement jitter; Hull-down adds a powered two-cell Stride and 15% mass
+for a smaller stationary profile. One Fever per build and one mod per part are
+enforced to block automatic stacking loops.
 
-The original 280-battle stock audit remains a safety rail and reproduces unchanged: 0 builds above 70%, 8 / 28 healthy matchups, 37-point spread, Mule Skirmisher 50%, and specialist Bastion 29%. Arbitrary legal layouts are not promised viability.
+The current 210-battle stock audit remains a separate safety rail: 0 builds above
+70%, with Mule Gunline and Mule Laser Boat at 67%, and documented hard counters
+still visible. Arbitrary legal layouts are not promised viability.
 
 See [the complete tuning report](docs/submission/TUNING-REPORT.md).
 
@@ -68,9 +78,13 @@ Run the headless workflow directly:
 npm run sim:balance -- 10
 npm run sim:adapt -- 10
 npm run sim:diversity -- 5
+npm run game:loop -- --seeds 1 --battles 8
 ```
 
-The balance command runs every pair from both spawn sides. It exits non-zero when the 70% dominance guardrail fires, making the same workflow usable in CI.
+The balance command runs every canonical pair from both spawn sides. The
+progression command runs real fight, salvage, repair, mod, scrapyard, and refit
+decisions for fresh and one-hour profiles, with full JSON traces available via
+`--json PATH`.
 
 ## Verification
 
@@ -80,6 +94,7 @@ npm run game:test
 npm run game:audit
 npm run game:balance -- 1
 npm run game:match-balance -- 1
+npm run game:loop -- --seeds 1 --battles 8
 npm run sim:build
 npm run sim:balance -- 10
 npm run sim:diversity -- 5
@@ -89,10 +104,10 @@ npm run prototype:test
 npm run prototype:build
 ```
 
-Current verified state: **247 tests passing** (21 game, 160 simulation, 59 web, 7 prototype),
-clean game/simulation/prototype builds, deterministic run-depth and checkpoint-match balance
-reports, unchanged canonical 280-battle safety rail, passing 330-battle diversity stress, and a
-clean Vite production build.
+Current verification covers **394 tests** (26 game, 199 simulation, 162 web, 7
+prototype), deterministic run-depth and checkpoint-match reports, the canonical
+210-battle balance rail, the 275-battle perk diversity gate, a 128-battle
+progression cohort, production builds, mobile screen audit, and campaign smoke.
 
 The workshop and battle interfaces are the mobile design, ported from the prototypes in
 `docs/prototypes/`. To look at them:

@@ -37,26 +37,6 @@ function muleSkirmisher(): Build {
   return { chassisId: 'CH-5', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1', 'mg2'] };
 }
 
-/**
- * CH-7 Widow (spider, strafe 4.5 vs fwd 5.0 -> orbit-capable). Mask:
- *   ..###..
- *   .#####.
- *   #######
- *   ###C###   <- core at (3,3)
- *   #######
- *   .#####.
- *   ..###..
- */
-function widowOrbiter(): Build {
-  const parts: PlacedPart[] = [
-    { instanceId: 'reactor', partId: 'R-E25', origin: { x: 4, y: 1 }, rotation: 0, integrity: 1 },
-    { instanceId: 'con1', partId: 'U-CON', origin: { x: 4, y: 3 }, rotation: 0, integrity: 1 },
-    { instanceId: 'mg1', partId: 'W-MG', origin: { x: 2, y: 1 }, rotation: 0, integrity: 1 },
-    { instanceId: 'arm1', partId: 'U-ARM', origin: { x: 3, y: 0 }, rotation: 0, integrity: 1 },
-  ];
-  return { chassisId: 'CH-7', parts, powerPriority: [CORE_INSTANCE_ID, 'mg1'] };
-}
-
 function weaponlessMule(): Build {
   const parts: PlacedPart[] = [
     { instanceId: 'reactor', partId: 'R-E25', origin: { x: 3, y: 1 }, rotation: 0, integrity: 1 },

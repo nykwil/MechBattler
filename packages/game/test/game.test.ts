@@ -8,8 +8,12 @@ import {
 import {
   CHALLENGES,
   GAME_CONTENT,
+  GAME_SAVE_VERSION,
+  ONE_HOUR_PART_IDS,
+  applyBattleOutcomeProgress,
   applyChallengeProgress,
   applyRunMod,
+  applyValidatedRefit,
   auditGameContent,
   buildToMech,
   challengeCompleted,
@@ -33,6 +37,8 @@ import {
   restoreRunCheckpoint,
   runBalanceHarness,
   runCheckpointMatchHarness,
+  runProgressionCohort,
+  oneHourProfile,
   previewWreckRecovery,
   saveMech,
   savedMechErrors,
@@ -138,6 +144,45 @@ describe('game content', () => {
     const again = applyChallengeProgress(first.profile, CHALLENGES, summary({ playerPartsLost: 0, durationS: 20 }));
     expect(again.gains.challengeIds).toEqual([]);
   });
+
+  it('defines the exact one-hour inventory and three branchable chassis', () => {
+    const profile = oneHourProfile();
+    expect(profile.schemaVersion).toBe(GAME_SAVE_VERSION);
+    expect(profile.unlockedChassisIds).toEqual(['CH-2', 'CH-5', 'CH-9']);
+    expect(profile.unlockedPartIds).toEqual(ONE_HOUR_PART_IDS);
+    expect(profile.savedMechs).toHaveLength(9);
+    expect(new Set(profile.savedMechs.map((mech) => mech.build.chassisId)))
+      .toEqual(new Set(['CH-2', 'CH-5', 'CH-9']));
+  });
+
+  it('applies battle unlocks without browser state', () => {
+    const start = defaultProfile();
+    const enemy = template.build;
+    const outcome = applyBattleOutcomeProgress(start, GAME_CONTENT, report({
+      mechs: [report().mechs[0], { ...report().mechs[1], chassisId: enemy.chassisId }],
+    }), enemy);
+    expect(outcome.profile.unlockedChassisIds).toContain('CH-2');
+    expect(outcome.profile.unlockedPartIds).toContain('W-AC');
+    expect(outcome.gains.chassisIds).toEqual(['CH-2']);
+  });
+});
+
+describe('progression loop', () => {
+  it('is deterministic and records real choices and fingerprints', () => {
+    const options = {
+      seeds: [73001], battles: 1,
+      profiles: ['fresh'] as const,
+      policies: ['survival'] as const,
+    };
+    const first = runProgressionCohort(options);
+    const second = runProgressionCohort(options);
+    expect(first.ok).toBe(true);
+    expect(first.digest).toBe(second.digest);
+    expect(first.totals.battles).toBe(1);
+    expect(first.cases[0]!.battles[0]!.decisions[0]?.kind).toBe('opponent');
+    expect(first.cases[0]!.battles[0]!.before.chassisId).toBe('CH-5');
+    expect(first.cases[0]!.battles[0]!.visibleOpponentFacts.length).toBeGreaterThan(1);
+  });
 });
 
 describe('run domain', () => {
@@ -150,7 +195,7 @@ describe('run domain', () => {
     const b = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     expect(a).toEqual(b);
     expect(a.scrap).toBe(30);
-    expect(a.schemaVersion).toBe(3);
+    expect(a.schemaVersion).toBe(GAME_SAVE_VERSION);
     expect(a.generatedNodes).toHaveLength(12);
     expect(a.generatedNodes.filter((node) => node.kind === 'scrapyard')).toHaveLength(2);
   });
@@ -173,6 +218,26 @@ describe('run domain', () => {
     expect(next.mech.parts.find((part) => part.id === first.instanceId)?.integrity).toBe(0);
     expect(next.mech.parts.find((part) => part.id === second.instanceId)?.integrity).toBe(0.42);
     expect(next.battlesCompleted).toBe(1);
+  });
+
+  it('preserves regional origins through owned instances and atomic refits', () => {
+    const run = createRun({ seed: 43, kitName: 'Scout', build: template.build });
+    expect(mechToBuild(run.mech).parts.map((part) => part.origin))
+      .toEqual(template.build.parts.map((part) => part.origin));
+    const restored = migrateRun(JSON.parse(JSON.stringify(run)));
+    expect(restored?.mech.parts.map((part) => part.origin))
+      .toEqual(template.build.parts.map((part) => part.origin));
+    const moved = structuredClone(mechToBuild(run.mech));
+    const removed = moved.parts.pop()!;
+    const refitted = applyValidatedRefit(run, moved);
+    expect(refitted.bench.find((part) => part.id === removed.instanceId)?.provenance.source).toBe('starter');
+    expect(refitted.mech.parts.every((part) => part.origin.regionId)).toBe(true);
+    expect(() => applyValidatedRefit(run, {
+      ...moved,
+      parts: moved.parts.map((part, index) => index === 0
+        ? { ...part, origin: { regionId: 'missing', x: 0, y: 0 } }
+        : part),
+    })).toThrow('Invalid refit');
   });
 
   it('settles purse and scrap once, respects bench cap, and schedules services', () => {
@@ -302,6 +367,8 @@ describe('run domain', () => {
     expect(next.pendingSalvage?.opponentName).toBe('Target');
     expect(next.pendingSalvage?.purse).toBe(25);
     expect(next.pendingSalvage?.candidates).toHaveLength(template.build.parts.length);
+    expect(next.pendingSalvage?.candidates.map((candidate) => candidate.origin))
+      .toEqual(template.build.parts.map((part) => part.origin));
   });
 
   it('repairs and refits owned instances without UI state', () => {
@@ -405,7 +472,7 @@ describe('migration', () => {
     expect(profile.unlockedPartIds).toEqual(GAME_CONTENT.initialPartIds);
     expect(profile.grandfatheredPartIds).toEqual([]);
     expect(profile.history).toHaveLength(0);
-    expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Vulture Skirmisher']);
+    expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Mule Skirmisher']);
   });
 
   it('migrates v2 profiles without a saved-mech collection', () => {
@@ -431,7 +498,14 @@ describe('migration', () => {
 
 describe('saved mech blueprints', () => {
   it('saves, overwrites, and deletes legal owned loadouts without run damage or mods', () => {
-    const profile = defaultProfile();
+    const profile = {
+      ...defaultProfile(),
+      unlockedChassisIds: ['CH-2', 'CH-5'],
+      unlockedPartIds: [...new Set([
+        ...defaultProfile().unlockedPartIds,
+        ...template.build.parts.map((part) => part.partId),
+      ])],
+    };
     const damaged: Build = {
       ...template.build,
       parts: template.build.parts.map((part, index) => index === 0

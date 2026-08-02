@@ -68,6 +68,11 @@ export function DamageGrid({
     [chassis, build],
   );
   const workshopLayout = useMemo(() => resolveWorkshopLayout(chassis), [chassis]);
+  const longestLayoutAxis = Math.max(workshopLayout.width, workshopLayout.height);
+  const compactCellPx = Math.max(
+    2,
+    Math.min(8, Math.floor((56 - longestLayoutAxis + 1) / longestLayoutAxis)),
+  );
 
   const cells = [];
   for (let y = 0; y < chassis.height; y += 1) {
@@ -144,9 +149,10 @@ export function DamageGrid({
       <span
         className="dmg-grid"
         style={{
-          gridTemplateColumns: `repeat(${workshopLayout.width}, 8px)`,
-          gridTemplateRows: `repeat(${workshopLayout.height}, 8px)`,
-        }}
+          '--dmg-cell': `${compactCellPx}px`,
+          gridTemplateColumns: `repeat(${workshopLayout.width}, var(--dmg-cell))`,
+          gridTemplateRows: `repeat(${workshopLayout.height}, var(--dmg-cell))`,
+        } as CSSProperties}
       >
         {cells}
       </span>

@@ -174,15 +174,17 @@ headline-weapon warning on its intel card.
   hand-authored templates with randomized fill, not fully procedural, so fights stay
   readable and salvage stays deliberate.
 - The budget curve fields bigger chassis as the run deepens (roughly CH-5 by mid-run,
-  CH-7/CH-9 late) — chassis variety comes from the curve, not special nodes.
+  CH-9 late) — chassis variety comes from the curve, not special nodes.
 
 ## 6. Run start
 
-Pick 1 of 3 starter kits (chassis + parts + 30 scrap), e.g.:
+Fresh accounts start with the flexible Mule Skirmisher and 30 scrap. By the
+eight-battle one-hour target, all three chassis and a 15-part pool support at
+least three authored build directions per chassis, including:
 
-- **Vulture skirmisher**: CH-2, R-E25, 2× W-MG, U-RAD, 2× U-ARM — fast, cool, shallow.
-- **Mule gunline**: CH-5, R-C40, W-AC, U-AMMO, U-RAD, U-CON, 3× U-ARM — the tutorial-shaped build.
-- **Mule tinkerer**: CH-5, R-E25 + R-C40, W-LAS, U-PIPE, U-RAD, P-CAP — a heat puzzle from fight 1.
+- **Vulture range scout**: R-E25, W-CB plus close defense — fast, exposed, shallow.
+- **Mule gunline**: R-C40, W-AC, U-RAD and routing — the middle-frame firing line.
+- **Bastion casemate**: R-C40, W-AC, U-TC1 and front armor — slow, protected, heat efficient.
 
 ## 7. Death and meta
 

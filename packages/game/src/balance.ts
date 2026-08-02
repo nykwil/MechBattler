@@ -1,5 +1,5 @@
-import { TEMPLATES, getChassis } from '@mechbattler/sim';
-import { GAME_CONTENT } from './content.js';
+import { getChassis } from '@mechbattler/sim';
+import { GAME_CONTENT, getGameplayTemplate } from './content.js';
 import {
   advanceRunNode,
   createRun,
@@ -219,7 +219,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
 
   for (let templateIndex = 0; templateIndex < starterTemplateIds.length; templateIndex++) {
     const templateId = starterTemplateIds[templateIndex]!;
-    const template = TEMPLATES.find((candidate) => candidate.id === templateId);
+    const template = getGameplayTemplate(templateId);
     if (!template) throw new Error(`Unknown balance starter template ${templateId}`);
     for (let seedOffset = 0; seedOffset < seedsPerKit; seedOffset++) {
       runCount++;
@@ -407,7 +407,7 @@ export function createPristineDepthCheckpoints(options: {
   const checkpoints: RunCheckpoint[] = [];
   for (let templateIndex = 0; templateIndex < starterTemplateIds.length; templateIndex++) {
     const templateId = starterTemplateIds[templateIndex]!;
-    const template = TEMPLATES.find((candidate) => candidate.id === templateId);
+    const template = getGameplayTemplate(templateId);
     if (!template) throw new Error(`Unknown balance starter template ${templateId}`);
     for (let seedOffset = 0; seedOffset < seedsPerKit; seedOffset++) {
       const seed = baseSeed + templateIndex * 100003 + seedOffset * 7919;

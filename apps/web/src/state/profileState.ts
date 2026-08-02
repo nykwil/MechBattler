@@ -6,6 +6,7 @@ import { useCallback, useState } from 'react';
 import { CHASSIS, getPart, type BattleReport, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
+  applyBattleOutcomeProgress,
   applyChallengeProgress,
   deleteSavedMech,
   defaultProfile,
@@ -17,7 +18,7 @@ import {
   type SavedMech,
 } from '@mechbattler/game';
 
-const PROFILE_KEY = 'mechbattler-profile-v3';
+const PROFILE_KEY = 'mechbattler-profile-v4';
 export const HISTORY_MAX = 10;
 
 export type Profile = PlayerProfile;
@@ -109,31 +110,21 @@ export function useProfile() {
 
   /** Atomic outcome registration avoids one unlock write overwriting another. */
   const recordBattleOutcome = useCallback((report: BattleReport, enemyBuild: Build): UnlockGains => {
-    const challengeResult = applyChallengeProgress(
-      profile,
-      GAME_CONTENT.challenges,
-      summarizeBattleForChallenges(report, enemyBuild),
-    );
-    const chassisIds = new Set(challengeResult.profile.unlockedChassisIds);
-    const chassis: string[] = [];
-    if (report.winner === 0 && !chassisIds.has(enemyBuild.chassisId)) {
-      chassisIds.add(enemyBuild.chassisId);
-      chassis.push(CHASSIS[enemyBuild.chassisId]?.name ?? enemyBuild.chassisId);
-    }
-    const next = { ...challengeResult.profile, unlockedChassisIds: [...chassisIds] };
+    const result = applyBattleOutcomeProgress(profile, GAME_CONTENT, report, enemyBuild);
+    const chassis = result.gains.chassisIds.map((id) => CHASSIS[id]?.name ?? id);
     const gains: UnlockGains = {
       chassis,
-      parts: challengeResult.gains.partIds.map((id) => getPart(id).name),
-      challenges: challengeResult.gains.challengeIds.map(
+      parts: result.gains.partIds.map((id) => getPart(id).name),
+      challenges: result.gains.challengeIds.map(
         (id) => GAME_CONTENT.challenges.find((challenge) => challenge.id === id)?.name ?? id,
       ),
-      chassisIds: chassis.length > 0 ? [enemyBuild.chassisId] : [],
-      partIds: challengeResult.gains.partIds,
-      challengeIds: challengeResult.gains.challengeIds,
+      chassisIds: result.gains.chassisIds,
+      partIds: result.gains.partIds,
+      challengeIds: result.gains.challengeIds,
     };
     if (gains.chassis.length > 0 || gains.parts.length > 0 || gains.challenges.length > 0) {
-      setProfile(next);
-      save(next);
+      setProfile(result.profile);
+      save(result.profile);
     }
     return gains;
   }, [profile]);

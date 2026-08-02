@@ -10,6 +10,7 @@ import { auditModifierLoadout } from '../src/modifiers.js';
 import { computeSpeedProfile } from '../src/derivedStats.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from '../src/grid.js';
 import { getChassis } from '../src/chassis.js';
+import { validateWholeBuildPlacement } from '../src/spatial.js';
 
 describe('build diversity and perk guardrails', () => {
   it('every chassis has at least two coherent named identities', () => {
@@ -33,6 +34,13 @@ describe('build diversity and perk guardrails', () => {
     for (const perkCase of PERK_CASES) expect(auditModifierLoadout(perkCase.perk)).toEqual([]);
   });
 
+  it('accepted perk probes remain legal regional builds', () => {
+    for (const template of PERK_TEMPLATES) {
+      expect(validateWholeBuildPlacement(getChassis(template.build.chassisId), template.build), template.id)
+        .toEqual([]);
+    }
+  });
+
   it('rejects duplicate high-leverage perk copies as a stacking loop', () => {
     const fever = PERK_CASES.find((entry) => entry.perkId === 'fever-cycle')!;
     const stacked = {
@@ -45,7 +53,7 @@ describe('build diversity and perk guardrails', () => {
   });
 
   it('Stride provides exactly one capped 15% speed boost after its mass cost', () => {
-    const build = PERK_CASES.find((entry) => entry.chassisId === 'CH-7')!.control;
+    const build = PERK_CASES.find((entry) => entry.perkId === 'hull-down')!.control;
     const chassis = getChassis(build.chassisId);
     const base = computeLoadScaledSpeeds(chassis, computeMassAndCoG(chassis, build.parts));
     const profile = computeSpeedProfile(chassis, build);
@@ -61,4 +69,5 @@ describe('build diversity and perk guardrails', () => {
     expect(findings.some((finding) => finding.parts === 'U-AMMO' && finding.verdict === 'dead-placeholder')).toBe(true);
     expect(findings.filter((finding) => finding.verdict === 'distinct').length).toBeGreaterThanOrEqual(5);
   });
+
 });

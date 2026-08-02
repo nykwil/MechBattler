@@ -575,8 +575,6 @@ const CHASSIS = {
     mask:['.###.','#####','#####','.###.']},
   'CH-5':{name:'Mule',type:'Quad',w:6,h:6,core:{x:2,y:2},rated:6.0,
     mask:['.####.','######','######','######','######','.####.']},
-  'CH-7':{name:'Widow',type:'Spider',w:7,h:7,core:{x:3,y:3},rated:7.0,
-    mask:['..###..','.#####.','#######','#######','#######','.#####.','..###..']},
   'CH-9':{name:'Bastion',type:'Assault biped',w:8,h:9,core:{x:3,y:3},rated:12.0,
     mask:['..####..','.######.','########','########','########','########','.######.','..####..','..####..']}
 };
@@ -625,8 +623,8 @@ const P = Object.fromEntries(PARTS.map(p=>[p.id,p]));
 /* Next-match intel — the real roster from apps/web/src/lib/opponents.ts */
 const NODE = {index:4, of:12};
 const OPPONENTS = [
-  {id:'junkyard-widow', name:'Junkyard Widow', threat:1, chassisLabel:'CH-7 Widow · spider',
-   blurb:'Orbits inside its band. Light guns, hard to pin.',
+  {id:'junkyard-vulture', name:'Junkyard Vulture', threat:1, chassisLabel:'CH-2 Vulture · scout biped',
+   blurb:'Keeps its carbine at range, with an MG up close.',
    confirmed:['W-MG Stitcher','R-E25 Whisper'], headline:'Stitcher', spawn:90, elite:false},
   {id:'mule-gunline', name:'Mule Gunline', threat:2, chassisLabel:'CH-5 Mule · quad',
    blurb:'Autocannon and a combustion plant. Wants a firing line.',

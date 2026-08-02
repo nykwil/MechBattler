@@ -72,12 +72,12 @@ describe('game front door', () => {
         onBack={vi.fn()}
       />,
     );
-    expect(screen.getByText('Vulture Skirmisher')).toBeTruthy();
-    expect(screen.queryByText('Mule Gunline')).toBeNull();
+    expect(screen.getByText('Mule Skirmisher')).toBeTruthy();
+    expect(screen.queryByText('Vulture Skirmisher')).toBeNull();
     expect(screen.getAllByRole('option')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Load' }));
     expect(onLoadMech).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'factory-vulture-skirmisher', name: 'Vulture Skirmisher' }),
+      expect.objectContaining({ id: 'factory-mule-skirmisher', name: 'Mule Skirmisher' }),
     );
   });
 

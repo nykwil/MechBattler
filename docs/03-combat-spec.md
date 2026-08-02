@@ -74,7 +74,7 @@ those conditions (§7), and parts may widen what it's permitted to consider.
 Per-chassis directional speed profile (catalog in 01 §2): distinct forward / strafe / reverse
 maxima. Movement direction decomposes against current facing, so *facing is a tactical
 resource*: a biped that keeps its guns (and front armor) on target while side-stepping moves
-at strafe speed — a spider barely cares.
+at its lower strafe speed.
 
 Modifiers (multiplicative, applied to all three maxima and turn rate):
 
@@ -86,7 +86,7 @@ Modifiers (multiplicative, applied to all three maxima and turn rate):
   fraction of the half-diagonal. Lopsided builds turn like barges. (Mass/CoG are day-one sim
   inputs — the future IK presentation reads these same values.)
 
-Acceleration per chassis: CH-2 4.0, CH-5 3.0, CH-7 3.0, CH-9 1.5 m/s², × m_load.
+Acceleration per chassis: CH-2 4.0, CH-5 3.0, CH-9 1.5 m/s², × m_load.
 
 **Recoil**: firing applies impulse to the shooter: Δv = impulse / mass (W-RG 8 kN·s pushes a
 4 t mech 2 m/s backward; W-AC 0.4 kN·s is a twitch). **Stagger** (implemented mass-scaled):

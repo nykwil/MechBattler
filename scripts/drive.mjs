@@ -334,8 +334,8 @@ for (const tap of taps) {
   // Choosing among text matches is subtler than it looks. A container always
   // contains its child's text, so first-match-wins is wrong: tapping 'Faults' hit
   // the readout bar rather than the sheet tab. Shortest-match is also wrong on its
-  // own: tapping 'Widow' hit the intel strip's 'Junkyard Widow' (22 chars) instead
-  // of the 'Widow' chassis row (29). So prefer an element whose own text *starts*
+  // Prefer an element whose own text starts with the chassis name; opponent
+  // intel may contain the same word and must not steal the chassis-selection tap.
   // with the query, and only then fall back to the shortest containing match.
   const finder = tap.kind === 'text'
     ? `(() => {

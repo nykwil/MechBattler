@@ -154,7 +154,7 @@ export function BalanceLab() {
             <div className="lab-card-head"><div><span>04</span><h2>Matchup matrix</h2></div><small>row build win rate</small></div>
             <div className="matrix-scroll">
               <table>
-                <thead><tr><th>build</th>{TEMPLATES.map((t) => <th key={t.id} title={t.name}>{t.id.replace(/^(vulture|mule|widow|bastion|railgun)-/, '')}</th>)}</tr></thead>
+                <thead><tr><th>build</th>{TEMPLATES.map((t) => <th key={t.id} title={t.name}>{t.id.replace(/^(vulture|mule|bastion|railgun)-/, '')}</th>)}</tr></thead>
                 <tbody>
                   {TEMPLATES.map((row) => (
                     <tr key={row.id}><th>{row.id}</th>{TEMPLATES.map((col) => {

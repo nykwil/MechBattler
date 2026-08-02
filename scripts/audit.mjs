@@ -34,7 +34,7 @@ const INTO_RUN = [
 
 /** Node kinds vary by seed, so the yard is found rather than assumed to be node 3. */
 const JUMP_TO_YARD = `(() => {
-  const k = 'mechbattler-run-v3';
+  const k = 'mechbattler-run-v4';
   const r = JSON.parse(localStorage.getItem(k));
   const yard = r.generatedNodes.find((n) => n.kind === 'scrapyard');
   r.nodeIndex = yard.index;

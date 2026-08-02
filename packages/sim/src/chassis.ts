@@ -30,6 +30,25 @@ const vultureMask = maskFromRows([
   '.###.',
 ]);
 
+const vultureLeftMask = maskFromRows([
+  '.#...',
+  '##...',
+  '##...',
+  '.#...',
+]);
+const vultureBodyMask = maskFromRows([
+  '..#..',
+  '..#..',
+  '..#..',
+  '..#..',
+]);
+const vultureRightMask = maskFromRows([
+  '...#.',
+  '...##',
+  '...##',
+  '...#.',
+]);
+
 const muleMask = maskFromRows([
   '.####.',
   '######',
@@ -64,16 +83,6 @@ const muleRightMask = maskFromRows([
   '......',
 ]);
 
-const widowMask = maskFromRows([
-  '..###..',
-  '.#####.',
-  '#######',
-  '#######',
-  '#######',
-  '.#####.',
-  '..###..',
-]);
-
 const bastionMask = maskFromRows([
   '..####..',
   '.######.',
@@ -86,17 +95,90 @@ const bastionMask = maskFromRows([
   '..####..',
 ]);
 
+const bastionLeftMask = maskFromRows([
+  '........',
+  '.#......',
+  '##......',
+  '##......',
+  '##......',
+  '##......',
+  '.#......',
+  '........',
+  '........',
+]);
+const bastionHullMask = maskFromRows([
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+  '..####..',
+]);
+const bastionRightMask = maskFromRows([
+  '........',
+  '......#.',
+  '......##',
+  '......##',
+  '......##',
+  '......##',
+  '......#.',
+  '........',
+  '........',
+]);
+
 export const CHASSIS: Record<string, ChassisSpec> = {
   'CH-2': {
     id: 'CH-2', name: 'Vulture', type: 'Scout biped',
-    width: 5, height: 4, mask: vultureMask, coreCell: { x: 2, y: 1 },
+    width: 5, height: 4, mask: vultureMask, coreCell: { regionId: 'body', x: 2, y: 1 },
     ratedMassT: 3.0, speedsMps: { fwd: 9.0, strafe: 3.0, rev: 2.5 },
     turnRateDegS: 150, accelMps2: 4.0,
     chassisHitTickets: 6, maxIntegrity: 240,
+    regions: [
+      {
+        id: 'left-hardpoint', name: 'Left hardpoint', width: 5, height: 4,
+        mask: vultureLeftMask, workshopOrigin: { x: 0, y: 0 },
+      },
+      {
+        id: 'body', name: 'Body', width: 5, height: 4,
+        mask: vultureBodyMask, workshopOrigin: { x: 3, y: 3 },
+      },
+      {
+        id: 'right-hardpoint', name: 'Right hardpoint', width: 5, height: 4,
+        mask: vultureRightMask, workshopOrigin: { x: 5, y: 0 },
+      },
+    ],
+    ports: [
+      {
+        id: 'left-hardpoint-joint',
+        a: { regionId: 'left-hardpoint', x: 1, y: 1 },
+        b: { regionId: 'body', x: 2, y: 0 },
+      },
+      {
+        id: 'right-hardpoint-joint',
+        a: { regionId: 'body', x: 2, y: 2 },
+        b: { regionId: 'right-hardpoint', x: 3, y: 2 },
+      },
+    ],
+    locationZones: [{
+      id: 'vulture-long-sight-hardpoints',
+      cells: [
+        ...cellsFromMask('left-hardpoint', vultureLeftMask),
+        ...cellsFromMask('right-hardpoint', vultureRightMask),
+      ],
+      effect: {
+        id: 'long-sight-hardpoint',
+        name: 'Long-sight hardpoint',
+        description: 'Weapons fitted wholly in a hardpoint gain 10% range.',
+        weaponRangeMultiplier: 1.1,
+      },
+    }],
   },
   'CH-5': {
     id: 'CH-5', name: 'Mule', type: 'Quad',
-    width: 6, height: 6, mask: muleMask, coreCell: { x: 2, y: 2 },
+    width: 6, height: 6, mask: muleMask, coreCell: { regionId: 'body', x: 2, y: 2 },
     ratedMassT: 6.0, speedsMps: { fwd: 6.0, strafe: 4.0, rev: 3.0 },
     turnRateDegS: 90, accelMps2: 3.0,
     chassisHitTickets: 10, maxIntegrity: 320,
@@ -143,19 +225,58 @@ export const CHASSIS: Record<string, ChassisSpec> = {
       },
     ],
   },
-  'CH-7': {
-    id: 'CH-7', name: 'Widow', type: 'Spider',
-    width: 7, height: 7, mask: widowMask, coreCell: { x: 3, y: 3 },
-    ratedMassT: 7.0, speedsMps: { fwd: 5.0, strafe: 4.5, rev: 4.5 },
-    turnRateDegS: 120, accelMps2: 3.0,
-    chassisHitTickets: 12, maxIntegrity: 250,
-  },
   'CH-9': {
     id: 'CH-9', name: 'Bastion', type: 'Assault biped',
-    width: 8, height: 9, mask: bastionMask, coreCell: { x: 3, y: 3 },
+    width: 8, height: 9, mask: bastionMask, coreCell: { regionId: 'hull', x: 2, y: 4 },
     ratedMassT: 12.0, speedsMps: { fwd: 4.0, strafe: 1.5, rev: 1.2 },
     turnRateDegS: 45, accelMps2: 1.5,
     chassisHitTickets: 18, maxIntegrity: 700,
+    regions: [
+      {
+        id: 'left-sponson', name: 'Left sponson', width: 8, height: 9,
+        mask: bastionLeftMask, workshopOrigin: { x: 0, y: 0 },
+      },
+      {
+        id: 'hull', name: 'Hull', width: 8, height: 9,
+        mask: bastionHullMask, workshopOrigin: { x: 3, y: 3 },
+      },
+      {
+        id: 'right-sponson', name: 'Right sponson', width: 8, height: 9,
+        mask: bastionRightMask, workshopOrigin: { x: 8, y: 0 },
+      },
+    ],
+    ports: [
+      {
+        id: 'left-sponson-forward-joint',
+        a: { regionId: 'left-sponson', x: 1, y: 2 },
+        b: { regionId: 'hull', x: 2, y: 2 },
+      },
+      {
+        id: 'left-sponson-aft-joint',
+        a: { regionId: 'left-sponson', x: 1, y: 5 },
+        b: { regionId: 'hull', x: 2, y: 5 },
+      },
+      {
+        id: 'right-sponson-forward-joint',
+        a: { regionId: 'hull', x: 5, y: 2 },
+        b: { regionId: 'right-sponson', x: 6, y: 2 },
+      },
+      {
+        id: 'right-sponson-aft-joint',
+        a: { regionId: 'hull', x: 5, y: 5 },
+        b: { regionId: 'right-sponson', x: 6, y: 5 },
+      },
+    ],
+    locationZones: [{
+      id: 'bastion-heat-spreader-casemate',
+      cells: cellsFromMask('hull', bastionHullMask),
+      effect: {
+        id: 'heat-spreader-casemate',
+        name: 'Heat-spreader casemate',
+        description: 'Equipment fitted wholly in the hull generates 15% less heat.',
+        heatMultiplier: 0.85,
+      },
+    }],
   },
 };
 

@@ -44,7 +44,7 @@
 >   Exterior cooling and directional exposure are derived location effects.
 > - Accuracy decides hit or miss. A hit then samples uniformly from one ticket
 >   per directionally exposed equipment cell plus authored chassis tickets
->   (Vulture 6, Mule 10, Widow 12, Bastion 18). Thus a Mule with six exposed
+>   (Vulture 6, Mule 10, Bastion 18). Thus a Mule with six exposed
 >   equipment cells has 16 tickets and a 62.5% chassis-hit chance even at
 >   perfect accuracy.
 > - A selected cell resolves armour, payload, then support. Surplus damage goes
@@ -60,7 +60,7 @@
 >   arc/range/heat, stack damage order, and direct/protected exposure from all
 >   four directions. Power and thermal overlays distinguish energized/stranded
 >   Bus, live/idle ports, bottlenecks, and radiator-linked/isolated heat pipe.
-> - Save schema v3 is an intentional reset. Pre-v3 profiles, runs, history, and
+> - Save schema v4 is an intentional reset. Pre-v4 profiles, runs, history, and
 >   blueprints are not migrated. Piercing, melee/final attacks, damaged ports,
 >   route damage, and per-region chassis HP remain future work.
 

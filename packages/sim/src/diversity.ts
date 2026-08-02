@@ -4,7 +4,7 @@
  * whether each chassis supports coherent identities and whether rare perks
  * are active, costly choices instead of dead text or automatic stacks.
  */
-import type { Build, PlacedPart } from './types.js';
+import type { Build } from './types.js';
 import { getChassis, getUsableCellCount } from './chassis.js';
 import { getPart } from './catalog.js';
 import { getOccupiedCells } from './grid.js';
@@ -13,17 +13,6 @@ import { runBattle } from './combat.js';
 import { dhypot } from './dmath.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from './harness.js';
 import { TEMPLATES, type TemplateDef } from './templates.js';
-
-function placed(
-  instanceId: string,
-  partId: string,
-  x: number,
-  y: number,
-  rotation: 0 | 90 | 180 | 270 = 0,
-  modifiers?: string[],
-): PlacedPart {
-  return { instanceId, partId, origin: { x, y }, rotation, integrity: 1, modifiers };
-}
 
 function templateBuild(id: string): Build {
   const source = TEMPLATES.find((template) => template.id === id);
@@ -50,9 +39,7 @@ function withModifier(build: Build, instanceId: string, modifierId: string): Bui
 }
 
 function vultureAmbusherControl(): Build {
-  const build = templateBuild('vulture-sniper');
-  build.parts.push(placed('coldSink', 'U-HS', 2, 3));
-  return build;
+  return templateBuild('vulture-sniper');
 }
 
 function muleRedlineControl(): Build {
@@ -66,26 +53,15 @@ function muleRedlineControl(): Build {
   build.parts = build.parts
     .filter((part) => part.instanceId !== 'arm1')
     .map((part) => part.instanceId === 'las1'
-      ? { ...part, origin: { ...second.origin }, rotation: second.rotation, modifiers: ['hot-running'] }
+      ? { ...part, origin: { ...second.origin }, rotation: second.rotation, modifiers: ['hot-running', 'cold-blooded'] }
       : part.instanceId === 'las2'
         ? { ...part, origin: { ...first.origin }, rotation: first.rotation }
         : part);
   return build;
 }
 
-function widowGunshipControl(): Build {
-  const parts = [
-    placed('reactor', 'R-C40', 4, 1),
-    placed('ac', 'W-AC', 1, 2),
-    placed('con', 'U-CON', 3, 2),
-    placed('rad', 'U-RAD', 2, 0),
-    placed('act', 'U-ACT', 4, 3),
-    placed('armL', 'U-ARM', 0, 2),
-    placed('armR', 'U-ARM', 6, 2),
-    placed('arm1', 'U-ARM', 1, 1),
-    placed('arm2', 'U-ARM', 2, 1),
-  ];
-  return { chassisId: 'CH-7', parts, powerPriority: ['__core__', 'act', 'ac'] };
+function muleGunshipControl(): Build {
+  return templateBuild('mule-skirmisher');
 }
 
 function bastionAnchorControl(): Build {
@@ -93,7 +69,10 @@ function bastionAnchorControl(): Build {
   build.parts = build.parts.map((part) => part.instanceId === 'br'
     ? { ...part, instanceId: 'mg', partId: 'W-MG' }
     : part);
-  build.parts.push(placed('act', 'U-ACT', 2, 7));
+  build.parts.push({
+    instanceId: 'act', partId: 'U-ACT',
+    origin: { regionId: 'hull', x: 2, y: 7 }, rotation: 0, integrity: 1,
+  });
   build.powerPriority = ['__core__', 'act', 'mg'];
   return build;
 }
@@ -111,7 +90,7 @@ export interface PerkCase {
 
 const coldControl = vultureAmbusherControl();
 const feverControl = muleRedlineControl();
-const gyroControl = widowGunshipControl();
+const gyroControl = muleGunshipControl();
 const hullControl = bastionAnchorControl();
 
 export const PERK_CASES: PerkCase[] = [
@@ -126,9 +105,9 @@ export const PERK_CASES: PerkCase[] = [
     carrierId: 'las1',
   },
   {
-    id: 'widow-gyro-gunship', chassisId: 'CH-7', identity: 'orbiting autocannon gunship',
-    perkId: 'gyrostabilized', control: gyroControl, perk: withModifier(gyroControl, 'ac', 'gyrostabilized'),
-    carrierId: 'ac',
+    id: 'mule-gyro-gunship', chassisId: 'CH-5', identity: 'movement-stabilized mobile brawler',
+    perkId: 'gyrostabilized', control: gyroControl, perk: withModifier(gyroControl, 'mg1', 'gyrostabilized'),
+    carrierId: 'mg1',
   },
   {
     id: 'bastion-hull-down', chassisId: 'CH-9', identity: 'armored hull-down suppression bunker',
@@ -147,8 +126,7 @@ export const PERK_TEMPLATES: TemplateDef[] = PERK_CASES.map((perkCase) => ({
 /** Accepted coherent identities; arbitrary legal layouts are intentionally absent. */
 export const CHASSIS_IDENTITIES: Record<string, string[]> = {
   'CH-2': ['hybrid range skirmisher', 'ram-air carbine sniper', 'cold-bore ambusher'],
-  'CH-5': ['combustion gunline', 'armored twin-MG brawler', 'hybrid laser boat', 'capacitor railgun', 'fever redline laser'],
-  'CH-7': ['carbine orbit skirmisher', 'gyrostabilized autocannon gunship'],
+  'CH-5': ['combustion gunline', 'armored twin-MG brawler', 'hybrid laser boat', 'capacitor railgun', 'fever redline laser', 'gyrostabilized mobile brawler'],
   'CH-9': ['armored close siege specialist', 'hull-down suppression bunker'],
 };
 
@@ -306,10 +284,16 @@ export function runPerkStress(seeds = 5, baseSeed = 20_000): PerkStressResult {
     };
   });
   const stackedFever = withModifier(withModifier(feverControl, 'las1', 'fever-cycle'), 'las2', 'fever-cycle');
+  const perkTemplateIds = new Set(PERK_TEMPLATES.map((template) => template.id));
   return {
     report,
     cases,
-    dominantCombinations: report.standings.filter((standing) => standing.winRate > 0.7).map((standing) => standing.id),
+    // Canonical roster dominance has its own larger, fixed opponent cohort in
+    // sim:balance. This stress gate owns perk combinations; mixing the two made
+    // a canonical build fail only because a retired perk opponent disappeared.
+    dominantCombinations: report.standings
+      .filter((standing) => perkTemplateIds.has(standing.id) && standing.winRate > 0.7)
+      .map((standing) => standing.id),
     deadPerks: cases.filter((entry) => entry.activationRate < 0.05 || entry.bestMatchup.delta <= 0).map((entry) => entry.perkId),
     stackingRejection: auditModifierLoadout(stackedFever),
   };
@@ -319,7 +303,7 @@ export function formatDiversityReport(result: PerkStressResult): string {
   const summary = analyzeRoundRobin(result.report);
   const lines = [
     `Diversity stress: ${result.report.standings.length} builds, ${result.report.battles} battles`,
-    `Healthy matchups: ${summary.healthyMatchups}/${summary.totalMatchups}; dominant combinations: ${result.dominantCombinations.join(', ') || 'none'}`,
+    `Healthy matchups: ${summary.healthyMatchups}/${summary.totalMatchups}; dominant perk combinations: ${result.dominantCombinations.join(', ') || 'none'}`,
     '',
     'Perk cases (same canonical opponents and seeds for control/perk):',
   ];

@@ -25,7 +25,7 @@ const base = process.env.AUDIT_URL ?? 'http://localhost:5160';
 
 /** Disarm this node's opponents so the fight is a decided one. */
 const DISARM = `(() => {
-  const k = 'mechbattler-run-v3';
+  const k = 'mechbattler-run-v4';
   const r = JSON.parse(localStorage.getItem(k));
   const node = r.generatedNodes.find((n) => n.index === r.nodeIndex);
   for (const o of node.opponents) {
@@ -40,7 +40,7 @@ const DISARM = `(() => {
  * and reads pre-settlement state -- which briefly looked like salvage failing.
  */
 const REPORT = `(() => new Promise((res) => setTimeout(() => {
-  const r = JSON.parse(localStorage.getItem('mechbattler-run-v3'));
+  const r = JSON.parse(localStorage.getItem('mechbattler-run-v4'));
   res(JSON.stringify({
     fightsWon: r.fightsWon,
     battles: r.battlesCompleted,
@@ -73,7 +73,9 @@ const args = [
   // y=1062 in an 844px viewport. Scrolling first here would hide a regression of
   // that, so this step doubles as the check that the exit stays reachable.
   '--tapText', 'Back to workshop', '--waitFor', '.wreck-panel@30000',
-  '--tapText', 'Whisper',
+  // Take the first intact row. Opponent/template names are content, while this
+  // smoke test is proving the salvage transaction itself.
+  '--tap', '.wreck-row',
   '--tapText', 'Strip the wreck',
   '--eval', REPORT,
 ];
