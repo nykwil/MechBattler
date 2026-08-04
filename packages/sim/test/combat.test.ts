@@ -1,7 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import type { Build, ChassisSpec, PlacedPart } from '../src/types.js';
 import { Simulation } from '../src/simulation.js';
-import { Combatant, runBattle, computeHitModel, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S } from '../src/combat.js';
+import {
+  Combatant, runBattle, computeHitModel, TRACKING_LAG_S,
+} from '../src/combat.js';
+import { getPart } from '../src/catalog.js';
+
+/**
+ * The targeting computer's strength is a catalog field now, not a constant, so
+ * the tests read the shipped value. When it was an import of a since-deleted
+ * constant, two of these passed vacuously against `undefined`.
+ */
+const TC_MULT = getPart('U-TC1').fireControlLateralMult!;
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import { getChassis } from '../src/chassis.js';
 
@@ -134,7 +144,7 @@ describe('the stat-based hit model (docs/03 §5)', () => {
   // Autocannon-ish baseline: sigma 4 mrad, 600 m/s, at 60 m vs a ~3 m target.
   const base = {
     rangeM: 60, sigmaRad: 0.004, lateralSpeedMps: 0,
-    lagS: TRACKING_LAG_BASE_S, projectileSpeed: 600 as number | 'hitscan', targetHalfWidthM: 1.5,
+    lagS: TRACKING_LAG_S, projectileSpeed: 600 as number | 'hitscan', targetHalfWidthM: 1.5,
   };
 
   it('a stationary target at ideal range is nearly always hit', () => {
@@ -154,14 +164,40 @@ describe('the stat-based hit model (docs/03 §5)', () => {
     expect(rocket.pHit).toBeLessThan(railgun.pHit);
     expect(railgun.pHit).toBeLessThan(hitscan.pHit);
     // Time-of-flight is the mechanism: staleness = lag + range/speed.
-    expect(rocket.aimStalenessS).toBeCloseTo(TRACKING_LAG_BASE_S + 60 / 250, 9);
-    expect(hitscan.aimStalenessS).toBeCloseTo(TRACKING_LAG_BASE_S, 9);
+    expect(rocket.aimStalenessS).toBeCloseTo(TRACKING_LAG_S + 60 / 250, 9);
+    expect(hitscan.aimStalenessS).toBeCloseTo(TRACKING_LAG_S, 9);
   });
 
+  /**
+   * The targeting computer now scales the lateral-target penalty rather than
+   * fire-control lag. The distinction is the point: it must help against a
+   * crosser and do nothing at all against a target standing still, because
+   * "hard to hit while moving" and "hard to hit at range" are separate problems
+   * with separate counters.
+   */
   it('a targeting computer buys accuracy back against crossing targets', () => {
     const noTc = computeHitModel({ ...base, lateralSpeedMps: 4.5 });
-    const tc = computeHitModel({ ...base, lateralSpeedMps: 4.5, lagS: TRACKING_LAG_TC_S });
+    const tc = computeHitModel({
+      ...base, lateralSpeedMps: 4.5, lateralPenaltyMult: TC_MULT,
+    });
     expect(tc.pHit).toBeGreaterThan(noTc.pHit);
+  });
+
+  it('a targeting computer does nothing against a stationary target', () => {
+    const noTc = computeHitModel({ ...base, lateralSpeedMps: 0 });
+    const tc = computeHitModel({
+      ...base, lateralSpeedMps: 0, lateralPenaltyMult: TC_MULT,
+    });
+    expect(tc.pHit).toBe(noTc.pHit);
+  });
+
+  /** Time of flight rides on lag, and the TC must not quietly shorten it. */
+  it('a targeting computer does not change aim staleness', () => {
+    const noTc = computeHitModel({ ...base, lateralSpeedMps: 4.5 });
+    const tc = computeHitModel({
+      ...base, lateralSpeedMps: 4.5, lateralPenaltyMult: TC_MULT,
+    });
+    expect(tc.aimStalenessS).toBe(noTc.aimStalenessS);
   });
 
   it('dispersion error grows with range even against stationary targets', () => {
@@ -223,10 +259,17 @@ describe('salvage integrity scales part HP (docs/04 §3, docs/10 M3)', () => {
   it('a low-integrity part is destroyed earlier than its pristine twin', () => {
     // Same seed, same battlefield, one dial turned: the armor plate that
     // started at 5% integrity must fall strictly sooner.
+    //
+    // Seed moved 42 -> 26, Aug 2026. The property is unchanged; the old seed
+    // stopped exhibiting it. Since the autopilot learned to close on a slant
+    // this matchup resolves before the gunline strips that plate, so `arm1`
+    // survived both runs and the assertion compared two Infinities — passing
+    // vacuously would have been worse than failing. Seed 26 still grinds it
+    // down, at 1.8 s against 40.8 s; 8 of the first 200 seeds do.
     const armDiedAt = (integrity: number) => {
       const build = muleSkirmisher();
       build.parts.find((p) => p.instanceId === 'arm1')!.integrity = integrity;
-      const report = runBattle({ builds: [muleGunline(), build], seed: 42 });
+      const report = runBattle({ builds: [muleGunline(), build], seed: 26 });
       const ev = report.events.find((e) => e.type === 'part-destroyed' && e.mech === 1 && e.instanceId === 'arm1');
       return ev ? ev.tSec : Infinity;
     };

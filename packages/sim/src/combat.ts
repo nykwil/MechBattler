@@ -23,9 +23,9 @@
 import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
-import { buildOccupancyMap, computeConnectivity, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
+import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
 import { buildSpatialOccupancy, exposedEquipmentTickets, type AttackDirection } from './spatial.js';
-import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { connectedInstanceIds } from './spatialPower.js';
 import { locationEffectsForPart } from './placementEffects.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
@@ -67,11 +67,42 @@ export const STAGGER_DAMAGE_PER_T = 3.3;
  * Tracking lag (docs/03 §5): aim trails the target's bearing by the fire
  * control's latency, so aim error grows with the target's angular velocity
  * across the shooter's line of sight (lateral speed / range). This is what
- * makes speed a defensive stat even for steady movement. A powered U-TC1
- * targeting computer shortens the lag.
+ * makes speed a defensive stat even for steady movement.
+ *
+ * Doubled Aug 2026. At 0.3 s the lead-error term was small enough next to
+ * dispersion that crossing in front of a gun barely cost it anything: hit rate
+ * against a stationary target and against one crossing at walking pace differed
+ * by a couple of points, so nobody could see a reason to move. Lag is the right
+ * dial for that rather than dispersion, because it multiplies *lateral speed
+ * specifically* -- closing straight in still pays nothing, which is the rule
+ * this game wanted -- and because it is the one accuracy term hitscan also pays,
+ * so a laser is no longer exempt from having to lead a runner.
  */
-export const TRACKING_LAG_BASE_S = 0.3;
-export const TRACKING_LAG_TC_S = 0.1;
+export const TRACKING_LAG_S = 0.5;
+
+/**
+ * The lateral-target penalty is held separate from the shooter's own movement
+ * penalty on purpose. Two different things degrade a shot and they have
+ * different counters:
+ *
+ *   - the shooter moving      -> MOVE_JITTER_MRAD_PER_MPS, bought down by the
+ *                                chassis (`moveJitterMult`: a Vulture is steady)
+ *   - the target moving across -> bought down by fire control, mech-wide via
+ *                                `PartDef.fireControlLateralMult` and per-gun via
+ *                                `EffectiveMults.lateralPenalty`. Both are
+ *                                content-declared and they multiply.
+ *
+ * They used to be one dial: the targeting computer "reduced fire-control lag",
+ * which is also the term projectile time-of-flight rides on, so a TC quietly
+ * made slow shells better as well and there was no way to tune leading a runner
+ * without also tuning how far a gun could reach. Lag is now a single physical
+ * latency and fire control scales the lateral penalty alone.
+ *
+ * The penalty itself used to be a hardcoded 1-or-0.4 keyed on the literal part
+ * id 'U-TC1'. Nothing could bend it, a second computer counted as none, and a
+ * per-weapon effect was not expressible at all -- while its twin (`moveJitter`)
+ * was a fully composable knob. That asymmetry is what this replaced.
+ */
 
 /**
  * Motion jitter (docs/03 §4): moving adds an absolute pointing error scaling
@@ -80,8 +111,73 @@ export const TRACKING_LAG_TC_S = 0.1;
  * (MG 8 mrad) — long-range fire wants a stationary platform, and "accuracy
  * while still" is simply zero jitter. Replaces the old flat speed-setting
  * dispersion multipliers.
+ *
+ * Raised with tracking lag, Aug 2026, and for the same reason from the other
+ * side. Making a crossing target hard to hit handed the fastest chassis a free
+ * defence: the Vulture skirmisher could orbit at a speed nothing could lead and
+ * still shoot as well as a mech standing still, and went to 73% -- over the R4
+ * flag -- on that alone. Evasion has to cost the evader its own gunnery, or
+ * speed is not a tradeoff, it is just the best stat.
  */
-export const MOVE_JITTER_MRAD_PER_MPS = 0.3;
+export const MOVE_JITTER_MRAD_PER_MPS = 0.75;
+
+/**
+ * A weapon's aim-error standard deviation before the shot-time multipliers
+ * (turning, arc edge, stagger), in radians: catalog dispersion scaled by the
+ * gun's own modifiers, plus motion jitter scaled by the shooter's speed, its
+ * modifiers, and the chassis's steadiness.
+ *
+ * One function because this expression had been written out four times -- shot
+ * resolution, DPS planning, the arena's spread mark, and the diagnostics
+ * overlay -- and the two in the UI had already lost the `moveJitterMult` term.
+ * A Vulture buys that down to 0.35, so both instruments drew a moving scout's
+ * spread almost three times wider on the jitter term than the shot it was
+ * marking. That is precisely the drift CLAUDE.md forbids, and keeping the
+ * formula in one exported place is what makes it un-driftable rather than
+ * merely currently-correct.
+ */
+export interface WeaponSigmaInputs {
+  /** Catalog dispersion, milliradians. */
+  dispersionMrad: number;
+  /** The shooter's speed, m/s. */
+  speedMps: number;
+  /** The gun's effective multipliers (`effectiveMults`); omit for neutral. */
+  mults?: { dispersionMrad: number; moveJitter: number };
+  /** `ChassisSpec.moveJitterMult`; omit for a neutral frame. */
+  chassisMoveJitterMult?: number;
+}
+
+/**
+ * The same figure in milliradians. Shot resolution works in mrad because it
+ * still has the turning, arc-edge and stagger multipliers to apply, and routing
+ * it through the radian form would introduce a x0.001 / x1000 round trip that
+ * is not bit-exact -- which the golden determinism hash would notice.
+ */
+export function weaponSigmaMrad(inputs: WeaponSigmaInputs): number {
+  const m = inputs.mults;
+  return inputs.dispersionMrad * (m?.dispersionMrad ?? 1)
+    + MOVE_JITTER_MRAD_PER_MPS * inputs.speedMps * (m?.moveJitter ?? 1)
+      * (inputs.chassisMoveJitterMult ?? 1);
+}
+
+export function weaponSigmaRad(inputs: WeaponSigmaInputs): number {
+  return weaponSigmaMrad(inputs) * 0.001;
+}
+
+/**
+ * How far past its falloff band a weapon will still fire, as a multiple of
+ * `rangeEnd`. Exported because the HUD draws the reach cone and was drawing it
+ * at `rangeEnd` — so the cone said the gun stopped where it merely got weaker,
+ * and shots visibly flew past their own marking.
+ */
+export const WEAPON_REACH_MULT = 1.3;
+/**
+ * Approach slants the autopilot may consider instead of walking straight in,
+ * in radians (~20, 40, 60 degrees). Crossing fraction is sin(angle), path
+ * length cost is 1/cos(angle), so the exchange trades evasion against time
+ * under fire.
+ */
+export const APPROACH_SLANT_RAD = [0.35, 0.7];
 /** How far ahead the autopilot projects a maneuver when scoring it. */
 export const MANEUVER_HORIZON_S = 2.0;
 
@@ -108,8 +204,15 @@ export interface HitModelInputs {
   sigmaRad: number;
   /** Target speed perpendicular to the line of sight, m/s. */
   lateralSpeedMps: number;
-  /** Fire-control latency (TRACKING_LAG_BASE_S, or _TC_S with a powered U-TC1). */
+  /** Fire-control latency (TRACKING_LAG_S). */
   lagS: number;
+  /**
+   * Scales the lateral-target penalty only: the mech's fire control
+   * (`Combatant.fireControlLateralMult`) times this weapon's own
+   * `EffectiveMults.lateralPenalty`. Defaults to 1 so a caller that models
+   * neither gets the ungated penalty.
+   */
+  lateralPenaltyMult?: number;
   projectileSpeed: number | 'hitscan';
   /** Half of the target's silhouette width projected across the line of sight, meters. */
   targetHalfWidthM: number;
@@ -148,7 +251,7 @@ export function computeHitModel(inputs: HitModelInputs): HitModel {
   const tofS = inputs.projectileSpeed === 'hitscan' ? 0 : inputs.rangeM / Math.max(inputs.projectileSpeed, 1);
   const aimStalenessS = inputs.lagS + tofS;
   const dispersionM = inputs.sigmaRad * inputs.rangeM;
-  const leadErrorM = inputs.lateralSpeedMps * aimStalenessS;
+  const leadErrorM = inputs.lateralSpeedMps * aimStalenessS * (inputs.lateralPenaltyMult ?? 1);
   const sigmaM = dhypot(dispersionM, leadErrorM);
   const pHit = sigmaM < 1e-9 ? 1 : erf(inputs.targetHalfWidthM / (sigmaM * Math.SQRT2));
   return { pHit, sigmaM, aimStalenessS };
@@ -356,9 +459,7 @@ export class Combatant {
     this.facingRad = facingRad;
     this.occupancy = buildOccupancyMap(build.parts);
     this.coreHp = this.chassis.maxIntegrity * Math.max(0, Math.min(1, build.chassisIntegrity ?? 1));
-    const connected = usesSpatialSystems(build)
-      ? resolveSpatialPower(this.chassis, build).connectedInstanceIds
-      : computeConnectivity(build.parts).connectedInstanceIds;
+    const connected = connectedInstanceIds(this.chassis, build);
     let partMass = 0;
     for (const p of build.parts) {
       const def = getPart(p.partId);
@@ -472,14 +573,26 @@ export class Combatant {
     return mult;
   }
 
-  /** True if a functional U-TC1 is currently powered (not shed, not shut down). */
-  hasPoweredTargetingComputer(snapshot: SimSnapshot | null): boolean {
-    return this.build.parts.some((p) =>
-      p.partId === 'U-TC1' &&
-      this.isPartFunctional(p.instanceId) &&
-      (snapshot === null ||
-        (!snapshot.shedInstanceIds.includes(p.instanceId) && !snapshot.shutdownInstanceIds.includes(p.instanceId))),
-    );
+  /**
+   * The mech-wide share of the lateral-target penalty: the product of every
+   * functional, powered part's `fireControlLateralMult`.
+   *
+   * Was a boolean keyed on the literal id 'U-TC1', which made the penalty the
+   * one accuracy term no content could bend — no per-gun scope, no stacking, and
+   * a second fire-control part would have meant editing the engine. Same shape
+   * as `profileMult` below, and for the same reason: the parts declare the
+   * effect, the combatant only multiplies what is currently working.
+   */
+  fireControlLateralMult(snapshot: SimSnapshot | null): number {
+    let mult = 1;
+    for (const p of this.build.parts) {
+      const declared = getPart(p.partId).fireControlLateralMult;
+      if (declared === undefined || !this.isPartFunctional(p.instanceId)) continue;
+      if (snapshot !== null && (snapshot.shedInstanceIds.includes(p.instanceId)
+        || snapshot.shutdownInstanceIds.includes(p.instanceId))) continue;
+      mult *= declared;
+    }
+    return mult;
   }
 
   hasFunctionalWeapons(): boolean {
@@ -803,7 +916,8 @@ export function estimateExpectedDps(
 ): number {
   const terrainRangeMult = mods.shooterRangeMult ?? 1;
   const coverMult = mods.targetCoverMult ?? 1;
-  const lagS = shooter.hasPoweredTargetingComputer(snapshot) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
+  const fireControlMult = shooter.fireControlLateralMult(snapshot);
+  const lagS = TRACKING_LAG_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
   const halfWidthM = meanSilhouetteHalfWidthM(target.chassis) * coverMult *
     target.profileMult(mods.targetTile ?? 'open');
@@ -813,7 +927,7 @@ export function estimateExpectedDps(
     if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
     const w = def.weapon!;
     const rangeMult = terrainRangeMult * shooter.weaponRangeMultiplier(p.instanceId);
-    if (rangeM > w.falloff.rangeEnd * 1.3 * rangeMult) continue;
+    if (rangeM > w.falloff.rangeEnd * WEAPON_REACH_MULT * rangeMult) continue;
     const m = effectiveMults(p, {
       tempC: shooter.sim.meanCellC(p.instanceId),
       speedMps: shooterSpeedMps,
@@ -821,9 +935,20 @@ export function estimateExpectedDps(
     });
     const model = computeHitModel({
       rangeM,
-      sigmaRad: (w.dispersionMrad * m.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * shooterSpeedMps * m.moveJitter) * 0.001,
+      // Same formula the shot resolution uses. The autopilot decides whether to
+      // cross by running this exchange, so if planning and resolution disagree
+      // about what movement costs, a frame that can afford to orbit will still
+      // choose to stand. Resolution then adds the shot-time multipliers
+      // (turning, arc edge, stagger), which planning cannot know.
+      sigmaRad: weaponSigmaRad({
+        dispersionMrad: w.dispersionMrad,
+        speedMps: shooterSpeedMps,
+        mults: m,
+        chassisMoveJitterMult: shooter.chassis.moveJitterMult,
+      }),
       lateralSpeedMps: targetLateralMps,
       lagS,
+      lateralPenaltyMult: fireControlMult * m.lateralPenalty,
       projectileSpeed: w.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
@@ -876,7 +1001,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (def.category !== 'weapon' || !self.isPartFunctional(p.instanceId)) continue;
     maxReachM = Math.max(
       maxReachM,
-      def.weapon!.falloff.rangeEnd * 1.3 * self.weaponRangeMultiplier(p.instanceId),
+      def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT * self.weaponRangeMultiplier(p.instanceId),
     );
   }
   if (myTile === 'hill') maxReachM *= HILL_RANGE_MULT;
@@ -925,12 +1050,23 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   let move: Extract<MechOrder, { verb: 'move' }>;
   let setting: SpeedSetting;
   if (maxReachM === 0) {
-    // No functional guns: turn tail (the surrender clock is ticking anyway).
-    move = { verb: 'move', intent: 'flee', dest: sub(self.pos, scale(dir, 80)) };
-    setting = 'flank';
+    // No functional guns: stop. The mission-kill surrender is already three
+    // seconds out, and sprinting away during those three seconds bought
+    // nothing and read as the mech running from a fight it had merely lost.
+    // Standing still reads as what it is — this one is done. (A disarmed mech
+    // ramming instead would be a real feature; the sim has no melee.)
+    move = { verb: 'move', intent: 'hold', dest: null };
+    setting = 'stationary';
   } else {
     // Scan standing ranges nearest-first; strict improvement keeps the
     // aggressive tie-break (mirror matchups charge instead of stalling).
+    // The scan deliberately runs past this mech's own reach. Clamping it to
+    // weapon range was tried, to stop an outgunned mech deciding its best
+    // standing point is "as far away as possible" — it cut running away
+    // further, from 12% of battles to 7%, but killed the cold-bore, fever-cycle
+    // and hull-down perks outright in the diversity stress, because standing
+    // off beyond reach is exactly what those perks are for. Running away is
+    // handled at the flee branch instead, where it costs nothing.
     let bestR = 10;
     let bestU = -Infinity;
     for (let r = 10; r <= 260; r += 5) {
@@ -945,13 +1081,47 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       const transitSpeed = (s: SpeedSetting) => (closing ? activeSpeeds.fwd : activeSpeeds.rev) * SPEED_FRACTION[s];
       setting = exchangeAt(range, transitSpeed('flank'), 0) >= exchangeAt(range, transitSpeed('cruise'), 0) ? 'flank' : 'cruise';
       if (closing) {
-        move = { verb: 'move', intent: 'close', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
-      } else if (range > maxReachM) {
-        // Want distance and can't shoot from here anyway: turn tail and use
-        // the full forward speed instead of the slow reverse.
-        move = { verb: 'move', intent: 'flee', dest: sub(enemy.pos, scale(dir, bestR + 40)) };
-        setting = 'flank';
+        // Straight-in is pure radial motion. Only *lateral* speed creates lead
+        // error, so a head-on approach pays the full jitter cost of moving and
+        // earns none of the evasion — against anything that can already shoot
+        // back it is strictly worse than slanting in. Measured, mechs spent
+        // ~84% of a battle transiting like this and were hit at ~100%, which is
+        // why closing builds could not trade at all. The same exchange that
+        // chooses the range chooses the slant, so a frame only pays the extra
+        // path length when the crossing it buys is worth more than the jitter.
+        const speedNow = transitSpeed(setting);
+        let bestAngleRad = 0;
+        let bestApproachU = exchangeAt(range, speedNow, 0);
+        for (const angleRad of APPROACH_SLANT_RAD) {
+          const u = exchangeAt(range, speedNow, speedNow * dsin(angleRad));
+          if (u > bestApproachU + 1e-9) { bestApproachU = u; bestAngleRad = angleRad; }
+        }
+        if (bestAngleRad === 0) {
+          move = { verb: 'move', intent: 'close', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
+        } else {
+          const slant = bestAngleRad * self.orbitDir;
+          const cosS = dcos(slant);
+          const sinS = dsin(slant);
+          const heading = { x: dir.x * cosS - dir.y * sinS, y: dir.x * sinS + dir.y * cosS };
+          const travel = Math.max(8, (range - bestR) / Math.max(dcos(bestAngleRad), 0.3));
+          move = { verb: 'move', intent: 'close', dest: pickGround(add(self.pos, scale(heading, travel))) };
+        }
       } else {
+        // Give ground facing the enemy, never turn tail.
+        //
+        // There used to be a `flee` branch here for a mech that wanted more
+        // distance than it had and could not shoot from where it stood. It
+        // turned tail — `flee` sets facing *away* from the target — so it ran
+        // at forward speed with its guns unable to bear, and did not shoot for
+        // the rest of the match. That was 28% of measured battles, and gating
+        // it on outrunning the pursuer only halved it.
+        //
+        // The behaviour never made sense on its own terms. Breaking contact
+        // wins nothing in a run that ends when you lose, and a mech with a
+        // reach advantage wants to back off *while shooting*, which is exactly
+        // what `retreat` already does: reverse speed, facing held on the
+        // target, guns bearing. Turning tail is now reserved for having no
+        // functional guns at all, where the surrender clock is running anyway.
         move = { verb: 'move', intent: 'retreat', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
       }
     } else if (betterGroundNearby()) {
@@ -999,7 +1169,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
-    const despawnRange = def.weapon!.falloff.rangeEnd * 1.3
+    const despawnRange = def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT
       * self.weaponRangeMultiplier(p.instanceId)
       * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
@@ -1009,7 +1179,14 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   // --- Verb 4: face the target only when a gun that needs facing can reach;
   // otherwise face the direction of travel and use the (faster) forward speed.
   let face: Extract<MechOrder, { verb: 'face' }>;
-  if (move.intent === 'flee') {
+  if (maxReachM === 0) {
+    // Nothing left to aim: hold the current bearing rather than claim to be
+    // tracking. `mode: 'target'` here would be a lie, and a costly one — the
+    // manual merge only re-aims facing at a player's waypoint when the
+    // autopilot was travel-facing, so a disarmed mech under manual control
+    // would stare at the enemy instead of where it was being driven.
+    face = { verb: 'face', mode: 'bearing', bearingRad: self.facingRad };
+  } else if (move.intent === 'flee') {
     face = { verb: 'face', mode: 'bearing', bearingRad: datan2(-dir.y, -dir.x) };
   } else if (maxReachM > 0 && range <= maxReachM) {
     face = { verb: 'face', mode: 'target' };
@@ -1050,19 +1227,16 @@ export interface ManualOrders {
 }
 
 /**
- * Wraps a controller so manual verb overrides replace its orders. `onArrival`
- * fires (each controller tick) while the mech stands within 2 m of a manual
- * waypoint — the caller's hook for "on arrival, revert to auto" (docs/08 §2).
+ * Wraps a controller so manual verb overrides replace its orders.
+ *
+ * Had an `onArrival` hook for "reach the waypoint, revert to full auto",
+ * removed Aug 2026 along with the cockpit toggle that armed it. Nobody could
+ * tell what it did from the button, and a standing order that silently hands
+ * the mech back mid-fight is a surprise, not a convenience: control now changes
+ * hands only when the player says so.
  */
-export function withManualOrders(base: Controller, manual: () => ManualOrders, onArrival?: () => void): Controller {
-  return (ctx) => {
-    const m = manual();
-    if (m.move && m.move !== 'hold' && onArrival) {
-      const d = dhypot(ctx.self.pos.x - m.move.dest.x, ctx.self.pos.y - m.move.dest.y);
-      if (d < 2) onArrival();
-    }
-    return mergeManualOrders(base(ctx), m, ctx);
-  };
+export function withManualOrders(base: Controller, manual: () => ManualOrders): Controller {
+  return (ctx) => mergeManualOrders(base(ctx), manual(), ctx);
 }
 
 /**
@@ -1450,7 +1624,7 @@ export class Battle {
       const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
       let gate: WeaponFrame['gate'] = null;
       if (!destroyed) {
-        const despawnRange = def.weapon!.falloff.rangeEnd * 1.3
+        const despawnRange = def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT
           * c.weaponRangeMultiplier(p.instanceId)
           * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
         const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
@@ -1529,7 +1703,8 @@ export class Battle {
     const range = len(toEnemy);
     const aimBearing = datan2(toEnemy.y, toEnemy.x);
     const losDir = norm(toEnemy);
-    const lagS = self.hasPoweredTargetingComputer(this.lastSnapshots[i]) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
+    const fireControlMult = self.fireControlLateralMult(this.lastSnapshots[i]);
+    const lagS = TRACKING_LAG_S;
     // Terrain (docs/03 §2): a shooter on a hill fires down an extended
     // envelope; a target in forest shows a reduced silhouette.
     const shooterTile = terrainAt(this.terrain, self.pos.x, self.pos.y);
@@ -1546,6 +1721,7 @@ export class Battle {
       sigmaRad: this.effectiveDispersionRad(self, instanceId, def, aimBearing, shooterM),
       lateralSpeedMps: enemy.lateralSpeedMps(losDir),
       lagS,
+      lateralPenaltyMult: fireControlMult * shooterM.lateralPenalty,
       projectileSpeed: weapon.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     });
@@ -1603,7 +1779,12 @@ export class Battle {
 
   /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
   private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
-    let mrad = def.weapon!.dispersionMrad * m.dispersionMrad + MOVE_JITTER_MRAD_PER_MPS * len(self.vel) * m.moveJitter;
+    let mrad = weaponSigmaMrad({
+      dispersionMrad: def.weapon!.dispersionMrad,
+      speedMps: len(self.vel),
+      mults: m,
+      chassisMoveJitterMult: self.chassis.moveJitterMult,
+    });
     if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1.3;
     const halfArc = (self.weaponArcDeg(instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const offset = Math.abs(wrapAngle(aimBearing - self.facingRad));

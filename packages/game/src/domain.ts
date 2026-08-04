@@ -18,7 +18,6 @@ import {
   type InstalledPart,
   type MechInstance,
   type PartInstance,
-  type PartProvenance,
   type PendingSalvage,
   type PendingModService,
   type RunInstance,
@@ -264,145 +263,7 @@ export function settleBattle(args: {
   };
 }
 
-export function chassisRecoveryCost(chassisId: string): number {
-  const cells = getChassis(chassisId).mask.flat().filter(Boolean).length;
-  return GAME_CONTENT.economy.chassisRecoveryBaseCost
-    + cells * GAME_CONTENT.economy.chassisRecoveryPerCell;
-}
 
-function needsPowerPriority(partId: string): boolean {
-  const part = getPart(partId);
-  return Boolean(part.draw?.continuousKw || part.draw?.chargedEnergyPerShotKj || part.category === 'weapon');
-}
-
-/**
- * Pure preview shared by the UI and reducer. Whole-wreck recovery keeps every
- * surviving enemy placement, stows the old build up to the bench cap, and
- * scraps deterministic overflow.
- */
-export function previewWreckRecovery(args: {
-  pending: PendingSalvage;
-  currentBuild: Build;
-  currentScrap: number;
-  benchUsed: number;
-  partProvenance?: Record<string, PartProvenance>;
-}) {
-  const intact = args.pending.candidates.filter((candidate) => !candidate.destroyed);
-  const room = Math.max(0, GAME_CONTENT.run.benchCap - args.benchUsed);
-  const oldParts = args.currentBuild.parts.map((part): PartInstance => ({
-    id: part.instanceId,
-    partId: part.partId,
-    integrity: part.integrity,
-    modifiers: part.modifiers,
-    variant: part.variant,
-    provenance: args.partProvenance?.[part.instanceId] ?? { source: 'starter' },
-  }));
-  const stowedParts = oldParts.slice(0, room);
-  const scrappedParts = oldParts.slice(room);
-  const overflowScrap = scrappedParts.reduce(
-    (sum, part) => sum + Math.max(
-      1,
-      Math.round(getPart(part.partId).tier * GAME_CONTENT.economy.ownedScrapMultiplier * part.integrity),
-    ),
-    0,
-  );
-  const destroyedScrap = args.pending.candidates
-    .filter((candidate) => candidate.destroyed)
-    .reduce((sum, candidate) => sum + candidate.scrapValue, 0);
-  const cost = chassisRecoveryCost(args.pending.opponentChassisId);
-  const scrapDelta = args.pending.purse + destroyedScrap + overflowScrap - cost;
-  const sourceToWreck = new Map(intact.map((candidate) => [candidate.sourceInstanceId, candidate.id]));
-  const mappedPriority = (args.pending.opponentPowerPriority ?? [])
-    .map((id) => id === CORE_INSTANCE_ID ? CORE_INSTANCE_ID : sourceToWreck.get(id))
-    .filter((id): id is string => Boolean(id));
-  const powerPriority = [
-    ...mappedPriority,
-    ...intact
-      .filter((candidate) => needsPowerPriority(candidate.partId))
-      .map((candidate) => candidate.id)
-      .filter((id) => !mappedPriority.includes(id)),
-  ];
-  if (!powerPriority.includes(CORE_INSTANCE_ID)) powerPriority.unshift(CORE_INSTANCE_ID);
-  const replacementBuild: Build = {
-    chassisId: args.pending.opponentChassisId,
-    parts: intact.map((candidate) => ({
-      instanceId: candidate.id,
-      partId: candidate.partId,
-      integrity: candidate.integrity,
-      modifiers: candidate.modifiers,
-      variant: candidate.variant,
-      origin: { ...candidate.origin },
-      rotation: candidate.rotation,
-    })),
-    powerPriority,
-  };
-  return {
-    sameChassis: args.currentBuild.chassisId === args.pending.opponentChassisId,
-    cost,
-    destroyedScrap,
-    overflowScrap,
-    scrapDelta,
-    scrapAfter: args.currentScrap + scrapDelta,
-    affordable: args.currentScrap + scrapDelta >= 0,
-    stowedParts,
-    scrappedParts,
-    replacementBuild,
-    replacementParts: intact.map(({ destroyed: _destroyed, scrapValue: _scrapValue, ...part }) => part),
-  };
-}
-
-/** Settle the exceptional whole-wreck chassis switch in one atomic run command. */
-export function recoverWreck(run: RunInstance): RunInstance {
-  if (!run.pendingSalvage || run.mech.chassisId === run.pendingSalvage.opponentChassisId) return run;
-  const preview = previewWreckRecovery({
-    pending: run.pendingSalvage,
-    currentBuild: mechToBuild(run.mech),
-    currentScrap: run.scrap,
-    benchUsed: run.bench.length,
-    partProvenance: Object.fromEntries(run.mech.parts.map((part) => [part.id, part.provenance])),
-  });
-  if (!preview.affordable) return run;
-  const fightsWon = run.fightsWon + 1;
-  const serviceDue = fightsWon < GAME_CONTENT.run.length
-    && fightsWon % GAME_CONTENT.run.modServiceEveryWins === 0;
-  const complete = run.nodeIndex >= GAME_CONTENT.run.length;
-  const fromChassisId = run.mech.chassisId;
-  return {
-    ...run,
-    status: complete ? 'over' : 'active',
-    victorious: complete ? true : undefined,
-    cause: complete ? 'Completed the ladder' : undefined,
-    scrap: preview.scrapAfter,
-    fightsWon,
-    nodeIndex: complete ? run.nodeIndex : run.nodeIndex + 1,
-    mech: {
-      chassisId: preview.replacementBuild.chassisId,
-      parts: preview.replacementParts.map((part) => ({
-        ...part,
-        origin: { ...part.origin },
-        rotation: part.rotation,
-      })),
-      routes: structuredClone(preview.replacementBuild.routes ?? []),
-      chassisIntegrity: 1,
-      powerPriority: [...preview.replacementBuild.powerPriority],
-    },
-    bench: [...run.bench, ...preview.stowedParts],
-    pendingSalvage: undefined,
-    pendingModService: serviceDue
-      ? { afterWin: fightsWon, offerIds: modOffers(run.seed, fightsWon), applied: false }
-      : undefined,
-    yardRerolled: false,
-    events: [...run.events, {
-      type: 'chassis-recovery',
-      nodeIndex: run.nodeIndex,
-      fromChassisId,
-      toChassisId: preview.replacementBuild.chassisId,
-      cost: preview.cost,
-      stowedIds: preview.stowedParts.map((part) => part.id),
-      scrappedIds: preview.scrappedParts.map((part) => part.id),
-    }],
-  };
-}
 
 export function modOffers(runSeed: number, afterWin: number): string[] {
   const rng = new Pcg32((runSeed * 977 + afterWin) ^ 0x3ac41);
@@ -501,6 +362,33 @@ function patchOwnedPart(
         part.id === partInstanceId ? { ...part, ...patch(part) } : part),
     },
     bench: run.bench.map((part) => part.id === partInstanceId ? patch(part) : part),
+  };
+}
+
+/** Scrap to restore the chassis body from `fromIntegrity` to full. */
+export function chassisRepairCost(fromIntegrity: number): number {
+  const points = Math.max(0, 1 - fromIntegrity) * 100;
+  return Math.ceil(points * GAME_CONTENT.economy.chassisRepairCostPerPoint - 1e-9);
+}
+
+/**
+ * Repair the chassis body. Chassis damage persists between fights like part
+ * damage does, but until Aug 2026 the only way to undo it lived inline in the
+ * workshop component — so the rule existed for a player clicking a button and
+ * did not exist for anything reasoning about a run. The headless progression
+ * loop therefore modelled a pilot who could fix every component and never the
+ * frame under them, and its runs died of accumulated body damage at node 3-4
+ * while every part-level measurement said the mech was getting stronger.
+ */
+export function repairRunChassis(run: RunInstance): RunInstance {
+  const integrity = run.mech.chassisIntegrity ?? 1;
+  if (integrity >= 1) return run;
+  const cost = chassisRepairCost(integrity);
+  if (cost <= 0 || cost > run.scrap) return run;
+  return {
+    ...run,
+    scrap: run.scrap - cost,
+    mech: { ...run.mech, chassisIntegrity: 1 },
   };
 }
 

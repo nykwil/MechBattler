@@ -1,6 +1,10 @@
-import { BRANCH_PROBE_TEMPLATES, CHASSIS, PARTS, TEMPLATES, validateBuild } from '@mechbattler/sim';
+import {
+  BRANCH_PROBE_TEMPLATES, CHASSIS, MODIFIERS, ModBuilder, PARTS, TEMPLATES, validateBuild,
+  type ModifierCtx, type ScalableField,
+} from '@mechbattler/sim';
 import { GAME_CONTENT, getGameplayTemplate } from './content.js';
 import { defaultProfile, savedMechErrors } from './persistence.js';
+import { ENEMY_FIELDABLE_PART_IDS } from './nodes.js';
 
 export interface GameAudit {
   ok: boolean;
@@ -41,15 +45,77 @@ export interface GameAudit {
   diagnostics: {
     impossibleContent: string[];
     selfDependentContent: string[];
+    /**
+     * Fields where the modifiers a single part can legally carry could sum to a
+     * 100% reduction or worse. `ModBuilder` clamps at zero so this can never
+     * invert an effect at runtime, but a clamp firing means the catalog is
+     * wrong — the additive pool is meant to make sources compete, not cancel.
+     */
+    saturatedAdditivePools: string[];
   };
+}
+
+/**
+ * Contexts that reach every branch a modifier can take: cold and hot, still and
+ * moving, and each terrain that anything reads. A modifier's worst additive
+ * contribution is its most negative across these.
+ */
+const AUDIT_CTXS: ModifierCtx[] = [
+  { tempC: 20, speedMps: 0, tile: 'open' },
+  { tempC: 20, speedMps: 6, tile: 'water' },
+  { tempC: 120, speedMps: 0, tile: 'forest' },
+  { tempC: 120, speedMps: 6, tile: 'hill' },
+];
+
+/**
+ * Worst-case additive pool per field, per part.
+ *
+ * Probes each applicable modifier rather than reading its source: run `apply`
+ * against a builder and ask what it put in the additive pool. Copies of one
+ * modifier are limited per build, so the worst case is one of each applicable
+ * modifier stacked on the same part.
+ */
+function saturatedAdditivePools(): string[] {
+  const offenders: string[] = [];
+  for (const def of Object.values(PARTS)) {
+    const totals = new Map<ScalableField, number>();
+    for (const modifier of Object.values(MODIFIERS)) {
+      if (!modifier.appliesTo(def)) continue;
+      const worst = new Map<ScalableField, number>();
+      for (const ctx of AUDIT_CTXS) {
+        const probe = new ModBuilder();
+        modifier.apply(probe, ctx, def);
+        for (const [field, delta] of Object.entries(probe.peekAdditive())) {
+          const key = field as ScalableField;
+          worst.set(key, Math.min(worst.get(key) ?? 0, delta ?? 0));
+        }
+      }
+      for (const [field, delta] of worst) {
+        if (delta < 0) totals.set(field, (totals.get(field) ?? 0) + delta);
+      }
+    }
+    for (const [field, total] of totals) {
+      if (1 + total <= 0) {
+        offenders.push(
+          `${def.id}: additive pool for ${field} can reach ${(1 + total).toFixed(2)} `
+          + '(a 100% reduction or worse) — split a source into the multiplicative bucket',
+        );
+      }
+    }
+  }
+  return offenders;
 }
 
 export function auditGameContent(): GameAudit {
   const errors: string[] = [];
+  const saturated = saturatedAdditivePools();
+  errors.push(...saturated);
   const starterLegality: GameAudit['starterLegality'] = [];
+  // What opponents can actually field, derived from the doctrine table rather
+  // than from "everything enabled" — see ENEMY_FIELDABLE_PART_IDS.
   const enemyPartIds = new Set([
     ...TEMPLATES.flatMap((template) => template.build.parts.map((part) => part.partId)),
-    ...GAME_CONTENT.enemyFillPartIds,
+    ...ENEMY_FIELDABLE_PART_IDS,
   ]);
   const enabledChassis = new Set(GAME_CONTENT.enabledChassisIds);
   const catalogChassis = Object.keys(CHASSIS);
@@ -89,10 +155,6 @@ export function auditGameContent(): GameAudit {
     || GAME_CONTENT.run.balanceTargetWinRateMax > 1
     || GAME_CONTENT.run.balanceTargetWinRateMin >= GAME_CONTENT.run.balanceTargetWinRateMax) {
     errors.push('Balance target win-rate band is invalid');
-  }
-  if (GAME_CONTENT.economy.chassisRecoveryBaseCost < 0
-    || GAME_CONTENT.economy.chassisRecoveryPerCell <= 0) {
-    errors.push('Chassis recovery costs must be non-negative with a positive per-cell rate');
   }
   const enabled = new Set(GAME_CONTENT.enabledPartIds);
   const routed = new Map<string, string[]>();
@@ -205,6 +267,7 @@ export function auditGameContent(): GameAudit {
       impossibleContent: [...errors],
       // Predicate data currently names outcome facts, never its own reward ids.
       selfDependentContent: [],
+      saturatedAdditivePools: saturated,
     },
   };
 }

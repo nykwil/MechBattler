@@ -10,10 +10,35 @@ describe('minimum range', () => {
   const rocket = getPart('W-RKT');
   const rail = getPart('W-RG');
 
-  it('leaves weapons without a minimum fully effective at contact', () => {
-    for (const id of ['W-MG', 'W-AC', 'W-CB', 'W-BR', 'W-SC', 'W-LAS', 'W-ION']) {
+  /**
+   * Which weapons own the knife fight is a design statement, so it is asserted
+   * rather than left to whoever edits the catalog next. The brawlers keep no
+   * minimum; every gun that trades on reach and precision pays for it up close,
+   * which is what makes standing at your ideal band a decision.
+   */
+  it('leaves the brawling weapons fully effective at contact', () => {
+    for (const id of ['W-MG', 'W-BR', 'W-SC']) {
       expect(falloffAt(getPart(id), 0), id).toBe(1);
     }
+  });
+
+  it('gives every long-range weapon a real dead zone', () => {
+    for (const id of ['W-AC', 'W-CB', 'W-LAS', 'W-ION', 'W-RKT', 'W-RG']) {
+      const { rangeMin, multAtMin } = getPart(id).weapon!.falloff;
+      expect(rangeMin, id).toBeGreaterThan(0);
+      // A penalty, never a silence: the shot lands, badly.
+      expect(falloffAt(getPart(id), 0), id).toBeCloseTo(multAtMin!, 5);
+      expect(falloffAt(getPart(id), 0), id).toBeGreaterThan(0);
+      expect(falloffAt(getPart(id), rangeMin!), id).toBeCloseTo(1, 5);
+    }
+  });
+
+  /** The reach premium is priced up close: the further a gun sees, the worse its brawl. */
+  it('makes the longest reach the worst brawler', () => {
+    const brawl = (id: string) => falloffAt(getPart(id), 10);
+    expect(brawl('W-RG')).toBeLessThan(brawl('W-CB'));
+    expect(brawl('W-CB')).toBeLessThan(brawl('W-AC'));
+    expect(brawl('W-AC')).toBeLessThan(brawl('W-MG'));
   });
 
   it('penalises the rocket pod inside its minimum, without silencing it', () => {

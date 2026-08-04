@@ -1,12 +1,12 @@
 import {
   CELL_SIZE_M, TICK_S,
   computeHitModel, effectiveMults, falloffAt, getChassis, getPart, meanSilhouetteHalfWidthM,
-  MOVE_JITTER_MRAD_PER_MPS, SPEED_SETTING_FRACTIONS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
+  weaponSigmaRad, SPEED_SETTING_FRACTIONS, TRACKING_LAG_S,
   FOREST_COVER_MULT,
   type BattleFrame, type Build,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
-import { frameIndexAt, hasPoweredTcAt, targetProfileMultAt, type BattleView } from './BattleHud.js';
+import { fireControlLateralMultAt, frameIndexAt, targetProfileMultAt, type BattleView } from './BattleHud.js';
 import './BattleDiagnostics.css';
 
 /**
@@ -73,8 +73,8 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
   const w = def?.weapon;
   const rangeM = Math.hypot(foe.x - me.x, foe.y - me.y);
   const lateral = prev ? crossingSpeedMps(prev.mechs[0], me, foe, TICK_S) : 0;
-  const tc = hasPoweredTcAt(view, build, tSec, 0);
-  const lagS = tc ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S;
+  const fireControlMult = fireControlLateralMultAt(view, build, tSec, 0);
+  const lagS = TRACKING_LAG_S;
   // Same multipliers the sim applies: a modified or salvaged gun disperses
   // differently from its catalog entry, and an instrument that ignores that reports
   // a spread the shot does not have.
@@ -82,9 +82,24 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
   const mults = placed && gun
     ? effectiveMults(placed, { tempC: gun.tempC, speedMps: speed, tile: me.tile })
     : undefined;
+  // Mech-wide fire control x this weapon's own knob, exactly as the sim does.
+  const lateralPenaltyMult = fireControlMult * (mults?.lateralPenalty ?? 1);
   const sigmaRad = w
-    ? (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
-      + MOVE_JITTER_MRAD_PER_MPS * speed * (mults?.moveJitter ?? 1)) * 0.001
+    ? weaponSigmaRad({
+      dispersionMrad: w.dispersionMrad,
+      speedMps: speed,
+      mults,
+      // The frame's own steadiness, which this overlay used to drop -- so it
+      // reported a moving Vulture's dispersion at roughly three times the
+      // figure the sim scored the shot with.
+      chassisMoveJitterMult: getChassis(view.mechs[0].chassisId).moveJitterMult,
+    })
+    : 0;
+  // The jitter row shows what movement alone added, derived by re-running the
+  // same function at a standstill rather than by re-multiplying the constant --
+  // which is how this row came to disagree with its own total.
+  const jitterMrad = w
+    ? (sigmaRad - weaponSigmaRad({ dispersionMrad: w.dispersionMrad, speedMps: 0, mults })) * 1000
     : 0;
   // The target's own speed, derived from its last two frames the same way ours is.
   // Passing 0 here was the very mistake this function exists to correct: a modifier
@@ -101,12 +116,13 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
       sigmaRad,
       lateralSpeedMps: lateral,
       lagS,
+      lateralPenaltyMult,
       projectileSpeed: w.projectileSpeed,
       targetHalfWidthM: halfWidthM,
     })
     : undefined;
   const dispersionM = sigmaRad * rangeM;
-  const leadErrorM = model ? lateral * model.aimStalenessS : 0;
+  const leadErrorM = model ? lateral * model.aimStalenessS * lateralPenaltyMult : 0;
 
   const row = (k: string, v: string, cls = '') => (
     <div className="drow" key={k}>
@@ -158,12 +174,20 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
       <div className="dcols wide">
         {w && model ? (
           <>
-            {row('your speed → jitter', `${speed.toFixed(2)} → +${(MOVE_JITTER_MRAD_PER_MPS * speed).toFixed(2)} mrad`)}
+            {row('your speed → jitter', `${speed.toFixed(2)} → +${jitterMrad.toFixed(2)} mrad`)}
             {row('total dispersion', `${(sigmaRad * 1000).toFixed(2)} mrad → ${dispersionM.toFixed(2)} m`,
               mults && mults.dispersionMrad !== 1 ? 'good' : '')}
             {row('target crossing', `${lateral.toFixed(2)} m/s`)}
-            {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s${tc ? ' (TC)' : ''}`)}
-            {row('lead error', `${leadErrorM.toFixed(2)} m`, leadErrorM > dispersionM ? 'bad' : '')}
+            {/* The (TC) marker used to sit on this row, left over from when a
+                targeting computer shortened fire-control lag. It does not any
+                more -- lag is a single physical latency nothing buys down -- so
+                the marker belonged on the term fire control actually reduces. */}
+            {row('lag + time of flight', `${model.aimStalenessS.toFixed(2)} s`)}
+            {row(
+              'lead error',
+              `${leadErrorM.toFixed(2)} m${lateralPenaltyMult !== 1 ? ` (x${lateralPenaltyMult.toFixed(2)} fire control)` : ''}`,
+              leadErrorM > dispersionM ? 'bad' : '',
+            )}
             {row('sigma vs target', `${model.sigmaM.toFixed(2)} m vs ${halfWidthM.toFixed(2)} m${foe.tile === 'forest' ? ' (cover)' : ''}${profileMult !== 1 ? ' (profile)' : ''}`)}
             {row('damage at range', `×${falloffAt(def!, rangeM).toFixed(2)}`, falloffAt(def!, rangeM) < 0.6 ? 'warn' : '')}
             {row(

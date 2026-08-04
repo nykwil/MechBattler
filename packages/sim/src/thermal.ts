@@ -94,7 +94,22 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
     const cellCoords = getOccupiedCells(p, def);
     const keys: string[] = [];
     // Cold-soaked etc. (docs/04 §4): static thermal-mass multiplier.
-    const thermalMass = (def.thermalMassPerCell ?? 1.0) * effectiveMults(p, STATIC_CTX).thermalMass;
+    //
+    // Default 1.0 -> 0.7, Aug 2026. The thermal band is specified up to
+    // fire-hold at 115 C, shutdown at 130 and heat damage at 150, and none of
+    // it was reachable: across 240 measured battles no template ever passed
+    // 65 C, so the whole upper band was dead content and the `redline`
+    // challenge — and the two parts it unlocks — could never be earned. Heat
+    // was therefore not a tradeoff, it was a number on a readout.
+    //
+    // 0.7 is the value that satisfies every constraint at once. Peaks now
+    // spread 40-79 C instead of 37-65, the genuinely hot builds (-9 to -10 kW)
+    // reach 115 C sometimes while the solved ones (-1.6 to -3.1 kW) never do,
+    // and `redline` is earnable. 0.5 and 0.3 discriminate harder but both kill
+    // the gyrostabilized perk outright in the diversity stress — 0.5 took it
+    // from +3 points to -14 — and a perk that is never worth taking is a
+    // diversity loss traded for a diversity gain.
+    const thermalMass = (def.thermalMassPerCell ?? 0.7) * effectiveMults(p, STATIC_CTX).thermalMass;
     for (const c of cellCoords) {
       const projected = key(c.x, c.y);
       const k = cells.has(projected) ? `${projected}#${p.instanceId}` : projected;

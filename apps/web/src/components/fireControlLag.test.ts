@@ -1,12 +1,22 @@
 import { describe, expect, it } from 'vitest';
-import type { Build } from '@mechbattler/sim';
-import { hasPoweredTcAt, targetProfileMultAt } from './BattleHud.js';
-import type { BattleView } from './BattleHud.js';
+import { getPart, type Build } from '@mechbattler/sim';
+import { fireControlLateralMultAt, targetProfileMultAt, type BattleView } from './BattleHud.js';
+
+/** The shipped strength, read from the catalog rather than restated here. */
+const TC = getPart('U-TC1').fireControlLateralMult!;
 
 /**
- * Fire-control lag is 0.3 s, or 0.1 s with a *powered* targeting computer. The sim
- * requires the part fitted, functional, and neither shed nor shut down; only the
- * first is visible from a build, so the rest is replayed from events.
+ * Fire control scales the *lateral-target penalty* alone. It used to shorten
+ * fire-control lag instead, which is also the term projectile time-of-flight
+ * rides on — so it quietly improved slow shells too; lag is now a single
+ * physical latency nothing buys down.
+ *
+ * It is a product over parts that declare `fireControlLateralMult`, not a
+ * boolean on the id 'U-TC1', so copies compound and a future fire-control part
+ * needs no change here.
+ *
+ * The sim requires the part fitted, functional, and neither shed nor shut down;
+ * only the first is visible from a build, so the rest is replayed from events.
  *
  * It matters because the spread drawn on the arena and the diagnostics overlay both
  * feed this into computeHitModel. Getting it wrong makes both disagree with the sim
@@ -27,41 +37,48 @@ const view = (events: BattleView['events']): BattleView => ({
   mechs: [{ chassisId: 'CH-2', capacitorMaxKj: 0 }, { chassisId: 'CH-2', capacitorMaxKj: 0 }],
 });
 
-describe('powered targeting computer', () => {
+describe('mech-wide fire control', () => {
   it('is absent when none is fitted', () => {
-    expect(hasPoweredTcAt(view([]), build(['W-MG']), 5, 0)).toBe(false);
+    expect(fireControlLateralMultAt(view([]), build(['W-MG']), 5, 0)).toBe(1);
   });
 
   it('is present when fitted and nothing has happened to it', () => {
-    expect(hasPoweredTcAt(view([]), build(['U-TC1']), 5, 0)).toBe(true);
+    expect(fireControlLateralMultAt(view([]), build(['U-TC1']), 5, 0)).toBe(TC);
   });
 
   it('is lost when the part is shed, shut down or destroyed', () => {
     for (const type of ['shed', 'shutdown'] as const) {
       const v = view([{ tSec: 1, type, mech: 0, instanceId: 'p0' }]);
-      expect(hasPoweredTcAt(v, build(['U-TC1']), 5, 0), type).toBe(false);
+      expect(fireControlLateralMultAt(v, build(['U-TC1']), 5, 0), type).toBe(1);
     }
     const killed = view([
       { tSec: 1, type: 'part-destroyed', mech: 0, instanceId: 'p0', partId: 'U-TC1', cause: 'damage' },
     ]);
-    expect(hasPoweredTcAt(killed, build(['U-TC1']), 5, 0)).toBe(false);
+    expect(fireControlLateralMultAt(killed, build(['U-TC1']), 5, 0)).toBe(1);
   });
 
   it('ignores what has not happened yet', () => {
-    // Scrubbing back before the shed must restore the shorter lag.
+    // Scrubbing back before the shed must restore the computer's help.
     const v = view([{ tSec: 4, type: 'shed', mech: 0, instanceId: 'p0' }]);
-    expect(hasPoweredTcAt(v, build(['U-TC1']), 2, 0)).toBe(true);
-    expect(hasPoweredTcAt(v, build(['U-TC1']), 5, 0)).toBe(false);
+    expect(fireControlLateralMultAt(v, build(['U-TC1']), 2, 0)).toBe(TC);
+    expect(fireControlLateralMultAt(v, build(['U-TC1']), 5, 0)).toBe(1);
   });
 
   it('does not confuse the enemy losing one with your own', () => {
     const v = view([{ tSec: 1, type: 'shed', mech: 1, instanceId: 'p0' }]);
-    expect(hasPoweredTcAt(v, build(['U-TC1']), 5, 0)).toBe(true);
+    expect(fireControlLateralMultAt(v, build(['U-TC1']), 5, 0)).toBe(TC);
   });
 
   it('survives on a second computer when one is lost', () => {
     const v = view([{ tSec: 1, type: 'shed', mech: 0, instanceId: 'p0' }]);
-    expect(hasPoweredTcAt(v, build(['U-TC1', 'U-TC1']), 5, 0)).toBe(true);
+    expect(fireControlLateralMultAt(v, build(['U-TC1', 'U-TC1']), 5, 0)).toBe(TC);
+  });
+
+  it('compounds two working computers, as the sim does', () => {
+    // The case the old boolean could not represent at all: a second computer
+    // was worth exactly nothing.
+    expect(fireControlLateralMultAt(view([]), build(['U-TC1', 'U-TC1']), 5, 0))
+      .toBeCloseTo(TC * TC, 12);
   });
 });
 

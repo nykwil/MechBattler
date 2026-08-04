@@ -37,7 +37,7 @@ if (process.argv.includes('--help')) {
   --seeds N|A,B       Number of deterministic seeds, or explicit seed values (default 1)
   --battles N         Resolved battles per case (default 8)
   --profile VALUE     fresh, one-hour, or both (default both)
-  --policy VALUE      survival, range, thermal, armor, or all (default all)
+  --policy VALUE      survival, range, thermal, armor, skirmish, or all (default all)
   --json PATH         Also write the full JSON report to PATH`);
   process.exit(0);
 }
@@ -49,7 +49,7 @@ const profiles = selection(
 ) as ProgressionProfileId[] | undefined;
 const policies = selection(
   valueAfter('--policy'),
-  ['survival', 'range', 'thermal', 'armor'] as const,
+  ['survival', 'range', 'thermal', 'armor', 'skirmish'] as const,
   '--policy',
 ) as ProgressionPolicyId[] | undefined;
 const battlesRaw = valueAfter('--battles');

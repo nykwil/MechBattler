@@ -6,9 +6,9 @@
  */
 import type { Build, ChassisSpec } from './types.js';
 import { getPart } from './catalog.js';
-import { buildOccupancyMap, computeConnectivity, computeCoreNetwork, computeMassAndCoG, computePowerNetworks } from './grid.js';
+import { buildOccupancyMap, computeMassAndCoG } from './grid.js';
 import { averageDrawKw, computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
-import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { resolveSpatialPower } from './spatialPower.js';
 import { validateWholeBuildPlacement } from './spatial.js';
 
 export type IssueSeverity = 'error' | 'warn' | 'hint';
@@ -51,8 +51,8 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
     });
   }
   if (build.parts.length === 0) return issues;
-  const spatialPower = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
-  const { connectedInstanceIds } = spatialPower ?? computeConnectivity(build.parts);
+  const spatialPower = resolveSpatialPower(chassis, build);
+  const { connectedInstanceIds } = spatialPower;
   const unpowered = build.parts.filter((p) => {
     const def = getPart(p.partId);
     const needsPower = Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
@@ -68,7 +68,7 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   }
 
   const hasReactor = build.parts.some((p) => getPart(p.partId).category === 'reactor');
-  if (hasReactor && (spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(chassis, build.parts)) === null) {
+  if (hasReactor && spatialPower.coreNetworkId === null) {
     issues.push({
       severity: 'error',
       code: 'core-unpowered',
@@ -78,7 +78,7 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   }
 
   // Cap-fed weapons need at least one capacitor on their own network (docs/02 §2).
-  const { networks } = spatialPower ?? computePowerNetworks(build.parts);
+  const { networks } = spatialPower;
   if (spatialPower && spatialPower.bottleneckInstanceIds.length > 0) {
     issues.push({
       severity: 'error',

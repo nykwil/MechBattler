@@ -111,15 +111,24 @@ describe('the weapons cook and drain in a real battle', () => {
       ],
       powerPriority: [CORE_INSTANCE_ID],
     };
-    const enemyCharge = (weaponId: string): number => {
+    // Read the *lowest* charge the battle ever drove it to, not the charge at
+    // the end. A weaponless mech used to run when its guns died, and spent its
+    // power doing it; it stands still now, so its reactor tops the Reservoir
+    // back up between hits and the final reading is full either way. The drain
+    // is still there — the end state just cannot see it.
+    const lowestEnemyCharge = (weaponId: string): number => {
       const battle = new Battle({
         builds: [shooterWith(weaponId), railTarget],
         seed: 7, spawnDistanceM: 60, suppressSurrender: true,
       });
-      for (let t = 0; t < 300 && !battle.finished; t++) battle.step();
-      return battle.latestFrame()?.mechs[1].capacitorKj ?? 0;
+      let lowest = Infinity;
+      for (let t = 0; t < 300 && !battle.finished; t++) {
+        battle.step();
+        lowest = Math.min(lowest, battle.latestFrame()?.mechs[1].capacitorKj ?? Infinity);
+      }
+      return lowest;
     };
-    expect(enemyCharge('W-ION')).toBeLessThan(enemyCharge('W-MG'));
+    expect(lowestEnemyCharge('W-ION')).toBeLessThan(lowestEnemyCharge('W-MG'));
   });
 
   it('a flamer-armed mech still resolves a battle to a normal decision', () => {

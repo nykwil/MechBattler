@@ -111,10 +111,27 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // Re-pinned Aug 1 2026 after the golden fixture moved to the legal canonical
 // regional Mule templates. This intentionally replaces the legacy seam-
 // crossing layouts that spatial sim 2.0 no longer accepts.
+//
+// Re-pinned again Aug 2026 (SIM_VERSION 2.1.0) for the slanted approach: the
+// autopilot may now close on an angle instead of walking straight in, so a
+// closing mech crosses the shooter's sightline and stops being hit at ~100%.
+// The skirmisher survives the approach where it used to be cut down on the way
+// in — it fires 304 shots here against 213 before, and the fight runs longer
+// because both sides now miss. Determinism itself is unaffected: the
+// paired-battle and seed-divergence tests above still pass, so this is a
+// behaviour re-pin and not a lockstep bug.
+//
+// Re-pinned once more for the thermal-mass rescale (per-cell default 1.0 ->
+// 0.7), and again (SIM_VERSION 2.3.0) for the fix to running away: fleeing now
+// requires actually being faster than the pursuer. Before that an outgunned
+// mech would run a whole match without firing — 28% of measured battles had
+// the enemy fleeing for over 40% of their frames, which halves to 12% here.
+// Only the state hash moves; this matchup's outcome, duration and shot counts
+// are unchanged because neither of these two was ever the one running.
 const GOLDEN = {
-  winner: 0 as const,
+  winner: 1 as const,
   reason: 'chassis-failure',
-  durationS: 59.5,
-  shots: [79, 213],
-  finalHash: 3950555330,
+  durationS: 41.1,
+  shots: [45, 684],
+  finalHash: 2973584228,
 };

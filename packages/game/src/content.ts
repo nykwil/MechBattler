@@ -1,4 +1,4 @@
-import { BRANCH_PROBE_TEMPLATES, PARTS, TEMPLATES } from '@mechbattler/sim';
+import { BRANCH_PROBE_TEMPLATES, PARTS, STARTER_TEMPLATES, TEMPLATES } from '@mechbattler/sim';
 import type { ChallengeDefinition, GameContent } from './types.js';
 
 export const CHALLENGES: ChallengeDefinition[] = [
@@ -72,7 +72,7 @@ export const ONE_HOUR_PART_IDS = [
   'R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL',
   'U-TC1', 'W-LAS', 'U-ACT',
 ];
-export const GAMEPLAY_TEMPLATES = [...TEMPLATES, ...BRANCH_PROBE_TEMPLATES];
+export const GAMEPLAY_TEMPLATES = [...TEMPLATES, ...BRANCH_PROBE_TEMPLATES, ...STARTER_TEMPLATES];
 
 export function getGameplayTemplate(id: string) {
   return GAMEPLAY_TEMPLATES.find((template) => template.id === id);
@@ -82,19 +82,33 @@ export const GAME_CONTENT: GameContent = {
   schemaVersion: 4,
   economy: {
     startingScrap: 30,
+    // Held at 1.0/node. Steeper ramps were measured four times and rejected —
+    // see docs/16 "the difficulty arc and diversity pull against each other".
+    // 1.8 buys a properly declining curve and clears both win-rate warnings,
+    // but costs an archetype, pushes the dominant one from 29% to 33%, drops
+    // CH-9 from seven build directions to six, and shortens one-hour runs from
+    // 3.89 battles to 2.72. Widening the economy first (a third scrapyard and a
+    // softer repair reserve) was tried specifically to pay for the steeper
+    // ladder and did not: shorter runs give a build less time to become
+    // anything, whatever it can afford. 1.4 is worse than both ends at seven
+    // archetypes and 50% dominance.
+    // Purse raised Aug 2026 (5 -> 12 per node). Repair bills scale with how
+    // damaged you get, which scales with depth, while income was nearly flat —
+    // so scrap ran out around node 4 and the player simply stopped repairing.
+    // Measured: repairs per fight fell 3.6 / 3.1 / 2.7 / 1.3 / 0.4 across nodes
+    // 1-5 and win rate tracked it exactly, 0.90 / 0.90 / 0.82 / 0.44 / 0.11.
+    // That is not repair pressure, it is running out of the ability to play.
     purseBase: 20,
-    pursePerNode: 5,
+    pursePerNode: 12,
     elitePurseMultiplier: 1.5,
     destroyedScrapMultiplier: 4,
     intactScrapMultiplier: 8,
     ownedScrapMultiplier: 8,
     scrapyardBuyMultiplier: 12,
     extractionWearMax: 0.2,
-    repairCostPerPoint: 0.4,
+    repairCostPerPoint: 0.3,
     chassisRepairCostPerPoint: 0.2,
     machinistBaseCost: 25,
-    chassisRecoveryBaseCost: 20,
-    chassisRecoveryPerCell: 2,
   },
   run: {
     length: 12,
@@ -102,11 +116,15 @@ export const GAME_CONTENT: GameContent = {
     startingTierBudget: 14,
     modServiceEveryWins: 3,
     modOfferCount: 3,
-    ladderBudgetBase: 6,
-    ladderBudgetPerNode: 2,
+    ladderBudgetBase: 3,
+    ladderBudgetPerNode: 1,
     eliteChance: 0.25,
     eliteBudgetBonus: 4,
-    scrapyardCount: 2,
+    // 2 -> 3, Aug 2026. Only 41% of runs ever reached a scrapyard at all, so
+    // the loop's purchasing step was absent from most of them — and buying is
+    // the only way to get a part the opponents in front of you do not drop,
+    // which makes it the diversity valve as well as the economy one.
+    scrapyardCount: 3,
     scrapyardOfferCount: 4,
     scrapyardIntegrityMin: 0.55,
     scrapyardIntegrityMax: 0.95,
@@ -120,9 +138,8 @@ export const GAME_CONTENT: GameContent = {
   initialPartIds: INITIAL_PART_IDS,
   initialChassisIds: ['CH-5'],
   scrapyardPartIds: ENABLED_PART_IDS.filter((id) => !PARTS[id]!.isConduit && !PARTS[id]!.isHeatPipe),
-  enemyFillPartIds: ENABLED_PART_IDS.filter((id) => !PARTS[id]!.isConduit && !PARTS[id]!.isHeatPipe),
   starterKits: [
-    { templateId: 'mule-skirmisher', name: 'Mule Skirmisher', blurb: 'Flexible middle frame: protected close fire with room to branch.' },
+    { templateId: 'mule-needle', name: 'Mule Needle Skirmisher', blurb: 'Three barrels, mixed reach: hard to disarm, and it can grow either way.' },
     { templateId: 'vulture-skirmisher', name: 'Vulture Skirmisher', blurb: 'Fast, exposed hardpoints reward keeping a firing line.' },
     { templateId: 'probe-bastion-casemate', name: 'Bastion Casemate', blurb: 'Large armored frame built around a heat-spreading hull.' },
   ],

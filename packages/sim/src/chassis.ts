@@ -133,9 +133,16 @@ export const CHASSIS: Record<string, ChassisSpec> = {
   'CH-2': {
     id: 'CH-2', name: 'Vulture', type: 'Scout biped',
     width: 5, height: 4, mask: vultureMask, coreCell: { regionId: 'body', x: 2, y: 1 },
-    ratedMassT: 3.0, speedsMps: { fwd: 9.0, strafe: 3.0, rev: 2.5 },
+    // Strafe 3.0 -> 6.0 and rev 2.5 -> 4.5, Aug 2026. Evasion in the hit model
+    // is lead error, which only comes from *lateral* speed, and the autopilot
+    // only generates it by orbiting at `strafe`. The scout shipped with the
+    // worst strafe:fwd ratio of the three chassis (0.33 against the Mule's
+    // 0.67), so its whole speed advantage sat in closing — the one vector that
+    // produces no evasion — and it measured 0.5 m/s lateral against a 9 m/s
+    // top speed. It was the fastest chassis and the worst at using speed.
+    ratedMassT: 3.0, speedsMps: { fwd: 9.0, strafe: 6.0, rev: 4.5 },
     turnRateDegS: 150, accelMps2: 4.0,
-    chassisHitTickets: 6, maxIntegrity: 240,
+    chassisHitTickets: 6, maxIntegrity: 240, moveJitterMult: 0.35,
     regions: [
       {
         id: 'left-hardpoint', name: 'Left hardpoint', width: 5, height: 4,
@@ -181,7 +188,7 @@ export const CHASSIS: Record<string, ChassisSpec> = {
     width: 6, height: 6, mask: muleMask, coreCell: { regionId: 'body', x: 2, y: 2 },
     ratedMassT: 6.0, speedsMps: { fwd: 6.0, strafe: 4.0, rev: 3.0 },
     turnRateDegS: 90, accelMps2: 3.0,
-    chassisHitTickets: 10, maxIntegrity: 320,
+    chassisHitTickets: 10, maxIntegrity: 320, moveJitterMult: 1,
     regions: [
       {
         id: 'left-shoulder', name: 'Left shoulder', width: 6, height: 6,
@@ -230,7 +237,7 @@ export const CHASSIS: Record<string, ChassisSpec> = {
     width: 8, height: 9, mask: bastionMask, coreCell: { regionId: 'hull', x: 2, y: 4 },
     ratedMassT: 12.0, speedsMps: { fwd: 4.0, strafe: 1.5, rev: 1.2 },
     turnRateDegS: 45, accelMps2: 1.5,
-    chassisHitTickets: 18, maxIntegrity: 700,
+    chassisHitTickets: 18, maxIntegrity: 700, moveJitterMult: 1,
     regions: [
       {
         id: 'left-sponson', name: 'Left sponson', width: 8, height: 9,

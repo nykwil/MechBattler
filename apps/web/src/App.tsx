@@ -1,13 +1,13 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SPATIAL_DEMO_TEMPLATE, applyAutoWire, buildOccupancyMap, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, resolvePlacementEffects, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { SPATIAL_DEMO_TEMPLATE, applyAutoWire, buildTierBudget, buildOccupancyMap, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, resolvePlacementEffects, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE,
-  repairCost, useRun,
+  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, START_BUDGET,
+  chassisRepairCost, repairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
@@ -30,7 +30,7 @@ import { PartsSheet } from './components/PartsSheet.js';
 import { IntelSheet } from './components/IntelSheet.js';
 import { Sheet } from './components/Sheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
-import { GAME_CONTENT, createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
+import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
 
 const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
@@ -74,10 +74,15 @@ export default function App() {
   const [benchResult, setBenchResult] = useState<TestBenchResult | null>(null);
   const [battle, setBattle] = useState<{ report: BattleReport; opponent: OpponentDef; mode: FightMode } | null>(null);
   const [live, setLive] = useState<{ build: Build; opponent: OpponentDef; seed: number } | null>(null);
-  const [readoutOpen, setReadoutOpen] = useState(false);
-  const [partsOpen, setPartsOpen] = useState(false);
-  const [chassisOpen, setChassisOpen] = useState(false);
-  const [intelOpen, setIntelOpen] = useState(false);
+  /**
+   * Which bottom sheet is up, if any. These were four independent booleans, and
+   * nothing stopped two being true at once -- the only thing preventing stacked
+   * sheets was that each one's trigger happens to sit under the others. One
+   * union makes "at most one sheet" a fact about the state rather than a
+   * property of the current layout, so a new trigger cannot reintroduce it.
+   */
+  const [sheet, setSheet] = useState<'readout' | 'parts' | 'chassis' | 'intel' | null>(null);
+  const closeSheet = useCallback(() => setSheet(null), []);
   const [intelPick, setIntelPick] = useState<string | null>(null);
   const [toast, setToast] = useState('');
 
@@ -98,9 +103,10 @@ export default function App() {
   const runPrep = run.phase === 'prep';
   const runScrap = runActive ? run.data.scrap : 0;
   const benchUsed = runActive ? run.data.benchPool.length : 0;
-  const bodyRepairCost = Math.ceil(
-    (1 - state.chassisIntegrity) * 100 * GAME_CONTENT.economy.chassisRepairCostPerPoint - 1e-9,
-  );
+  // Same rule the run domain uses. This arithmetic used to live here, which
+  // meant chassis repair existed for a player clicking the button and for
+  // nothing else — the headless progression loop could not do it at all.
+  const bodyRepairCost = chassisRepairCost(state.chassisIntegrity);
 
   // Memorial (docs/10 M6): a finished run is recorded once.
   const historyPushedRef = useRef(false);
@@ -157,7 +163,7 @@ export default function App() {
     // which stayed open over the plate -- so the first tap aimed at the ghost hit
     // the sheet's scrim and merely closed it, costing a tap and looking like the
     // plate had stopped responding.
-    setReadoutOpen(false);
+    setSheet(null);
     selectPart(b.partId, {
       instanceId: b.id,
       integrity: b.integrity,
@@ -615,8 +621,18 @@ export default function App() {
 
   // The inspector is its own detail sheet, opened by selection, so it is not also
   // a readout tab.
+  // A dot on the run tab when something in there is waiting on a decision.
+  // The machinist milestone and a scrapyard's stock are both offers that pass
+  // if you walk by them, and both live one tap inside a sheet a player has no
+  // reason to open. Players kept reporting features as missing that were simply
+  // behind this tab — the salvage screen, where scrap is spent — so the tab now
+  // says when it wants attention.
+  const runDecisionWaiting = runActive && (
+    (Boolean(run.data.pendingModService) && !run.data.pendingModService?.applied)
+    || run.data.generatedNodes.find((n) => n.index === run.data.nodeIndex)?.kind === 'scrapyard'
+  );
   const mobileTabs = [
-    { id: 'run', label: 'run', node: <>{runNode}{arenaNode}</> },
+    { id: 'run', label: runDecisionWaiting ? 'run ●' : 'run', node: <>{runNode}{arenaNode}</> },
   ];
 
   if (screen === 'title') {
@@ -630,7 +646,7 @@ export default function App() {
           // On a finished run this button reads "View the memorial", and the
           // memorial lives in the readout's run tab. It used to land on the
           // workshop and leave you to find it three taps in.
-          if (run.phase === 'over') setReadoutOpen(true);
+          if (run.phase === 'over') setSheet('readout');
         }}
         onNewRun={() => {
           if ((run.phase === 'active' || run.phase === 'prep')
@@ -696,7 +712,7 @@ export default function App() {
             <button
               className="chassis-btn"
               type="button"
-              onClick={() => setChassisOpen(true)}
+              onClick={() => setSheet('chassis')}
               aria-label="Change chassis"
             >
               <span className="chassis-id">
@@ -788,7 +804,7 @@ export default function App() {
             heatMarginKw={readoutStats.heatMarginKw}
             faultCount={issues.filter((i) => i.severity === 'error').length}
             preview={null}
-            onOpen={() => setReadoutOpen(true)}
+            onOpen={() => setSheet('readout')}
           />
 
           <p className={`toast${toast ? ' on' : ''}`} role="status" aria-live="polite">{toast}</p>
@@ -796,19 +812,43 @@ export default function App() {
           <ActionBar
             armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}
             moving={state.detached !== null}
+            stows={runActive && benchUsed < BENCH_CAP}
             reason={ghostReason}
             preview={ghostPlacementSummary}
             onCancel={() => {
-              const discarding = state.detached !== null;
+              const detached = state.detached;
               const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
+              // Backing out of a *detached* part used to destroy it. Mid-run, a
+              // part you pull off the plate is something you own: it goes back to
+              // the bench, and only a full bench (or free play, which has no
+              // inventory) can still lose it.
+              const stowed = detached !== null && runActive && benchUsed < BENCH_CAP
+                && state.selectedPartId !== null;
+              if (stowed && state.selectedPartId) {
+                addBench({
+                  id: detached.instanceId,
+                  partId: state.selectedPartId,
+                  integrity: state.placeExtras.integrity,
+                  modifiers: state.placeExtras.modifiers,
+                  variant: state.placeExtras.variant,
+                  provenance: run.data.partProvenance[detached.instanceId],
+                });
+              }
               selectPart(null);
-              if (discarding) setToast(`${name} discarded`);
+              if (stowed) setToast(`${name} to inventory`);
+              else if (detached) setToast(`${name} discarded`);
             }}
             onRotate={rotate}
             onPlace={placeWithEconomy}
-            onOpenParts={() => setPartsOpen(true)}
+            onOpenParts={() => setSheet('parts')}
             next={nextFight}
-            onOpenIntel={() => setIntelOpen(true)}
+            prep={runPrep}
+            prepReady={runPrep
+              && buildTierBudget(build) <= START_BUDGET
+              && build.parts.some((p) => p.partId.startsWith('W-'))
+              && build.parts.some((p) => p.partId.startsWith('R-'))}
+            onLaunch={launch}
+            onOpenIntel={() => setSheet('intel')}
           />
       </div>
 
@@ -828,14 +868,14 @@ export default function App() {
       )}
 
       <IntelSheet
-        open={intelOpen}
-        onClose={() => setIntelOpen(false)}
+        open={sheet === 'intel'}
+        onClose={closeSheet}
         build={build}
         opponents={intelOpponents}
         selectedId={intelPick}
         onSelect={(o) => setIntelPick(o.id)}
         onFight={(o) => {
-          setIntelOpen(false);
+          setSheet(null);
           // A fight picked from the intel sheet during a live run *is* the run's
           // fight -- the sheet is already listing that ladder node's opponents,
           // not the free-play roster. Hardcoding false meant the mobile interface
@@ -847,14 +887,14 @@ export default function App() {
         }}
       />
 
-      {chassisOpen && (
-        <Sheet open onClose={() => setChassisOpen(false)} label="Chassis">
+      {sheet === 'chassis' && (
+        <Sheet open onClose={closeSheet} label="Chassis">
           <div className="sheet-head"><span className="sheet-title">Chassis</span></div>
           <div className="sheet-body">
             <button
               type="button"
               className="part-row"
-              onClick={() => { setChassisOpen(false); setScreen('title'); }}
+              onClick={() => { closeSheet(); setScreen('title'); }}
             >
               <span className="part-txt">
                 <span className="part-name">← Title screen</span>
@@ -866,7 +906,7 @@ export default function App() {
                 key={c.id}
                 type="button"
                 className={`part-row${state.chassisId === c.id ? ' sel' : ''}`}
-                onClick={() => { setChassis(c.id); setChassisOpen(false); }}
+                onClick={() => { setChassis(c.id); closeSheet(); }}
               >
                 <span className="part-txt">
                   <span className="part-name">{c.name}</span>
@@ -880,11 +920,11 @@ export default function App() {
       )}
 
       <PartsSheet
-        open={partsOpen}
-        onClose={() => setPartsOpen(false)}
+        open={sheet === 'parts'}
+        onClose={closeSheet}
         docked={false}
         selectedPartId={state.selectedPartId}
-        onSelect={(id) => { selectPalettePart(id); if (id) setPartsOpen(false); }}
+        onSelect={(id) => { selectPalettePart(id); if (id) closeSheet(); }}
         onHover={() => {}}
         visiblePartIds={palettePartIds}
         ownedCounts={ownedPartCounts}
@@ -893,10 +933,10 @@ export default function App() {
       />
 
       <ReadoutSheet
-        open={readoutOpen}
+        open={sheet === 'readout'}
         // A finished run has one thing worth reading, and it is the memorial.
         initialTab={run.phase === 'over' ? 'run' : undefined}
-        onClose={() => setReadoutOpen(false)}
+        onClose={closeSheet}
         chassis={chassis}
         build={build}
         parts={state.parts}
@@ -928,18 +968,8 @@ export default function App() {
         <WreckScreen
           pending={run.data.pendingSalvage}
           benchUsed={run.data.benchPool.length}
-          currentBuild={build}
-          currentScrap={run.data.scrap}
-          partProvenance={run.data.partProvenance}
           onFinish={(scrapGained, loot) => {
             won(scrapGained, loot);
-          }}
-          onRecover={(recovery) => {
-            setPendingBench(null);
-            selectPart(null);
-            selectInstance(null);
-            loadBuild(recovery.replacementBuild);
-            won(recovery.scrapDelta, recovery.stowedParts, recovery.replacementParts);
           }}
         />
       )}
@@ -952,6 +982,9 @@ export default function App() {
           opponent={battle.opponent}
           onRematch={() => fight(battle.opponent, battle.mode)}
           onRematchSameSeed={() => fight(battle.opponent, battle.mode, battle.report.seed)}
+          // The wreck is settled by onClose, so at render time "will there be
+          // salvage" is exactly "was this a run fight that we won".
+          salvageAwaits={runFightRef.current && battle.report.winner === 0}
           onClose={() => {
             // A closed run-fight report settles the node (docs/10 M1): a win
             // advances the ladder; every defeat ends this roguelike run.
@@ -976,7 +1009,7 @@ export default function App() {
                 // you standing in the workshop with no indication of that at all
                 // -- the memorial existed, but nothing led you to it and nothing
                 // said the run was over. Show it.
-                setReadoutOpen(true);
+                setSheet('readout');
               }
             }
             setBattle(null);

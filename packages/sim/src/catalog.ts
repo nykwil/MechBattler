@@ -50,6 +50,10 @@ export const PARTS: Record<string, PartDef> = {
     id: 'U-TC1', name: 'Abacus (targeting computer)', category: 'utility',
     shape: [{ dx: 0, dy: 0 }], massKg: 50, hp: 15, tier: 2,
     draw: { continuousKw: 3 },
+    // Fire control against a crossing target. Multiplicative, so a second
+    // computer compounds -- three cells and 9 kW is the price of nearly
+    // perfect leading, and the cost is what limits it rather than a cap.
+    fireControlLateralMult: 0.4,
   },
   'U-ACT': {
     id: 'U-ACT', name: 'Stride (servo booster)', category: 'utility',
@@ -125,13 +129,33 @@ export const PARTS: Record<string, PartDef> = {
   },
 
   // --- Weapons (docs/03 §5, power draw docs/02 §2) ---
+  // Projectile speeds, Aug 2026. Every round crossed the arena inside a frame or
+  // two, which was wrong twice over: nothing looked like it was travelling, and
+  // time of flight is a *term in the hit model* -- sigma combines dispersion with
+  // the target's crossing speed times (tracking lag + ToF). At 800 m/s the ToF
+  // term was rounding error next to the 0.2-0.35 s tracking lag, so shooting a
+  // moving target cost almost nothing and essentially every shot connected.
+  // Roughly quartering them makes lead error real against a crosser while leaving
+  // a standing target as easy as it ever was -- which is the tradeoff that was
+  // supposed to exist. The railgun keeps its place as the flattest-shooting gun
+  // in the catalog; hitscan weapons (laser, flamer, ion) are unaffected by
+  // construction, which is now a reason to bring one.
+  //
+  //
+  // Minimum ranges, Aug 2026. Only the rocket pod and railgun had a near-side
+  // dead zone, so every long gun was also a perfectly good brawling gun and
+  // closing the distance cost the kiter nothing. The precision band now pays for
+  // its reach: carbine, laser, autocannon and ion all fall off below their
+  // minimum, while the weapons whose whole identity is the knife fight -- the
+  // machine gun, the siege gun and the flamer -- keep none. That is what makes an
+  // ideal band a position to hold rather than a number on a card.
   'W-MG': {
     id: 'W-MG', name: 'Stitcher (machine gun)', category: 'weapon',
     shape: line(2), massKg: 120, hp: 25, tier: 1,
     draw: { continuousKw: 2 },
     heat: { heatPerShotKj: 0.4 },
     weapon: {
-      damage: 1.5, cycleS: 0.1, projectileSpeed: 800, dispersionMrad: 8.0,
+      damage: 1.5, cycleS: 0.1, projectileSpeed: 400, dispersionMrad: 8,
       falloff: { rangeStart: 30, rangeEnd: 90, multAtEnd: 0.4 }, mountArcDeg: 90,
     },
     spatial: { layer: 'payload', stacksOn: ['support'] },
@@ -142,8 +166,8 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 6 },
     heat: { heatPerShotKj: 3 },
     weapon: {
-      damage: 11.5, cycleS: 0.75, projectileSpeed: 600, dispersionMrad: 4.0,
-      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5 }, mountArcDeg: 60,
+      damage: 11.5, cycleS: 0.75, projectileSpeed: 300, dispersionMrad: 4,
+      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5, rangeMin: 20, multAtMin: 0.5 }, mountArcDeg: 60,
       recoilKnS: 0.4,
     },
   },
@@ -162,8 +186,8 @@ export const PARTS: Record<string, PartDef> = {
     draw: { chargedEnergyPerShotKj: 30, minChargeS: 1.0, maxChargeKw: 30 },
     heat: { heatPerShotKj: 9 },
     weapon: {
-      damage: 20, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
-      falloff: { rangeStart: 60, rangeEnd: 140, multAtEnd: 0.5 }, mountArcDeg: 70,
+      damage: 19, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
+      falloff: { rangeStart: 60, rangeEnd: 140, multAtEnd: 0.5, rangeMin: 25, multAtMin: 0.45 }, mountArcDeg: 70,
     },
   },
   'W-RKT': {
@@ -172,7 +196,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 1 },
     heat: { heatPerShotKj: 2 },
     weapon: {
-      damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 250, dispersionMrad: 20.0,
+      damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 125, dispersionMrad: 20.0,
       falloff: { rangeStart: 40, rangeEnd: 120, multAtEnd: 0.6, rangeMin: 30, multAtMin: 0.35 }, mountArcDeg: 120,
     },
   },
@@ -182,7 +206,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { capFedEnergyPerShotKj: 220 },
     heat: { heatPerShotKj: 25 },
     weapon: {
-      damage: 85, cycleS: 5, projectileSpeed: 2000, dispersionMrad: 1.2,
+      damage: 85, cycleS: 5, projectileSpeed: 1000, dispersionMrad: 1.2,
       falloff: { rangeStart: 80, rangeEnd: 240, multAtEnd: 0.85, rangeMin: 50, multAtMin: 0.3 }, mountArcDeg: 30,
       recoilKnS: 8,
     },
@@ -191,13 +215,23 @@ export const PARTS: Record<string, PartDef> = {
   // dispersion, low mass -- a Vulture can kite with it -- but modest DPS and a
   // real power draw, so it is a positioning weapon, not an alpha strike.
   'W-CB': {
+    // Tier 2 -> 3, Aug 2026. At tier 2 the carbine was the longest-reaching gun
+    // short of the tier-4 railgun and the most accurate one short of it, for
+    // less power than the autocannon it out-ranges by 30 m. Nothing paid for
+    // that: three of them behind two small reactors came to tier 13, fit inside
+    // the 14-tier starting budget, and measured a 93% win rate across the
+    // ladder — a dominant build available before the first fight. At tier 3 the
+    // same fit costs 16 and has to be grown into instead. Dispersion was tried
+    // at 3.0 as well and reverted: it did not change what the build cost, and
+    // weakening every carbine user around the laser boat pushed that template
+    // from 68% back over the 70% flag.
     id: 'W-CB', name: 'Needle (carbine)', category: 'weapon',
-    shape: line(2), massKg: 180, hp: 20, tier: 2,
+    shape: line(2), massKg: 180, hp: 20, tier: 3,
     draw: { continuousKw: 4 },
     heat: { heatPerShotKj: 0.8 },
     weapon: {
-      damage: 8, cycleS: 0.6, projectileSpeed: 900, dispersionMrad: 2.0,
-      falloff: { rangeStart: 60, rangeEnd: 180, multAtEnd: 0.6 }, mountArcDeg: 50,
+      damage: 8, cycleS: 0.6, projectileSpeed: 450, dispersionMrad: 2,
+      falloff: { rangeStart: 60, rangeEnd: 180, multAtEnd: 0.6, rangeMin: 35, multAtMin: 0.35 }, mountArcDeg: 50,
       recoilKnS: 0.2,
     },
   },
@@ -211,7 +245,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 8 },
     heat: { heatPerShotKj: 6 },
     weapon: {
-      damage: 40, cycleS: 2.0, projectileSpeed: 400, dispersionMrad: 6.0,
+      damage: 40, cycleS: 2.0, projectileSpeed: 200, dispersionMrad: 6,
       falloff: { rangeStart: 15, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 45,
       recoilKnS: 2,
     },
@@ -229,7 +263,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 5 },
     heat: { heatPerShotKj: 3 },
     weapon: {
-      damage: 3, cycleS: 0.4, projectileSpeed: 'hitscan', dispersionMrad: 3.0,
+      damage: 3, cycleS: 0.4, projectileSpeed: 'hitscan', dispersionMrad: 3,
       falloff: { rangeStart: 20, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 90,
       enemyHeatKj: 6,
     },
@@ -245,7 +279,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 6 },
     weapon: {
       damage: 5, cycleS: 1.4, projectileSpeed: 'hitscan', dispersionMrad: 1.8,
-      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5 }, mountArcDeg: 60,
+      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5, rangeMin: 25, multAtMin: 0.5 }, mountArcDeg: 60,
       capDrainKj: 25,
     },
   },

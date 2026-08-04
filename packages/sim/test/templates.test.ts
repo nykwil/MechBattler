@@ -3,9 +3,9 @@ import { BRANCH_PROBE_TEMPLATES, SPATIAL_DEMO_TEMPLATE, TEMPLATES } from '../src
 import { PERK_TEMPLATES } from '../src/diversity.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
-import { checkPlacement, computeConnectivity, computeCoreNetwork } from '../src/grid.js';
+import { checkPlacement } from '../src/grid.js';
 import { checkRoutePlacement, checkSpatialPartPlacement } from '../src/spatial.js';
-import { resolveSpatialPower, usesSpatialSystems } from '../src/spatialPower.js';
+import { resolveSpatialPower } from '../src/spatialPower.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '../src/harness.js';
 
 describe('template roster is layout-legal and fully powered', () => {
@@ -31,8 +31,8 @@ describe('template roster is layout-legal and fully powered', () => {
 
     it(`${t.id}: every power-drawing part and the core are connected`, () => {
       const chassis = getChassis(t.build.chassisId);
-      const spatial = usesSpatialSystems(t.build) ? resolveSpatialPower(chassis, t.build) : null;
-      const { connectedInstanceIds } = spatial ?? computeConnectivity(t.build.parts);
+      const spatial = resolveSpatialPower(chassis, t.build);
+      const { connectedInstanceIds } = spatial;
       for (const p of t.build.parts) {
         const def = getPart(p.partId);
         const drawsPower = Boolean(def.draw) || def.category === 'capacitor';
@@ -40,10 +40,7 @@ describe('template roster is layout-legal and fully powered', () => {
           expect(connectedInstanceIds.has(p.instanceId), `${t.id}/${p.instanceId} unpowered`).toBe(true);
         }
       }
-      expect(
-        spatial ? spatial.coreNetworkId : computeCoreNetwork(chassis, t.build.parts),
-        `${t.id} core unpowered`,
-      ).not.toBeNull();
+      expect(spatial.coreNetworkId, `${t.id} core unpowered`).not.toBeNull();
     });
   }
 });

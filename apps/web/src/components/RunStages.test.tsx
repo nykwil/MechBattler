@@ -103,10 +103,7 @@ describe('persistent run stages', () => {
       <WreckScreen
         pending={pending}
         benchUsed={0}
-        currentBuild={template.build}
-        currentScrap={30}
         onFinish={onFinish}
-        onRecover={vi.fn()}
       />,
     );
     fireEvent.click(screen.getByRole('button', { name: /Stitcher/ }));
@@ -117,43 +114,6 @@ describe('persistent run stages', () => {
     );
   });
 
-  it('requires a two-step confirmation for an affordable whole-wreck frame recovery', () => {
-    const mule = TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!;
-    const pending: PendingSalvage = {
-      opponentName: 'Target',
-      opponentChassisId: 'CH-2',
-      purse: 25,
-      candidates: [{
-        id: 'wreck-gun',
-        sourceInstanceId: 'mg',
-        partId: 'W-MG',
-        integrity: 0.6,
-        provenance: { source: 'salvage' },
-        origin: { x: 0, y: 0 },
-        rotation: 0,
-        destroyed: false,
-        scrapValue: 5,
-      }],
-    };
-    const onRecover = vi.fn();
-    render(
-      <WreckScreen
-        pending={pending}
-        benchUsed={0}
-        currentBuild={mule.build}
-        currentScrap={100}
-        onFinish={vi.fn()}
-        onRecover={onRecover}
-      />,
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Recover frame/ }));
-    expect(onRecover).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: /Confirm switch/ }));
-    expect(onRecover).toHaveBeenCalledWith(expect.objectContaining({
-      affordable: true,
-      replacementBuild: expect.objectContaining({ chassisId: 'CH-2' }),
-    }));
-  });
 
   it('blocks node selection behind a milestone mod service', () => {
     const onSkipModService = vi.fn();

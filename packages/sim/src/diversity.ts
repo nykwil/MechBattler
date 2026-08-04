@@ -264,8 +264,17 @@ function activationRate(perkCase: PerkCase, seeds: number, baseSeed: number): nu
 export function runPerkStress(seeds = 5, baseSeed = 20_000): PerkStressResult {
   const report = runRoundRobin([...TEMPLATES, ...PERK_TEMPLATES], { seedsPerPair: seeds, baseSeed: 1 });
   const cases = PERK_CASES.map((perkCase, index) => {
-    const control = cohortResults(perkCase.control, seeds, baseSeed + index * 20_000);
-    const perk = cohortResults(perkCase.perk, seeds, baseSeed + index * 20_000);
+    // The control/perk comparison is a *paired difference* between two noisy win
+    // rates, so it needs more samples than the round robin's levels do. At the
+    // round robin's 5 seeds a matchup delta can only land on multiples of 0.2,
+    // and cold-bore -- which changed the outcome of 23 of 35 fights -- measured a
+    // delta of exactly zero because the wins happened to cancel, and was reported
+    // dead. At 3x it measures +8 points with a +18 best matchup, which is what it
+    // actually is. Raising resolution rather than relaxing the criterion: the gate
+    // was right to demand a positive matchup, it just could not see one.
+    const comparisonSeeds = seeds * 3;
+    const control = cohortResults(perkCase.control, comparisonSeeds, baseSeed + index * 20_000);
+    const perk = cohortResults(perkCase.perk, comparisonSeeds, baseSeed + index * 20_000);
     const matchupDeltas = TEMPLATES.map((opponent) => ({
       opponentId: opponent.id,
       delta: perk.byOpponent[opponent.id]! - control.byOpponent[opponent.id]!,

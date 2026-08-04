@@ -12,7 +12,8 @@
     "balance": "node --import tsx scripts/balance.ts",
     "checkpoints": "node --import tsx scripts/checkpoints.ts",
     "match-balance": "node --import tsx scripts/match-balance.ts",
-    "loop": "node --import tsx scripts/loop.ts"
+    "loop": "node --import tsx scripts/loop.ts",
+    "loop-report": "node scripts/loop-report.mjs"
   },
   "dependencies": {
     "@mechbattler/sim": "*"

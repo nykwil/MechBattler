@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { applyAutoWire, autoWire } from '../src/autowire.js';
-import { computeConnectivity, computeCoreNetwork } from '../src/grid.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
 import { TEMPLATES } from '../src/templates.js';
 import type { Build } from '../src/types.js';
-import { resolveSpatialPower, usesSpatialSystems } from '../src/spatialPower.js';
+import { resolveSpatialPower } from '../src/spatialPower.js';
 
 describe('auto-wire baseline (docs/09 M4)', () => {
   it('re-wires every template build stripped of its conduits to full connectivity', () => {
@@ -17,14 +16,14 @@ describe('auto-wire baseline (docs/09 M4)', () => {
       };
       const { build: wired, result } = applyAutoWire(chassis, stripped);
       expect(result.unreachableInstanceIds, t.id).toEqual([]);
-      const spatial = usesSpatialSystems(wired) ? resolveSpatialPower(chassis, wired) : null;
-      const { connectedInstanceIds } = spatial ?? computeConnectivity(wired.parts);
+      const spatial = resolveSpatialPower(chassis, wired);
+      const { connectedInstanceIds } = spatial;
       for (const p of wired.parts) {
         const def = getPart(p.partId);
         const needsPower = Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
         if (needsPower) expect(connectedInstanceIds.has(p.instanceId), `${t.id}: ${p.instanceId}`).toBe(true);
       }
-      expect(spatial ? spatial.coreNetworkId : computeCoreNetwork(chassis, wired.parts), `${t.id}: core`).not.toBeNull();
+      expect(spatial.coreNetworkId, `${t.id}: core`).not.toBeNull();
     }
   });
 

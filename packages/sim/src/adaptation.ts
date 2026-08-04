@@ -16,7 +16,8 @@
 import type { Build, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
-import { checkPlacement, computeConnectivity, getOccupiedCells } from './grid.js';
+import { checkPlacement, getOccupiedCells } from './grid.js';
+import { connectedInstanceIds } from './spatialPower.js';
 import { runBattle } from './combat.js';
 
 export const KEYSTONE_CATEGORIES = new Set(['weapon', 'reactor']);
@@ -85,8 +86,13 @@ function addParts(build: Build, partId: string, count: number, opts: { frontFirs
         };
         if (checkPlacement(chassis, parts, candidate, def) !== null) continue;
         if (opts.requireConnected) {
-          const trial = [...parts, candidate];
-          if (!computeConnectivity(trial).connectedInstanceIds.has(candidate.instanceId)) continue;
+          // Ask whichever power model this build actually runs under. This used
+          // to call computeConnectivity unconditionally, so on a regioned
+          // chassis -- which is all three of them -- the search checked a
+          // different question from the one the sim answers, and could report an
+          // adaptation whose new part the battle then left unpowered.
+          const trial = { ...build, parts: [...parts, candidate] };
+          if (!connectedInstanceIds(chassis, trial).has(candidate.instanceId)) continue;
         }
         placed = candidate;
         break outer;

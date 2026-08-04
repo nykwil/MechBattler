@@ -52,6 +52,7 @@ export interface RunOpponentChoice {
   elite: boolean;
   battleSeed: number;
   spawnDistanceM: number;
+  /** Frame, type and doctrine — the doctrine is the part worth preparing against. */
   chassisLabel: string;
   headline: string | null;
   carries?: string;
@@ -251,8 +252,6 @@ export interface EconomyConfig {
   repairCostPerPoint: number;
   chassisRepairCostPerPoint: number;
   machinistBaseCost: number;
-  chassisRecoveryBaseCost: number;
-  chassisRecoveryPerCell: number;
 }
 
 export interface RunConfig {
@@ -286,7 +285,6 @@ export interface GameContent {
   initialPartIds: string[];
   initialChassisIds: string[];
   scrapyardPartIds: string[];
-  enemyFillPartIds: string[];
   starterKits: StarterKitDefinition[];
   challenges: ChallengeDefinition[];
   progressionTargets: {

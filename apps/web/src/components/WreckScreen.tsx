@@ -1,8 +1,6 @@
 import { useState } from 'react';
-import { getChassis, getOccupiedCells, getPart, type Build, type PlacedPart } from '@mechbattler/sim';
+import { getChassis, getOccupiedCells, getPart, type PlacedPart } from '@mechbattler/sim';
 import {
-  previewWreckRecovery,
-  type PartProvenance,
   type PendingSalvage,
   type SalvageCandidate,
 } from '@mechbattler/game';
@@ -19,21 +17,16 @@ const CELL = 22;
  * everything destroyed, converts to scrap on the spot.
  */
 export function WreckScreen({
-  pending, benchUsed, currentBuild, currentScrap, partProvenance, onFinish, onRecover,
+  pending, benchUsed, onFinish,
 }: {
   pending: PendingSalvage;
   /** Bench-pool slots already occupied before this salvage. */
   benchUsed: number;
-  currentBuild: Build;
-  currentScrap: number;
-  partProvenance?: Record<string, PartProvenance>;
   onFinish: (scrapGained: number, loot: BenchPart[]) => void;
-  onRecover: (recovery: ReturnType<typeof previewWreckRecovery>) => void;
 }) {
   const chassis = getChassis(pending.opponentChassisId);
   const wreck = pending.candidates;
   const [taken, setTaken] = useState<Set<string>>(() => new Set());
-  const [confirmRecovery, setConfirmRecovery] = useState(false);
 
   const lootable = wreck.filter((candidate) => !candidate.destroyed);
   const destroyed = wreck.filter((candidate) => candidate.destroyed);
@@ -54,13 +47,6 @@ export function WreckScreen({
     .filter((candidate) => !taken.has(candidate.id))
     .reduce((sum, candidate) => sum + candidate.scrapValue, 0);
   const total = pending.purse + destroyedScrap + leftBehindScrap;
-  const recovery = previewWreckRecovery({
-    pending,
-    currentBuild,
-    currentScrap,
-    benchUsed,
-    partProvenance,
-  });
 
   function finish() {
     const loot: BenchPart[] = lootable
@@ -172,38 +158,6 @@ export function WreckScreen({
           <button type="button" className="fight-btn" onClick={finish}>Strip the wreck</button>
         </div>
 
-        <section className="wreck-recovery">
-          <div>
-            <span className="wreck-recovery-kicker">RISKY ALTERNATIVE · WHOLE-WRECK RECOVERY</span>
-            <strong>Switch to the {chassis.name} frame</strong>
-            <p>
-              Pay {recovery.cost} scrap and inherit the wreck exactly as it survived:
-              {' '}{recovery.replacementBuild.parts.length} installed part{recovery.replacementBuild.parts.length === 1 ? '' : 's'}.
-              Your current build is stowed ({recovery.stowedParts.length}) and any bench overflow
-              is scrapped ({recovery.scrappedParts.length}).
-            </p>
-            <small>
-              Purse and destroyed debris apply first · wallet after recovery: {recovery.scrapAfter} scrap.
-              This is less efficient than improving your existing mech.
-            </small>
-          </div>
-          <button
-            type="button"
-            className={confirmRecovery ? 'danger-confirm' : ''}
-            disabled={recovery.sameChassis || !recovery.affordable}
-            title={recovery.sameChassis
-              ? 'You already use this chassis'
-              : !recovery.affordable ? `Need ${Math.abs(recovery.scrapAfter)} more scrap after settlement` : undefined}
-            onClick={() => {
-              if (!confirmRecovery) setConfirmRecovery(true);
-              else onRecover(recovery);
-            }}
-          >
-            {recovery.sameChassis ? 'Same chassis'
-              : !recovery.affordable ? 'Cannot afford recovery'
-                : confirmRecovery ? `Confirm switch −${recovery.cost}` : `Recover frame −${recovery.cost}`}
-          </button>
-        </section>
       </div>
     </div>
   );

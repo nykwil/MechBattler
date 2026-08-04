@@ -2,8 +2,8 @@ import { useMemo, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
-  computeHitModel, effectiveMults, meanSilhouetteHalfWidthM, FOREST_COVER_MULT,
-  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, TRACKING_LAG_TC_S,
+  computeHitModel, effectiveMults, falloffAt, meanSilhouetteHalfWidthM, FOREST_COVER_MULT, WEAPON_REACH_MULT,
+  weaponSigmaRad, TRACKING_LAG_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid, type TerrainType,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
@@ -27,7 +27,18 @@ export interface BattleView {
   events: BattleEvent[];
   arena: { lengthM: number; widthM: number };
   terrain: TerrainGrid;
-  mechs: readonly [{ chassisId: string; capacitorMaxKj: number }, { chassisId: string; capacitorMaxKj: number }];
+  mechs: readonly [BattleViewMech, BattleViewMech];
+}
+
+export interface BattleViewMech {
+  chassisId: string;
+  capacitorMaxKj: number;
+  /**
+   * Each part's footprint centre in grid cells, so a round can leave the gun that
+   * fired it. Optional because a view can be assembled without a build (the
+   * fire-control tests do), in which case shots fall back to the mech's centre.
+   */
+  mounts?: Record<string, { x: number; y: number }>;
 }
 
 /** True footprints are ~3 m in a 240 m arena; magnify them to stay readable. */
@@ -37,6 +48,8 @@ const TRACER_LINGER_S = 0.22;
 const ROUND_LEN_M = 3;
 const FLASH_LINGER_S = 0.4;
 const MUZZLE_FLASH_S = 0.18;
+/** How long a hitscan beam stays on the glass. */
+const BEAM_LINGER_S = 0.16;
 export const MECH_COLORS = ['var(--signal-blue)', 'var(--signal-red)'] as const;
 /**
  * Text variants. --signal-red is documented UI-only in docs/14 §4 — it measured
@@ -60,25 +73,36 @@ const HEAT_MAX_C = HEAT_DAMAGE_C;
  * standing mech as moving at zero.
  */
 /**
- * Whether a powered targeting computer is on the mech at this moment, which is what
- * decides fire-control lag: TRACKING_LAG_TC_S rather than the base 0.3 s.
+ * The mech's fire-control share of the lateral-target penalty at this moment --
+ * `Combatant.fireControlLateralMult` replayed from the event stream.
+ *
+ * A product rather than a boolean, and read from each part's catalog field
+ * rather than matching the id 'U-TC1', because both are true of the sim: copies
+ * compound, and any part may declare the effect. It does not touch fire-control
+ * lag, so it cannot silently improve a slow shell's reach.
  *
  * The sim requires the part to be fitted, functional, and neither shed nor shut
- * down. Only the first is visible from a build, so the rest is replayed from the
- * event stream up to tSec, the way DamageGrid derives destroyed parts. Assuming the
- * base lag instead would make the spread and the diagnostics disagree with the
- * model they report on, precisely on the builds fitted to change it.
+ * down. Only the first is visible from a build, so the rest is replayed up to
+ * tSec, the way DamageGrid derives destroyed parts. Assuming the ungated penalty
+ * instead would make the spread and the diagnostics disagree with the model they
+ * report on, precisely on the builds fitted to change it.
  */
-export function hasPoweredTcAt(view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1): boolean {
-  const fitted = build?.parts.filter((p) => p.partId === 'U-TC1') ?? [];
-  if (fitted.length === 0) return false;
+export function fireControlLateralMultAt(
+  view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
+): number {
+  const fitted = build?.parts.filter((p) => getPart(p.partId).fireControlLateralMult !== undefined) ?? [];
+  if (fitted.length === 0) return 1;
   const down = new Set<string>();
   for (const e of view.events) {
     if (e.tSec > tSec) break;
     if (e.type === 'part-destroyed' && e.mech === mech) down.add(e.instanceId);
     if ((e.type === 'shed' || e.type === 'shutdown') && e.mech === mech) down.add(e.instanceId);
   }
-  return fitted.some((p) => !down.has(p.instanceId));
+  let mult = 1;
+  for (const p of fitted) {
+    if (!down.has(p.instanceId)) mult *= getPart(p.partId).fireControlLateralMult!;
+  }
+  return mult;
 }
 
 /**
@@ -155,10 +179,12 @@ function weaponBlurb(def: PartDef): string {
  * here -- half-angle, both band edges -- is read from the catalog; nothing about
  * the geometry is decided in the UI.
  */
-function WeaponCones({ frame, weapons, color }: {
+function WeaponCones({ frame, weapons, color, mech }: {
   frame: MechFrame;
   weapons: WeaponFrame[];
   color: string;
+  /** Which mech, so two mechs' gradient ids can never collide. */
+  mech: number;
 }) {
   // One cone per distinct weapon type: two of the same gun share an arc exactly,
   // and stacking identical sectors just darkens the fill.
@@ -169,6 +195,7 @@ function WeaponCones({ frame, weapons, color }: {
     return true;
   });
 
+  /** Filled wedge from the mech out to `r`. */
   const sector = (r: number, half: number) => {
     const a0 = frame.facingRad - half;
     const a1 = frame.facingRad + half;
@@ -183,24 +210,55 @@ function WeaponCones({ frame, weapons, color }: {
   return (
     <g className="playback-cones" aria-hidden="true">
       {cones.map((wf) => {
-        const w = getPart(wf.partId).weapon!;
+        const def = getPart(wf.partId);
+        const w = def.weapon!;
         const half = ((w.mountArcDeg / 2) * Math.PI) / 180;
+        // Where the gun actually stops firing, read from the sim rather than
+        // from `rangeEnd` — past `rangeEnd` it is merely weaker, and drawing the
+        // cone there had shots flying visibly outside their own marking.
+        const reach = w.falloff.rangeEnd * WEAPON_REACH_MULT;
+        const rMin = w.falloff.rangeMin;
+
+        /*
+         * The cone *is* the falloff curve. It was drawn as two flat bands whose
+         * opacities differed by 0.02, so "where this gun is actually good" was
+         * invisible — the near ramp, the full-damage plateau and the long decline
+         * all looked like one wedge. Sampling falloffAt() into a user-space radial
+         * gradient draws the real curve: bright where the gun hits hardest, fading
+         * exactly as its damage does, and visibly dim inside a minimum range.
+         *
+         * Sampled rather than hand-written stops, because the curve has kinks at
+         * rangeMin and rangeStart that a fixed stop list would round off — and
+         * because a hardcoded shape would be the UI re-deriving a number the sim
+         * already owns.
+         */
+        const stops: number[] = [0, reach];
+        if (rMin !== undefined) stops.push(rMin * 0.5, rMin);
+        stops.push(w.falloff.rangeStart);
+        for (let i = 1; i < 6; i++) stops.push(w.falloff.rangeStart + (reach - w.falloff.rangeStart) * (i / 6));
+        const sampled = [...new Set(stops)].sort((a, b) => a - b);
+        const gid = `cone-${mech}-${wf.partId}`;
+
         return (
           <g key={wf.instanceId} className={`playback-cone${wf.gate === null && wf.status === 'ok' ? ' bearing' : ''}`}>
-            {/* Out to rangeEnd: past it the gun is out of its band entirely. */}
-            <path d={sector(w.falloff.rangeEnd, half)} fill={color} className="cone-band" />
-            {/* rangeStart is where damage begins to fall off, so the inner sector
-                is the part of the cone that still hits for full damage. */}
-            <path d={sector(w.falloff.rangeStart, half)} fill={color} className="cone-full" />
-            {/* And the near side, for weapons that need room to work. Marked rather
-                than filled: a shot inside it still lands, it just lands weakly. */}
-            {w.falloff.rangeMin !== undefined && (
-              <path
-                d={sector(w.falloff.rangeMin, half)}
-                fill="none"
-                stroke={color}
-                className="cone-min"
-              />
+            <defs>
+              <radialGradient
+                id={gid}
+                gradientUnits="userSpaceOnUse"
+                cx={frame.x}
+                cy={frame.y}
+                r={reach}
+              >
+                {sampled.map((r) => (
+                  <stop key={r} offset={r / reach} stopColor={color} stopOpacity={falloffAt(def, r)} />
+                ))}
+              </radialGradient>
+            </defs>
+            <path d={sector(reach, half)} fill={`url(#${gid})`} className="cone-fill" />
+            {/* The dead zone gets an edge as well as a dimmer fill: a boundary you
+                are meant to hold station outside of should be a line you can see. */}
+            {rMin !== undefined && (
+              <path d={sector(rMin, half)} fill="none" stroke={color} className="cone-min" />
             )}
           </g>
         );
@@ -251,10 +309,19 @@ function ShotSpread({ view, frame, tSec, mech, build }: {
     : undefined;
   const model = computeHitModel({
     rangeM,
-    sigmaRad: (w.dispersionMrad * (mults?.dispersionMrad ?? 1)
-      + MOVE_JITTER_MRAD_PER_MPS * mySpeed * (mults?.moveJitter ?? 1)) * 0.001,
+    sigmaRad: weaponSigmaRad({
+      dispersionMrad: w.dispersionMrad,
+      speedMps: mySpeed,
+      mults,
+      // A steady frame buys motion jitter down (a Vulture to 0.35). Omitting it
+      // drew a moving scout's spread far wider than the shot it marked.
+      chassisMoveJitterMult: getChassis(view.mechs[mech].chassisId).moveJitterMult,
+    }),
     lateralSpeedMps: lateral,
-    lagS: hasPoweredTcAt(view, build, tSec, mech) ? TRACKING_LAG_TC_S : TRACKING_LAG_BASE_S,
+    lagS: TRACKING_LAG_S,
+    // Mech-wide fire control x this weapon's own knob, exactly as the sim does.
+    lateralPenaltyMult: fireControlLateralMultAt(view, build, tSec, mech)
+      * (mults?.lateralPenalty ?? 1),
     projectileSpeed: w.projectileSpeed,
     // Forest is cover: the sim narrows the target the same way (combat.ts's
     // targetCoverMult). Without it the spread claimed a wider target than the
@@ -503,20 +570,12 @@ export function BattleScene({
 }) {
   const frame = frameAt(view, tSec);
 
-  // Shots fired just before `tSec` become tracers; hits also flash the target.
-  const tracers = useMemo(
-    () => view.events.filter(
-      (e): e is Extract<BattleEvent, { type: 'shot' }> =>
-        e.type === 'shot' && e.tSec <= tSec && e.tSec > tSec - TRACER_LINGER_S,
-    ),
-    [view.events, tSec],
-  );
   /**
    * Rounds still in the air. A shot event records when a gun fired, not where its
    * round is, so position is the shooter-to-target line walked at the weapon's own
    * projectileSpeed -- 250 m/s from a rocket pod and 2000 m/s from a rail gun cross
    * the same arena at visibly different rates, which is the whole point of showing
-   * them. Hitscan weapons have no travel time and stay instantaneous tracers.
+   * them. Hitscan weapons have no flight time and are drawn as beams instead.
    *
    * The window is the round's own flight time rather than a fixed linger, because a
    * slow projectile at long range is airborne far longer than any constant would
@@ -525,45 +584,90 @@ export function BattleScene({
   const projectiles = useMemo(() => {
     const live: {
       key: string; x: number; y: number; dx: number; dy: number;
-      mech: 0 | 1; arrived: boolean; age: number;
+      mech: 0 | 1; arrived: boolean; age: number; beam: boolean;
+      fx: number; fy: number;
     }[] = [];
     for (const e of view.events) {
       if (e.type !== 'shot' || e.tSec > tSec) continue;
       const speed = getPart(e.partId).weapon?.projectileSpeed;
-      if (speed === undefined || speed === 'hitscan') continue;
+      if (speed === undefined) continue;
       const f = frameAt(view, e.tSec);
       if (!f) continue;
-      const from = f.mechs[e.mech];
-      const to = f.mechs[(1 - e.mech) as 0 | 1];
+      const foeIdx = (1 - e.mech) as 0 | 1;
+      const shooter = f.mechs[e.mech];
+      const to = f.mechs[foeIdx];
+      // Leave the gun, not the centre mark. Grid "up" is forward and grid x runs
+      // across the hull, matching MechGlyph's footprint, so a shoulder mount fires
+      // from the shoulder — which is what makes a layout readable in a fight.
+      const mount = view.mechs[e.mech].mounts?.[e.instanceId];
+      const chassis = getChassis(view.mechs[e.mech].chassisId);
+      let from = { x: shooter.x, y: shooter.y };
+      if (mount) {
+        const fwd = (chassis.height / 2 - mount.y) * CELL_SIZE_M * MECH_MAG;
+        const lat = (mount.x - chassis.width / 2) * CELL_SIZE_M * MECH_MAG;
+        const c = Math.cos(shooter.facingRad);
+        const sn = Math.sin(shooter.facingRad);
+        from = { x: shooter.x + c * fwd - sn * lat, y: shooter.y + sn * fwd + c * lat };
+      }
       const distM = Math.hypot(to.x - from.x, to.y - from.y);
+      const ux = (to.x - from.x) / (distM || 1);
+      const uy = (to.y - from.y) / (distM || 1);
+      const hullM = getChassis(view.mechs[foeIdx].chassisId).height
+        * CELL_SIZE_M * MECH_MAG * 0.5;
+      /*
+       * A miss has to pass *outside* the hull to look like a miss. The old offset
+       * was a flat 3.5 m, which at arena scale is a few pixels — every shot read as
+       * a hit even though one in five was not, and that is what "I never see a miss"
+       * actually was. Sized against the silhouette it went wide of instead, with a
+       * deterministic sign and magnitude from the shot's own time so replays match.
+       */
+      const missM = e.hit
+        ? 0
+        : (Math.round(e.tSec * 100) % 2 ? 1 : -1)
+          * (hullM * 1.4 + 2 + (Math.round(e.tSec * 1000) % 7));
+
+      if (speed === 'hitscan') {
+        // A laser is not a round in flight: it is on, then off. Drawn as the whole
+        // line at once for the linger window rather than walked along it.
+        if (e.tSec <= tSec - BEAM_LINGER_S) continue;
+        const endFrac = e.hit ? Math.max(0, distM - hullM) / (distM || 1) : 1;
+        live.push({
+          key: `${e.mech}:${e.tSec}:${e.instanceId}`,
+          x: from.x, y: from.y, dx: ux, dy: uy, mech: e.mech,
+          arrived: e.hit, beam: true,
+          age: Math.min(1, (tSec - e.tSec) / BEAM_LINGER_S),
+          fx: from.x + (to.x - from.x) * endFrac - uy * missM,
+          fy: from.y + (to.y - from.y) * endFrac + ux * missM,
+        });
+        continue;
+      }
+
       const flightS = distM / speed;
       if (flightS <= 0) continue;
       const progress = (tSec - e.tSec) / flightS;
       // A hit stops at the hull, not the centre mark -- a round sliding through the
       // mech it just struck reads as a miss. A miss keeps going and passes to one
       // side, which is what a miss actually looks like.
-      const ux = (to.x - from.x) / (distM || 1);
-      const uy = (to.y - from.y) / (distM || 1);
-      const hullM = getChassis(view.mechs[(1 - e.mech) as 0 | 1].chassisId).height
-        * CELL_SIZE_M * MECH_MAG * 0.5;
       const travelFrac = e.hit ? Math.max(0, distM - hullM) / distM : 1 + 24 / distM;
       const overrun = e.hit ? TRACER_LINGER_S / Math.max(flightS, 1e-6) : 0;
       if (progress < 0 || progress > travelFrac + overrun) continue;
       const at = Math.min(progress, travelFrac);
       const arrived = e.hit && progress >= travelFrac;
-      // Misses drift off the line so they visibly go past rather than through.
-      const missM = e.hit ? 0 : (Math.round(e.tSec * 10) % 2 ? 1 : -1) * 3.5 * Math.min(1, progress);
+      const off = missM * Math.min(1, progress);
       live.push({
         // The mech index belongs in the key: instance ids are unique within a
         // build, not across the two in a battle, so two rounds leaving different
         // mechs on the same tick could collide and React would drop one.
         key: `${e.mech}:${e.tSec}:${e.instanceId}`,
-        x: from.x + (to.x - from.x) * at - uy * missM,
-        y: from.y + (to.y - from.y) * at + ux * missM,
+        x: from.x + (to.x - from.x) * at - uy * off,
+        y: from.y + (to.y - from.y) * at + ux * off,
         dx: ux,
         dy: uy,
         mech: e.mech,
         arrived,
+        beam: false,
+        fx: 0,
+        fy: 0,
         age: arrived ? Math.min(1, (progress - travelFrac) / Math.max(overrun, 1e-6)) : 0,
       });
     }
@@ -701,45 +805,42 @@ export function BattleScene({
             heading, and at 2000 m/s a rail slug crosses several metres per frame,
             so the segment is what the eye can actually follow. On arrival it
             becomes a brief impact mark instead. */}
-        {projectiles.map((p) => (p.arrived ? (
-          <circle
-            key={p.key}
-            cx={p.x} cy={p.y} r={1.4 + p.age * 2.2}
-            className="playback-round-hit"
-            stroke={MECH_COLORS[p.mech]}
-            opacity={1 - p.age}
-          />
-        ) : (
-          <line
-            key={p.key}
-            x1={p.x - p.dx * ROUND_LEN_M} y1={p.y - p.dy * ROUND_LEN_M}
-            x2={p.x} y2={p.y}
-            className="playback-round"
-            stroke={MECH_COLORS[p.mech]}
-          />
-        )))}
-
-        {tracers.map((e, idx) => {
-          // A travelling round is drawn as the round; only hitscan is a line.
-          if (getPart(e.partId).weapon?.projectileSpeed !== 'hitscan') return null;
-          const f = frameAt(view, e.tSec);
-          if (!f) return null;
-          const from = f.mechs[e.mech];
-          const to = f.mechs[(1 - e.mech) as 0 | 1];
-          const dx = to.x - from.x;
-          const dy = to.y - from.y;
-          const d = Math.hypot(dx, dy) || 1;
-          // Misses streak past the target, offset sideways (visual only; the
-          // sim resolved the miss statistically).
-          const missOff = e.hit ? 0 : ((idx % 2 === 0 ? 1 : -1) * (4 + (idx % 3) * 2));
-          const ex = e.hit ? to.x : to.x + (dx / d) * 18 - (dy / d) * missOff;
-          const ey = e.hit ? to.y : to.y + (dy / d) * 18 + (dx / d) * missOff;
-          const age = (tSec - e.tSec) / TRACER_LINGER_S;
-          return (
-            <g key={`tr${idx}`} opacity={1 - age * 0.8}>
-              <line x1={from.x} y1={from.y} x2={ex} y2={ey} className={`playback-tracer${e.hit ? ' hit' : ''}`} stroke={MECH_COLORS[e.mech]} />
-              {e.hit && <circle cx={to.x} cy={to.y} r={1.6 + age * 2.5} className="playback-impact" />}
-            </g>
+        {projectiles.map((p) => {
+          if (p.beam) {
+            // Lasers are drawn as light: the whole line at once, brightest at the
+            // instant of firing and gone in a sixth of a second. Walking a "round"
+            // along a hitscan path was the wrong picture entirely -- it is a beam
+            // that is either on or off, and that is its identity next to a gun
+            // whose shells have to be led.
+            return (
+              <g key={p.key} opacity={1 - p.age * 0.85}>
+                <line
+                  x1={p.x} y1={p.y} x2={p.fx} y2={p.fy}
+                  className={`playback-beam${p.arrived ? ' hit' : ''}`}
+                  stroke={MECH_COLORS[p.mech]}
+                />
+                {p.arrived && (
+                  <circle cx={p.fx} cy={p.fy} r={1.6 + p.age * 2.5} className="playback-impact" />
+                )}
+              </g>
+            );
+          }
+          return p.arrived ? (
+            <circle
+              key={p.key}
+              cx={p.x} cy={p.y} r={1.4 + p.age * 2.2}
+              className="playback-round-hit"
+              stroke={MECH_COLORS[p.mech]}
+              opacity={1 - p.age}
+            />
+          ) : (
+            <line
+              key={p.key}
+              x1={p.x - p.dx * ROUND_LEN_M} y1={p.y - p.dy * ROUND_LEN_M}
+              x2={p.x} y2={p.y}
+              className="playback-round"
+              stroke={MECH_COLORS[p.mech]}
+            />
           );
         })}
 
@@ -763,6 +864,7 @@ export function BattleScene({
             frame={frame.mechs[i]}
             weapons={frame.mechs[i].weapons}
             color={MECH_COLORS[i]}
+            mech={i}
           />
         ))}
         {/* Your spread only: the enemy's would double the marks on the same target

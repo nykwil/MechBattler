@@ -72,12 +72,15 @@ describe('game front door', () => {
         onBack={vi.fn()}
       />,
     );
-    expect(screen.getByText('Mule Skirmisher')).toBeTruthy();
+    // Names the shipped factory blueprint, which moved to the Needle Skirmisher
+    // in Aug 2026. The assertion that matters is unchanged: exactly one option,
+    // and it is the only fit the fresh profile's unlocks make legal.
+    expect(screen.getByText('Mule Needle Skirmisher')).toBeTruthy();
     expect(screen.queryByText('Vulture Skirmisher')).toBeNull();
     expect(screen.getAllByRole('option')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button', { name: 'Load' }));
     expect(onLoadMech).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'factory-mule-skirmisher', name: 'Mule Skirmisher' }),
+      expect.objectContaining({ id: 'factory-mule-needle', name: 'Mule Needle Skirmisher' }),
     );
   });
 

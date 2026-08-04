@@ -125,6 +125,48 @@ it. This is the run's opening prompt.
 - **It rewards a verb we have** (R2): picking fights (arena preview), positioning,
   throttle/heat management, facing. Never a new button.
 
+**How two sources of the same bonus combine** (implemented Aug 2026, `packages/sim/modifiers.ts`).
+
+Content will keep adding things that raise, lower, and cancel the same numbers, so the
+combination rule is fixed once here rather than decided per part.
+
+There are **two buckets**, and a modifier picks one:
+
+| Verb | Bucket | Combines by | Use it when |
+|---|---|---|---|
+| `m.inc(field, pct)` | additive pool | sources **sum**, applied once | the sources are meant to *compete* — a third one should feel redundant |
+| `m.scale(field, mult)` | multiplicative pool | sources **compound** | the sources are meant to *reward commitment* — stacking should pay |
+
+Final value is `(1 + additivePool) × multiplicativePool`. Two "−30%" sources in the
+additive pool give `1 − 0.6 = 0.4`; the same two in the multiplicative pool give
+`0.7 × 0.7 = 0.49`. **Both pools are order-independent** — addition and multiplication
+each commute — so a modifier never has to know what ran before it. Order would only
+start to matter if one source wrote to both pools for one field, which the verbs make
+awkward on purpose.
+
+Two things are deliberately *not* percentage modifiers:
+
+- **Physical quantities add** (`m.add`): `extraHeatKw` is kilowatts, `orderLatencyS` is
+  seconds. Summing is the physically correct operation, and scaling them would be
+  meaningless. The same logic governs the aim model: dispersion and motion jitter are
+  both milliradians of pointing error, so they add, and modifiers scale each term.
+- **Booleans and overrides are set** (`m.set`): `shedFirst`, `insulated` conduction.
+
+**A 100% reduction is a content bug, not a build.** The additive pool is clamped at
+zero so it can never invert the effect it was reducing, but the clamp firing means the
+catalog is wrong. `npm run game:audit` probes every modifier a single part can legally
+carry and reports `saturatedAdditivePools` if any field could reach it — so this is
+checked, not trusted.
+
+**Two scopes, and they multiply.** A knob can live on the weapon
+(`EffectiveMults.lateralPenalty`, per-instance, modifier-driven) or on the mech
+(`PartDef.fireControlLateralMult`, a catalog field summed across functional, powered
+parts the way `speedMult` is). The lateral-target penalty uses both: a targeting
+computer declares `0.4` in the catalog, a gun mod can halve its own gun's share, and
+the two multiply. This replaced a hardcoded `1`-or-`0.4` keyed on the literal id
+`U-TC1`, under which "reduce *this gun's* lateral penalty" was not expressible and a
+second computer counted for nothing.
+
 **Catalog and stress status.** A part may carry quirks plus at most one mod. High-leverage
 mods can also declare a per-build copy limit; the machinist UI and deterministic loadout
 audit enforce both rules. Rarity/acquisition pricing remains Track C, but the representative

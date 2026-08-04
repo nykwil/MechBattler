@@ -72,7 +72,9 @@ const args = [
   // bottom of the panel; they used to scroll away with the content, measured at
   // y=1062 in an 844px viewport. Scrolling first here would hide a regression of
   // that, so this step doubles as the check that the exit stays reachable.
-  '--tapText', 'Back to workshop', '--waitFor', '.wreck-panel@30000',
+  // A won run fight labels this button "Claim salvage" rather than "Back to
+  // workshop" — the wreck is behind it, and the old label did not say so.
+  '--tapText', 'Claim salvage', '--waitFor', '.wreck-panel@30000',
   // Take the first intact row. Opponent/template names are content, while this
   // smoke test is proving the salvage transaction itself.
   '--tap', '.wreck-row',

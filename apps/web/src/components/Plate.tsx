@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   buildOccupancyMap,
   buildSpatialOccupancy,
-  computeConnectivity,
+  connectedInstanceIds,
   getPart,
   isExteriorCell,
   isPortCell,
@@ -10,7 +10,6 @@ import {
   resolveSpatialPower,
   resolveThermalPaths,
   spatialCellKey,
-  usesSpatialSystems,
   type ChassisSpec,
   type PartDef,
   type PlacedPart,
@@ -128,12 +127,13 @@ export function Plate({
   const workshopLayout = useMemo(() => resolveWorkshopLayout(chassis), [chassis]);
 
   const spatialPower = useMemo(
-    () => usesSpatialSystems({ chassisId: chassis.id, parts, routes, powerPriority: [] })
-      ? resolveSpatialPower(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] })
-      : null,
+    () => resolveSpatialPower(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] }),
     [chassis, parts, routes],
   );
-  const powered = spatialPower?.connectedInstanceIds ?? computeConnectivity(parts).connectedInstanceIds;
+  const powered = useMemo(
+    () => connectedInstanceIds(chassis, { chassisId: chassis.id, parts, routes, powerPriority: [] }),
+    [chassis, parts, routes],
+  );
   const thermalPaths = useMemo(
     () => resolveThermalPaths(chassis, { parts, routes }),
     [chassis, parts, routes],

@@ -16,11 +16,11 @@ import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { dexp } from './dmath.js';
-import { computeConnectivity, computeCoreNetwork, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, computePowerNetworks } from './grid.js';
+import { computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
 import { locationEffectsForPart, resolvePlacementEffects } from './placementEffects.js';
-import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { connectedInstanceIds, resolveSpatialPower } from './spatialPower.js';
 
 export interface SpeedProfile {
   massT: number;
@@ -35,9 +35,7 @@ export interface SpeedProfile {
 export function computeSpeedProfile(chassis: ChassisSpec, build: Build): SpeedProfile {
   const massAndCoG = computeMassAndCoG(chassis, build.parts, build.routes);
   const scaled = computeLoadScaledSpeeds(chassis, massAndCoG);
-  const connected = usesSpatialSystems(build)
-    ? resolveSpatialPower(chassis, build).connectedInstanceIds
-    : computeConnectivity(build.parts).connectedInstanceIds;
+  const connected = connectedInstanceIds(chassis, build);
   const boost = computePartSpeedMultiplier(build.parts, (part) => connected.has(part.instanceId));
   return {
     massT: massAndCoG.totalMassT,
@@ -84,8 +82,8 @@ export function computeEnergyMargin(chassis: ChassisSpec, build: Build): EnergyM
   const profile = computeSpeedProfile(chassis, build);
   const cruiseSpeed = profile.fwd * SPEED_SETTING_FRACTIONS.cruise;
   const locomotionKw = 1.2 * profile.massT * cruiseSpeed;
-  const spatial = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
-  const sourceNetworks = spatial?.networks ?? computePowerNetworks(build.parts).networks;
+  const spatial = resolveSpatialPower(chassis, build);
+  const sourceNetworks = spatial.networks;
   const networks = sourceNetworks.map((network) => {
     const instanceIds = [...network.reactorInstanceIds, ...network.memberInstanceIds];
     const supplyKw = network.reactorInstanceIds.reduce((sum, instanceId) => {
@@ -99,9 +97,7 @@ export function computeEnergyMargin(chassis: ChassisSpec, build: Build): EnergyM
       if (def.category === 'weapon') return sum + averageDrawKw(def);
       return sum + (def.draw?.continuousKw ?? 0);
     }, 0);
-    const carriesCore = spatial
-      ? network.networkId === spatial.coreNetworkId
-      : network.networkId === computeCoreNetwork(chassis, build.parts);
+    const carriesCore = network.networkId === spatial.coreNetworkId;
     const demandKw = componentDemandKw + (carriesCore ? locomotionKw : 0);
     return {
       networkId: network.networkId,

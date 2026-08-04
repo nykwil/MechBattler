@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  autopilotController, buildCapacitorMaxKj, withManualOrders, Battle,
+  autopilotController, buildCapacitorMaxKj, buildOccupancyMap, withManualOrders, Battle,
   SPEED_SETTING_FRACTIONS,
   type Build, type BattleReport, type ManualOrders, type SpeedSetting, type Vec2,
 } from '@mechbattler/sim';
@@ -46,20 +46,36 @@ const FACE_MODES = ['auto', 'target', 'bearing'] as const;
 type FaceMode = (typeof FACE_MODES)[number];
 
 interface ManualState {
-  move: 'auto' | 'hold' | { dest: Vec2 };
+  move: 'auto' | { dest: Vec2 };
   throttle: SpeedSetting | 'auto';
   weapons: Record<string, WeaponOverride>;
   face: FaceMode;
   /** Held bearing (rad); set from the last arena click while face = bearing. */
   bearingRad: number;
-  /** The move order's trigger: on arrival, clear all manual state (docs/08 §2). */
-  autoOnArrival: boolean;
 }
 
-const FULL_AUTO: ManualState = { move: 'auto', throttle: 'auto', weapons: {}, face: 'auto', bearingRad: 0, autoOnArrival: false };
+const FULL_AUTO: ManualState = { move: 'auto', throttle: 'auto', weapons: {}, face: 'auto', bearingRad: 0 };
 
 function isFullAuto(m: ManualState): boolean {
   return m.move === 'auto' && m.throttle === 'auto' && m.face === 'auto' && Object.keys(m.weapons).length === 0;
+}
+
+/**
+ * Where each part sits on the plate, as its footprint's centre in grid cells.
+ * The HUD fires rounds from here rather than from the mech's centre mark: a
+ * shoulder gun and a hull gun visibly shoot from different places, which is the
+ * only thing that makes a mech's *layout* legible while it is fighting.
+ */
+function mountMap(build: Build): Record<string, { x: number; y: number }> {
+  const out: Record<string, { x: number; y: number }> = {};
+  for (const [instanceId, cells] of buildOccupancyMap(build.parts).cellsByInstance) {
+    if (cells.length === 0) continue;
+    let sx = 0;
+    let sy = 0;
+    for (const c of cells) { sx += c.x + 0.5; sy += c.y + 0.5; }
+    out[instanceId] = { x: sx / cells.length, y: sy / cells.length };
+  }
+  return out;
 }
 
 export function BattleLiveScreen({
@@ -99,10 +115,6 @@ export function BattleLiveScreen({
               : { mode: 'bearing', bearingRad: m.bearingRad },
           };
         },
-        () => {
-          // Arrived at the manual waypoint: the standing trigger reverts to auto.
-          if (manualRef.current.autoOnArrival) setManual(FULL_AUTO);
-        },
       ),
       autopilotController,
     ],
@@ -117,8 +129,16 @@ export function BattleLiveScreen({
     arena: battle.arena,
     terrain: battle.terrain,
     mechs: [
-      { chassisId: battle.combatants[0].build.chassisId, capacitorMaxKj: buildCapacitorMaxKj(battle.combatants[0].build) },
-      { chassisId: battle.combatants[1].build.chassisId, capacitorMaxKj: buildCapacitorMaxKj(battle.combatants[1].build) },
+      {
+        chassisId: battle.combatants[0].build.chassisId,
+        capacitorMaxKj: buildCapacitorMaxKj(battle.combatants[0].build),
+        mounts: mountMap(battle.combatants[0].build),
+      },
+      {
+        chassisId: battle.combatants[1].build.chassisId,
+        capacitorMaxKj: buildCapacitorMaxKj(battle.combatants[1].build),
+        mounts: mountMap(battle.combatants[1].build),
+      },
     ],
   }), [battle]);
 
@@ -139,7 +159,7 @@ export function BattleLiveScreen({
   const orderMove = (x: number, y: number, kind: 'move' | 'auto') => {
     if (finished) return;
     if (kind === 'auto') {
-      setManual((m) => ({ ...m, move: 'auto', autoOnArrival: false }));
+      setManual((m) => ({ ...m, move: 'auto' }));
       return;
     }
     const hl = battle.arena.lengthM / 2;
@@ -147,10 +167,31 @@ export function BattleLiveScreen({
     const dest = { x: Math.max(-hl, Math.min(hl, x)), y: Math.max(-hw, Math.min(hw, y)) };
     setRipple({ x: dest.x, y: dest.y, key: Date.now() });
     setManual((m) => {
-      const next: ManualState = { ...m, move: { dest } };
+      // Steering by hand takes the whole wheel. Leaving throttle and face on
+      // auto left them *disabled* — `autoHolds` only looks at those two verbs —
+      // so setting a waypoint put you in a state where you had taken over the
+      // movement and could not touch the speed or the facing that movement
+      // needs. They are seeded with whatever the autopilot was doing, so the
+      // mech carries on exactly as it was until you change something.
+      const flying = battle.latestFrame()?.mechs[0];
+      const next: ManualState = {
+        ...m,
+        move: { dest },
+        // Seeded from the autopilot so the mech carries on as it was — except
+        // for `stationary`, which would take the order and then refuse to
+        // execute it. Clicking a waypoint is a request to go somewhere; if the
+        // autopilot happened to be standing still when you asked, inheriting
+        // that meant the click appeared to do nothing at all.
+        throttle: m.throttle !== 'auto' ? m.throttle
+          : (flying?.speedSetting && flying.speedSetting !== 'stationary')
+            ? flying.speedSetting
+            : 'cruise',
+        face: m.face === 'auto' ? (flying?.faceMode ?? 'target') : m.face,
+      };
       // While holding a bearing, an arena click also aims it (docs/08 §2).
-      const me = battle.latestFrame()?.mechs[0];
-      if (m.face === 'bearing' && me) next.bearingRad = Math.atan2(dest.y - me.y, dest.x - me.x);
+      if (next.face === 'bearing' && flying) {
+        next.bearingRad = Math.atan2(dest.y - flying.y, dest.x - flying.x);
+      }
       return next;
     });
   };
@@ -199,8 +240,6 @@ export function BattleLiveScreen({
         if (gun) cycleWeapon(gun.instanceId);
       } else if (e.key.toLowerCase() === 'a') {
         setManual(FULL_AUTO);
-      } else if (e.key.toLowerCase() === 'h') {
-        setManual((m) => ({ ...m, move: m.move === 'hold' ? 'auto' : 'hold' }));
       } else if (e.key.toLowerCase() === 'f') {
         cycleFace();
       }
@@ -210,7 +249,7 @@ export function BattleLiveScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [battle]);
 
-  const moveMode = manual.move === 'auto' ? 'auto' : manual.move === 'hold' ? 'hold' : 'waypoint';
+  const moveMode = manual.move === 'auto' ? 'auto' : 'waypoint';
 
   /**
    * What the mech is actually doing this tick, straight from the sim's frame. When
@@ -278,14 +317,6 @@ export function BattleLiveScreen({
             glassOverlay={moveMode === 'waypoint' ? (
               <div className="waypoint-bar">
                 <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
-                <button
-                  type="button" className="obtn"
-                  aria-pressed={manual.autoOnArrival}
-                  onClick={() => setManual((m) => ({ ...m, autoOnArrival: !m.autoOnArrival }))}
-                  title="On arrival at the waypoint, clear every manual order and resume full auto"
-                >
-                  On arrival
-                </button>
               </div>
             ) : undefined}
             diagnostics={diag}
@@ -301,14 +332,6 @@ export function BattleLiveScreen({
               it holds the throttle the segment carries .off to say so, but stays
               clickable, because clicking a throttle is how you take manual control. */}
           <div className="live-orders orders">
-            <button
-              type="button" className="obtn"
-              aria-pressed={moveMode === 'hold'}
-              onClick={() => setManual((m) => ({ ...m, move: m.move === 'hold' ? 'auto' : 'hold' }))}
-              title="Stand fast in place"
-            >
-              Hold
-            </button>
 
             {/* Under Auto the segment shows what the autopilot is doing and says
                 so by being disabled, rather than going blank and leaving you to

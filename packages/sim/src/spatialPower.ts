@@ -1,6 +1,5 @@
 import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
-import { CHASSIS } from './chassis.js';
 import {
   WIRE_CAPACITY_KW,
   buildSpatialOccupancy,
@@ -251,10 +250,18 @@ export function resolveSpatialPower(
   };
 }
 
-export function usesSpatialSystems(build: Build): boolean {
-  return Boolean(
-    CHASSIS[build.chassisId]?.regions?.length
-    || build.routes?.length
-    || build.parts.some((part) => part.origin.regionId),
-  );
+/**
+ * Which parts are on the power network.
+ *
+ * This used to branch: `usesSpatialSystems(build) ? resolveSpatialPower(...) :
+ * computeConnectivity(...)`, written out at eight call sites. `adaptation.ts` and
+ * the workshop's power lamp were two of them that had never been updated, so they
+ * asked the pre-spatial model a question the sim answers differently -- the lamp
+ * could read green on a part the battle then left unpowered.
+ *
+ * There is one model now. Callers needing the richer result (networks,
+ * bottlenecks, energized cells) call `resolveSpatialPower` directly.
+ */
+export function connectedInstanceIds(chassis: ChassisSpec, build: Build): Set<string> {
+  return resolveSpatialPower(chassis, build).connectedInstanceIds;
 }

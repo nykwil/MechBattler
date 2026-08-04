@@ -40,13 +40,21 @@ function timelineRows(report: BattleReport): BattleEvent[] {
 }
 
 export function BattleReportScreen({
-  report, opponent, onRematch, onRematchSameSeed, onClose, yourBuild,
+  report, opponent, onRematch, onRematchSameSeed, onClose, yourBuild, salvageAwaits,
 }: {
   report: BattleReport;
   opponent: OpponentDef;
   onRematch: () => void;
   onRematchSameSeed: () => void;
   onClose: () => void;
+  /**
+   * True when this was a run fight that was won, so a wreck is waiting to be
+   * picked over behind this screen. Without it the only way forward read "Back
+   * to workshop", which does not sound like collecting a reward — players won a
+   * fight, saw Rematch and Back to workshop, and reported having no way to
+   * proceed. The salvage was there; nothing said so.
+   */
+  salvageAwaits?: boolean;
   /** The build that fought, for the console's damage widget. */
   yourBuild?: Build;
 }) {
@@ -151,7 +159,13 @@ export function BattleReportScreen({
           >
             Rematch · same seed
           </button>
-          <button type="button" className="report-btn" onClick={onClose}>Back to workshop</button>
+          <button
+            type="button"
+            className={`report-btn${salvageAwaits ? ' btn-primary' : ''}`}
+            onClick={onClose}
+          >
+            {salvageAwaits ? 'Claim salvage ›' : 'Back to workshop'}
+          </button>
         </div>
       </div>
     </div>

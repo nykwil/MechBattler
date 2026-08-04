@@ -5,7 +5,7 @@
  * save-file format. Economy numbers are config dials (docs/04 §8) — tuning
  * deferred by design.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { getPart, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
@@ -15,6 +15,7 @@ import {
   migrateRun,
   modOffers,
   generateRunNodes,
+  chassisRepairCost as domainChassisRepairCost,
   repairCost as domainRepairCost,
   type GeneratedRunNode,
   type PartProvenance,
@@ -65,6 +66,11 @@ export const REPAIR_COST_PER_POINT = GAME_CONTENT.economy.repairCostPerPoint;
 /** Scrap cost to repair a part from one integrity to another (docs/04 §3). */
 export function repairCost(tier: number, fromIntegrity: number, toIntegrity: number): number {
   return domainRepairCost(tier, fromIntegrity, toIntegrity);
+}
+
+/** Scrap cost to restore the chassis body to full (docs/04 §3). */
+export function chassisRepairCost(fromIntegrity: number): number {
+  return domainChassisRepairCost(fromIntegrity);
 }
 
 /** An unplaced salvaged part riding in the bench pool (docs/04 §2). */
@@ -395,10 +401,42 @@ export function useRun() {
     setRun({ phase: 'none' });
   }, []);
 
+  /**
+   * The build we restored from storage, held until the editor is actually
+   * holding it too.
+   *
+   * Restoring a run and feeding its build back into the editor are two
+   * different effects over two different pieces of state. On the renders
+   * between them the run is already restored while `build` is still the empty
+   * default frame, so the snapshot effect serialised an *empty mech over the
+   * saved run* on every single reload. A render later the correct build
+   * overwrote it, which is why this never showed up in normal use -- but a tab
+   * closed inside that window, or a second tab reading storage, loses the mech
+   * outright.
+   *
+   * Gating on "has the editor caught up" rather than on a caller-managed flag
+   * is what makes this robust: the caller clears `restored` in the same commit
+   * it calls `loadBuild`, one render *before* the build it loaded arrives, so
+   * any flag it owns is already down while the stale build is still in hand.
+   *
+   * A ref, not state: `persistBuild` must read it in the same commit that sets
+   * it, and it must not itself cause a render. Failing closed (staying
+   * suppressed if the caller never applies the build) is the safe direction --
+   * it declines to write, rather than writing the wrong thing.
+   */
+  const pendingRestoreRef = useRef<Build | null>(null);
+  const partSignature = (build: Build): string =>
+    build.parts.map((part) => part.instanceId).sort().join('|');
+
   // Persistence: the versioned domain shape is the save-file contract. The
   // hook keeps its compatibility facade while the stored object is a proper
   // RunInstance that can be consumed headlessly.
   const persistBuild = useCallback((build: Build): void => {
+    const awaiting = pendingRestoreRef.current;
+    if (awaiting) {
+      if (partSignature(build) !== partSignature(awaiting)) return;
+      pendingRestoreRef.current = null;
+    }
     setRun((r) => {
       if (r.phase !== 'none') {
         try {
@@ -453,6 +491,7 @@ export function useRun() {
   useEffect(() => {
     const stored = load();
     if (stored) {
+      pendingRestoreRef.current = stored.build;
       setRun(stored.over
         ? { phase: 'over', data: stored.data, cause: stored.over.cause, victorious: stored.over.victorious }
         : { phase: stored.prep ? 'prep' : 'active', data: stored.data });
@@ -460,9 +499,16 @@ export function useRun() {
     }
   }, []);
 
+  /**
+   * The caller signals it has taken the restored build. Persistence resumes
+   * from here, with `build` now holding the reloaded mech rather than the
+   * default frame.
+   */
+  const clearRestored = useCallback((): void => setRestored(null), []);
+
   return {
     run, start, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markYardMod, markMilestoneMod, clearModService,
-    persistBuild, restored, clearRestored: () => setRestored(null),
+    persistBuild, restored, clearRestored,
   };
 }

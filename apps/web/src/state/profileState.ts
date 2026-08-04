@@ -11,6 +11,7 @@ import {
   deleteSavedMech,
   defaultProfile,
   migrateProfile,
+  oneHourProfile,
   saveMech as saveProfileMech,
   summarizeBattleForChallenges,
   type PlayerProfile,
@@ -56,7 +57,31 @@ function readJson(key: string): unknown {
   }
 }
 
+/**
+ * `?unlock=one-hour` seeds the profile the balancing work is aimed at: all
+ * three chassis, the fifteen-part target pool, and the nine branch-probe mechs
+ * saved and ready to load. It exists because the state everything is tuned for
+ * was otherwise only reachable by grinding to it, so nobody could actually
+ * play the thing being measured.
+ *
+ * Dev-only, and it overwrites the stored profile — same rule as the dev-only
+ * `?view=` surfaces, for the same reason.
+ */
+function requestedUnlock(): PlayerProfile | null {
+  if (!import.meta.env.DEV) return null;
+  try {
+    if (new URLSearchParams(window.location.search).get('unlock') !== 'one-hour') return null;
+  } catch {
+    return null;
+  }
+  const seeded = oneHourProfile();
+  save(seeded);
+  return seeded;
+}
+
 function loadProfile(): PlayerProfile {
+  const seeded = requestedUnlock();
+  if (seeded) return seeded;
   const current = readJson(PROFILE_KEY);
   if (current) return migrateProfile(current);
   return defaultProfile();

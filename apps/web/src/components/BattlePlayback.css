@@ -201,13 +201,16 @@
   stroke-dasharray: 2 2;
   opacity: 0.55;
 }
-.playback-tracer {
-  stroke-width: 0.6;
-  opacity: 0.5;
+/* A beam, not a tracer: brighter and thicker than a shell's streak, because the
+   whole point of a hitscan weapon is that the shot is already there. */
+.playback-beam {
+  stroke-width: 1.1;
+  opacity: 0.75;
+  filter: drop-shadow(0 0 1.5px currentColor);
 }
-.playback-tracer.hit {
-  stroke-width: 0.9;
-  opacity: 0.9;
+.playback-beam.hit {
+  stroke-width: 1.8;
+  opacity: 1;
 }
 .playback-impact {
   fill: none;
@@ -315,11 +318,11 @@
    falloff.rangeEnd, the inner to rangeStart where damage is still full. Kept very
    faint -- this is the layer you read the arena through, so it has to inform
    without competing with the mechs, the terrain or the tracers on top of it. */
-.playback-cone .cone-band { opacity: 0.05; }
-.playback-cone .cone-full { opacity: 0.07; }
+/* The gradient carries the shape now, so these are only the master dimmer:
+   an idle gun is a faint hint, the gun that is actually bearing is readable. */
+.playback-cone .cone-fill { opacity: 0.10; }
 /* Clear to fire: the sim reports no gate, so the target is inside this arc. */
-.playback-cone.bearing .cone-band { opacity: 0.1; }
-.playback-cone.bearing .cone-full { opacity: 0.14; }
+.playback-cone.bearing .cone-fill { opacity: 0.28; }
 
 /* A round in flight, walked along its line at the weapon's own projectileSpeed and
    drawn as a short streak so it carries a heading. A tracer, by contrast, is the

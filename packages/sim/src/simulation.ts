@@ -22,8 +22,8 @@
  */
 import type { ChassisSpec, PlacedPart, Build } from './types.js';
 import { getPart } from './catalog.js';
-import { computeCoreNetwork, computeLoadScaledSpeeds, computeMassAndCoG, computePowerNetworks } from './grid.js';
-import { resolveSpatialPower, usesSpatialSystems } from './spatialPower.js';
+import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
+import { resolveSpatialPower, type SpatialPowerNetwork } from './spatialPower.js';
 import {
   AMBIENT_C,
   CORE_INSTANCE_ID,
@@ -144,7 +144,7 @@ export class Simulation {
   private reactorAvailableKw = new Map<string, number>();
   private capacitorStoredKj = new Map<string, number>();
   private runtime = new Map<string, InstanceRuntime>();
-  private networks: ReturnType<typeof computePowerNetworks>['networks'];
+  private networks: SpatialPowerNetwork[];
   private networkIdByInstance = new Map<string, string>();
   private routeCapacityKwByInstance = new Map<string, number>();
   private coreNetworkId: string | null;
@@ -167,18 +167,18 @@ export class Simulation {
     this.massT = massAndCoG.totalMassT;
     this.loadScaledFwdMps = computeLoadScaledSpeeds(chassis, massAndCoG).fwd;
 
-    const spatialPower = usesSpatialSystems(build) ? resolveSpatialPower(chassis, build) : null;
-    const { networks } = spatialPower ?? computePowerNetworks(build.parts);
+    const spatialPower = resolveSpatialPower(chassis, build);
+    const { networks } = spatialPower;
     this.networks = networks;
     for (const net of networks) {
       for (const id of [...net.reactorInstanceIds, ...net.memberInstanceIds]) {
         this.networkIdByInstance.set(id, net.networkId);
       }
-      for (const [id, capacity] of Object.entries(
-        (net as typeof net & { capacityKwByInstance?: Record<string, number> }).capacityKwByInstance ?? {},
-      )) this.routeCapacityKwByInstance.set(id, capacity);
+      for (const [id, capacity] of Object.entries(net.capacityKwByInstance)) {
+        this.routeCapacityKwByInstance.set(id, capacity);
+      }
     }
-    this.coreNetworkId = spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(chassis, build.parts);
+    this.coreNetworkId = spatialPower.coreNetworkId;
 
     for (const p of build.parts) {
       const def = getPart(p.partId);
@@ -318,10 +318,10 @@ export class Simulation {
     this.refreshSpatialProtection();
 
     const active = this.parts.filter((p) => !this.isDestroyed(p.instanceId));
-    const spatialPower = usesSpatialSystems(this.build)
-      ? resolveSpatialPower(this.chassis, { ...this.build, parts: active }, new Set(active.map((part) => part.instanceId)))
-      : null;
-    const { networks } = spatialPower ?? computePowerNetworks(active);
+    const spatialPower = resolveSpatialPower(
+      this.chassis, { ...this.build, parts: active }, new Set(active.map((part) => part.instanceId)),
+    );
+    const { networks } = spatialPower;
     this.networks = networks;
     this.networkIdByInstance = new Map();
     this.routeCapacityKwByInstance = new Map();
@@ -329,11 +329,11 @@ export class Simulation {
       for (const id of [...net.reactorInstanceIds, ...net.memberInstanceIds]) {
         this.networkIdByInstance.set(id, net.networkId);
       }
-      for (const [id, capacity] of Object.entries(
-        (net as typeof net & { capacityKwByInstance?: Record<string, number> }).capacityKwByInstance ?? {},
-      )) this.routeCapacityKwByInstance.set(id, capacity);
+      for (const [id, capacity] of Object.entries(net.capacityKwByInstance)) {
+        this.routeCapacityKwByInstance.set(id, capacity);
+      }
     }
-    this.coreNetworkId = spatialPower ? spatialPower.coreNetworkId : computeCoreNetwork(this.chassis, active);
+    this.coreNetworkId = spatialPower.coreNetworkId;
   }
 
   private reactorsInNetwork(networkId: string): PlacedPart[] {

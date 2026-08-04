@@ -3,3 +3,5 @@ dist/
 .DS_Store
 *.log
 .vite/
+packages/game/artifacts/
+*:Zone.Identifier

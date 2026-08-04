@@ -44,10 +44,6 @@ export function isPerimeterCell(chassis: ChassisSpec, x: number, y: number, regi
 }
 
 const cellKey = (x: number, y: number) => `${x},${y}`;
-function parseCellKey(key: string): [number, number] {
-  const [xs, ys] = key.split(',');
-  return [Number(xs), Number(ys)];
-}
 
 export interface PlacementError {
   reason:
@@ -107,190 +103,25 @@ export function buildOccupancyMap(parts: PlacedPart[]): {
   return { byCell, cellsByInstance };
 }
 
-const NEIGHBOR_DELTAS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
 
-/**
- * Power connectivity. See docs/01-chassis-grid-spec.md §3:
- * a part is connected if edge-adjacent to a reactor, or edge-adjacent to a
- * conduit cell that has a conduit-path back to a reactor.
+/*
+ * The pre-spatial power model lived here: computeConnectivity, buildBackbone,
+ * findAdjacentNetwork, computePowerNetworks and computeCoreNetwork, plus the
+ * PowerNetwork type. It walked raw grid adjacency and knew nothing about
+ * regions, ports or wire capacity.
+ *
+ * Deleted Aug 2026. Every shipped chassis defines regions, so it had been
+ * unreachable in production for some time -- but it was still consulted at
+ * eight call sites behind a `usesSpatialSystems(...)` ternary, and two of those
+ * had never been updated to branch at all. `adaptation.ts` asked it whether a
+ * part it had just placed was powered, and the workshop's brownout lamp asked
+ * it which parts were live, so both answered a question the sim resolves
+ * differently. Keeping a second power model alive to serve saves nobody has is
+ * not worth a class of bug that ships wrong answers to the player.
+ *
+ * `resolveSpatialPower` in spatialPower.ts is the model. `connectedInstanceIds`
+ * is the front door for callers that only need the connected set.
  */
-export function computeConnectivity(
-  parts: PlacedPart[],
-): { connectedInstanceIds: Set<string>; energizedConduitCells: Set<string> } {
-  const { byCell, cellsByInstance } = buildOccupancyMap(parts);
-
-  const reactorCells = new Set<string>();
-  const conduitCells = new Set<string>();
-  for (const p of parts) {
-    const def = getPart(p.partId);
-    const cells = cellsByInstance.get(p.instanceId)!;
-    if (def.category === 'reactor') for (const c of cells) reactorCells.add(cellKey(c.x, c.y));
-    if (def.isConduit) for (const c of cells) conduitCells.add(cellKey(c.x, c.y));
-  }
-
-  // BFS through conduit cells starting from any conduit adjacent to a reactor cell.
-  const energized = new Set<string>();
-  const queue: string[] = [];
-  for (const key of conduitCells) {
-    const [x, y] = parseCellKey(key);
-    for (const [dx, dy] of NEIGHBOR_DELTAS) {
-      if (reactorCells.has(cellKey(x + dx, y + dy))) {
-        if (!energized.has(key)) { energized.add(key); queue.push(key); }
-        break;
-      }
-    }
-  }
-  while (queue.length > 0) {
-    const key = queue.pop()!;
-    const [x, y] = parseCellKey(key);
-    for (const [dx, dy] of NEIGHBOR_DELTAS) {
-      const nk = cellKey(x + dx, y + dy);
-      if (conduitCells.has(nk) && !energized.has(nk)) {
-        energized.add(nk);
-        queue.push(nk);
-      }
-    }
-  }
-
-  // A part (any category) is connected if adjacent to a reactor cell or an energized conduit cell.
-  const connected = new Set<string>();
-  for (const p of parts) {
-    const def = getPart(p.partId);
-    if (def.category === 'reactor') { connected.add(p.instanceId); continue; }
-    const cells = cellsByInstance.get(p.instanceId)!;
-    outer: for (const c of cells) {
-      for (const [dx, dy] of NEIGHBOR_DELTAS) {
-        const nk = cellKey(c.x + dx, c.y + dy);
-        if (reactorCells.has(nk) || energized.has(nk)) {
-          connected.add(p.instanceId);
-          break outer;
-        }
-      }
-    }
-  }
-  void byCell;
-  return { connectedInstanceIds: connected, energizedConduitCells: energized };
-}
-
-class DisjointSet {
-  private parent = new Map<string, string>();
-  find(x: string): string {
-    if (!this.parent.has(x)) this.parent.set(x, x);
-    let root = x;
-    while (this.parent.get(root) !== root) root = this.parent.get(root)!;
-    this.parent.set(x, root);
-    return root;
-  }
-  union(a: string, b: string): void {
-    const ra = this.find(a);
-    const rb = this.find(b);
-    if (ra !== rb) this.parent.set(ra, rb);
-  }
-}
-
-export interface PowerNetwork {
-  networkId: string;
-  reactorInstanceIds: string[];
-  memberInstanceIds: string[];
-}
-
-interface Backbone {
-  /** Union-find over reactor+conduit CELLS (not instances), so chains of any length merge correctly. */
-  dsu: DisjointSet;
-  /** cellKey -> owning instanceId, for every reactor or conduit cell. */
-  cellOwner: Map<string, string>;
-  /** UF root -> the network it belongs to, only for roots that contain >=1 reactor cell. */
-  networkByRoot: Map<string, PowerNetwork>;
-}
-
-function buildBackbone(parts: PlacedPart[]): Backbone {
-  const { cellsByInstance } = buildOccupancyMap(parts);
-  const dsu = new DisjointSet();
-  const cellOwner = new Map<string, string>();
-
-  for (const p of parts) {
-    const def = getPart(p.partId);
-    if (def.category !== 'reactor' && !def.isConduit) continue;
-    const cells = cellsByInstance.get(p.instanceId)!;
-    for (const c of cells) cellOwner.set(cellKey(c.x, c.y), p.instanceId);
-    for (let i = 1; i < cells.length; i++) {
-      dsu.union(cellKey(cells[0]!.x, cells[0]!.y), cellKey(cells[i]!.x, cells[i]!.y));
-    }
-  }
-  for (const key of cellOwner.keys()) {
-    const [x, y] = parseCellKey(key);
-    for (const [dx, dy] of NEIGHBOR_DELTAS) {
-      const nk = cellKey(x + dx, y + dy);
-      if (cellOwner.has(nk)) dsu.union(key, nk);
-    }
-  }
-
-  const networkByRoot = new Map<string, PowerNetwork>();
-  for (const p of parts) {
-    if (getPart(p.partId).category !== 'reactor') continue;
-    const cells = cellsByInstance.get(p.instanceId)!;
-    const root = dsu.find(cellKey(cells[0]!.x, cells[0]!.y));
-    if (!networkByRoot.has(root)) {
-      networkByRoot.set(root, { networkId: root, reactorInstanceIds: [], memberInstanceIds: [] });
-    }
-    networkByRoot.get(root)!.reactorInstanceIds.push(p.instanceId);
-  }
-
-  return { dsu, cellOwner, networkByRoot };
-}
-
-/** Which backbone network (if any) is adjacent to the given absolute cell. */
-function findAdjacentNetwork(backbone: Backbone, x: number, y: number): PowerNetwork | null {
-  for (const [dx, dy] of NEIGHBOR_DELTAS) {
-    const nk = cellKey(x + dx, y + dy);
-    if (!backbone.cellOwner.has(nk)) continue;
-    const root = backbone.dsu.find(nk);
-    const network = backbone.networkByRoot.get(root);
-    if (network) return network;
-  }
-  return null;
-}
-
-/**
- * Groups parts into independent power networks. Two reactors are on the same
- * network if bridged by adjacency/conduits of any length; a part joins the
- * network of any reactor/energized-conduit cell it is edge-adjacent to. See
- * docs/01-chassis-grid-spec.md §3.
- */
-export function computePowerNetworks(parts: PlacedPart[]): {
-  networks: PowerNetwork[];
-  unconnectedInstanceIds: string[];
-} {
-  const { cellsByInstance } = buildOccupancyMap(parts);
-  const backbone = buildBackbone(parts);
-  const unconnected: string[] = [];
-
-  for (const p of parts) {
-    if (getPart(p.partId).category === 'reactor') continue;
-    const cells = cellsByInstance.get(p.instanceId)!;
-    let joined: PowerNetwork | null = null;
-    for (const c of cells) {
-      joined = findAdjacentNetwork(backbone, c.x, c.y);
-      if (joined) break;
-    }
-    if (joined) joined.memberInstanceIds.push(p.instanceId);
-    else unconnected.push(p.instanceId);
-  }
-
-  return { networks: [...backbone.networkByRoot.values()], unconnectedInstanceIds: unconnected };
-}
-
-/**
- * The chassis core taps power at its cell like any other part (docs/01 §3),
- * but it is not a PlacedPart, so its connectivity is resolved separately:
- * connected if adjacent to a reactor cell or an energized conduit cell.
- * Returns the reactor network id it should draw from, if any.
- */
-export function computeCoreNetwork(chassis: ChassisSpec, parts: PlacedPart[]): string | null {
-  const backbone = buildBackbone(parts);
-  const network = findAdjacentNetwork(backbone, chassis.coreCell.x, chassis.coreCell.y);
-  return network?.networkId ?? null;
-}
 
 export interface MassAndCoG {
   totalMassT: number;

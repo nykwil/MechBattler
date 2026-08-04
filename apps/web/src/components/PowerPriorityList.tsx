@@ -1,4 +1,7 @@
-import { CORE_INSTANCE_ID, computeConnectivity, getPart, type PlacedPart } from '@mechbattler/sim';
+import {
+  CORE_INSTANCE_ID, connectedInstanceIds, getPart,
+  type Build, type ChassisSpec, type PlacedPart,
+} from '@mechbattler/sim';
 import './PowerPriorityList.css';
 
 function labelFor(instanceId: string, parts: PlacedPart[]): string {
@@ -8,13 +11,19 @@ function labelFor(instanceId: string, parts: PlacedPart[]): string {
 }
 
 export function PowerPriorityList({
-  priority, parts, onMove,
+  chassis, build, priority, parts, onMove,
 }: {
+  chassis: ChassisSpec;
+  build: Build;
   priority: string[];
   parts: PlacedPart[];
   onMove: (instanceId: string, direction: -1 | 1) => void;
 }) {
-  const connectivity = computeConnectivity(parts);
+  // The same power model the sim scores the build with. This asked the
+  // pre-spatial model, which on a regioned chassis -- all three of them -- is a
+  // different question, so the lamp could read green on a part the battle then
+  // left unpowered.
+  const poweredIds = connectedInstanceIds(chassis, build);
 
   return (
     <div>
@@ -27,7 +36,7 @@ export function PowerPriorityList({
         priority.map((id, idx) => {
           const connected = id === CORE_INSTANCE_ID
             ? true // display simplification: core connectivity is checked separately by the sim at runtime
-            : connectivity.connectedInstanceIds.has(id);
+            : poweredIds.has(id);
           return (
             <div className="priority-row" key={id}>
               <span className="priority-rank mono">{idx + 1}</span>

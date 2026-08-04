@@ -12,6 +12,7 @@
     "balance": "node --import tsx scripts/balance.ts",
     "demo": "node --import tsx scripts/tank-vs-sniper.ts",
     "adapt": "node --import tsx scripts/adaptation.ts",
+    "hitrate": "node --import tsx scripts/hitrate.ts",
     "diversity": "node --import tsx scripts/diversity.ts"
   },
   "devDependencies": {

@@ -154,6 +154,16 @@ export interface PartDef {
   thermalMassPerCell?: number;
   /** Chassis speed multiplier while this connected utility is functional and powered. */
   speedMult?: number;
+  /**
+   * Mech-wide multiplier on the lateral-target (leading) penalty, applied while
+   * this part is functional and powered. A targeting computer is 0.4.
+   *
+   * Declared here rather than named inside combat.ts so a second fire-control
+   * part is a catalog entry, not an engine change. Sources multiply, so two
+   * computers are twice as good and cost twice as much; the per-weapon half of
+   * the same penalty is `EffectiveMults.lateralPenalty`.
+   */
+  fireControlLateralMult?: number;
   /** Shared spatial-system behavior. Omitted parts are payload by default. */
   spatial?: PartSpatialSpec;
 }
@@ -224,6 +234,19 @@ export interface ChassisSpec {
   chassisHitTickets: number;
   /** Global structural body pool. Ordinary hits never target the old core cell. */
   maxIntegrity: number;
+  /**
+   * How much dispersion this frame pays for crossing speed, against the
+   * `MOVE_JITTER_MRAD_PER_MPS` baseline. A scout's gyros are built to shoot on
+   * the move; a siege hull is not. Defaults to 1 when omitted.
+   *
+   * This is the axis that makes mobility defensive at all. Evasion in the hit
+   * model is lead error, which only comes from lateral speed, and the autopilot
+   * only crosses when its exchange says the accuracy it loses is worth the
+   * tracking error it imposes. At a flat 0.3 mrad per m/s that trade never paid
+   * for anyone, so every mech stood still, every silhouette sat on the
+   * saturated end of the erf, and the light chassis had no identity.
+   */
+  moveJitterMult?: number;
 }
 
 export interface PlacedPart {

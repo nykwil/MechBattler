@@ -1,10 +1,8 @@
 import { useMemo } from 'react';
 import {
-  computeConnectivity,
+  connectedInstanceIds,
   getPart,
   resolvePlacementEffects,
-  resolveSpatialPower,
-  usesSpatialSystems,
   type Build,
   type ChassisSpec,
 } from '@mechbattler/sim';
@@ -34,9 +32,7 @@ export function PartInspector({
   runOps?: RunPartOps;
 }) {
   const placed = build.parts.find((p) => p.instanceId === selectedInstanceId);
-  const connected = useMemo(() => usesSpatialSystems(build)
-    ? resolveSpatialPower(chassis, build).connectedInstanceIds
-    : computeConnectivity(build.parts).connectedInstanceIds, [chassis, build]);
+  const connected = useMemo(() => connectedInstanceIds(chassis, build), [chassis, build]);
   const placement = useMemo(
     () => resolvePlacementEffects(chassis, build, selectedInstanceId),
     [chassis, build, selectedInstanceId],
@@ -141,7 +137,8 @@ export function PartInspector({
       </div>
 
       {runOps && (() => {
-        // Repair pricing (docs/04 §3): 0.4 scrap × tier per integrity point.
+        // Repair pricing (docs/04 §3) comes from the economy dial, not a number
+        // written here — it moved to 0.3 in Aug 2026 and this comment said 0.4.
         const partial = Math.min(1, placed.integrity + 0.1);
         const partialCost = repairCost(def.tier, placed.integrity, partial);
         const fullCost = repairCost(def.tier, placed.integrity, 1);
@@ -197,7 +194,13 @@ export function PartInspector({
           Deselect
         </button>
       </div>
-      <div className="inspector-hint"><kbd>Del</kbd> {runOps ? 'discards' : 'removes'} · <kbd>Esc</kbd> deselects</div>
+      {/* Del detaches either way; what differs is where backing out puts the part.
+          Mid-run it is yours, so it goes to the bench — and only says "discards"
+          when the bench has no room to take it. */}
+      <div className="inspector-hint">
+        <kbd>Del</kbd> {runOps ? (runOps.benchFull ? 'discards — bench full' : 'lifts it off') : 'removes'}
+        {' · '}<kbd>Esc</kbd> deselects
+      </div>
     </div>
   );
 }

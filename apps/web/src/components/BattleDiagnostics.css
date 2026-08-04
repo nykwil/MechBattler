@@ -46,8 +46,20 @@
   gap: 1px var(--space-3);
   margin-top: 2px;
 }
+/* battle.css — the prototype's own stylesheet, kept verbatim — also declares
+   `.dcols.wide { grid-template-columns: 1fr 1fr }` at the same specificity, and
+   it loads later, so the unscoped rule above lost and the panel went on
+   rendering two columns totalling 421px inside a 336px box. The fix above was
+   written, believed, and never took effect.
+   Scoping to `.battle-app` wins on specificity rather than on load order, which
+   is the only lever available without editing the verbatim prototype file.
+   Confirmed by reading the computed `grid-template-columns`, not by reading the
+   stylesheet — the media query was already evaluating false while the grid
+   stayed two-up. */
+.battle-app .dcols.wide { grid-template-columns: 1fr; }
 @media (min-width: 560px) {
-  .dcols.wide { grid-template-columns: 1fr 1fr; }
+  .dcols.wide,
+  .battle-app .dcols.wide { grid-template-columns: 1fr 1fr; }
 }
 .drow {
   display: flex;

@@ -13,6 +13,7 @@
  * Usage:
  *   node scripts/drive.mjs <url> <out.png> [--w 390] [--h 844] [--tap <selector>]...
  *                                          [--eval <js expression>]
+ * --eval is ordered with the taps and repeatable: it measures where you wrote it.
  *
  * --waitFor <selector> blocks until the selector appears. It is ordered with the
  * taps, so a wait can sit between an action and the tap that depends on it.
@@ -67,6 +68,11 @@ const taps = args.reduce((acc, a, i) => {
   // winning one takes about eight attempts (docs/15 s7). Setting the run's state
   // and reloading is the only way that screen gets looked at.
   if (a === '--exec') return [...acc, { kind: 'exec', value: args[i + 1] }];
+  // --eval is a *step*, not a trailing option. It used to be read with flag(),
+  // which takes the first occurrence and runs it once at the end -- so a drive
+  // that measured before and after an action silently reported the same number
+  // twice, and a measurement written before a tap was actually taken after it.
+  if (a === '--eval') return [...acc, { kind: 'eval', value: args[i + 1] }];
   if (a === '--reload') return [...acc, { kind: 'reload', value: '' }];
   return acc;
 }, []);
@@ -304,6 +310,10 @@ for (const tap of taps) {
     });
     continue;
   }
+  if (tap.kind === 'eval') {
+    console.error(`eval ${JSON.stringify(await evaluate(selector))}`);
+    continue;
+  }
   if (tap.kind === 'exec') {
     const r = await send('Runtime.evaluate', {
       expression: selector, returnByValue: true, awaitPromise: true,
@@ -385,10 +395,6 @@ for (const tap of taps) {
   // run in three, which looks exactly like a broken control.
   await sleep(1000);
 }
-
-// Arbitrary measurement, for when a screenshot cannot settle a question.
-const evalExpr = flag('eval', null);
-if (evalExpr) console.error(`eval ${JSON.stringify(await evaluate(evalExpr))}`);
 
 // Report layout facts alongside the image: a screenshot alone cannot tell a crop
 // from an overflow, which is exactly the mistake this driver exists to prevent.

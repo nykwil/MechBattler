@@ -124,7 +124,7 @@ export function ReadoutSheet({
           It already reorders with up/down buttons rather than drag, which is
           what touch needs. */}
       {tab === 'power' && (
-        <PowerPriorityList priority={powerPriority} parts={parts} onMove={onMovePriority} />
+        <PowerPriorityList chassis={chassis} build={build} priority={powerPriority} parts={parts} onMove={onMovePriority} />
       )}
 
       {tab === 'bench' && (

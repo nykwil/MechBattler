@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Build, PlacedPart } from '../src/types.js';
 import {
   Battle, runBattle, computeHitModel, withManualOrders, autopilotController,
-  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_BASE_S, type Controller, type MechOrder,
+  MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_S, type Controller, type MechOrder,
 } from '../src/combat.js';
 import { TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
@@ -190,16 +190,17 @@ describe('manual order overrides (docs/08 §3): the player merge over the autopi
     expect(Math.abs(Math.atan2(Math.sin(m.facingRad), Math.cos(m.facingRad)))).toBeLessThan(0.4);
   });
 
-  it('onArrival fires when the mech reaches a manual waypoint', () => {
-    let arrived = false;
-    const player = withManualOrders(
-      autopilotController,
-      () => (arrived ? {} : { move: { dest: { x: -40, y: 0 } } }),
-      () => { arrived = true; },
-    );
+  // The `onArrival` hook this used to cover was removed Aug 2026 with the
+  // cockpit toggle that armed it: a standing order that hands the mech back to
+  // the autopilot mid-fight is a surprise rather than a convenience. What still
+  // matters is that a manual waypoint is actually driven to, which this asserts
+  // directly instead of through a callback.
+  it('a manual waypoint is driven to', () => {
+    const player = withManualOrders(autopilotController, () => ({ move: { dest: { x: -40, y: 0 } } }));
     const battle = new Battle({ builds: [muleGunline(), muleGunline()], seed: 3, controllers: [player, autopilotController], timeoutS: 30 });
     while (battle.step()) { /* run out */ }
-    expect(arrived).toBe(true);
+    const me = battle.latestFrame()!.mechs[0];
+    expect(Math.hypot(me.x - -40, me.y - 0)).toBeLessThan(6);
   });
 
   it('weapon frames name the fire-control gate: range when beyond reach, arc when faced away', () => {
@@ -223,11 +224,15 @@ describe('manual order overrides (docs/08 §3): the player merge over the autopi
     expect(acGates.every((g) => g === 'arc')).toBe(true);
   });
 
-  it('auto-face on a manual waypoint aims at the waypoint, not the autopilot\'s flee point (dead guns)', () => {
-    // A weaponless mech (as after losing its guns): the autopilot wants to
-    // flee away from the enemy and would face that way. With a manual
-    // waypoint perpendicular to the enemy axis and face on auto, the mech
-    // must face its actual travel direction (+y) for the forward-speed win.
+  it('auto-face on a manual waypoint aims at the waypoint, not wherever the autopilot would look (dead guns)', () => {
+    // A weaponless mech (as after losing its guns): the autopilot would hold
+    // position and keep looking at the enemy. With a manual waypoint
+    // perpendicular to the enemy axis and face on auto, the mech must face its
+    // actual travel direction (+y) instead — the manual order wins.
+    //
+    // This used to read "not the autopilot's flee point": a disarmed mech ran
+    // for the three seconds before its surrender, which bought nothing and
+    // looked like fleeing a fight it had merely lost. It stands still now.
     const gunless = muleGunline();
     gunless.parts = gunless.parts.filter((p) => p.instanceId !== 'ac');
     const player = withManualOrders(autopilotController, () => ({ move: { dest: { x: -80, y: 60 } } }));
@@ -254,7 +259,7 @@ describe('motion jitter (docs/03 §4): additive error punishes precision guns mo
     rangeM,
     sigmaRad: (baseMrad + MOVE_JITTER_MRAD_PER_MPS * speedMps) * 0.001,
     lateralSpeedMps: 0,
-    lagS: TRACKING_LAG_BASE_S,
+    lagS: TRACKING_LAG_S,
     projectileSpeed: 800,
     targetHalfWidthM: 0.6,
   }).pHit;
@@ -289,9 +294,24 @@ describe('exchange-optimizing autopilot (docs/03 §7 rewrite)', () => {
     expect(sniperMoves).toContain('retreat');
   });
 
-  it('an out-ranged, losing mech turns tail (flee at forward speed, guns off target)', () => {
-    const report = runBattle({ builds: [get('vulture-skirmisher'), get('mule-gunline')], seed: 77 });
-    const fled = report.events.some((e) => e.type === 'order' && e.order.verb === 'move' && e.order.intent === 'flee');
-    expect(fled).toBe(true);
+  // Fixture re-pointed twice as the autopilot got smarter about when running is
+  // worth it; the behaviour under test has not changed. Fleeing now also
+  // requires being faster than the pursuer, because an outgunned mech that
+  // cannot outrun anything used to run a whole match without firing. The 75 m
+  // brawler against the 162 m skirmisher is still genuinely out-ranged, losing,
+  // and right to break contact.
+  // Was "an out-ranged, losing mech turns tail". It does not any more, and the
+  // rule that replaced it is the thing worth pinning: a mech that wants more
+  // distance gives ground *facing* the enemy, so its guns keep bearing.
+  // Turning tail set facing away from the target, so a mech that chose it
+  // stopped shooting for the rest of the match — 28% of measured battles — and
+  // breaking contact wins nothing in a run that ends when you lose.
+  it('an out-ranged, losing mech gives ground facing the enemy, never turns tail', () => {
+    const report = runBattle({ builds: [get('mule-skirmisher'), get('vulture-skirmisher')], seed: 77 });
+    const moves = report.events
+      .filter((e) => e.type === 'order' && e.order.verb === 'move')
+      .map((e) => (e.type === 'order' && e.order.verb === 'move' ? e.order.intent : ''));
+    expect(moves).toContain('retreat');
+    expect(moves).not.toContain('flee');
   });
 });

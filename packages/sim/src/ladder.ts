@@ -15,7 +15,7 @@ import { getChassis, regionIdAt } from './chassis.js';
 import { checkPlacement, getOccupiedCells } from './grid.js';
 import { checkSpatialPartPlacement, spatialCellKey } from './spatial.js';
 import { applyAutoWire } from './autowire.js';
-import { TEMPLATES, type TemplateDef } from './templates.js';
+import { LADDER_TEMPLATES, type TemplateDef } from './templates.js';
 import { Pcg32 } from './rng.js';
 
 export interface GeneratedOpponent {
@@ -54,8 +54,14 @@ export function headlineWeapon(build: Build): { partId: string; name: string } |
  * fights stay readable). Order is irrelevant — picks are seeded.
  */
 const FILL_POOL = ['W-AC', 'W-MG', 'U-RAD', 'U-TC1', 'U-ARM'];
-/** At most this many weapons added on top of the template's own. */
-const FILL_WEAPON_CAP = 2;
+/**
+ * Weapons added on top of the template's own. A flat cap made a large budget
+ * buy only armour and radiators once the template's own hardpoints were full,
+ * which is how the late ladder became damage sponges that could not kill.
+ */
+function fillWeaponCap(budget: number): number {
+  return Math.max(2, Math.floor(budget / 8));
+}
 
 function drawsFromReactor(partId: string): boolean {
   const def = getPart(partId);
@@ -75,24 +81,43 @@ export function generateOpponent({
   budget,
   seed,
   fillPartIds = FILL_POOL,
+  templateIds,
 }: {
   budget: number;
   seed: number;
   /** Run content may supply a tagged pool; omission preserves the canonical cohort. */
   fillPartIds?: readonly string[];
+  /**
+   * Restrict which ladder frames this opponent may be built on. The run uses it
+   * to give an opponent a *doctrine* -- a frame family and a matching fill pool
+   * -- instead of a random frame stuffed with random parts. Omission preserves
+   * the canonical cohort.
+   */
+  templateIds?: readonly string[];
 }): GeneratedOpponent {
   const rng = new Pcg32(seed);
 
   // Template: the biggest bases that fit the budget (window of 3 tiers off the
   // top keeps some variety), seeded pick. If nothing fits, the cheapest base.
-  const withBase = TEMPLATES.map((t) => ({ t, base: buildTierBudget(t.build) }));
+  const allowed = templateIds
+    ? LADDER_TEMPLATES.filter((t) => templateIds.includes(t.id))
+    : LADDER_TEMPLATES;
+  const frames = allowed.length > 0 ? allowed : LADDER_TEMPLATES;
+  const withBase = frames.map((t) => ({ t, base: buildTierBudget(t.build) }));
   const eligible = withBase.filter((x) => x.base <= budget);
   let pick: { t: TemplateDef; base: number };
   if (eligible.length === 0) {
     pick = withBase.reduce((min, x) => (x.base < min.base ? x : min));
   } else {
+    // Admit every base that is a serious fraction of the budget rather than only
+    // the biggest that fit. Taking the top of the range meant a rising budget
+    // walked the eligible set onto the heavy frames and off the light ones, so
+    // scouts vanished from the ladder entirely and the leftover budget stopped
+    // being spent on weapons. A light base at a large budget is now a legal
+    // opponent: it spends the difference on fill and reads as a glass cannon.
     const top = Math.max(...eligible.map((x) => x.base));
-    const window = eligible.filter((x) => x.base >= top - 6);
+    const floor = Math.min(top, Math.max(3, budget * 0.3));
+    const window = eligible.filter((x) => x.base >= floor);
     pick = window[Math.floor(rng.nextFloat() * window.length)]!;
   }
 
@@ -121,7 +146,7 @@ export function generateOpponent({
   while (remaining > 0 && pool.length > 0) {
     const affordable = pool.filter((id) => {
       const def = getPart(id);
-      return def.tier <= remaining && (def.category !== 'weapon' || weaponsAdded < FILL_WEAPON_CAP);
+      return def.tier <= remaining && (def.category !== 'weapon' || weaponsAdded < fillWeaponCap(budget));
     });
     if (affordable.length === 0) break;
     const partId = affordable[Math.floor(rng.nextFloat() * affordable.length)]!;

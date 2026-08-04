@@ -17,7 +17,6 @@ import {
   auditGameContent,
   buildToMech,
   challengeCompleted,
-  chassisRecoveryCost,
   createMatchInstance,
   createPristineDepthCheckpoints,
   createRun,
@@ -32,14 +31,12 @@ import {
   refitPart,
   repairOwnedPart,
   repairCost,
-  recoverWreck,
   restoreMatchInstance,
   restoreRunCheckpoint,
   runBalanceHarness,
   runCheckpointMatchHarness,
   runProgressionCohort,
   oneHourProfile,
-  previewWreckRecovery,
   saveMech,
   savedMechErrors,
   serializeMatchInstance,
@@ -194,10 +191,14 @@ describe('run domain', () => {
     const a = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     const b = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     expect(a).toEqual(b);
-    expect(a.scrap).toBe(30);
+    // Read the dials rather than freezing them: what this asserts is that a
+    // generated run matches its configuration, not that the configuration has
+    // particular values. Tuning the ladder should not read as a regression.
+    expect(a.scrap).toBe(GAME_CONTENT.economy.startingScrap);
     expect(a.schemaVersion).toBe(GAME_SAVE_VERSION);
-    expect(a.generatedNodes).toHaveLength(12);
-    expect(a.generatedNodes.filter((node) => node.kind === 'scrapyard')).toHaveLength(2);
+    expect(a.generatedNodes).toHaveLength(GAME_CONTENT.run.length);
+    expect(a.generatedNodes.filter((node) => node.kind === 'scrapyard'))
+      .toHaveLength(GAME_CONTENT.run.scrapyardCount);
   });
 
   it('persists damage and keeps destroyed player parts as repairable wrecks', () => {
@@ -277,67 +278,7 @@ describe('run domain', () => {
     expect(finalizeSalvage(next, [])).toEqual(next);
   });
 
-  it('makes whole-wreck chassis recovery an expensive atomic salvage alternative', () => {
-    const mule = TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!;
-    const base = { ...createRun({ seed: 42, kitName: 'Scout', build: template.build }), scrap: 200 };
-    const pending = settleBattle({
-      run: base,
-      report: report({
-        mechs: [
-          report().mechs[0],
-          { ...report().mechs[1], chassisId: mule.build.chassisId },
-        ],
-      }),
-      enemyBuild: mule.build,
-      opponentName: 'Mule',
-    });
-    const next = recoverWreck(pending);
-    expect(next.mech.chassisId).toBe('CH-5');
-    expect(next.mech.parts).toHaveLength(mule.build.parts.length);
-    expect(next.bench).toHaveLength(template.build.parts.length);
-    expect(next.scrap).toBe(200 + 25 - chassisRecoveryCost('CH-5'));
-    expect(next.pendingSalvage).toBeUndefined();
-    expect(next.events.at(-1)).toEqual(expect.objectContaining({
-      type: 'chassis-recovery',
-      fromChassisId: 'CH-2',
-      toChassisId: 'CH-5',
-    }));
-  });
 
-  it('previews deterministic old-build overflow and refuses unaffordable recovery', () => {
-    const mule = TEMPLATES.find((candidate) => candidate.id === 'mule-gunline')!;
-    const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
-    const pending = settleBattle({
-      run,
-      report: report({
-        mechs: [report().mechs[0], { ...report().mechs[1], chassisId: mule.build.chassisId }],
-      }),
-      enemyBuild: mule.build,
-      opponentName: 'Mule',
-    });
-    const fullBench = Array.from({ length: GAME_CONTENT.run.benchCap }, (_, index) => ({
-      id: `bench-${index}`,
-      partId: 'U-ARM',
-      integrity: 1,
-      provenance: { source: 'legacy' as const },
-    }));
-    const preview = previewWreckRecovery({
-      pending: pending.pendingSalvage!,
-      currentBuild: template.build,
-      currentScrap: 0,
-      benchUsed: fullBench.length,
-    });
-    expect(preview.stowedParts).toHaveLength(0);
-    expect(preview.scrappedParts).toHaveLength(template.build.parts.length);
-    expect(preview.overflowScrap).toBeGreaterThan(0);
-    const unaffordable = {
-      ...pending,
-      scrap: 0,
-      bench: [],
-      pendingSalvage: { ...pending.pendingSalvage!, purse: 0 },
-    };
-    expect(recoverWreck(unaffordable)).toEqual(unaffordable);
-  });
 
   it('offers deterministic mods and applies one affordable applicable mod', () => {
     const run = createRun({ seed: 42, kitName: 'Scout', build: template.build });
@@ -365,7 +306,8 @@ describe('run domain', () => {
     });
     expect(next.battlesCompleted).toBe(1);
     expect(next.pendingSalvage?.opponentName).toBe('Target');
-    expect(next.pendingSalvage?.purse).toBe(25);
+    expect(next.pendingSalvage?.purse)
+      .toBe(GAME_CONTENT.economy.purseBase + GAME_CONTENT.economy.pursePerNode);
     expect(next.pendingSalvage?.candidates).toHaveLength(template.build.parts.length);
     expect(next.pendingSalvage?.candidates.map((candidate) => candidate.origin))
       .toEqual(template.build.parts.map((part) => part.origin));
@@ -396,7 +338,11 @@ describe('run domain', () => {
   });
 
   it('keeps repair math as a configurable economy dial', () => {
-    expect(repairCost(2, 0.45, 1)).toBe(44);
+    // The point of the test is that the dial drives the formula, so read the
+    // dial rather than freezing its current value: ceil(points x rate x tier).
+    const rate = GAME_CONTENT.economy.repairCostPerPoint;
+    expect(repairCost(2, 0.45, 1)).toBe(Math.ceil(55 * rate * 2 - 1e-9));
+    expect(repairCost(2, 1, 1)).toBeLessThanOrEqual(0);
   });
 });
 
@@ -472,7 +418,10 @@ describe('migration', () => {
     expect(profile.unlockedPartIds).toEqual(GAME_CONTENT.initialPartIds);
     expect(profile.grandfatheredPartIds).toEqual([]);
     expect(profile.history).toHaveLength(0);
-    expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Mule Skirmisher']);
+    // Names the shipped starting blueprint, which moved to the Needle
+    // Skirmisher in Aug 2026: three barrels instead of two, because a fresh run
+    // was losing to disarming far more often than to dying.
+    expect(profile.savedMechs.map((mech) => mech.name)).toEqual(['Mule Needle Skirmisher']);
   });
 
   it('migrates v2 profiles without a saved-mech collection', () => {
