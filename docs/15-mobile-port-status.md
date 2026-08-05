@@ -218,6 +218,22 @@ throttle — ours works and is legible, but it is not that.
 
 ## 7. A balance finding, surfaced by making the game reachable
 
+> **Superseded, Aug 5 2026.** The spatial-construction and progression work
+> (`553dd37`…`66d8a0e`) changed these numbers materially, and in the useful
+> direction. `npm run game:balance -- 6` now reports round 1 at **0.857** — above
+> the 0.65 ceiling rather than far below the 0.35 floor — round 4 at **0.387**,
+> inside the band, and round 7 at 0.333. The sample counts matter more than the
+> rates: 31 runs now reach round 4 and 9 reach round 7, where before three reached
+> round 4 and nothing reached 7 at all. The ladder is played deeper than it has ever
+> been.
+>
+> So the diagnosis below — that the blueprint is fine and the *retry* is unwinnable
+> — describes the game as it was, not as it is. Re-measure before acting on any of
+> it. The method still holds: `scripts/starter-odds.mjs` isolates a first fight, and
+> the retry policy is still worth checking separately, because a lost fight still
+> strips parts permanently. Numbers taken mid-development and likely still moving.
+
+
 Driving the campaign on a phone, the obvious first action — Load the provided
 blueprint, Launch, Fight — lost three times out of three, core destroyed in 7 to 10
 seconds each. That blueprint is not incidental: `legalStarterBlueprint` in
