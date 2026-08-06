@@ -178,21 +178,26 @@ export interface RangeEnvelope {
 
 /** Damage multiplier at range r from a weapon's falloff curve (docs/03 §5). Shared with the arena. */
 export function falloffAt(def: PartDef, r: number): number {
-  const { rangeStart, rangeEnd, multAtEnd, rangeMin, multAtMin } = def.weapon!.falloff;
-  // Near side, for weapons that need room to work. Ramps from multAtMin at contact
-  // up to full at rangeMin, so a brawl is punishing rather than impossible.
-  if (rangeMin !== undefined && multAtMin !== undefined && r < rangeMin) {
-    const t = Math.max(0, r) / Math.max(rangeMin, 1e-9);
-    return multAtMin + t * (1 - multAtMin);
+  const { idealMin, idealMax, max } = def.weapon!.falloff;
+  const min = def.weapon!.falloff.min ?? 0;
+  // 0 → min: empty; min → idealMin: fade up; idealMin → idealMax: full; idealMax → max: fade to 0.
+  if (r < min) return 0;
+  if (r < idealMin) {
+    const span = idealMin - min;
+    if (span <= 1e-9) return 1;
+    return (r - min) / span;
   }
-  if (r <= rangeStart) return 1.0;
-  if (r >= rangeEnd) return multAtEnd;
-  const t = (r - rangeStart) / (rangeEnd - rangeStart);
-  return 1 - t * (1 - multAtEnd);
+  if (r <= idealMax) return 1;
+  if (r >= max) return 0;
+  return 1 - (r - idealMax) / (max - idealMax);
 }
 
-/** Rough hit probability model against a nominal 2.5m target width, from dispersion at range r. */
-function hitProbabilityAt(def: PartDef, r: number): number {
+/**
+ * Rough hit probability against a nominal 2.5 m target width, from dispersion
+ * at range r. Shared with the arena cone fade so the marking tracks the same
+ * accuracy curve the envelope / expected-DPS math uses.
+ */
+export function hitProbabilityAt(def: PartDef, r: number): number {
   const sigmaM = def.weapon!.dispersionMrad * 0.001 * r; // dispersion cone half-width in meters at range r
   const targetHalfWidth = 1.25;
   if (sigmaM <= 0.01) return 1.0;
@@ -204,7 +209,7 @@ function hitProbabilityAt(def: PartDef, r: number): number {
 export function computeWeaponEnvelope(part: PlacedPart, def: PartDef, rangeMultiplier = 1): RangeEnvelope {
   const baseDps = (def.weapon!.damage * (def.weapon!.salvoCount ?? 1)) / def.weapon!.cycleS;
   const samples: { r: number; dps: number }[] = [];
-  const maxR = def.weapon!.falloff.rangeEnd * 1.3 * rangeMultiplier;
+  const maxR = def.weapon!.falloff.max * rangeMultiplier;
   for (let r = 5; r <= maxR; r += 5) {
     samples.push({
       r,

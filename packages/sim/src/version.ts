@@ -26,7 +26,7 @@ import {
 } from './terrain.js';
 
 /** Bump on any behavior-affecting sim change (rules, math, formats). */
-export const SIM_VERSION = '2.6.0';
+export const SIM_VERSION = '2.10.0';
 
 /** FNV-1a 32-bit over a string; returned as 8 hex chars. */
 export function fnv1a(str: string): string {

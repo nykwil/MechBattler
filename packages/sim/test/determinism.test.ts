@@ -128,10 +128,20 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // the enemy fleeing for over 40% of their frames, which halves to 12% here.
 // Only the state hash moves; this matchup's outcome, duration and shot counts
 // are unchanged because neither of these two was ever the one running.
+//
+// Re-pinned SIM_VERSION 2.8.0 for the arena-start approach fix: transit no
+// longer terrain-shops, even exchanges close straight, orbitDir is seeded per
+// side, and out-of-reach travel-facing stays on the enemy line. Same lockstep
+// guarantees; the golden outcome moves because the approach geometry changed.
+//
+// Re-pinned SIM_VERSION 2.9.1: final state hash moved; outcome/duration/shots unchanged.
+//
+// Re-pinned SIM_VERSION 2.10.0: falloff/range rename and combat changes moved
+// winner, duration, shots, and final state hash for this matchup.
 const GOLDEN = {
   winner: 1 as const,
   reason: 'chassis-failure',
-  durationS: 41.1,
-  shots: [45, 684],
-  finalHash: 2973584228,
+  durationS: 56.05,
+  shots: [61, 607],
+  finalHash: 2077016774,
 };

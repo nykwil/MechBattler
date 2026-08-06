@@ -6,6 +6,7 @@ import { getPart } from '../src/catalog.js';
 import { checkPlacement } from '../src/grid.js';
 import { checkRoutePlacement, checkSpatialPartPlacement } from '../src/spatial.js';
 import { resolveSpatialPower } from '../src/spatialPower.js';
+import { validateBuild } from '../src/validation.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from '../src/harness.js';
 
 describe('template roster is layout-legal and fully powered', () => {
@@ -41,6 +42,21 @@ describe('template roster is layout-legal and fully powered', () => {
         }
       }
       expect(spatial.coreNetworkId, `${t.id} core unpowered`).not.toBeNull();
+    });
+
+    /**
+     * The placement walk above re-checks each part against the ones before it,
+     * which is what the builder does — and it cannot see a part placed twice
+     * under one instance id, because the second copy lands on cells the first
+     * already legally occupies. `probe-vulture-close` shipped with a duplicated
+     * `plate3` for exactly that reason: a mech nothing could have built, used as
+     * a starting build for two progression policies. The full validator is what
+     * the workshop and the run loader actually run, so run it here too.
+     */
+    it(`${t.id}: passes the same validator the builder and run loader run`, () => {
+      const errors = validateBuild(getChassis(t.build.chassisId), t.build)
+        .filter((issue) => issue.severity === 'error');
+      expect(errors, `${t.id}: ${JSON.stringify(errors)}`).toEqual([]);
     });
   }
 });

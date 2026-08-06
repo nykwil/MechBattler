@@ -142,13 +142,10 @@ export const PARTS: Record<string, PartDef> = {
   // construction, which is now a reason to bring one.
   //
   //
-  // Minimum ranges, Aug 2026. Only the rocket pod and railgun had a near-side
-  // dead zone, so every long gun was also a perfectly good brawling gun and
-  // closing the distance cost the kiter nothing. The precision band now pays for
-  // its reach: carbine, laser, autocannon and ion all fall off below their
-  // minimum, while the weapons whose whole identity is the knife fight -- the
-  // machine gun, the siege gun and the flamer -- keep none. That is what makes an
-  // ideal band a position to hold rather than a number on a card.
+  // Minimum ranges: four bands — empty under min, fade up to idealMin, solid
+  // through idealMax, fade to ×0 at max. The Stitcher floors at 10 with a
+  // 10–40 m sweet spot so it is still the close gun without hugging contact.
+  // Siege and flamer keep idealMin at 0 (full at point blank).
   'W-MG': {
     id: 'W-MG', name: 'Stitcher (machine gun)', category: 'weapon',
     shape: line(2), massKg: 120, hp: 25, tier: 1,
@@ -156,7 +153,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 0.4 },
     weapon: {
       damage: 1.5, cycleS: 0.1, projectileSpeed: 400, dispersionMrad: 8,
-      falloff: { rangeStart: 30, rangeEnd: 90, multAtEnd: 0.4 }, mountArcDeg: 90,
+      falloff: { min: 10, idealMin: 10, idealMax: 40, max: 90 }, mountArcDeg: 90,
     },
     spatial: { layer: 'payload', stacksOn: ['support'] },
   },
@@ -167,7 +164,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 3 },
     weapon: {
       damage: 11.5, cycleS: 0.75, projectileSpeed: 300, dispersionMrad: 4,
-      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5, rangeMin: 20, multAtMin: 0.5 }, mountArcDeg: 60,
+      falloff: { idealMin: 20, idealMax: 50, max: 150 }, mountArcDeg: 60,
       recoilKnS: 0.4,
     },
   },
@@ -187,7 +184,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 9 },
     weapon: {
       damage: 19, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
-      falloff: { rangeStart: 60, rangeEnd: 140, multAtEnd: 0.5, rangeMin: 25, multAtMin: 0.45 }, mountArcDeg: 70,
+      falloff: { idealMin: 25, idealMax: 60, max: 140 }, mountArcDeg: 70,
     },
   },
   'W-RKT': {
@@ -197,7 +194,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 2 },
     weapon: {
       damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 125, dispersionMrad: 20.0,
-      falloff: { rangeStart: 40, rangeEnd: 120, multAtEnd: 0.6, rangeMin: 30, multAtMin: 0.35 }, mountArcDeg: 120,
+      falloff: { idealMin: 30, idealMax: 40, max: 120 }, mountArcDeg: 120,
     },
   },
   'W-RG': {
@@ -207,7 +204,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 25 },
     weapon: {
       damage: 85, cycleS: 5, projectileSpeed: 1000, dispersionMrad: 1.2,
-      falloff: { rangeStart: 80, rangeEnd: 240, multAtEnd: 0.85, rangeMin: 50, multAtMin: 0.3 }, mountArcDeg: 30,
+      falloff: { idealMin: 50, idealMax: 80, max: 240 }, mountArcDeg: 30,
       recoilKnS: 8,
     },
   },
@@ -231,7 +228,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 0.8 },
     weapon: {
       damage: 8, cycleS: 0.6, projectileSpeed: 450, dispersionMrad: 2,
-      falloff: { rangeStart: 60, rangeEnd: 180, multAtEnd: 0.6, rangeMin: 35, multAtMin: 0.35 }, mountArcDeg: 50,
+      falloff: { idealMin: 35, idealMax: 60, max: 180 }, mountArcDeg: 50,
       recoilKnS: 0.2,
     },
   },
@@ -246,7 +243,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 6 },
     weapon: {
       damage: 40, cycleS: 2.0, projectileSpeed: 200, dispersionMrad: 6,
-      falloff: { rangeStart: 15, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 45,
+      falloff: { idealMin: 0, idealMax: 15, max: 45 }, mountArcDeg: 45,
       recoilKnS: 2,
     },
   },
@@ -264,7 +261,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 3 },
     weapon: {
       damage: 3, cycleS: 0.4, projectileSpeed: 'hitscan', dispersionMrad: 3,
-      falloff: { rangeStart: 20, rangeEnd: 45, multAtEnd: 0.2 }, mountArcDeg: 90,
+      falloff: { idealMin: 0, idealMax: 20, max: 45 }, mountArcDeg: 90,
       enemyHeatKj: 6,
     },
   },
@@ -279,7 +276,7 @@ export const PARTS: Record<string, PartDef> = {
     heat: { heatPerShotKj: 6 },
     weapon: {
       damage: 5, cycleS: 1.4, projectileSpeed: 'hitscan', dispersionMrad: 1.8,
-      falloff: { rangeStart: 50, rangeEnd: 150, multAtEnd: 0.5, rangeMin: 25, multAtMin: 0.5 }, mountArcDeg: 60,
+      falloff: { idealMin: 25, idealMax: 50, max: 150 }, mountArcDeg: 60,
       capDrainKj: 25,
     },
   },

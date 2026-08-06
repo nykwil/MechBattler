@@ -314,15 +314,10 @@
    coverage test caught this by noticing the group had no rule at all. */
 .playback-cones { pointer-events: none; }
 
-/* Weapon mount arcs (docs/03 §4). Two nested sectors per gun: the outer runs to
-   falloff.rangeEnd, the inner to rangeStart where damage is still full. Kept very
-   faint -- this is the layer you read the arena through, so it has to inform
-   without competing with the mechs, the terrain or the tracers on top of it. */
-/* The gradient carries the shape now, so these are only the master dimmer:
-   an idle gun is a faint hint, the gun that is actually bearing is readable. */
-.playback-cone .cone-fill { opacity: 0.10; }
-/* Clear to fire: the sim reports no gate, so the target is inside this arc. */
-.playback-cone.bearing .cone-fill { opacity: 0.28; }
+/* Engagement cone: one fill sampled from falloffAt (empty → fade → plateau → fade
+   to 0). Peak opacity ~0.4 so the sweet spot is only a notch brighter than the fades. */
+.playback-cone .cone-fill { opacity: 0.4; }
+.playback-cone.bearing .cone-fill { opacity: 0.5; }
 
 /* A round in flight, walked along its line at the weapon's own projectileSpeed and
    drawn as a short streak so it carries a heading. A tracer, by contrast, is the
@@ -336,16 +331,6 @@
 .playback-round-hit {
   fill: none;
   stroke-width: 0.9;
-}
-
-/* The near edge of a weapon that needs room to work: rockets still boosting, a
-   railgun's sight picture in a brawl. Outlined, not filled — inside it the shot
-   still lands, at multAtMin rather than nothing, so a solid block would overstate
-   it as a dead zone. */
-.playback-cone .cone-min {
-  stroke-width: 0.7;
-  stroke-dasharray: 3 2;
-  opacity: 0.5;
 }
 
 /* Shot spread at the target: +/- one and two sigma of lateral aim error, across

@@ -474,8 +474,11 @@ function probeVultureColdBuild(): Build {
 }
 
 function probeVultureClose(): Build {
+  // The base scout already carries `plate3` on this exact cell; re-adding it
+  // here made the build fail validation with `duplicate-instance`, which is a
+  // mech the builder would refuse to assemble and a save the run loader now
+  // discards. The probe's armour is the plate below it.
   return withExtraParts(vultureCloseScout(), [
-    regionalPart('plate3', 'U-ARM', 'left-hardpoint', 1, 0),
     regionalPart('plate4', 'U-ARM', 'left-hardpoint', 1, 3),
     regionalPart('sink2', 'U-HS', 'right-hardpoint', 3, 3),
   ]);

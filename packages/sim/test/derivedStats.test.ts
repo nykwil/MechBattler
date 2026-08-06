@@ -80,8 +80,8 @@ describe('ideal range band (docs/03 §7)', () => {
     const build: Build = {
       chassisId: 'CH-2',
       parts: [
-        { instanceId: 'mg', partId: 'W-MG', origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 }, // 30-90m
-        { instanceId: 'rg', partId: 'W-RG', origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 }, // 80-240m
+        { instanceId: 'mg', partId: 'W-MG', origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 }, // 10 · 10–40 · 90m
+        { instanceId: 'rg', partId: 'W-RG', origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 }, // 0 · 50–80 · 240m
       ],
       powerPriority: [],
     };

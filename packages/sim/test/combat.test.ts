@@ -14,6 +14,7 @@ import { getPart } from '../src/catalog.js';
 const TC_MULT = getPart('U-TC1').fireControlLateralMult!;
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import { getChassis } from '../src/chassis.js';
+import { BRANCH_PROBE_TEMPLATES } from '../src/templates.js';
 
 /**
  * Legal CH-5 Mule layouts (mask + core cell per src/chassis.ts):
@@ -287,5 +288,41 @@ describe('salvage integrity scales part HP (docs/04 §3, docs/10 M3)', () => {
         expect(p.hpFrac).toBeLessThanOrEqual(1);
       }
     }
+  });
+});
+
+/**
+ * Locomotion is a continuous load (1.2 kW per tonne per m/s), so a bus that
+ * cannot cover the commanded throttle should move the mech slower — not park
+ * it. Shedding the core whole was the workshop test bench's simplification, and
+ * the arena inherited it silently: `probe-bastion-suppression` splits its two
+ * reactors across two networks, leaving the core on a 25 kW island against a
+ * ~31 kW flank draw, so it stood on its spawn mark for an entire battle and
+ * lost without firing a shot. Two other shipped starting builds did the same.
+ */
+describe('partial locomotion power slows a mech instead of freezing it', () => {
+  const underpowered = () => structuredClone(
+    BRANCH_PROBE_TEMPLATES.find((t) => t.id === 'probe-bastion-suppression')!.build,
+  );
+
+  it('a mech whose bus cannot cover flank still crosses the arena and fires', () => {
+    const report = runBattle({ builds: [underpowered(), muleSkirmisher()], seed: 7 });
+    const start = report.frames[0]!.mechs[0];
+    const travelled = report.frames.reduce((far, f) =>
+      Math.max(far, Math.hypot(f.mechs[0].x - start.x, f.mechs[0].y - start.y)), 0);
+    expect(travelled, 'it should leave the spawn mark').toBeGreaterThan(20);
+    expect(report.mechs[0].shotsFired).toBeGreaterThan(0);
+  });
+
+  it('and it moves slower than the same order on a bus that can feed it', () => {
+    const chassis = getChassis(underpowered().chassisId);
+    const sim = new Simulation(chassis, underpowered());
+    let snapshot = sim.step(0.05, { speedSetting: 'flank', weaponsEnabled: {} });
+    // Reactors spool up; sample once supply has settled.
+    for (let t = 0; t < 100; t++) snapshot = sim.step(0.05, { speedSetting: 'flank', weaponsEnabled: {} });
+    expect(snapshot.locomotionPowerFrac).toBeGreaterThan(0);
+    expect(snapshot.locomotionPowerFrac).toBeLessThan(1);
+    // Starved, but never shed: a fraction of the drive is still the drive.
+    expect(snapshot.shedInstanceIds).not.toContain(CORE_INSTANCE_ID);
   });
 });

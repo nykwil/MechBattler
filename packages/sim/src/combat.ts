@@ -165,12 +165,11 @@ export function weaponSigmaRad(inputs: WeaponSigmaInputs): number {
 }
 
 /**
- * How far past its falloff band a weapon will still fire, as a multiple of
- * `rangeEnd`. Exported because the HUD draws the reach cone and was drawing it
- * at `rangeEnd` — so the cone said the gun stopped where it merely got weaker,
- * and shots visibly flew past their own marking.
+ * Projectile despawn / fire reach equals `falloff.max` (damage is ×0 there).
+ * Kept as a named export so the HUD and combat share one bound; historically
+ * this was 1.3× a soft `rangeEnd` floor — the curve now hits zero at `max`.
  */
-export const WEAPON_REACH_MULT = 1.3;
+export const WEAPON_REACH_MULT = 1;
 /**
  * Approach slants the autopilot may consider instead of walking straight in,
  * in radians (~20, 40, 60 degrees). Crossing fraction is sin(angle), path
@@ -431,7 +430,11 @@ export class Combatant {
   weaponsEnabled: Record<string, boolean> = {};
   staggerUntilS = -1;
   staggerDispersionUntilS = -1;
-  /** Orbit direction for strafe-capable chassis (docs/03 §7 verb 3). Constant for now. */
+  /**
+   * Orbit / approach-slant sign (docs/03 §7 verb 3). Seeded per combatant so
+   * both sides don't hard-code the same +y detour — with a fixed +1 the player's
+   * close destination always swung down-screen even in a mirror matchup.
+   */
   orbitDir: 1 | -1 = 1;
   /** Actual turn rate last tick, for the >45 deg/s dispersion penalty (docs/03 §5). */
   lastTurnRateRadS = 0;
@@ -561,14 +564,23 @@ export class Combatant {
    * The mech's target-profile multiplier (docs/04 §4b, e.g. Hull-down): the
    * product of functional parts' contributions, read against this mech's own
    * physical state.
+   *
+   * `atSpeedMps` overrides the current velocity for planning. The autopilot
+   * scores standing still against orbiting by asking what each would cost, and
+   * with the live velocity substituted in, a moving Hull-down mech evaluated
+   * standing still *while still counting itself as moving* — so it never saw
+   * the ×0.4 profile that stopping buys, and the perk it is built around was
+   * active in 3% of sampled ticks. Planning must price the candidate, not the
+   * present.
    */
-  profileMult(tile: TerrainType): number {
+  profileMult(tile: TerrainType, atSpeedMps?: number): number {
+    const speedMps = atSpeedMps ?? len(this.vel);
     let mult = 1;
     for (const p of this.build.parts) {
       if (!p.modifiers?.length || !this.isPartFunctional(p.instanceId)) continue;
       const runtime = this.sim.instanceRuntime.get(p.instanceId);
       if (runtime?.isShed || runtime?.isShutdown) continue;
-      mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps: len(this.vel), tile }).targetProfile;
+      mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps, tile }).targetProfile;
     }
     return mult;
   }
@@ -913,6 +925,12 @@ export function estimateExpectedDps(
   shooter: Combatant, target: Combatant, rangeM: number,
   shooterSpeedMps: number, targetLateralMps: number, snapshot: SimSnapshot | null,
   mods: DpsTerrainMods = {},
+  /**
+   * The target's own speed under the option being priced, for speed-conditioned
+   * profile modifiers. Defaults to its live velocity; the autopilot passes the
+   * candidate so that "what if I stopped" is scored as stopped.
+   */
+  targetSpeedMps?: number,
 ): number {
   const terrainRangeMult = mods.shooterRangeMult ?? 1;
   const coverMult = mods.targetCoverMult ?? 1;
@@ -920,14 +938,14 @@ export function estimateExpectedDps(
   const lagS = TRACKING_LAG_S;
   // Pose is unknown at planning time; use the mean silhouette half-width.
   const halfWidthM = meanSilhouetteHalfWidthM(target.chassis) * coverMult *
-    target.profileMult(mods.targetTile ?? 'open');
+    target.profileMult(mods.targetTile ?? 'open', targetSpeedMps);
   let dps = 0;
   for (const p of shooter.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon' || !shooter.isPartFunctional(p.instanceId)) continue;
     const w = def.weapon!;
     const rangeMult = terrainRangeMult * shooter.weaponRangeMultiplier(p.instanceId);
-    if (rangeM > w.falloff.rangeEnd * WEAPON_REACH_MULT * rangeMult) continue;
+    if (rangeM > w.falloff.max * WEAPON_REACH_MULT * rangeMult) continue;
     const m = effectiveMults(p, {
       tempC: shooter.sim.meanCellC(p.instanceId),
       speedMps: shooterSpeedMps,
@@ -1001,7 +1019,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (def.category !== 'weapon' || !self.isPartFunctional(p.instanceId)) continue;
     maxReachM = Math.max(
       maxReachM,
-      def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT * self.weaponRangeMultiplier(p.instanceId),
+      def.weapon!.falloff.max * WEAPON_REACH_MULT * self.weaponRangeMultiplier(p.instanceId),
     );
   }
   if (myTile === 'hill') maxReachM *= HILL_RANGE_MULT;
@@ -1011,13 +1029,13 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   /** Net expected exchange at range r given my speed/crossing speed, on current tiles. */
   const exchangeAt = (r: number, mySpeedMps: number, myLateralMps: number): number =>
     estimateExpectedDps(self, enemy, r, mySpeedMps, enemyLateralNow, snapshot, terrainDpsMods(myTile, enemyTile)) -
-    estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null, terrainDpsMods(enemyTile, myTile));
+    estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null, terrainDpsMods(enemyTile, myTile), mySpeedMps);
   /** Standing exchange if I were positioned at `pos` (its tile's cover/elevation/coolant). */
   const exchangeAtPos = (pos: Vec2): number => {
     const t = terrainAt(terrain, pos.x, pos.y);
     const r = len(sub(enemy.pos, pos));
     let u = estimateExpectedDps(self, enemy, r, 0, enemyLateralNow, snapshot, terrainDpsMods(t, enemyTile)) -
-      estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, t));
+      estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, t), 0);
     if (t === 'water' && runningHot) u += 2;
     return u;
   };
@@ -1060,18 +1078,35 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   } else {
     // Scan standing ranges nearest-first; strict improvement keeps the
     // aggressive tie-break (mirror matchups charge instead of stalling).
-    // The scan deliberately runs past this mech's own reach. Clamping it to
-    // weapon range was tried, to stop an outgunned mech deciding its best
-    // standing point is "as far away as possible" — it cut running away
-    // further, from 12% of battles to 7%, but killed the cold-bore, fever-cycle
-    // and hull-down perks outright in the diversity stress, because standing
-    // off beyond reach is exactly what those perks are for. Running away is
-    // handled at the flee branch instead, where it costs nothing.
+    // The scan deliberately runs past this mech's own reach: standing off
+    // beyond it is what the cold-bore, fever-cycle and hull-down perks are for,
+    // and hard-clamping the loop to weapon range killed all three in the
+    // diversity stress.
+    //
+    // But an out-of-reach range cannot be scored at face value. U(r) there is
+    // "nobody shoots" — often 0, which beats every losing exchange, so an
+    // outgunned brawler read "as far away as possible" as its best standing
+    // point and walked backwards for the whole match without firing once. That
+    // was 18% of template matchups with one side silent, and all of the
+    // close-range archetypes; a player who picked a brawler watched it refuse
+    // to fight. The safety is imaginary: a range I cannot shoot from is not one
+    // I hold, because the enemy is free to close, so it is worth what the enemy
+    // picks — the worst standing exchange on the curve — and not zero. In reach
+    // the value is the exchange itself, so a mech that out-ranges its enemy
+    // still stands off and shoots.
+    const scan: { r: number; u: number; inReach: boolean }[] = [];
+    let concedeU = Infinity;
+    for (let r = 10; r <= 260; r += 5) {
+      const mine = estimateExpectedDps(self, enemy, r, 0, enemyLateralNow, snapshot, terrainDpsMods(myTile, enemyTile));
+      const u = mine - estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, myTile), 0);
+      scan.push({ r, u, inReach: mine > 0 });
+      if (u < concedeU) concedeU = u;
+    }
     let bestR = 10;
     let bestU = -Infinity;
-    for (let r = 10; r <= 260; r += 5) {
-      const u = exchangeAt(r, 0, 0);
-      if (u > bestU + 1e-9) { bestU = u; bestR = r; }
+    for (const s of scan) {
+      const u = s.inReach ? s.u : concedeU;
+      if (u > bestU + 1e-9) { bestU = u; bestR = s.r; }
     }
 
     if (Math.abs(range - bestR) > 8) {
@@ -1092,19 +1127,31 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
         const speedNow = transitSpeed(setting);
         let bestAngleRad = 0;
         let bestApproachU = exchangeAt(range, speedNow, 0);
-        for (const angleRad of APPROACH_SLANT_RAD) {
-          const u = exchangeAt(range, speedNow, speedNow * dsin(angleRad));
-          if (u > bestApproachU + 1e-9) { bestApproachU = u; bestAngleRad = angleRad; }
+        // Near-even exchange (mirror guns, same trade either way): a scenic
+        // slant only delays contact. Keep the approach on the enemy line so
+        // Auto does not send the player down-screen while both sides could
+        // already be facing and firing.
+        if (Math.abs(bestApproachU) > 0.5) {
+          for (const angleRad of APPROACH_SLANT_RAD) {
+            const u = exchangeAt(range, speedNow, speedNow * dsin(angleRad));
+            if (u > bestApproachU + 1e-9) { bestApproachU = u; bestAngleRad = angleRad; }
+          }
         }
+        // Straight-in closes on the ideal standing range along the enemy line.
+        // Do not pickGround here: shopping neighbouring tiles yanked the first
+        // waypoint off-axis (often down-screen) and, with travel-facing, turned
+        // the nose with it — the enemy was already shooting before Auto faced
+        // them. Terrain shopping waits until we are inside the band.
+        const station = sub(enemy.pos, scale(dir, bestR));
         if (bestAngleRad === 0) {
-          move = { verb: 'move', intent: 'close', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
+          move = { verb: 'move', intent: 'close', dest: station };
         } else {
           const slant = bestAngleRad * self.orbitDir;
           const cosS = dcos(slant);
           const sinS = dsin(slant);
           const heading = { x: dir.x * cosS - dir.y * sinS, y: dir.x * sinS + dir.y * cosS };
           const travel = Math.max(8, (range - bestR) / Math.max(dcos(bestAngleRad), 0.3));
-          move = { verb: 'move', intent: 'close', dest: pickGround(add(self.pos, scale(heading, travel))) };
+          move = { verb: 'move', intent: 'close', dest: add(self.pos, scale(heading, travel)) };
         }
       } else {
         // Give ground facing the enemy, never turn tail.
@@ -1122,7 +1169,9 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
         // what `retreat` already does: reverse speed, facing held on the
         // target, guns bearing. Turning tail is now reserved for having no
         // functional guns at all, where the surrender clock is running anyway.
-        move = { verb: 'move', intent: 'retreat', dest: pickGround(sub(enemy.pos, scale(dir, bestR))) };
+        // Same as close: the ideal point stays on the enemy line; terrain
+        // shopping waits until we are inside the band.
+        move = { verb: 'move', intent: 'retreat', dest: sub(enemy.pos, scale(dir, bestR)) };
       }
     } else if (betterGroundNearby()) {
       // At the chosen range: better ground one tile away — a hill for my
@@ -1169,15 +1218,17 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
-    const despawnRange = def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT
+    const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT
       * self.weaponRangeMultiplier(p.instanceId)
       * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
     enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
   }
 
-  // --- Verb 4: face the target only when a gun that needs facing can reach;
-  // otherwise face the direction of travel and use the (faster) forward speed.
+  // --- Verb 4: face the target when a gun can reach. Out of reach, travel-face
+  // along the enemy line (not at a slanted/terrain waypoint) so forward speed
+  // closes range and the nose is already on the threat when the gun comes into
+  // reach — Auto used to stare at a down-screen detour while the enemy shot.
   let face: Extract<MechOrder, { verb: 'face' }>;
   if (maxReachM === 0) {
     // Nothing left to aim: hold the current bearing rather than claim to be
@@ -1191,8 +1242,7 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   } else if (maxReachM > 0 && range <= maxReachM) {
     face = { verb: 'face', mode: 'target' };
   } else if (move.dest) {
-    const toDest = sub(move.dest, self.pos);
-    face = { verb: 'face', mode: 'bearing', bearingRad: datan2(toDest.y, toDest.x) };
+    face = { verb: 'face', mode: 'bearing', bearingRad: bearingToEnemy };
   } else {
     face = { verb: 'face', mode: 'target' };
   }
@@ -1470,6 +1520,10 @@ export class Battle {
       new Combatant(options.builds[0], posA, datan2(posB.y - posA.y, posB.x - posA.x)),
       new Combatant(options.builds[1], posB, datan2(posA.y - posB.y, posA.x - posB.x)),
     ];
+    // Seeded per side so a mirror matchup does not always send the player
+    // down-screen (orbitDir was hard-coded +1).
+    this.combatants[0].orbitDir = this.rng.nextFloat() < 0.5 ? 1 : -1;
+    this.combatants[1].orbitDir = this.rng.nextFloat() < 0.5 ? 1 : -1;
   }
 
   get finished(): boolean { return this.outcome !== null; }
@@ -1576,11 +1630,14 @@ export class Battle {
     // Movement, then clamp to the arena walls (a mech pinned against a wall
     // loses the velocity component driving it into the wall -- no sticking).
     for (const i of [0, 1] as const) {
+      // Partial locomotion power is a slower mech, not a stopped one; the core
+      // only sheds outright when its network can feed it nothing at all.
+      const locomotionFrac = this.lastSnapshots[i]?.locomotionPowerFrac ?? 1;
       const locomotionShed = this.lastSnapshots[i]?.shedInstanceIds.includes(CORE_INSTANCE_ID) ?? false;
       const c = this.combatants[i];
       // Marsh pistons (docs/04 §4b): a functional immune part voids the slow.
       const baseMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
-      const speedMult = baseMult < 1 && c.ignoresTerrainSlow(this.lastSnapshots[i]) ? 1 : baseMult;
+      const speedMult = (baseMult < 1 && c.ignoresTerrainSlow(this.lastSnapshots[i]) ? 1 : baseMult) * locomotionFrac;
       integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult, this.lastSnapshots[i]);
       if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
       else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
@@ -1624,7 +1681,7 @@ export class Battle {
       const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
       let gate: WeaponFrame['gate'] = null;
       if (!destroyed) {
-        const despawnRange = def.weapon!.falloff.rangeEnd * WEAPON_REACH_MULT
+        const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT
           * c.weaponRangeMultiplier(p.instanceId)
           * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
         const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);

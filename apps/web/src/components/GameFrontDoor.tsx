@@ -4,6 +4,9 @@ import { GAME_CONTENT, type PlayerProfile, type SavedMech } from '@mechbattler/g
 import type { RunPhase } from '../state/runState.js';
 import './GameFrontDoor.css';
 
+/** Standalone R3F IK / payload-physics lab (pm2 `mechbattler-3d-ik`, port 5161). */
+export const IK_DEMO_URL = 'http://127.0.0.1:5161/';
+
 export function TitleScreen({
   run,
   profile,
@@ -12,6 +15,7 @@ export function TitleScreen({
   onProfile,
   onSandbox,
   onBalance,
+  showIkDemo = import.meta.env.DEV,
 }: {
   run: RunPhase;
   profile: PlayerProfile;
@@ -20,6 +24,8 @@ export function TitleScreen({
   onProfile: () => void;
   onSandbox: () => void;
   onBalance: () => void;
+  /** Localhost-only lab; off in production builds. */
+  showIkDemo?: boolean;
 }) {
   const resumable = run.phase !== 'none';
   return (
@@ -56,6 +62,11 @@ export function TitleScreen({
             Workshop Sandbox
           </button>
           <button type="button" onClick={onBalance}>Balance Lab</button>
+          {showIkDemo && (
+            <a href={IK_DEMO_URL} target="_blank" rel="noreferrer">
+              IK Demo
+            </a>
+          )}
         </div>
         {(run.phase === 'active' || run.phase === 'prep') && (
           <p className="front-footnote">Sandbox is locked while a persistent run build is loaded.</p>

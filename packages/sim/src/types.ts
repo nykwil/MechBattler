@@ -102,22 +102,25 @@ export interface WeaponSpec {
   projectileSpeed: number | 'hitscan';
   dispersionMrad: number;
   /**
-   * Damage against range (docs/03 §5). Full damage out to `rangeStart`, then a
-   * linear ramp to `multAtEnd` at `rangeEnd`, flat beyond — there is no hard
-   * maximum, a distant shot is weak rather than impossible.
+   * Damage against range (docs/03 §5). Four bands, same shape the arena cone draws:
    *
-   * `rangeMin` mirrors that on the near side, for weapons that need room to work:
-   * a rocket that has not finished boosting, a railgun whose sight picture is
-   * useless in a brawl. Below it damage ramps down to `multAtMin` at contact, so
-   * the shot still lands but badly. Omit both and the weapon is fully effective at
-   * point blank, which is what every weapon did before this existed.
+   *   0 → min          empty (×0)
+   *   min → idealMin   fade ×0 → ×1
+   *   idealMin → idealMax  full (×1) — the sweet spot
+   *   idealMax → max   fade ×1 → ×0
+   *
+   * `min` defaults to 0. Knife-fight guns set `idealMin` to 0 so they stay full
+   * at contact. When `min === idealMin` the near fade has zero width (hard floor).
    */
   falloff: {
-    rangeStart: number;
-    rangeEnd: number;
-    multAtEnd: number;
-    rangeMin?: number;
-    multAtMin?: number;
+    /** Hard empty below this. Default 0. */
+    min?: number;
+    /** Near edge of the full-damage sweet spot. */
+    idealMin: number;
+    /** Far edge of the full-damage sweet spot. */
+    idealMax: number;
+    /** Far range where damage reaches ×0. */
+    max: number;
   };
   mountArcDeg: number;
   recoilKnS?: number;

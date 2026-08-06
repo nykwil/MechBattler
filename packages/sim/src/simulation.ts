@@ -100,6 +100,13 @@ export interface SimSnapshot {
   tSec: number;
   cellTempsC: Record<string, number>;
   shedInstanceIds: string[];
+  /**
+   * Share of the commanded locomotion draw the core's network could actually
+   * feed, 0..1 (1 when the throttle is stationary or fully powered). The arena
+   * scales speed by it: a bus that cannot cover flank makes the mech slower,
+   * not immobile (see the locomotion note in this file's header).
+   */
+  locomotionPowerFrac: number;
   shutdownInstanceIds: string[];
   cookedOffInstanceIds: string[];
   totalSupplyKw: number;
@@ -468,6 +475,7 @@ export class Simulation {
 
     // --- 4. Per-network greedy priority acceptance + brownout shedding (docs/02 §2) ---
     const shedInstanceIds: string[] = [];
+    let locomotionPowerFrac = 1;
     let totalSupplyKw = 0;
     let totalDemandKw = 0;
     const deliveredKw = new Map<string, number>();
@@ -504,6 +512,33 @@ export class Simulation {
         const rt = this.runtime.get(id)!;
         const tentative = runningTotal + kw;
         const routeCapacity = this.routeCapacityKwByInstance.get(id) ?? Infinity;
+
+        // Locomotion is a continuous load, not a box that is on or off: its
+        // draw is already 1.2 kW per tonne per m/s, so a bus that covers 80% of
+        // the commanded flank draw moves the mech at 80% of flank. Shedding it
+        // whole — the workshop test bench's simplification, which this file's
+        // header flags as the arena's to extend — froze a mech solid for a whole
+        // battle whenever its core network could not cover flank. Three shipped
+        // starting builds did exactly that: they stood on the spawn mark,
+        // unable to close, and lost without firing a shot, which is what a
+        // player reported as the mech not attacking.
+        if (id === CORE_INSTANCE_ID) {
+          const affordable = Math.max(0, Math.min(routeCapacity, totalBudgetKw - runningTotal));
+          const delivered = Math.min(kw, affordable);
+          locomotionPowerFrac = kw > 0 ? delivered / kw : 1;
+          if (delivered <= 0) {
+            rt.isShed = true;
+            rt.shedSinceT ??= this.tSec;
+            shedInstanceIds.push(id);
+            continue;
+          }
+          rt.isShed = false;
+          rt.shedSinceT = null;
+          runningTotal += delivered;
+          deliveredKw.set(id, delivered);
+          continue;
+        }
+
         if (kw > routeCapacity) {
           rt.isShed = true;
           rt.shedSinceT ??= this.tSec;
@@ -557,7 +592,9 @@ export class Simulation {
     for (const [id, kw] of deliveredKw) {
       if (id === CORE_INSTANCE_ID) {
         if (command.speedSetting === 'flank') {
-          addHeat([...this.thermal.cellKeysByInstance.get(CORE_INSTANCE_ID)!], 0.15 * this.massT * dtSec);
+          // Scaled by what the bus actually fed: a drive running at 80% power
+          // does 80% of the work, and dumps 80% of the waste heat.
+          addHeat([...this.thermal.cellKeysByInstance.get(CORE_INSTANCE_ID)!], 0.15 * this.massT * dtSec * locomotionPowerFrac);
         }
         continue;
       }
@@ -700,7 +737,7 @@ export class Simulation {
     for (const [id, kj] of this.capacitorStoredKj) capacitorStoredKj[id] = kj;
 
     return {
-      tSec: this.tSec, cellTempsC, shedInstanceIds, shutdownInstanceIds, cookedOffInstanceIds,
+      tSec: this.tSec, cellTempsC, shedInstanceIds, locomotionPowerFrac, shutdownInstanceIds, cookedOffInstanceIds,
       totalSupplyKw, totalDemandKw, capacitorStoredKj, shotsThisTick, cookoffsThisTick,
     };
   }

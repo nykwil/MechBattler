@@ -2,7 +2,8 @@ import { useMemo, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, TICK_S,
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
-  computeHitModel, effectiveMults, falloffAt, meanSilhouetteHalfWidthM, FOREST_COVER_MULT, WEAPON_REACH_MULT,
+  computeHitModel, effectiveMults, falloffAt, meanSilhouetteHalfWidthM,
+  FOREST_COVER_MULT,
   weaponSigmaRad, TRACKING_LAG_S,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid, type TerrainType,
 } from '@mechbattler/sim';
@@ -157,6 +158,20 @@ function shortName(partId: string): string {
 const AMMO_PLACEHOLDER = 'ammo — (not modelled yet)';
 
 /**
+ * Compact range legend: min · idealMin–idealMax · max (e.g. `10 · 10–40 · 90m`).
+ * The middle span is the sweet spot; outside it the cone/damage fades to empty.
+ */
+function formatWeaponRange(falloff: {
+  min?: number;
+  idealMin: number;
+  idealMax: number;
+  max: number;
+}): string {
+  const min = falloff.min ?? 0;
+  return `${min} · ${falloff.idealMin}–${falloff.idealMax} · ${falloff.max}m`;
+}
+
+/**
  * Delivered only through the `title` attribute — a native tooltip, which is a real
  * popup: it floats, costs no layout, and is plainly not part of the cockpit. There
  * used to be a styled line rendered alongside it, which was the same text twice and
@@ -166,18 +181,20 @@ const AMMO_PLACEHOLDER = 'ammo — (not modelled yet)';
 function weaponBlurb(def: PartDef): string {
   const w = def.weapon!;
   const speed = w.projectileSpeed === 'hitscan' ? 'hitscan' : `${w.projectileSpeed} m/s`;
+  const f = w.falloff;
+  const min = f.min ?? 0;
+  const bandNote = min > 0 || f.idealMin > 0
+    ? ` · empty under ${min} m, sweet ${f.idealMin}–${f.idealMax} m, dead past ${f.max} m`
+    : ` · full to ${f.idealMax} m, dead past ${f.max} m`;
   return `${def.name} — ${w.damage}${w.salvoCount ? `×${w.salvoCount}` : ''} dmg every ${w.cycleS}s · ${speed}`
-    + ` · band ${w.falloff.rangeStart}–${w.falloff.rangeEnd} m · arc ${w.mountArcDeg}° · ${AMMO_PLACEHOLDER}`;
+    + ` · ${formatWeaponRange(w.falloff)}${bandNote} · arc ${w.mountArcDeg}° · ${AMMO_PLACEHOLDER}`;
 }
 
 /**
- * A weapon's mount arc, drawn as a sector out to the far edge of its falloff band.
- *
- * The arc is relative to the mech's facing, which is what makes the ARC gate
- * legible: the sim silences a gun when the target sits outside `mountArcDeg`, and
- * until now the only way to know that was to be told after the fact. Everything
- * here -- half-angle, both band edges -- is read from the catalog; nothing about
- * the geometry is decided in the UI.
+ * Engagement cone sampled from the same falloff curve as damage:
+ * empty under min → fade up to idealMin → solid idealMin–idealMax → fade to 0 at max.
+ * Peak fill opacity is modest (~0.4) so the sweet spot reads only a bit stronger
+ * than the fades.
  */
 function WeaponCones({ frame, weapons, color, mech }: {
   frame: MechFrame;
@@ -195,16 +212,29 @@ function WeaponCones({ frame, weapons, color, mech }: {
     return true;
   });
 
-  /** Filled wedge from the mech out to `r`. */
-  const sector = (r: number, half: number) => {
+  /** Ring sector from inner radius `r0` to outer `r1`. */
+  const annular = (r0: number, r1: number, half: number) => {
+    if (r1 <= r0) return '';
     const a0 = frame.facingRad - half;
     const a1 = frame.facingRad + half;
-    const x0 = frame.x + r * Math.cos(a0);
-    const y0 = frame.y + r * Math.sin(a0);
-    const x1 = frame.x + r * Math.cos(a1);
-    const y1 = frame.y + r * Math.sin(a1);
+    const c0 = Math.cos(a0);
+    const s0 = Math.sin(a0);
+    const c1 = Math.cos(a1);
+    const s1 = Math.sin(a1);
     const largeArc = half * 2 > Math.PI ? 1 : 0;
-    return `M ${frame.x} ${frame.y} L ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+    if (r0 <= 0) {
+      const x0 = frame.x + r1 * c0;
+      const y0 = frame.y + r1 * s0;
+      const x1 = frame.x + r1 * c1;
+      const y1 = frame.y + r1 * s1;
+      return `M ${frame.x} ${frame.y} L ${x0} ${y0} A ${r1} ${r1} 0 ${largeArc} 1 ${x1} ${y1} Z`;
+    }
+    return (
+      `M ${frame.x + r1 * c0} ${frame.y + r1 * s0}`
+      + ` A ${r1} ${r1} 0 ${largeArc} 1 ${frame.x + r1 * c1} ${frame.y + r1 * s1}`
+      + ` L ${frame.x + r0 * c1} ${frame.y + r0 * s1}`
+      + ` A ${r0} ${r0} 0 ${largeArc} 0 ${frame.x + r0 * c0} ${frame.y + r0 * s0} Z`
+    );
   };
 
   return (
@@ -213,31 +243,23 @@ function WeaponCones({ frame, weapons, color, mech }: {
         const def = getPart(wf.partId);
         const w = def.weapon!;
         const half = ((w.mountArcDeg / 2) * Math.PI) / 180;
-        // Where the gun actually stops firing, read from the sim rather than
-        // from `rangeEnd` — past `rangeEnd` it is merely weaker, and drawing the
-        // cone there had shots flying visibly outside their own marking.
-        const reach = w.falloff.rangeEnd * WEAPON_REACH_MULT;
-        const rMin = w.falloff.rangeMin;
-
-        /*
-         * The cone *is* the falloff curve. It was drawn as two flat bands whose
-         * opacities differed by 0.02, so "where this gun is actually good" was
-         * invisible — the near ramp, the full-damage plateau and the long decline
-         * all looked like one wedge. Sampling falloffAt() into a user-space radial
-         * gradient draws the real curve: bright where the gun hits hardest, fading
-         * exactly as its damage does, and visibly dim inside a minimum range.
-         *
-         * Sampled rather than hand-written stops, because the curve has kinks at
-         * rangeMin and rangeStart that a fixed stop list would round off — and
-         * because a hardcoded shape would be the UI re-deriving a number the sim
-         * already owns.
-         */
-        const stops: number[] = [0, reach];
-        if (rMin !== undefined) stops.push(rMin * 0.5, rMin);
-        stops.push(w.falloff.rangeStart);
-        for (let i = 1; i < 6; i++) stops.push(w.falloff.rangeStart + (reach - w.falloff.rangeStart) * (i / 6));
-        const sampled = [...new Set(stops)].sort((a, b) => a - b);
+        const rMin = w.falloff.min ?? 0;
+        const rIdealMin = w.falloff.idealMin;
+        const rIdealMax = w.falloff.idealMax;
+        const rMax = w.falloff.max;
         const gid = `cone-${mech}-${wf.partId}`;
+        const ring = annular(rMin, rMax, half);
+        if (!ring) return null;
+
+        // Sample the real falloff curve so the cone matches damage exactly.
+        const stops = new Set<number>([rMin, rIdealMin, rIdealMax, rMax]);
+        if (rIdealMin > rMin) {
+          for (let i = 1; i < 4; i++) stops.add(rMin + (rIdealMin - rMin) * (i / 4));
+        }
+        if (rMax > rIdealMax) {
+          for (let i = 1; i < 5; i++) stops.add(rIdealMax + (rMax - rIdealMax) * (i / 5));
+        }
+        const sampled = [...stops].filter((r) => r >= rMin && r <= rMax).sort((a, b) => a - b);
 
         return (
           <g key={wf.instanceId} className={`playback-cone${wf.gate === null && wf.status === 'ok' ? ' bearing' : ''}`}>
@@ -247,19 +269,22 @@ function WeaponCones({ frame, weapons, color, mech }: {
                 gradientUnits="userSpaceOnUse"
                 cx={frame.x}
                 cy={frame.y}
-                r={reach}
+                r={rMax}
               >
+                {rMin > 0 && (
+                  <stop offset={Math.max(0, (rMin - 0.01) / rMax)} stopColor={color} stopOpacity={0} />
+                )}
                 {sampled.map((r) => (
-                  <stop key={r} offset={r / reach} stopColor={color} stopOpacity={falloffAt(def, r)} />
+                  <stop
+                    key={r}
+                    offset={r / rMax}
+                    stopColor={color}
+                    stopOpacity={Math.max(0, Math.min(1, falloffAt(def, r)))}
+                  />
                 ))}
               </radialGradient>
             </defs>
-            <path d={sector(reach, half)} fill={`url(#${gid})`} className="cone-fill" />
-            {/* The dead zone gets an edge as well as a dimmer fill: a boundary you
-                are meant to hold station outside of should be a line you can see. */}
-            {rMin !== undefined && (
-              <path d={sector(rMin, half)} fill="none" stroke={color} className="cone-min" />
-            )}
+            <path d={ring} fill={`url(#${gid})`} className="cone-fill" />
           </g>
         );
       })}
@@ -435,7 +460,7 @@ function WeaponSlot({
           the gate coming instead of only being told after it fires. */}
       <span className={`gun-rng${wf.gate === null && wf.status === 'ok' ? ' in' : ''}`}>
         <span>
-          {def.weapon!.falloff.rangeStart}–{def.weapon!.falloff.rangeEnd}m · {def.weapon!.mountArcDeg}°
+          {formatWeaponRange(def.weapon!.falloff)} · {def.weapon!.mountArcDeg}°
         </span>
         <span className="gun-hint">{override ? (override === 'hold' ? 'held' : 'forced') : ''}</span>
       </span>

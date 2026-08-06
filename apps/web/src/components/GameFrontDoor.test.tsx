@@ -18,6 +18,7 @@ describe('game front door', () => {
         onProfile={vi.fn()}
         onSandbox={vi.fn()}
         onBalance={vi.fn()}
+        showIkDemo
       />,
     );
     expect(screen.getByRole('heading', { name: 'MECH BATTLER' })).toBeTruthy();
@@ -26,6 +27,25 @@ describe('game front door', () => {
     expect(onNewRun).toHaveBeenCalledOnce();
     expect(screen.getByRole('button', { name: 'Workshop Sandbox' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Balance Lab' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'IK Demo' }).getAttribute('href')).toBe(
+      'http://127.0.0.1:5161/',
+    );
+  });
+
+  it('hides the IK demo link outside development', () => {
+    render(
+      <TitleScreen
+        run={{ phase: 'none' }}
+        profile={defaultProfile()}
+        onContinue={vi.fn()}
+        onNewRun={vi.fn()}
+        onProfile={vi.fn()}
+        onSandbox={vi.fn()}
+        onBalance={vi.fn()}
+        showIkDemo={false}
+      />,
+    );
+    expect(screen.queryByRole('link', { name: 'IK Demo' })).toBeNull();
   });
 
   it('shows a resumable run and locks sandbox mutation', () => {

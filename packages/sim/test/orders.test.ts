@@ -4,7 +4,7 @@ import {
   Battle, runBattle, computeHitModel, withManualOrders, autopilotController,
   MOVE_JITTER_MRAD_PER_MPS, TRACKING_LAG_S, type Controller, type MechOrder,
 } from '../src/combat.js';
-import { TEMPLATES } from '../src/templates.js';
+import { STARTER_TEMPLATES, TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import { getChassis } from '../src/chassis.js';
 
@@ -273,7 +273,7 @@ describe('motion jitter (docs/03 §4): additive error punishes precision guns mo
 });
 
 describe('exchange-optimizing autopilot (docs/03 §7 rewrite)', () => {
-  const get = (id: string) => TEMPLATES.find((t) => t.id === id)!.build;
+  const get = (id: string) => [...TEMPLATES, ...STARTER_TEMPLATES].find((t) => t.id === id)!.build;
 
   it('an out-of-reach brawler faces its direction of travel, then the target once in reach', () => {
     // Bastion (Maul, ~58 m reach) spawns at 160 m: it should close while
@@ -313,5 +313,20 @@ describe('exchange-optimizing autopilot (docs/03 §7 rewrite)', () => {
       .map((e) => (e.type === 'order' && e.order.verb === 'move' ? e.order.intent : ''));
     expect(moves).toContain('retreat');
     expect(moves).not.toContain('flee');
+  });
+
+  /**
+   * The last shape of "runs the whole match without firing". The standing-range
+   * scan reads past the mech's own reach on purpose, but it used to take U(r)
+   * there at face value — and out of everyone's reach U is 0, which beats every
+   * losing exchange. So the Bastion, which loses the trade at every range it can
+   * actually shoot from, chose 240 m as its best standing point, walked
+   * backwards for 39 s and died having never fired. An unreachable range is
+   * worth what the *enemy* picks, not zero, because a mech that cannot shoot
+   * cannot hold a range.
+   */
+  it('an outgunned brawler closes and shoots rather than backing off out of reach', () => {
+    const report = runBattle({ builds: [get('bastion-tank'), get('mule-needle')], seed: 12345 });
+    expect(report.mechs[0].shotsFired).toBeGreaterThan(0);
   });
 });

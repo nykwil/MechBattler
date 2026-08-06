@@ -295,7 +295,7 @@ function marginalMultiplier(owned: number): number {
 
 function partScore(policy: ProgressionPolicyId, partId: string, owned = 0): number {
   const part = getPart(partId);
-  const range = part.weapon?.falloff.rangeEnd ?? 0;
+  const range = part.weapon?.falloff.max ?? 0;
   const dps = part.weapon ? part.weapon.damage * (part.weapon.salvoCount ?? 1) / part.weapon.cycleS : 0;
   const armor = partId === 'U-ARM' || partId === 'U-SHELL' ? 30 : 0;
   const supply = part.reactor ? part.reactor.outputKw : 0;

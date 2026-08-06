@@ -110,14 +110,21 @@
   gap: 8px;
   margin-top: var(--space-4);
 }
-.front-modes button, .front-back {
+.front-modes button,
+.front-modes a,
+.front-back {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   min-height: var(--tap-min);
   padding: var(--space-2) var(--space-3);
   color: var(--ink-secondary);
   background: transparent;
   border: 1px solid var(--line-hairline);
   font-size: var(--text-2xs);
-  font-family: var(--font-mono)
+  font-family: var(--font-mono);
+  text-decoration: none;
+  box-sizing: border-box;
 }
 .front-modes button:disabled {
   min-height: var(--tap-min); opacity: 0.35; cursor: not-allowed; }

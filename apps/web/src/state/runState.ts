@@ -6,7 +6,7 @@
  * deferred by design.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { getPart, type Build } from '@mechbattler/sim';
+import { getChassis, getPart, validateBuild, type Build } from '@mechbattler/sim';
 import {
   GAME_CONTENT,
   GAME_SAVE_VERSION,
@@ -131,12 +131,45 @@ interface StoredRun {
   over?: { cause: string; victorious: boolean };
 }
 
+/**
+ * A stored mech that cannot legally exist on its own chassis.
+ *
+ * `illegal-placement` and `illegal-route` are physical impossibilities, and the
+ * builder gates every placement behind the same check — so a player cannot
+ * produce one. Seeing one means the data predates the current construction
+ * model: coordinates that were valid on the old flat grid address different
+ * cells now that chassis have regions, so the parts land in the core, off the
+ * mask, or on top of each other.
+ *
+ * Deliberately narrow. An unpowered part, an over-heat build or a stripped
+ * frame are all legitimate mid-run states the player can fix, and discarding a
+ * run for those would throw away a playable game.
+ */
+function isUnplayableLegacyBuild(build: Build): boolean {
+  try {
+    return validateBuild(getChassis(build.chassisId), build)
+      .some((issue) => issue.code === 'illegal-placement' || issue.code === 'illegal-route');
+  } catch {
+    // A chassis the catalog no longer has, or a shape it cannot resolve: the
+    // save is from an older world either way.
+    return true;
+  }
+}
+
 function load(): StoredRun | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
     const migrated = migrateRun(JSON.parse(raw));
     if (!migrated) return null;
+    // Rather than migrate a pre-spatial save, drop it. Loading one produced a
+    // mech with parts in the core and off the mask that could not fight and did
+    // not say why, which is worse for the player than starting clean.
+    if (isUnplayableLegacyBuild(mechToBuild(migrated.mech))) {
+      localStorage.removeItem(STORAGE_KEY);
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
+      return null;
+    }
     return {
       data: {
         seed: migrated.seed,

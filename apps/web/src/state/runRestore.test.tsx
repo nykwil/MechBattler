@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { render } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { GAME_SAVE_VERSION, type RunInstance } from '@mechbattler/game';
+import { GAME_SAVE_VERSION, buildToMech, type RunInstance } from '@mechbattler/game';
+import { TEMPLATES } from '@mechbattler/sim';
 import { useBuild } from './useBuild.js';
 import { useRun } from './runState.js';
 
@@ -20,8 +21,17 @@ import { useRun } from './runState.js';
  */
 const STORAGE_KEY = 'mechbattler-run-v4';
 
-/** A stored run carrying a mech with real parts on it. */
+/**
+ * A stored run carrying a real, legal mech.
+ *
+ * Built from a shipped template rather than hand-written coordinates: the first
+ * version of this fixture put `x`/`y` at the top level instead of inside
+ * `origin`, which every consumer read as an unplaced part. It passed anyway,
+ * because nothing here validated the build — a fixture that is quietly wrong is
+ * worse than a failing test.
+ */
 function storedRun(): RunInstance {
+  const template = TEMPLATES.find((t) => t.build.chassisId === 'CH-5')!;
   return {
     schemaVersion: GAME_SAVE_VERSION,
     id: 'run-test',
@@ -36,21 +46,15 @@ function storedRun(): RunInstance {
     earnedPartIds: [],
     earnedChallengeIds: [],
     generatedNodes: [],
-    mech: {
-      chassisId: 'CH-5',
-      parts: [
-        { id: 'r1', partId: 'R-E25', x: 2, y: 2, rotation: 0, integrity: 1 },
-        { id: 'w1', partId: 'W-MG', x: 0, y: 0, rotation: 0, integrity: 1 },
-      ],
-      powerPriority: [],
-    },
+    mech: buildToMech(structuredClone(template.build)),
     bench: [],
-    pendingSalvage: undefined,
-    pendingModService: undefined,
     yardRerolled: false,
     events: [],
   } as unknown as RunInstance;
 }
+
+/** Every part id on the fixture's mech, in order. */
+const fixtureParts = (): string[] => storedRun().mech.parts.map((p) => p.partId);
 
 /**
  * The same two effects App.tsx mounts, in the same order, over the same hooks.
@@ -83,6 +87,45 @@ const storedParts = (): string[] => {
   return (JSON.parse(raw).mech?.parts ?? []).map((p: { partId: string }) => p.partId);
 };
 
+/**
+ * A pre-spatial save addresses cells that mean something different now that
+ * chassis have regions, so its parts land in the core or off the mask. It used
+ * to load anyway, giving the player a mech that could not fight and no
+ * explanation. Dropping it is the intended behaviour — this repo does not carry
+ * migrations for old save data.
+ */
+describe('a save from before regions', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('is discarded rather than loaded as an unplayable mech', () => {
+    const legacy = storedRun();
+    // Valid coordinates on the old flat grid; on a regioned CH-5 they are the
+    // core cell and off-mask.
+    (legacy as unknown as { mech: { parts: unknown[] } }).mech.parts = [
+      { id: 'r1', partId: 'R-E25', origin: { x: 2, y: 2 }, rotation: 0, integrity: 1 },
+      { id: 'w1', partId: 'W-MG', origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 },
+    ];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(legacy));
+
+    render(<Harness />);
+
+    expect(localStorage.getItem(STORAGE_KEY), 'the dead save should be cleared').toBeNull();
+  });
+
+  it('keeps a run whose mech is merely damaged or unpowered', () => {
+    // The narrow-discard guarantee: only physically impossible builds go. A
+    // stripped or browned-out mech is a game in progress, not corrupt data.
+    const damaged = storedRun();
+    const parts = (damaged as unknown as { mech: { parts: { integrity: number }[] } }).mech.parts;
+    for (const part of parts) part.integrity = 0.05;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(damaged));
+
+    render(<Harness />);
+
+    expect(storedParts(), 'a damaged run is still a run').toEqual(fixtureParts());
+  });
+});
+
 describe('reloading an active run', () => {
   beforeEach(() => {
     localStorage.clear();
@@ -91,7 +134,7 @@ describe('reloading an active run', () => {
 
   it('still has the saved mech in storage once the restore has settled', () => {
     render(<Harness />);
-    expect(storedParts()).toEqual(['R-E25', 'W-MG']);
+    expect(storedParts()).toEqual(fixtureParts());
   });
 
   it('never writes an empty mech over the saved one, even transiently', () => {
