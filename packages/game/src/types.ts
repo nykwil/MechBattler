@@ -146,15 +146,6 @@ export type RunEvent =
   | { type: 'refit'; nodeIndex: number; partInstanceId: string; installed: boolean }
   | { type: 'refit-build'; nodeIndex: number; installedIds: string[]; benchedIds: string[] }
   | { type: 'scrapyard'; nodeIndex: number; partInstanceId: string; cost: number }
-  | {
-    type: 'chassis-recovery';
-    nodeIndex: number;
-    fromChassisId: string;
-    toChassisId: string;
-    cost: number;
-    stowedIds: string[];
-    scrappedIds: string[];
-  }
   | { type: 'mod'; nodeIndex: number; partInstanceId: string; modifierId: string }
   | { type: 'unlock'; challengeId: string; partIds: string[] };
 

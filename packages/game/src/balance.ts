@@ -63,7 +63,6 @@ export interface RunBalanceReport {
     playerWins: number;
     playerLosses: number;
     draws: number;
-    chassisRecoveries: number;
   };
   depths: Array<{
     roundDepth: number;
@@ -204,7 +203,6 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
   let chassisLosses = 0;
   let attemptLimitLosses = 0;
   let runCount = 0;
-  let chassisRecoveries = 0;
 
   for (let templateIndex = 0; templateIndex < starterTemplateIds.length; templateIndex++) {
     const templateId = starterTemplateIds[templateIndex]!;
@@ -267,11 +265,7 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
           matchRecords.push(compactMatch(canonical, templateId));
         }
         const settlement = settleMatchInstance(run, canonical);
-        const eventsBeforePolicy = settlement.run.events.length;
         run = applyBaselineBetweenRoundPolicy(settlement.run);
-        if (run.events.slice(eventsBeforePolicy).some((event) => event.type === 'chassis-recovery')) {
-          chassisRecoveries++;
-        }
 
         if (run.status === 'over') break;
         if (run.nodeIndex === node.index
@@ -347,7 +341,6 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
     playerWins: matchRecords.filter((match) => match.winner === 0).length,
     playerLosses: matchRecords.filter((match) => match.winner === 1).length,
     draws: matchRecords.filter((match) => match.winner === 'draw').length,
-    chassisRecoveries,
   };
   const reportWithoutDigest = {
     ok: errors.length === 0,

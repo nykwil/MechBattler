@@ -445,15 +445,6 @@ function WeaponSlot({
   onClick?: () => void;
 }) {
   const def = getPart(wf.partId);
-  const cls = [
-    'hud-slot',
-    wf.status,
-    !wf.enabled && wf.status === 'ok' ? 'holdfire' : '',
-    fired ? 'fired' : '',
-    compact ? 'compact' : '',
-    override ? `ovr-${override}` : '',
-    onClick ? 'clickable' : '',
-  ].filter(Boolean).join(' ');
   const ovrText = override === 'hold' ? ' — manual: HOLD FIRE' : override === 'force' ? ' — manual: FORCE FIRE' : '';
   // Not-firing legibility (docs/09 M2): name the specific fire-control gate
   // instead of one ambiguous HOLD. A player hold is an order, not a diagnosis
@@ -477,7 +468,7 @@ function WeaponSlot({
             : wf.gate === 'heat'
               ? { label: 'HOT', blurb: `fire control holding at ≥${HEAT_FIRE_HOLD_C}°C (shutdown at ${HEAT_SHUTDOWN_C}°C)` }
               : { label: 'HOLD', blurb: 'fire control holding' };
-  const className = `gun${compact ? ' compact' : ''}${cls.includes('destroyed') ? ' dead' : ''}`;
+  const className = `gun${compact ? ' compact' : ''}${wf.status === 'destroyed' ? ' dead' : ''}${fired ? ' fired' : ''}`;
   const body = (
     <>
       {/* Fill is time to next shot. The prototype learned to build these once and

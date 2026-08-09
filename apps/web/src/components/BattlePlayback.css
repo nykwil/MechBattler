@@ -80,55 +80,6 @@
 
 .hud-empty { color: var(--ink-faint); }
 
-/* Weapon slot: an ability square whose fill is progress to the next shot. */
-.hud-slot {
-  position: relative;
-  width: 52px;
-  height: 44px;
-  border: 1px solid var(--line-hairline);
-  border-radius: 4px;
-  background: rgba(0, 0, 0, 0.45);
-  overflow: hidden;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  cursor: default;
-}
-.hud-slot.compact {
-  width: 30px;
-  height: 20px;
-}
-.hud-slot.ok { border-color: var(--signal-amber-dim); }
-.hud-slot.ok .hud-slot-fill { background: rgba(232, 162, 61, 0.45); }
-.hud-slot.holdfire { border-color: var(--line-hairline); opacity: 0.65; }
-.hud-slot.holdfire .hud-slot-fill { background: rgba(255, 255, 255, 0.12); }
-.hud-slot.shed { border-color: var(--signal-blue-dim); opacity: 0.7; }
-.hud-slot.shutdown {
-  border-color: var(--signal-red);
-  animation: slot-overheat 1s ease-in-out infinite;
-}
-.hud-slot.destroyed { border-color: var(--line-hairline); opacity: 0.4; }
-.hud-slot.destroyed .hud-slot-fill { display: none; }
-.hud-slot.fired {
-  box-shadow: 0 0 10px 1px rgba(232, 162, 61, 0.7) inset;
-}
-.hud-slot.fired .hud-slot-fill { background: var(--signal-amber); }
-@keyframes slot-overheat {
-  0%, 100% { box-shadow: 0 0 6px 0 rgba(214, 69, 69, 0.5) inset; }
-  50% { box-shadow: 0 0 12px 2px rgba(214, 69, 69, 0.9) inset; }
-}
-.hud-slot.clickable { cursor: pointer; }
-@media (hover: hover) {
-  .hud-slot.clickable:hover { border-color: var(--line-bright); }
-}
-.hud-slot.ovr-hold { border-style: dashed; }
-.hud-slot.ovr-force { border-color: var(--signal-green); }
-.hud-slot-ovr.hold { color: var(--ink-faint); }
-.hud-slot-ovr.force { color: var(--signal-green); }
-.hud-slot.compact .hud-slot-label { display: none; }
-.hud-slot.compact .hud-slot-x { font-size: var(--text-2xs); }
-.hud-slot.compact .hud-slot-hold { display: none; }
-
 /* --- Gauges ---------------------------------------------------------------- */
 
 .hud-gauges {

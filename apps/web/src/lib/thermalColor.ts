@@ -1,11 +1,13 @@
+import { HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C } from '@mechbattler/sim';
+
 /** Maps a cell temperature to a color on the workshop's amber/red heat scale. See docs/02 §3 thresholds. */
 export function thermalColor(tempC: number): string {
   const stops: [number, [number, number, number]][] = [
-    [25, [42, 58, 74]],    // ambient -- cool schematic blue-grey
-    [75, [90, 169, 199]],  // warm blue
-    [100, [232, 162, 61]], // warning amber (approaching 100C)
-    [130, [214, 69, 69]],  // shutdown red
-    [180, [255, 255, 255]], // cook-off white-hot
+    [HEAT_AMBIENT_C, [42, 58, 74]],    // ambient -- cool schematic blue-grey
+    [75, [90, 169, 199]],              // warm blue (presentation-only midpoint)
+    [HEAT_FIRE_HOLD_C, [232, 162, 61]], // warning amber (fire-control starts holding)
+    [HEAT_SHUTDOWN_C, [214, 69, 69]],  // shutdown red
+    [180, [255, 255, 255]],            // cook-off white-hot (docs/02 §3, U-AMMO only)
   ];
   let lo = stops[0]!;
   let hi = stops[stops.length - 1]!;

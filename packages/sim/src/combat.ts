@@ -180,8 +180,6 @@ export const WEAPON_REACH_MULT = 1;
  * under fire.
  */
 export const APPROACH_SLANT_RAD = [0.35, 0.7];
-/** How far ahead the autopilot projects a maneuver when scoring it. */
-export const MANEUVER_HORIZON_S = 2.0;
 
 export interface Vec2 { x: number; y: number }
 

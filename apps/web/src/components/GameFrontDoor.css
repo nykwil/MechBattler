@@ -72,7 +72,6 @@
 .front-deck.compact { max-width: 68ch; }
 .front-actions { display: grid; gap: var(--space-2); margin-top: var(--space-4); }
 .front-actions button,
-.starter-card,
 .frame-grid button,
 .frame-grid > div {
   text-align: left;
@@ -136,7 +135,7 @@
   align-self: flex-start;
   margin-bottom: var(--space-5);
 }
-.starter-grid, .challenge-grid {
+.challenge-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--space-3);
@@ -211,23 +210,23 @@
   border: 1px solid var(--line-hairline);
 }
 .garage-create .front-secondary { padding: var(--space-3) var(--space-4); }
-.starter-card, .challenge-card {
+.challenge-card {
   min-height: 170px;
   padding: var(--space-4);
   color: var(--ink-primary);
   background: var(--bg-inset);
   border: 1px solid var(--line-hairline);
 }
-.starter-card strong, .challenge-card strong, .frame-grid strong {
+.challenge-card strong, .frame-grid strong {
   font-weight: 600;
   font-size: var(--text-base);
   font-family: var(--font-display)
 }
-.starter-card > span:not(.starter-status), .frame-grid span {
+.frame-grid span {
   color: var(--ink-secondary);
   font-size: var(--text-xs);
 }
-.starter-card small, .challenge-card small, .frame-grid small {
+.challenge-card small, .frame-grid small {
   color: var(--ink-faint);
   font-size: var(--text-2xs);
   font-family: var(--font-mono)
@@ -297,7 +296,7 @@
 
 @media (max-width: 760px) {
   .front-card { padding: 28px 20px; }
-  .starter-grid, .challenge-grid, .frame-grid, .garage-grid { grid-template-columns: 1fr; }
+  .challenge-grid, .frame-grid, .garage-grid { grid-template-columns: 1fr; }
   .garage-create { grid-template-columns: 1fr; }
   .profile-summary { flex-direction: column; }
   .front-primary, .front-secondary { align-items: flex-start; flex-direction: column; }

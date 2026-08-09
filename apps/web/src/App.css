@@ -334,6 +334,12 @@
    risk line in particular is the one that says how long you have. */
 .battle-app .heatcol .heat-k,
 .battle-app .heatcol .heat-risk { font-size: 11px; }
+/* WeaponSlot has always computed which gun chip fired this frame -- real data
+   from the event stream -- but the flash that read it belonged to an older
+   gun-chip skin the port never carried into battle.css's .gun, so the signal
+   reached the DOM and produced nothing. Restored here rather than in
+   battle.css, which stays a verbatim port. */
+.battle-app .gun.fired { box-shadow: 0 0 10px 1px rgba(232, 162, 61, 0.7) inset; }
 
 /* The unit suffix in a readout value; the prototype inlined this style. */
 .ro-unit {

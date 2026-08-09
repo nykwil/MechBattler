@@ -196,11 +196,4 @@
   font-size: var(--text-2xs);
   color: var(--signal-amber);
 }
-.run-frames .chip:disabled { opacity: 0.45; cursor: not-allowed; }
 .run-scrap.over { color: var(--signal-red-text); }
-.run-history-cause {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--ink-faint);
-  text-align: right;
-}

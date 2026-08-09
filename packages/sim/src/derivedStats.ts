@@ -195,8 +195,9 @@ export function falloffAt(def: PartDef, r: number): number {
 
 /**
  * Rough hit probability against a nominal 2.5 m target width, from dispersion
- * at range r. Shared with the arena cone fade so the marking tracks the same
- * accuracy curve the envelope / expected-DPS math uses.
+ * at range r. A cheap approximation for the workshop's weapon-envelope chart
+ * only — the authoritative model is computeHitModel, which the arena cone
+ * fade and every in-battle accuracy figure read instead.
  */
 export function hitProbabilityAt(def: PartDef, r: number): number {
   const sigmaM = def.weapon!.dispersionMrad * 0.001 * r; // dispersion cone half-width in meters at range r

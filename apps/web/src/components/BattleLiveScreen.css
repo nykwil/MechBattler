@@ -36,7 +36,6 @@
   margin-left: var(--space-1);
 }
 .live-orders-label:first-child { margin-left: 0; }
-.live-orders-spacer { flex: 1; }
 .hud-chip.btn {
   cursor: pointer;
   background: none;
