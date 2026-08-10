@@ -79,6 +79,22 @@ export interface EffectiveMults {
   massKg: number;
   /** This part's contribution to the mech's target profile (product). */
   targetProfile: number;
+  /**
+   * This part's contribution to the mech-wide multiplier on the shooter's own
+   * -motion aim jitter (product, read by `Combatant.mechMoveJitterMult`).
+   * Separate from `moveJitter`, which scopes to the one weapon carrying it —
+   * this is for a chassis-level part (a suspension mod) meant to buy down
+   * every gun's jitter at once, the way `targetProfile` already works.
+   */
+  mechMoveJitter: number;
+  /**
+   * This part's contribution to the mech-wide multiplier on the fast-turn
+   * dispersion spike's excess (product, read by `Combatant.turnJitterMult`).
+   * The spike itself (docs/03 §5) is a flat ×1.3 above 45°/s; a source here
+   * scales the 0.3 of excess, so neutral (1) reproduces ×1.3 exactly and nothing
+   * can turn the spike into a bonus.
+   */
+  turnJitter: number;
   /** Static: always sheds first in a brownout, ignoring priority. */
   shedFirst: boolean;
   /** Static: takes first claim on power (reactor+capacitor) — brownout-immune. */
@@ -97,7 +113,8 @@ export function neutralMults(): EffectiveMults {
     overkillCarry: 1,
     drawKw: 1, outputKw: 1,
     radiator: 1, extraHeatKw: 0, conduction: 1, cookoffSplash: 1, thermalMass: 1,
-    hp: 1, massKg: 1, targetProfile: 1, shedFirst: false, firstPriority: false,
+    hp: 1, massKg: 1, targetProfile: 1, mechMoveJitter: 1, turnJitter: 1,
+    shedFirst: false, firstPriority: false,
     harvestsHeat: false, orderLatencyS: 0, ignoreTerrainSlow: false,
   };
 }
@@ -111,7 +128,7 @@ export function neutralMults(): EffectiveMults {
 export type ScalableField =
   | 'damage' | 'cycleS' | 'dispersionMrad' | 'moveJitter' | 'lateralPenalty'
   | 'overkillCarry' | 'drawKw' | 'outputKw' | 'radiator' | 'thermalMass'
-  | 'hp' | 'massKg' | 'targetProfile';
+  | 'hp' | 'massKg' | 'targetProfile' | 'mechMoveJitter' | 'turnJitter';
 
 /**
  * A pool that has summed to `1 + add <= 0` has inverted the effect it was
@@ -363,6 +380,35 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     maxCopiesPerBuild: 1,
     appliesTo: (d) => d.id === 'U-ACT',
     apply: (m, ctx) => { m.scale('massKg', 1.15); if (ctx.speedMps < 1.5) m.scale('targetProfile', 0.4); },
+  },
+  'coil-sprung': {
+    id: 'coil-sprung', name: 'Coil-sprung actuators', kind: 'mod',
+    blurb: 'own movement aim jitter ×0.6, mech-wide · servo mass ×1.15',
+    tradeoff: 'Damped legs add 15% servo mass and worsen load/CoG pressure, like Gyrostabilized — '
+      + 'but this buys down every gun at once instead of one.',
+    maxCopiesPerBuild: 1,
+    appliesTo: (d) => d.id === 'U-ACT',
+    apply: (m) => { m.scale('mechMoveJitter', 0.6); m.scale('massKg', 1.15); },
+  },
+  'gyro-flywheel': {
+    id: 'gyro-flywheel', name: 'Gyro flywheel', kind: 'mod',
+    blurb: 'halves the fast-turn dispersion spike · +0.5 kW waste heat',
+    tradeoff: 'The spinning mass sheds its own heat into the chassis continuously, whether or not you turn.',
+    maxCopiesPerBuild: 1,
+    appliesTo: (d) => d.id === 'U-ACT',
+    apply: (m) => { m.scale('turnJitter', 0.5); m.add('extraHeatKw', 0.5); },
+  },
+  'weaving-gait': {
+    id: 'weaving-gait', name: 'Weaving gait', kind: 'mod',
+    blurb: 'above 4 m/s target profile ×0.8 · own movement aim jitter ×1.3, mech-wide',
+    tradeoff: 'The irregular stride that makes you harder to lead also makes your own guns worse '
+      + 'on the move — it only pays off if you shoot while closing rather than standing to fire.',
+    maxCopiesPerBuild: 1,
+    appliesTo: (d) => d.id === 'U-ACT',
+    apply: (m, ctx) => {
+      m.scale('mechMoveJitter', 1.3);
+      if (ctx.speedMps > 4) m.scale('targetProfile', 0.8);
+    },
   },
   'insulated-mount': {
     id: 'insulated-mount', name: 'Insulated mount', kind: 'mod',

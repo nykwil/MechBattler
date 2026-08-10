@@ -2,8 +2,10 @@ import { describe, expect, it } from 'vitest';
 import type { Build, ChassisSpec, PlacedPart } from '../src/types.js';
 import { Simulation } from '../src/simulation.js';
 import {
-  Combatant, runBattle, computeHitModel, TRACKING_LAG_S,
+  Battle, Combatant, autopilotController, runBattle, computeHitModel, meanSilhouetteHalfWidthM,
+  TRACKING_LAG_S, type Controller,
 } from '../src/combat.js';
+import { generateTerrain } from '../src/terrain.js';
 import { getPart } from '../src/catalog.js';
 
 /**
@@ -324,5 +326,107 @@ describe('partial locomotion power slows a mech instead of freezing it', () => {
     expect(snapshot.locomotionPowerFrac).toBeLessThan(1);
     // Starved, but never shed: a fraction of the drive is still the drive.
     expect(snapshot.shedInstanceIds).not.toContain(CORE_INSTANCE_ID);
+  });
+});
+
+/**
+ * The exchange-optimizing autopilot prices standing ranges, not the transit
+ * between them — nothing upstream stops two mechs closing on each other from
+ * opposite sides in the same tick and walking through their own hulls. This
+ * is the floor that actually stops that, checked with a controller that does
+ * nothing but ram, so the autopilot's own restraint can't mask a missing one.
+ */
+describe('body collision (a floor no order can close past)', () => {
+  const rammer: Controller = ({ enemy }) => [
+    { verb: 'weapons', enabled: {} },
+    { verb: 'move', intent: 'close', dest: { x: enemy.pos.x, y: enemy.pos.y } },
+    { verb: 'throttle', setting: 'flank' },
+    { verb: 'face', mode: 'target' },
+  ];
+
+  it('never lets two mechs occupy less than their combined hull radius', () => {
+    const build = muleGunline();
+    const chassis = getChassis(build.chassisId);
+    const minSepM = meanSilhouetteHalfWidthM(chassis) * 2;
+    const battle = new Battle({
+      builds: [build, structuredClone(build)],
+      seed: 1,
+      controllers: [rammer, rammer],
+      suppressSurrender: true,
+      recordFrames: false,
+    });
+    let minSeen = Infinity;
+    for (let i = 0; i < 1000 && battle.step(); i++) {
+      const [a, b] = battle.combatants;
+      const d = Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y);
+      if (d < minSeen) minSeen = d;
+    }
+    // They actually closed the distance (this would be a vacuous pass on a
+    // controller that never moved), and never closer than the hull floor.
+    expect(minSeen).toBeLessThan(minSepM + 1);
+    expect(minSeen).toBeGreaterThanOrEqual(minSepM - 1e-6);
+  });
+
+  it("won't hold a gun's trigger down inside its own dead zone", () => {
+    // muleGunline's W-AC (Judge) has idealMin > 0, so falloffAt(def, 0) is 0
+    // (docs/03 §5, test/minrange.test.ts) — a shot from contact range is a
+    // shot the sim itself prices at zero damage. Two Combatants placed on
+    // top of each other exercise the autopilot's own weapon-enable gate
+    // directly, without needing a rammer to walk them there first.
+    const build = muleGunline();
+    const pos = { x: 0, y: 0 };
+    const self = new Combatant(build, pos, 0);
+    const enemy = new Combatant(structuredClone(build), { x: 0, y: 0 }, Math.PI);
+    const terrain = generateTerrain(1, 400, 300);
+    const orders = autopilotController({ self, enemy, snapshot: null, terrain, tSec: 0, tick: 0 });
+    const weaponsOrder = orders.find((o) => o.verb === 'weapons')!;
+    expect(weaponsOrder.verb).toBe('weapons');
+    if (weaponsOrder.verb === 'weapons') {
+      expect(weaponsOrder.enabled['ac']).toBe(false);
+    }
+  });
+});
+
+/**
+ * Coil-sprung / gyro flywheel / weaving gait (docs/04 §4b) are chassis-wide:
+ * one actuator changes every gun's dispersion, unlike Gyrostabilized which
+ * only buys down the weapon carrying it. That needs a real aggregator
+ * (`Combatant.mechMoveJitterMult` / `turnJitterMult`, same shape as the
+ * existing `profileMult`), so these exercise the aggregator directly rather
+ * than only the pure `effectiveMults` math modifiers.test.ts already covers.
+ */
+describe('movement mods aggregate mech-wide, not per-weapon', () => {
+  function buildWithActuator(mods: string[]): Build {
+    return {
+      chassisId: 'CH-5',
+      parts: [
+        { instanceId: 'reactor', partId: 'R-C40', origin: { x: 3, y: 1 }, rotation: 0, integrity: 1 },
+        { instanceId: 'act', partId: 'U-ACT', origin: { x: 4, y: 4 }, rotation: 0, integrity: 1, modifiers: mods },
+      ],
+      powerPriority: [CORE_INSTANCE_ID],
+    };
+  }
+
+  it('coil-sprung lowers the mech-wide own-motion jitter multiplier', () => {
+    const c = new Combatant(buildWithActuator(['coil-sprung']), { x: 0, y: 0 }, 0);
+    expect(c.mechMoveJitterMult('open')).toBeCloseTo(0.6);
+  });
+
+  it('gyro flywheel lowers the turn-jitter multiplier', () => {
+    const c = new Combatant(buildWithActuator(['gyro-flywheel']), { x: 0, y: 0 }, 0);
+    expect(c.turnJitterMult('open')).toBeCloseTo(0.5);
+  });
+
+  it('weaving gait raises jitter unconditionally but only shrinks the profile above 4 m/s', () => {
+    const c = new Combatant(buildWithActuator(['weaving-gait']), { x: 0, y: 0 }, 0);
+    expect(c.mechMoveJitterMult('open')).toBeCloseTo(1.3);
+    expect(c.profileMult('open', 3)).toBe(1);
+    expect(c.profileMult('open', 5)).toBeCloseTo(0.8);
+  });
+
+  it('a destroyed actuator stops contributing', () => {
+    const c = new Combatant(buildWithActuator(['coil-sprung']), { x: 0, y: 0 }, 0);
+    c.sim.destroyPart('act');
+    expect(c.mechMoveJitterMult('open')).toBe(1);
   });
 });

@@ -234,3 +234,38 @@ describe('content-depth mods: surge gate, thermocouple skin (docs/04 §4b)', () 
     expect(modifierIdsFor(getPart('W-AC'))).not.toContain('thermocouple-skin');
   });
 });
+
+describe('movement mods: coil-sprung, gyro flywheel, weaving gait', () => {
+  it('coil-sprung buys down the mech-wide move-jitter share, at 15% servo mass', () => {
+    const act = part('a', 'U-ACT', 0, 0, { modifiers: ['coil-sprung'] });
+    expect(effectiveMults(act, { tempC: 25, speedMps: 6, tile: 'open' }).mechMoveJitter).toBeCloseTo(0.6);
+    expect(effectiveMults(act, { tempC: 25, speedMps: 0, tile: 'open' }).massKg).toBeCloseTo(1.15);
+    // Only scopes actuators, same as Hull-down — a weapon can't carry it.
+    expect(MODIFIERS['coil-sprung']!.appliesTo(getPart('U-ACT'))).toBe(true);
+    expect(MODIFIERS['coil-sprung']!.appliesTo(getPart('W-AC'))).toBe(false);
+  });
+
+  it('gyro flywheel halves the turn-jitter share and sheds heat whether or not you turn', () => {
+    const act = part('a', 'U-ACT', 0, 0, { modifiers: ['gyro-flywheel'] });
+    expect(effectiveMults(act, { tempC: 25, speedMps: 0, tile: 'open' }).turnJitter).toBeCloseTo(0.5);
+    expect(effectiveMults(act, { tempC: 25, speedMps: 6, tile: 'open' }).turnJitter).toBeCloseTo(0.5);
+    expect(effectiveMults(act, { tempC: 25, speedMps: 0, tile: 'open' }).extraHeatKw).toBeCloseTo(0.5);
+  });
+
+  it('weaving gait trades mech-wide move-jitter for a smaller profile above 4 m/s', () => {
+    const act = part('a', 'U-ACT', 0, 0, { modifiers: ['weaving-gait'] });
+    // The jitter cost is unconditional (it is inert at 0 m/s regardless).
+    expect(effectiveMults(act, { tempC: 25, speedMps: 0, tile: 'open' }).mechMoveJitter).toBeCloseTo(1.3);
+    expect(effectiveMults(act, { tempC: 25, speedMps: 6, tile: 'open' }).mechMoveJitter).toBeCloseTo(1.3);
+    // The profile benefit only switches on above the 4 m/s threshold.
+    expect(effectiveMults(act, { tempC: 25, speedMps: 3, tile: 'open' }).targetProfile).toBe(1);
+    expect(effectiveMults(act, { tempC: 25, speedMps: 5, tile: 'open' }).targetProfile).toBeCloseTo(0.8);
+  });
+
+  it('appliesTo scopes all three to actuators only', () => {
+    for (const id of ['coil-sprung', 'gyro-flywheel', 'weaving-gait']) {
+      expect(modifierIdsFor(getPart('U-ACT')), id).toContain(id);
+      expect(modifierIdsFor(getPart('W-AC')), id).not.toContain(id);
+    }
+  });
+});

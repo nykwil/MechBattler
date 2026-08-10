@@ -574,13 +574,48 @@ export class Combatant {
    * present.
    */
   profileMult(tile: TerrainType, atSpeedMps?: number): number {
+    return this.partMultProduct('targetProfile', tile, atSpeedMps);
+  }
+
+  /**
+   * Mech-wide multiplier on the shooter's own-motion aim jitter (docs/04 §4b,
+   * e.g. Coil-sprung actuators / Weaving gait): the product of functional
+   * parts' `mechMoveJitter` contributions. Same shape as `profileMult` and
+   * for the same reason -- the chassis's baked-in `moveJitterMult` is the
+   * frame's inherent steadiness; this is what a build adds on top of it.
+   *
+   * `atSpeedMps` overrides the current velocity for planning, same as
+   * `profileMult` -- `estimateExpectedDps` prices the candidate speed being
+   * scored, not whatever the mech happens to be doing this tick.
+   */
+  mechMoveJitterMult(tile: TerrainType, atSpeedMps?: number): number {
+    return this.partMultProduct('mechMoveJitter', tile, atSpeedMps);
+  }
+
+  /**
+   * Mech-wide multiplier on the fast-turn dispersion spike's excess (docs/03
+   * §5, docs/04 §4b Gyro flywheel). Only consulted at shot resolution against
+   * the mech's actual recent turn rate -- planning doesn't know a future
+   * maneuver's turn rate, so there is no `atSpeedMps`-style override here.
+   */
+  turnJitterMult(tile: TerrainType): number {
+    return this.partMultProduct('turnJitter', tile, len(this.vel));
+  }
+
+  /**
+   * Shared shape behind `profileMult`, `mechMoveJitterMult` and
+   * `turnJitterMult`: the product of every functional, powered part's
+   * contribution to one mech-wide `EffectiveMults` field, read against a
+   * given speed (the mech's own, or a planning candidate).
+   */
+  private partMultProduct(field: 'targetProfile' | 'mechMoveJitter' | 'turnJitter', tile: TerrainType, atSpeedMps?: number): number {
     const speedMps = atSpeedMps ?? len(this.vel);
     let mult = 1;
     for (const p of this.build.parts) {
       if (!p.modifiers?.length || !this.isPartFunctional(p.instanceId)) continue;
       const runtime = this.sim.instanceRuntime.get(p.instanceId);
       if (runtime?.isShed || runtime?.isShutdown) continue;
-      mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps, tile }).targetProfile;
+      mult *= effectiveMults(p, { tempC: this.sim.meanCellC(p.instanceId), speedMps, tile })[field];
     }
     return mult;
   }
@@ -962,7 +997,8 @@ export function estimateExpectedDps(
         dispersionMrad: w.dispersionMrad,
         speedMps: shooterSpeedMps,
         mults: m,
-        chassisMoveJitterMult: shooter.chassis.moveJitterMult,
+        chassisMoveJitterMult: (shooter.chassis.moveJitterMult ?? 1)
+          * shooter.mechMoveJitterMult(mods.shooterTile ?? 'open', shooterSpeedMps),
       }),
       lateralSpeedMps: targetLateralMps,
       lagS,
@@ -1218,11 +1254,15 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
     const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const inArc = bearingOffset <= halfArc;
-    const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT
-      * self.weaponRangeMultiplier(p.instanceId)
-      * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+    const rangeMultiplier = self.weaponRangeMultiplier(p.instanceId) * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+    const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT * rangeMultiplier;
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
-    enabled[p.instanceId] = inArc && range <= despawnRange && coolEnough;
+    // falloffAt is 0 at true point-blank for every gun that isn't a brawler
+    // (idealMin > 0 ramps from 0, and W-MG's explicit `min` hard-floors it) —
+    // firing there is heat/ammo spent on a shot the sim itself prices at zero.
+    // Range is unscaled back through the same multiplier computeWeaponEnvelope
+    // uses so a hill's reach bonus doesn't get read as point-blank.
+    enabled[p.instanceId] = inArc && falloffAt(def, range / rangeMultiplier) > 0 && range <= despawnRange && coolEnough;
   }
 
   // --- Verb 4: face the target when a gun can reach. Out of reach, travel-face
@@ -1644,6 +1684,7 @@ export class Battle {
       if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
       else if (c.pos.y > this.arenaHalfWidthM) { c.pos.y = this.arenaHalfWidthM; c.vel.y = Math.min(0, c.vel.y); }
     }
+    this.resolveBodyCollision();
 
     if (this.recordFrames) {
       this.frames.push({
@@ -1739,6 +1780,33 @@ export class Battle {
     }
   }
 
+  /**
+   * Hard body collision: no order the autopilot or a player can issue closes
+   * range past both mechs' hulls. Nothing upstream priced this — the exchange
+   * scan starts at 10 m and a slant/overshoot can still walk two mechs through
+   * that floor from opposite sides in one tick — so it is enforced here, once,
+   * on the resolved positions rather than threaded through every mover.
+   */
+  private resolveBodyCollision(): void {
+    const [a, b] = this.combatants;
+    const minSepM = meanSilhouetteHalfWidthM(a.chassis) + meanSilhouetteHalfWidthM(b.chassis);
+    const delta = sub(b.pos, a.pos);
+    const dist = len(delta);
+    if (dist >= minSepM || dist < 1e-6) return;
+    const push = norm(delta);
+    const overlap = minSepM - dist;
+    a.pos = sub(a.pos, scale(push, overlap / 2));
+    b.pos = add(b.pos, scale(push, overlap / 2));
+    // Kill the closing component so the pair settles at arm's length instead
+    // of being shoved apart and immediately driven back together next tick.
+    const relVel = sub(b.vel, a.vel);
+    const closingSpeed = -(relVel.x * push.x + relVel.y * push.y);
+    if (closingSpeed > 0) {
+      a.vel = sub(a.vel, scale(push, closingSpeed / 2));
+      b.vel = add(b.vel, scale(push, closingSpeed / 2));
+    }
+  }
+
   private logTransitions(i: 0 | 1, snapshot: SimSnapshot): void {
     const shed = new Set(snapshot.shedInstanceIds);
     for (const id of shed) {
@@ -1775,7 +1843,7 @@ export class Battle {
       * enemy.profileMult(targetTile);
     const model = computeHitModel({
       rangeM: range,
-      sigmaRad: this.effectiveDispersionRad(self, instanceId, def, aimBearing, shooterM),
+      sigmaRad: this.effectiveDispersionRad(self, instanceId, def, aimBearing, shooterTile, shooterM),
       lateralSpeedMps: enemy.lateralSpeedMps(losDir),
       lagS,
       lateralPenaltyMult: fireControlMult * shooterM.lateralPenalty,
@@ -1835,14 +1903,17 @@ export class Battle {
   }
 
   /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
-  private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
+  private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, tile: TerrainType, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
     let mrad = weaponSigmaMrad({
       dispersionMrad: def.weapon!.dispersionMrad,
       speedMps: len(self.vel),
       mults: m,
-      chassisMoveJitterMult: self.chassis.moveJitterMult,
+      chassisMoveJitterMult: (self.chassis.moveJitterMult ?? 1) * self.mechMoveJitterMult(tile),
     });
-    if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1.3;
+    // Neutral turnJitter (1) reproduces the flat ×1.3 spike exactly; a source
+    // that scales it down only buys back the 0.3 of excess above ×1, so it
+    // can shrink the spike but never invert it into a bonus.
+    if (Math.abs(self.lastTurnRateRadS) > 45 * (Math.PI / 180)) mrad *= 1 + 0.3 * self.turnJitterMult(tile);
     const halfArc = (self.weaponArcDeg(instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
     const offset = Math.abs(wrapAngle(aimBearing - self.facingRad));
     if (halfArc > 0 && offset > 0.75 * halfArc) mrad *= 1.25;
