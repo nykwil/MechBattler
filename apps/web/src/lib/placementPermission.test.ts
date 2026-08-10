@@ -44,6 +44,11 @@ describe('placementPermission', () => {
       .toEqual({ kind: 'deny', reason: 'over-tier-budget' });
   });
 
+  it('keeps a finished run from becoming a sandbox', () => {
+    expect(ask({ phase: 'over', build: empty }))
+      .toEqual({ kind: 'deny', reason: 'run-is-reference-only' });
+  });
+
   it('exempts wiring from the prep budget, as the enemy ladder does', () => {
     for (const wiring of ['U-CON', 'U-PIPE']) {
       expect(ask({ phase: 'prep', build: heavy, partId: wiring }), wiring)

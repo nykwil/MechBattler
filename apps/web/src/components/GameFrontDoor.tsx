@@ -168,9 +168,15 @@ export function NewRunScreen({
 export function ProfileScreen({
   profile,
   onBack,
+  onLoadOneHour,
+  onResetFresh,
 }: {
   profile: PlayerProfile;
   onBack: () => void;
+  /** Seeds the one-hour balancing fixture into the stored profile. */
+  onLoadOneHour?: () => void;
+  /** Clears progress back to a fresh start. */
+  onResetFresh?: () => void;
 }) {
   return (
     <main className="front-door">
@@ -207,6 +213,30 @@ export function ProfileScreen({
             </div>
           ))}
         </div>
+        {(onLoadOneHour || onResetFresh) && (
+          <>
+            <div className="front-divider"><span>BALANCE FIXTURES</span></div>
+            <p className="front-deck compact">
+              Balancing targets the experience after roughly one hour — all three chassis,
+              the fifteen-part pool, and nine probe mechs in the garage. Load that state
+              instead of grinding to it; either button replaces your current profile.
+            </p>
+            <div className="profile-fixtures">
+              {onLoadOneHour && (
+                <button type="button" className="front-primary" onClick={onLoadOneHour}>
+                  Load one-hour state
+                  <small>3 chassis · 15 parts · 9 probe mechs</small>
+                </button>
+              )}
+              {onResetFresh && (
+                <button type="button" className="front-secondary" onClick={onResetFresh}>
+                  Reset to fresh start
+                  <small>Starter unlocks only</small>
+                </button>
+              )}
+            </div>
+          </>
+        )}
       </section>
     </main>
   );

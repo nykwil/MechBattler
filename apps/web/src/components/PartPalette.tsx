@@ -13,7 +13,7 @@ function metaLine(def: PartDef): string {
 
 export function PartPalette({
   selectedPartId, onSelect, onHover, priceMult, scrap, visiblePartIds, ownedCounts,
-  readOnly, label = 'Salvage bin', category,
+  fittablePartIds, readOnly, label = 'Salvage bin', category,
 }: {
   selectedPartId: string | null;
   onSelect: (id: string | null) => void;
@@ -29,7 +29,12 @@ export function PartPalette({
   visiblePartIds?: Set<string>;
   /** Physical owned-copy counts, used during active runs. */
   ownedCounts?: Map<string, number>;
-  /** Active runs may only fit owned bench parts; the catalog is reference-only. */
+  /**
+   * Part ids with a benched spare that can be armed from this list. During an
+   * active run, installed-only rows stay locked; salvage/spares stay tappable.
+   */
+  fittablePartIds?: Set<string>;
+  /** Active memorial / empty-bench runs may only inspect owned equipment. */
   readOnly?: boolean;
   label?: string;
   /**
@@ -48,6 +53,8 @@ export function PartPalette({
     ),
   })).filter(({ parts }) => parts.length > 0);
 
+  const runInventory = ownedCounts !== undefined;
+
   return (
     <div>
       {!category && <div className="eyebrow" style={{ marginBottom: 10 }}>{label}</div>}
@@ -55,7 +62,7 @@ export function PartPalette({
         /* A category can hold nothing you own, and an empty panel reads as a broken
            screen rather than an empty inventory. Say which it is. */
         <p className="part-empty">
-          {readOnly
+          {runInventory
             ? 'Nothing of this kind on the mech or the bench.'
             : 'You have no equipment of this kind yet — wrecks carry more.'}
         </p>
@@ -67,41 +74,50 @@ export function PartPalette({
             {CATEGORY_LABEL[cat]}
           </div>}
           {parts.map((def) => {
-            const disabled = readOnly;
+            const fittable = Boolean(fittablePartIds?.has(def.id));
+            const disabled = readOnly || (runInventory && fittablePartIds !== undefined && !fittable);
             return (
               <button
                 key={def.id}
                 type="button"
                 className={`part-row${selectedPartId === def.id ? ' selected' : ''}${disabled ? ' locked' : ''}`}
                 disabled={disabled}
-                title={readOnly ? 'Installed parts are on the mech; salvaged spares are managed on the run bench' : undefined}
-              onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
-              onMouseEnter={() => onHover(def.id)}
-              onMouseLeave={() => onHover(null)}
-            >
-              <ShapePreview def={def} />
-              <div className="part-info">
-                <div className="part-name">
-                  {def.name}
-                  {ownedCounts?.has(def.id) && (
-                    <span className="part-price">×{ownedCounts.get(def.id)}</span>
-                  )}
-                  {priceMult !== undefined && (
-                    <span className={`part-price${scrap !== undefined && def.tier * priceMult > scrap ? ' too-rich' : ''}`}>
-                      −{def.tier * priceMult}⚙
-                    </span>
-                  )}
+                title={disabled
+                  ? (runInventory
+                    ? 'Installed on the mech — unplace it, or salvage a spare, to fit another'
+                    : undefined)
+                  : (fittable ? 'Fit a benched spare onto the mech' : undefined)}
+                onClick={() => onSelect(selectedPartId === def.id ? null : def.id)}
+                onMouseEnter={() => onHover(def.id)}
+                onMouseLeave={() => onHover(null)}
+              >
+                <ShapePreview def={def} />
+                <div className="part-info">
+                  <div className="part-name">
+                    {def.name}
+                    {ownedCounts?.has(def.id) && (
+                      <span className="part-price">×{ownedCounts.get(def.id)}</span>
+                    )}
+                    {fittable && <span className="part-price">bench</span>}
+                    {priceMult !== undefined && (
+                      <span className={`part-price${scrap !== undefined && def.tier * priceMult > scrap ? ' too-rich' : ''}`}>
+                        −{def.tier * priceMult}⚙
+                      </span>
+                    )}
+                  </div>
+                  <ChipRow def={def} />
+                  <div className="part-meta">{metaLine(def)}</div>
                 </div>
-                <ChipRow def={def} />
-                <div className="part-meta">{metaLine(def)}</div>
-              </div>
-            </button>
+              </button>
             );
           })}
         </div>
       ))}
       <div className="rotate-hint">
-        {readOnly ? 'Your installed equipment is on the mech; salvaged spares are on the run bench.'
+        {runInventory
+          ? (fittablePartIds && fittablePartIds.size > 0
+            ? 'Tap a spare marked bench to fit it. Salvage from wrecks is added here.'
+            : 'Your installed equipment is on the mech. Salvage from wrecks will appear here as spares.')
           : <>Select a part, then click the grid to place it.<br />Press <kbd>R</kbd> to rotate before placing.</>}
       </div>
     </div>

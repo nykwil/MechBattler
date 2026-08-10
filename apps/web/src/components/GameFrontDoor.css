@@ -286,6 +286,14 @@
 .challenge-grid { grid-template-columns: repeat(2, 1fr); }
 .challenge-card.complete { border-color: var(--signal-green); }
 .challenge-card p { color: var(--ink-secondary); margin: var(--space-2) 0 var(--space-3); }
+.profile-fixtures {
+  display: grid;
+  gap: var(--space-2);
+}
+.profile-fixtures .front-primary,
+.profile-fixtures .front-secondary {
+  width: 100%;
+}
 
 @media (max-width: 760px) {
   .front-card { padding: 28px 20px; }

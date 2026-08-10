@@ -194,12 +194,11 @@ export function PartInspector({
           Deselect
         </button>
       </div>
-      {/* Del detaches either way; what differs is where backing out puts the part.
-          Mid-run it is yours, so it goes to the bench — and only says "discards"
-          when the bench has no room to take it. */}
+      {/* Del detaches either way; Stow / Esc park it on the bench mid-run.
+          Discard only when the bench is full (or outside a run). */}
       <div className="inspector-hint">
         <kbd>Del</kbd> {runOps ? (runOps.benchFull ? 'discards — bench full' : 'lifts it off') : 'removes'}
-        {' · '}<kbd>Esc</kbd> deselects
+        {' · '}<kbd>Esc</kbd> {runOps ? (runOps.benchFull ? 'discards' : 'stows to inventory') : 'deselects'}
       </div>
     </div>
   );

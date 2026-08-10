@@ -17,6 +17,7 @@ import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import { resolveView } from './lib/views.js';
 import { settleRunFight } from './lib/settleRunFight.js';
 import { placementPermission } from './lib/placementPermission.js';
+import { stowPayloadFromDetached } from './lib/stowDetached.js';
 import type { FightMode } from './components/ArenaPanel.js';
 // Lazy: the Balance Lab is a desktop analysis tool with its own worker, and the
 // battle screens carry the whole battle stylesheet. Neither is needed to paint the
@@ -91,7 +92,10 @@ export default function App() {
     run, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markMilestoneMod, clearModService, persistBuild, restored, clearRestored,
   } = useRun();
-  const { profile, recordBattleOutcome, pushHistory, saveMech, removeSavedMech } = useProfile();
+  const {
+    profile, recordBattleOutcome, pushHistory, saveMech, removeSavedMech,
+    resetProfile, loadOneHourProfile,
+  } = useProfile();
   /** Whether the open battle belongs to the run (vs free-play arena). */
   const runFightRef = useRef(false);
   /** Bench-pool part armed for grid placement (docs/10 M3). */
@@ -145,18 +149,96 @@ export default function App() {
     setWorkspace('workshop');
   }, [loadBuild, startCustom]);
 
-  // Palette selection always drops any armed bench part — a fresh catalog
-  // part and a bench part can't both be on the cursor.
+  /**
+   * Clear the armed/detached cursor. Mid-run a detached part is owned salvage:
+   * park it on the bench unless the caller asks to discard (bench full) or we
+   * are outside a run. Esc used to call selectPart(null) alone and vaporize it.
+   */
+  const releaseArmed = useCallback((opts?: { discard?: boolean }) => {
+    const detached = state.detached;
+    const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
+    const payload = opts?.discard ? null : stowPayloadFromDetached({
+      detached,
+      selectedPartId: state.selectedPartId,
+      placeExtras: state.placeExtras,
+      provenance: detached && run.phase === 'active'
+        ? run.data.partProvenance[detached.instanceId]
+        : undefined,
+      runActive,
+      benchUsed,
+      benchCap: BENCH_CAP,
+    });
+    if (payload) addBench(payload);
+    setPendingBench(null);
+    selectPart(null);
+    if (payload) setToast(`${name} to inventory`);
+    else if (detached) setToast(`${name} discarded`);
+  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectPart]);
+
+  /** Stow any held detached part before arming something else from the catalog. */
   const selectPalettePart = useCallback((id: string | null) => {
+    if (state.detached) {
+      const payload = stowPayloadFromDetached({
+        detached: state.detached,
+        selectedPartId: state.selectedPartId,
+        placeExtras: state.placeExtras,
+        provenance: run.phase === 'active'
+          ? run.data.partProvenance[state.detached.instanceId]
+          : undefined,
+        runActive,
+        benchUsed,
+        benchCap: BENCH_CAP,
+      });
+      if (payload) addBench(payload);
+    }
     setPendingBench(null);
     selectPart(id);
-  }, [selectPart]);
+  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectPart]);
+
+  /** Stow any held detached part before changing the installed selection. */
+  const pickInstance = useCallback((id: string | null) => {
+    if (state.detached) {
+      const payload = stowPayloadFromDetached({
+        detached: state.detached,
+        selectedPartId: state.selectedPartId,
+        placeExtras: state.placeExtras,
+        provenance: run.phase === 'active'
+          ? run.data.partProvenance[state.detached.instanceId]
+          : undefined,
+        runActive,
+        benchUsed,
+        benchCap: BENCH_CAP,
+      });
+      if (payload) {
+        addBench(payload);
+        const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
+        setToast(`${name} to inventory`);
+      } else if (state.selectedPartId) {
+        setToast(`${getPart(state.selectedPartId).name.split(' ')[0]} discarded`);
+      }
+    }
+    selectInstance(id);
+  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectInstance]);
 
   /** Arm a bench part: it places with its full salvage state, once. */
   const fitBench = useCallback((index: number) => {
     if (run.phase !== 'active') return;
     const b = run.data.benchPool[index];
     if (!b) return;
+    // A part already lifted off the plate must land on the bench before we arm
+    // a different spare — otherwise selectPart clears detached and deletes it.
+    if (state.detached) {
+      const payload = stowPayloadFromDetached({
+        detached: state.detached,
+        selectedPartId: state.selectedPartId,
+        placeExtras: state.placeExtras,
+        provenance: run.data.partProvenance[state.detached.instanceId],
+        runActive: true,
+        benchUsed,
+        benchCap: BENCH_CAP,
+      });
+      if (payload) addBench(payload);
+    }
     setPendingBench({ index, partId: b.partId });
     // Arming anything closes the sheet it was armed from, exactly as picking a
     // catalog part closes the parts sheet. The bench lives in the readout sheet,
@@ -170,7 +252,7 @@ export default function App() {
       modifiers: b.modifiers,
       variant: b.variant,
     });
-  }, [run, selectPart]);
+  }, [run, selectPart, state.detached, state.selectedPartId, state.placeExtras, benchUsed, addBench]);
 
   // Placement with the run economy in the loop (docs/10 M3): a bench part
   // consumes its bench slot; a fresh catalog part is bought at tier ×
@@ -367,16 +449,26 @@ export default function App() {
         ...run.data.benchPool.map((part) => part.partId),
       ]);
     }
+    // A finished run is a memorial, not a sandbox with leftover gear.
+    if (run.phase === 'over') return new Set(state.parts.map((part) => part.partId));
     return undefined;
   }, [runPrep, runActive, profile.unlockedPartIds, state.parts, run]);
   const ownedPartCounts = useMemo(() => {
-    if (run.phase !== 'active') return undefined;
+    if (run.phase !== 'active' && run.phase !== 'over') return undefined;
     const counts = new Map<string, number>();
-    for (const part of [...state.parts, ...run.data.benchPool]) {
+    const pool = run.phase === 'active'
+      ? [...state.parts, ...run.data.benchPool]
+      : state.parts;
+    for (const part of pool) {
       counts.set(part.partId, (counts.get(part.partId) ?? 0) + 1);
     }
     return counts;
   }, [runActive, state.parts, run]);
+  /** Part ids with at least one benched spare — those rows are fittable from Parts. */
+  const fittablePartIds = useMemo(() => {
+    if (run.phase !== 'active') return undefined;
+    return new Set(run.data.benchPool.map((part) => part.partId));
+  }, [runActive, run]);
 
   // ?view=battle opens a seeded free-play fight, ?view=report resolves one and
   // opens its report. Both match the existing ?view= affordances and exist so the
@@ -495,20 +587,24 @@ export default function App() {
         }
       }
       if (e.key === 'Escape') {
-        setPendingBench(null);
-        selectPart(null);
-        selectInstance(null);
+        // Mid-run Esc must stow a detached part — selectPart(null) alone deletes it.
+        if (state.detached) releaseArmed();
+        else {
+          setPendingBench(null);
+          selectPart(null);
+          selectInstance(null);
+        }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedInstanceId) {
-        // docs/14 §7: remove-in-place does not exist. Delete detaches, and
-        // Discard (or Esc) from the armed state is what throws a part away.
+        // docs/14 §7: remove-in-place does not exist. Delete detaches; Stow / Esc
+        // (releaseArmed) parks it on the bench mid-run.
         detach(state.selectedInstanceId);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [rotate, selectPart, selectInstance, detach, nudge, placeWithEconomy, state.selectedPartId,
-      state.selectedInstanceId, battle, live, salvageOpen, screen, workspace]);
+      state.selectedInstanceId, state.detached, releaseArmed, battle, live, salvageOpen, screen, workspace]);
 
 
   // docs/14 §11: built once, rendered by whichever container is showing -- the
@@ -521,7 +617,7 @@ export default function App() {
         build={build}
         selectedInstanceId={state.selectedInstanceId}
         onDetach={detach}
-        onDeselect={() => selectInstance(null)}
+        onDeselect={() => pickInstance(null)}
         runOps={runOps}
       />
     </div>
@@ -679,7 +775,23 @@ export default function App() {
   }
 
   if (screen === 'profile') {
-    return <ProfileScreen profile={profile} onBack={() => setScreen('title')} />;
+    const replaceProfile = (apply: () => void) => {
+      if ((run.phase === 'active' || run.phase === 'prep')
+        && !window.confirm('Replace the profile and abandon the active run?')) return;
+      if (run.phase === 'over'
+        && !window.confirm('Replace the profile? The finished-run memorial will be cleared from the workshop.')) return;
+      if (run.phase !== 'none') abandon();
+      setEditingSavedMechId(null);
+      apply();
+    };
+    return (
+      <ProfileScreen
+        profile={profile}
+        onBack={() => setScreen('title')}
+        onLoadOneHour={() => replaceProfile(loadOneHourProfile)}
+        onResetFresh={() => replaceProfile(resetProfile)}
+      />
+    );
   }
 
   // The Balance Lab keeps the old desktop chrome; it is a desktop-only analysis
@@ -792,7 +904,7 @@ export default function App() {
               if (state.routeTool) { placeRoute(x, y); return; }
               // Armed: a tap aims the ghost. Otherwise it selects what is there.
               if (state.selectedPartId) { aim(x, y); return; }
-              selectInstance(cellOwners.get(`${x},${y}`)?.instanceId ?? null);
+              pickInstance(cellOwners.get(`${x},${y}`)?.instanceId ?? null);
             }}
             onRouteCell={placeRoute}
           />
@@ -815,29 +927,7 @@ export default function App() {
             stows={runActive && benchUsed < BENCH_CAP}
             reason={ghostReason}
             preview={ghostPlacementSummary}
-            onCancel={() => {
-              const detached = state.detached;
-              const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
-              // Backing out of a *detached* part used to destroy it. Mid-run, a
-              // part you pull off the plate is something you own: it goes back to
-              // the bench, and only a full bench (or free play, which has no
-              // inventory) can still lose it.
-              const stowed = detached !== null && runActive && benchUsed < BENCH_CAP
-                && state.selectedPartId !== null;
-              if (stowed && state.selectedPartId) {
-                addBench({
-                  id: detached.instanceId,
-                  partId: state.selectedPartId,
-                  integrity: state.placeExtras.integrity,
-                  modifiers: state.placeExtras.modifiers,
-                  variant: state.placeExtras.variant,
-                  provenance: run.data.partProvenance[detached.instanceId],
-                });
-              }
-              selectPart(null);
-              if (stowed) setToast(`${name} to inventory`);
-              else if (detached) setToast(`${name} discarded`);
-            }}
+            onCancel={() => releaseArmed()}
             onRotate={rotate}
             onPlace={placeWithEconomy}
             onOpenParts={() => setSheet('parts')}
@@ -858,7 +948,7 @@ export default function App() {
       {inspectorNode && (
         <Sheet
           open
-          onClose={() => selectInstance(null)}
+          onClose={() => pickInstance(null)}
           label="Part detail"
           initialSnap="half"
         >
@@ -924,12 +1014,23 @@ export default function App() {
         onClose={closeSheet}
         docked={false}
         selectedPartId={state.selectedPartId}
-        onSelect={(id) => { selectPalettePart(id); if (id) closeSheet(); }}
+        onSelect={(id) => {
+          // Active runs: Parts is the run inventory. A tap arms a benched spare
+          // (salvage / scrapyard), not a fresh catalog copy.
+          if (run.phase === 'active' && id) {
+            const benchIndex = run.data.benchPool.findIndex((part) => part.partId === id);
+            if (benchIndex >= 0) fitBench(benchIndex);
+            return;
+          }
+          selectPalettePart(id);
+          if (id) closeSheet();
+        }}
         onHover={() => {}}
         visiblePartIds={palettePartIds}
         ownedCounts={ownedPartCounts}
-        readOnly={runActive}
-        label={runActive ? 'Owned equipment' : runPrep ? 'Available equipment' : 'Sandbox catalog'}
+        fittablePartIds={fittablePartIds}
+        readOnly={run.phase === 'over' || (runActive && (fittablePartIds?.size ?? 0) === 0)}
+        label={runActive ? 'Run inventory' : runPrep ? 'Starting equipment' : run.phase === 'over' ? 'Final loadout' : 'Sandbox catalog'}
       />
 
       <ReadoutSheet

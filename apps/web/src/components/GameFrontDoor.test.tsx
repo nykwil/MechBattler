@@ -110,4 +110,21 @@ describe('game front door', () => {
     expect(screen.getByText(/Unlocks: Lump/)).toBeTruthy();
     expect(screen.getAllByText('ACTIVE').length).toBeGreaterThan(0);
   });
+
+  it('exposes the one-hour balancing fixture and a fresh reset', () => {
+    const onLoadOneHour = vi.fn();
+    const onResetFresh = vi.fn();
+    render(
+      <ProfileScreen
+        profile={defaultProfile()}
+        onBack={vi.fn()}
+        onLoadOneHour={onLoadOneHour}
+        onResetFresh={onResetFresh}
+      />,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Load one-hour state/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Reset to fresh start/ }));
+    expect(onLoadOneHour).toHaveBeenCalledOnce();
+    expect(onResetFresh).toHaveBeenCalledOnce();
+  });
 });

@@ -213,8 +213,18 @@ export function useProfile() {
     pushHistory,
     saveMech,
     removeSavedMech,
+    /** Fresh start: starter chassis, initial parts, factory blueprint only. */
     resetProfile: () => {
       const next = defaultProfile();
+      setProfile(next);
+      save(next);
+    },
+    /**
+     * The one-hour balancing fixture (docs/16): all three chassis, the fifteen-part
+     * target pool, and the nine probe mechs. Same payload as `?unlock=one-hour`.
+     */
+    loadOneHourProfile: () => {
+      const next = oneHourProfile();
       setProfile(next);
       save(next);
     },

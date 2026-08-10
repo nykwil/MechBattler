@@ -42,7 +42,11 @@ export function placementPermission({
       : { kind: 'allow' };
   }
 
-  if (phase === 'active') return { kind: 'deny', reason: 'run-is-reference-only' };
+  // Active and over: catalog is reference-only. Owned salvage places only via
+  // the pendingBench branch above.
+  if (phase === 'active' || phase === 'over') {
+    return { kind: 'deny', reason: 'run-is-reference-only' };
+  }
 
   return { kind: 'allow' };
 }

@@ -57,12 +57,9 @@ offers a machinist modifier at 25 scrap.
 
 **To play it**, not just measure it:
 
-```
-http://localhost:5160/?unlock=one-hour
-```
-
-Dev-only. Seeds all three chassis, the fifteen-part pool and the nine probe
-mechs into the garage, then: New run, Load, readout, RUN tab, Launch.
+Profile & unlocks → **Load one-hour state** (also `?unlock=one-hour` in
+dev). That seeds all three chassis, the fifteen-part pool and the nine probe
+mechs into the garage, then: New run → Load a probe → Launch.
 
 ## Two profiles, two questions
 
