@@ -1,5 +1,6 @@
-import { getChassis, getPart, type Build } from '@mechbattler/sim';
+import { getChassis, type Build } from '@mechbattler/sim';
 import { Sheet } from './Sheet.js';
+import { hasReactor as buildHasReactor, hasWeapon as buildHasWeapon } from '../lib/launchGate.js';
 import type { OpponentDef } from '../lib/opponents.js';
 
 /**
@@ -27,9 +28,10 @@ export function IntelSheet({
   onSelect: (opponent: OpponentDef) => void;
   onFight: (opponent: OpponentDef) => void;
 }) {
-  // Derived from the build itself, never from a copied constant.
-  const hasReactor = build.parts.some((p) => getPart(p.partId).reactor);
-  const hasWeapon = build.parts.some((p) => getPart(p.partId).weapon);
+  // Derived from the build itself, via the one launch-readiness rule
+  // (`lib/launchGate.ts`) every other blocker line reads from.
+  const hasReactor = buildHasReactor(build);
+  const hasWeapon = buildHasWeapon(build);
   const blocker = !hasReactor
     ? 'No reactor mounted — nothing on this mech will power up.'
     : !hasWeapon

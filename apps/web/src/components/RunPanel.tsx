@@ -8,6 +8,8 @@ import {
   repairCost, type BenchPart, type RunPhase,
 } from '../state/runState.js';
 import { buildTierBudget } from '@mechbattler/sim';
+import { hasReactor, hasWeapon, launchBlockers } from '../lib/launchGate.js';
+import { planRepairAll } from '../lib/repairPlan.js';
 import type { YardOffer } from '../lib/ladder.js';
 import { MODIFIERS } from '@mechbattler/sim';
 import { GAME_CONTENT } from '@mechbattler/game';
@@ -107,10 +109,11 @@ export function RunPanel({
   }
 
   if (run.phase === 'prep') {
+    // The budget number is shown as well as gated on, so it is read here too; the
+    // gate itself comes from `launchGate` so this and the action bar cannot disagree.
     const used = buildTierBudget(build);
-    const hasPrepWeapon = build.parts.some((p) => p.partId.startsWith('W-'));
-    const hasPrepReactor = build.parts.some((p) => p.partId.startsWith('R-'));
-    const ready = used <= START_BUDGET && hasPrepWeapon && hasPrepReactor;
+    const blockers = launchBlockers(build);
+    const ready = blockers.length === 0;
     return (
       <div>
         <div className="eyebrow" style={{ marginBottom: 6 }}>Outfitting — {run.data.kitName}</div>
@@ -140,8 +143,8 @@ export function RunPanel({
         </div>
         {!ready && (
           <div className="arena-warning">
-            {used > START_BUDGET ? `Over budget by ${used - START_BUDGET} tier.`
-              : !hasPrepReactor ? 'No reactor mounted.' : 'No weapons mounted.'}
+            {blockers[0] === 'over-tier-budget' ? `Over budget by ${used - START_BUDGET} tier.`
+              : blockers[0] === 'no-reactor' ? 'No reactor mounted.' : 'No weapons mounted.'}
           </div>
         )}
         <button type="button" className="fight-btn" style={{ width: '100%', marginTop: 8 }} disabled={!ready} onClick={onLaunch}>
@@ -187,16 +190,16 @@ export function RunPanel({
   }
   const kind = currentNode.kind;
   const playerCells = getChassis(build.chassisId).mask.flat().filter(Boolean).length;
-  const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
-  const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
-  const damagedParts = [
-    ...build.parts.map((part) => ({ partId: part.partId, integrity: part.integrity })),
-    ...run.data.benchPool,
-  ].filter((part) => part.integrity < 1);
-  const fullRepairCost = damagedParts.reduce(
-    (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
-    0,
-  );
+  const weaponsMounted = hasWeapon(build);
+  const reactorMounted = hasReactor(build);
+  // The same plan the repair-all handler applies, so the quoted price is the
+  // charged price by construction rather than by both sides doing the same sum.
+  const repairAll = planRepairAll({
+    parts: build.parts,
+    benchPool: run.data.benchPool,
+    scrap: run.data.scrap,
+  });
+  const damagedCount = repairAll.instanceIds.length + repairAll.benchIndices.length;
 
   const header = (
     <>
@@ -211,19 +214,19 @@ export function RunPanel({
       </div>
       <div className="run-repair-bay">
         <span>
-          Repair bay · {damagedParts.length > 0
-            ? `${damagedParts.length} damaged part${damagedParts.length === 1 ? '' : 's'}`
+          Repair bay · {damagedCount > 0
+            ? `${damagedCount} damaged part${damagedCount === 1 ? '' : 's'}`
             : 'all equipment field-ready'}
         </span>
-        {fullRepairCost > 0 && (
+        {repairAll.totalCost > 0 && (
           <button
             type="button"
             className="run-bench-sell"
-            disabled={fullRepairCost > run.data.scrap}
-            title={fullRepairCost > run.data.scrap ? 'Not enough scrap for a full repair' : 'Repair installed and benched parts'}
+            disabled={!repairAll.affordable}
+            title={!repairAll.affordable ? 'Not enough scrap for a full repair' : 'Repair installed and benched parts'}
             onClick={onRepairAll}
           >
-            repair all −{fullRepairCost}
+            repair all −{repairAll.totalCost}
           </button>
         )}
       </div>
@@ -402,9 +405,9 @@ export function RunPanel({
         })}
       </div>
 
-      {(!hasWeapons || !hasReactor) && (
+      {(!weaponsMounted || !reactorMounted) && (
         <div className="arena-warning">
-          {!hasReactor
+          {!reactorMounted
             ? 'No reactor mounted — nothing on this mech will power up.'
             : 'No weapons mounted — you will surrender by mission-kill in 3 seconds.'}
         </div>

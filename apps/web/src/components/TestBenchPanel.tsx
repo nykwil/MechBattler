@@ -10,6 +10,7 @@ import {
   type TestBenchResult,
 } from '@mechbattler/sim';
 import { MiniChart } from './MiniChart.js';
+import { hasWeapon } from '../lib/launchGate.js';
 import './TestBenchPanel.css';
 
 const SPEED_OPTIONS: SpeedSetting[] = ['stationary', 'creep', 'cruise', 'flank'];
@@ -25,7 +26,7 @@ export function TestBenchPanel({
   const [result, setResult] = useState<TestBenchResult | null>(null);
   const [running, setRunning] = useState(false);
 
-  const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
+  const hasWeapons = hasWeapon(build);
 
   function run() {
     setRunning(true);

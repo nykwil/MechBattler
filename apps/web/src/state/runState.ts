@@ -364,6 +364,41 @@ export function useRun() {
       : r));
   }, []);
 
+  /**
+   * Buy a scrapyard offer: one atomic charge-and-bench.
+   *
+   * The caller used to do this as two updates -- `addScrap(-price)` then
+   * `addBench(...)` -- and `addBench` silently no-ops on a full bench, so the pair
+   * could charge for a part it never delivered. Only a guard in the component stood
+   * between the player and that, in a different module from the state it protected.
+   * Checking both conditions in one updater makes it unrepresentable.
+   *
+   * The bench id is minted here for the same reason: it needs the seed, the node and
+   * the pool length, and this is where the phase is narrowed. Spelled out in the
+   * component it took four separate `phase === 'active' ? … : …` ternaries.
+   */
+  const buyOffer = useCallback((offer: { partId: string; price: number; integrity: number }): void => {
+    setRun((r) => {
+      if (r.phase !== 'active') return r;
+      if (offer.price > r.data.scrap || r.data.benchPool.length >= BENCH_CAP) return r;
+      const part: BenchPart = {
+        id: `yard-${r.data.seed}-${r.data.nodeIndex}-${offer.partId}-${r.data.benchPool.length}`,
+        partId: offer.partId,
+        integrity: offer.integrity,
+        provenance: { source: 'scrapyard', nodeIndex: r.data.nodeIndex },
+      };
+      return {
+        phase: 'active',
+        data: {
+          ...r.data,
+          scrap: r.data.scrap - offer.price,
+          benchPool: [...r.data.benchPool, part],
+          partProvenance: { ...r.data.partProvenance, [part.id]: part.provenance! },
+        },
+      };
+    });
+  }, []);
+
   /** Remove a bench part without payment (it was placed into the build). */
   const takeBench = useCallback((index: number): void => {
     setRun((r) => (r.phase === 'active'
@@ -540,7 +575,7 @@ export function useRun() {
   const clearRestored = useCallback((): void => setRestored(null), []);
 
   return {
-    run, start, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
+    run, start, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, buyOffer, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markYardMod, markMilestoneMod, clearModService,
     persistBuild, restored, clearRestored,
   };

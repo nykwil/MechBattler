@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { Build } from '@mechbattler/sim';
 import { OPPONENTS, type OpponentDef } from '../lib/opponents.js';
+import { hasReactor, hasWeapon } from '../lib/launchGate.js';
 import './ArenaPanel.css';
 
 /** Watch = run headless, open the replay; Command = step the battle live (docs/08). */
@@ -14,8 +15,8 @@ export function ArenaPanel({
 }) {
   const [opponentId, setOpponentId] = useState(OPPONENTS[0]!.id);
   const opponent = OPPONENTS.find((o) => o.id === opponentId)!;
-  const hasWeapons = build.parts.some((p) => p.partId.startsWith('W-'));
-  const hasReactor = build.parts.some((p) => p.partId.startsWith('R-'));
+  const weaponsMounted = hasWeapon(build);
+  const reactorMounted = hasReactor(build);
 
   return (
     <div>
@@ -39,9 +40,9 @@ export function ArenaPanel({
         ))}
       </div>
 
-      {(!hasWeapons || !hasReactor) && (
+      {(!weaponsMounted || !reactorMounted) && (
         <div className="arena-warning">
-          {!hasReactor
+          {!reactorMounted
             ? 'No reactor mounted — nothing on this mech will power up.'
             : 'No weapons mounted — you will surrender by mission-kill in 3 seconds.'}
         </div>

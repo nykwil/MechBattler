@@ -1,13 +1,13 @@
 import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { SPATIAL_DEMO_TEMPLATE, applyAutoWire, buildTierBudget, buildOccupancyMap, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, resolvePlacementEffects, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
+import { SPATIAL_DEMO_TEMPLATE, applyAutoWire, buildOccupancyMap, computeEnergyMargin, computeHeatAdvice, computeHeatBalance, computeSpeedProfile, getChassis, getPart, runBattle, runTestBench, validateBuild, type Build, type BattleReport, type TestBenchResult } from '@mechbattler/sim';
 import { useBuild, type OverlayMode } from './state/useBuild.js';
 import { PartInspector } from './components/PartInspector.js';
 import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE, START_BUDGET,
-  chassisRepairCost, repairCost, useRun,
+  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE,
+  chassisRepairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
 import type { RunPartOps } from './components/PartInspector.js';
@@ -18,6 +18,9 @@ import { resolveView } from './lib/views.js';
 import { settleRunFight } from './lib/settleRunFight.js';
 import { placementPermission } from './lib/placementPermission.js';
 import { stowPayloadFromDetached } from './lib/stowDetached.js';
+import { canLaunch } from './lib/launchGate.js';
+import { planRepairAll } from './lib/repairPlan.js';
+import { describePlacement } from './lib/describePlacement.js';
 import type { FightMode } from './components/ArenaPanel.js';
 // Lazy: the Balance Lab is a desktop analysis tool with its own worker, and the
 // battle screens carry the whole battle stylesheet. Neither is needed to paint the
@@ -89,7 +92,7 @@ export default function App() {
 
   // --- Run shell (docs/10 M1) ------------------------------------------------
   const {
-    run, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, takeBench, applyBenchModifier, repairBench,
+    run, startCustom, renamePrep, launch, won, lost, recordBattle, beginSalvage, abandon, sellBench, addScrap, addBench, buyOffer, takeBench, applyBenchModifier, repairBench,
     skipNode, rerollYard, markMilestoneMod, clearModService, persistBuild, restored, clearRestored,
   } = useRun();
   const {
@@ -403,31 +406,15 @@ export default function App() {
 
   const ghostPlacementSummary = useMemo(() => {
     if (!state.selectedPartId || !state.ghost || ghostReason) return null;
-    const preview = {
-      instanceId: '__placement-preview__',
+    return describePlacement({
+      chassis,
+      build,
       partId: state.selectedPartId,
-      origin: { ...state.ghost },
+      origin: state.ghost,
       rotation: state.rotation,
-      integrity: state.placeExtras.integrity,
-      modifiers: state.placeExtras.modifiers,
-      variant: state.placeExtras.variant,
-    };
-    const previewBuild = { ...build, parts: [...state.parts, preview] };
-    const effects = resolvePlacementEffects(chassis, previewBuild, preview.instanceId);
-    if (!effects) return null;
-    const facts = [effects.regionNames.join(', ')];
-    if (effects.location.weaponArcBonusDeg > 0) {
-      facts.push(`+${effects.location.weaponArcBonusDeg}° location arc`);
-    }
-    if (effects.supportArcBonusDeg > 0) facts.push(`+${effects.supportArcBonusDeg}° support arc`);
-    if (effects.passiveCoolingCellCount > 0) {
-      facts.push(`${effects.passiveCoolingCellCount} exterior cooling ${effects.passiveCoolingCellCount === 1 ? 'cell' : 'cells'}`);
-    }
-    if (effects.effectiveHeatMultiplier > 1) facts.push(`heat ×${effects.effectiveHeatMultiplier.toFixed(2)}`);
-    if (effects.portCellCount > 0) facts.push(`${effects.portCellCount} port ${effects.portCellCount === 1 ? 'socket' : 'sockets'}`);
-    if (effects.stackAboveInstanceIds.length + effects.stackBelowInstanceIds.length > 0) facts.push('joins stack');
-    return facts.filter(Boolean).join(' · ');
-  }, [build, chassis, ghostReason, state.ghost, state.parts, state.placeExtras,
+      extras: state.placeExtras,
+    });
+  }, [build, chassis, ghostReason, state.ghost, state.placeExtras,
       state.rotation, state.selectedPartId]);
 
   const readoutStats = useMemo(() => {
@@ -452,7 +439,8 @@ export default function App() {
     // A finished run is a memorial, not a sandbox with leftover gear.
     if (run.phase === 'over') return new Set(state.parts.map((part) => part.partId));
     return undefined;
-  }, [runPrep, runActive, profile.unlockedPartIds, state.parts, run]);
+    // `runPrep`/`runActive` are derived from `run`, so listing them too said nothing.
+  }, [profile.unlockedPartIds, state.parts, run]);
   const ownedPartCounts = useMemo(() => {
     if (run.phase !== 'active' && run.phase !== 'over') return undefined;
     const counts = new Map<string, number>();
@@ -463,12 +451,12 @@ export default function App() {
       counts.set(part.partId, (counts.get(part.partId) ?? 0) + 1);
     }
     return counts;
-  }, [runActive, state.parts, run]);
+  }, [state.parts, run]);
   /** Part ids with at least one benched spare — those rows are fittable from Parts. */
   const fittablePartIds = useMemo(() => {
     if (run.phase !== 'active') return undefined;
     return new Set(run.data.benchPool.map((part) => part.partId));
-  }, [runActive, run]);
+  }, [run]);
 
   // ?view=battle opens a seeded free-play fight, ?view=report resolves one and
   // opens its report. Both match the existing ?view= affordances and exist so the
@@ -638,40 +626,23 @@ export default function App() {
                   onSellBench={(i, v) => { setPendingBench(null); selectPart(null); sellBench(i, v); }}
                   onFitBench={fitBench}
                   fittingBenchIndex={pendingBench?.index ?? null}
-                  onBuyOffer={(o) => {
-                    if (o.price > runScrap || benchUsed >= BENCH_CAP) return;
-                    addScrap(-o.price);
-                    addBench({
-                      id: `yard-${run.phase === 'active' ? run.data.seed : 0}-${run.phase === 'active' ? run.data.nodeIndex : 0}-${o.partId}-${run.phase === 'active' ? run.data.benchPool.length : 0}`,
-                      partId: o.partId,
-                      integrity: o.integrity,
-                      provenance: {
-                        source: 'scrapyard',
-                        nodeIndex: run.phase === 'active' ? run.data.nodeIndex : undefined,
-                      },
-                    });
-                  }}
+                  onBuyOffer={buyOffer}
                   onRerollYard={rerollYard}
                   onSkipNode={() => { setPendingBench(null); skipNode(); }}
                   onRepairBench={repairBench}
                   onRepairAll={() => {
                     if (run.phase !== 'active') return;
-                    const damagedInstalled = state.parts.filter((part) => part.integrity < 1);
-                    const installedCost = damagedInstalled.reduce(
-                      (total, part) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
-                      0,
-                    );
-                    const damagedBench = run.data.benchPool
-                      .map((part, index) => ({ part, index }))
-                      .filter(({ part }) => part.integrity < 1);
-                    const benchCost = damagedBench.reduce(
-                      (total, { part }) => total + repairCost(getPart(part.partId).tier, part.integrity, 1),
-                      0,
-                    );
-                    if (installedCost + benchCost > run.data.scrap) return;
-                    if (installedCost > 0) addScrap(-installedCost);
-                    for (const part of damagedInstalled) setIntegrity(part.instanceId, 1);
-                    for (const { index } of damagedBench) repairBench(index, 1);
+                    const plan = planRepairAll({
+                      parts: state.parts,
+                      benchPool: run.data.benchPool,
+                      scrap: run.data.scrap,
+                    });
+                    if (!plan.affordable) return;
+                    // The bench half bills itself through repairBench; only the
+                    // installed half is charged here.
+                    if (plan.installedCost > 0) addScrap(-plan.installedCost);
+                    for (const instanceId of plan.instanceIds) setIntegrity(instanceId, 1);
+                    for (const index of plan.benchIndices) repairBench(index, 1);
                   }}
                   modTargets={[
                     ...state.parts.map((part) => ({
@@ -933,10 +904,7 @@ export default function App() {
             onOpenParts={() => setSheet('parts')}
             next={nextFight}
             prep={runPrep}
-            prepReady={runPrep
-              && buildTierBudget(build) <= START_BUDGET
-              && build.parts.some((p) => p.partId.startsWith('W-'))
-              && build.parts.some((p) => p.partId.startsWith('R-'))}
+            prepReady={runPrep && canLaunch(build)}
             onLaunch={launch}
             onOpenIntel={() => setSheet('intel')}
           />
