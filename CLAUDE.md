@@ -173,3 +173,24 @@ that is why the port had to be rewired rather than pasted.
   vite or start an ad-hoc dev server; `pm2 restart mechbattler-dev` if needed.
 - Fully-shipped plan docs get `git mv`'d to `docs/archive/`; numbering is never
   reused.
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+It is an orientation aid, not an authority. The source wins, the same way the
+prototypes win over the prose: the graph is a stale AST snapshot the moment
+anything is edited, and it is built `--code-only`, so it has never read a single
+doc. Never quote a number or a rule from it.
+
+- `graphify query "<question>"` returns a scoped subgraph; `graphify path "<A>" "<B>"`
+  for a relationship, `graphify explain "<concept>"` for one concept. Good for
+  "what touches this?" before a refactor.
+- `graphify-out/GRAPH_REPORT.md` is worth reading for the god-node list and the
+  community cohesion scores — it is what surfaced `getPart()` at 157 edges.
+- `graphify update .` after code changes (AST-only, no API cost). Nothing runs it
+  for you, so assume the graph is stale unless you just built it.
+- `graphify-out/` is gitignored (3.7 MB, machine-specific paths). The hooks live in
+  the untracked `.claude/settings.local.json` — never in the shared `settings.json`,
+  which would point every other clone at an absolute path on this machine.
+- `.graphifyignore` excludes `apps/physics-prototype/`, which stays out of bounds.

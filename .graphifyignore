@@ -1,0 +1,4 @@
+# apps/physics-prototype is a separate project and is deliberately never mined
+# for game features. Indexing it puts its nodes into MechBattler answers with
+# no signal that they are out of bounds.
+apps/physics-prototype/
