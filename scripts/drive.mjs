@@ -229,7 +229,11 @@ ws.addEventListener('message', (event) => {
     consoleMessages.push(`${msg.params.type}: ${msg.params.args.map((a) => a.value ?? a.description ?? a.type).join(' ')}`);
   }
   if (msg.method === 'Log.entryAdded' && ['error', 'warning'].includes(msg.params.entry.level)) {
-    consoleMessages.push(`${msg.params.entry.level}: ${msg.params.entry.text}`);
+    // The URL is the whole diagnosis for a network entry: "Failed to load
+    // resource: ... 404" names nothing on its own, and that is exactly the
+    // message the audit kept catching intermittently with no way to chase it.
+    const { level, text, url } = msg.params.entry;
+    consoleMessages.push(`${level}: ${text}${url ? ` <${url}>` : ''}`);
   }
   if (msg.method === 'Runtime.exceptionThrown') {
     consoleMessages.push(`exception: ${msg.params.exceptionDetails.text} ${msg.params.exceptionDetails.exception?.description ?? ''}`);

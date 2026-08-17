@@ -197,9 +197,28 @@ for (const screen of chosen) {
   if (report.tinyTargets.length) problems.push(`targets under 44px: ${report.tinyTargets.join(', ')}`);
   if (report.overlaps.length) problems.push(`overlapping targets: ${report.overlaps.join(', ')}`);
   if (report.overflowX) problems.push('horizontal overflow');
-  // The driver prints console errors and warnings beside the image.
-  const noisy = stdout.split('\n').filter((l) => l.startsWith('console ') && l !== 'console clean');
-  if (noisy.length) problems.push(noisy.join(' | '));
+  // The driver prints console errors and warnings beside the image: a
+  // `console (N):` header, then each message indented two spaces, then its
+  // closing `wrote <path>` line (drive.mjs, the `consoleMessages` report block).
+  // Matching only the header counted the errors and threw away every one of
+  // their messages, so a failure read as a bare `console (2):` -- the audit
+  // could say a screen was noisy but never what it said.
+  //
+  // Stop on the driver's own next line rather than on the first unindented one:
+  // a single message may embed newlines whose continuations are NOT indented
+  // (React's dev warnings are exactly that shape -- "unique \"key\" prop." then
+  // a blank line then "Check the render method of ..."), and breaking there
+  // truncated that message and silently dropped every message after it.
+  const lines = stdout.split('\n');
+  const header = lines.findIndex((l) => l.startsWith('console ('));
+  if (header !== -1) {
+    const messages = [];
+    for (const line of lines.slice(header + 1)) {
+      if (line.startsWith('wrote ') || line.startsWith('metrics ')) break;
+      if (line.trim()) messages.push(line.trim());
+    }
+    problems.push(`${lines[header]} ${messages.join(' | ')}`);
+  }
 
   if (problems.length) {
     failures += 1;
