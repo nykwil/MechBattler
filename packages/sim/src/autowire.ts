@@ -9,7 +9,7 @@
  * Deterministic: plain BFS over free mask cells, nearest target first.
  */
 import type { Build, ChassisSpec, PlacedPart, RouteCell } from './types.js';
-import { getPart } from './catalog.js';
+import { getPart, requiresPowerConnection } from './catalog.js';
 import { buildSpatialOccupancy, spatialCellKey } from './spatial.js';
 import { resolveSpatialPower } from './spatialPower.js';
 import { regionIdAt } from './chassis.js';
@@ -28,7 +28,7 @@ export interface AutoWireResult {
 function autoWireSpatial(chassis: ChassisSpec, build: Build): AutoWireResult {
   const addedRoutes: RouteCell[] = [];
   const unreachable = new Set<string>();
-  const partNeedsPower = (part: PlacedPart) => needsPower(part.partId);
+  const partNeedsPower = (part: PlacedPart) => requiresPowerConnection(getPart(part.partId));
   const regions = chassis.regions ?? [{
     id: 'body', name: 'Body', width: chassis.width, height: chassis.height, mask: chassis.mask,
   }];
@@ -150,11 +150,6 @@ function autoWireSpatial(chassis: ChassisSpec, build: Build): AutoWireResult {
     addedRoutes.push(...path.reverse());
   }
   return { conduits: [], routes: addedRoutes, unreachableInstanceIds: [...unreachable].sort() };
-}
-
-function needsPower(partId: string): boolean {
-  const def = getPart(partId);
-  return Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
 }
 
 /**

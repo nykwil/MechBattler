@@ -287,3 +287,31 @@ export function getPart(id: string): PartDef {
   if (!part) throw new Error(`Unknown part id: ${id}`);
   return part;
 }
+
+/**
+ * True when a part must reach a reactor through the electrical net or the build
+ * is invalid. Weapons and capacitors qualify by category because a gun fed only
+ * from a capacitor (`capFedEnergyPerShotKj`) and the capacitor filling it both
+ * need the net without necessarily declaring a continuous `draw`.
+ *
+ * This lived in three places and two of them disagreed. `validation.ts` and
+ * `autowire.ts` shared this rule; `Plate.tsx` had its own, which tested only
+ * `continuousKw || chargedEnergyPerShotKj || reactor`. Diffed across the
+ * catalog, that silently excluded `W-RG` and both capacitors -- the workshop
+ * never drew a disconnected railgun or capacitor as unpowered while validation
+ * rejected the build, on the three highest-tier parts in the game.
+ */
+export function requiresPowerConnection(def: PartDef): boolean {
+  return Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
+}
+
+/**
+ * True when connectivity is *meaningful* for a part, so an instrument should
+ * colour it live/dead rather than dim it as not-applicable. A superset of
+ * `requiresPowerConnection`: a reactor supplies the net instead of drawing from
+ * it, and `resolveSpatialPower` does count sources in `connectedInstanceIds`,
+ * so an isolated one is worth showing as unpowered even though no rule rejects it.
+ */
+export function participatesInPowerNetwork(def: PartDef): boolean {
+  return requiresPowerConnection(def) || Boolean(def.reactor);
+}

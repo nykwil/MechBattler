@@ -6,6 +6,7 @@ import {
   getPart,
   isExteriorCell,
   isPortCell,
+  participatesInPowerNetwork,
   regionIdAt,
   resolveSpatialPower,
   resolveThermalPaths,
@@ -85,10 +86,17 @@ const OVERLAY_CAPTION: Record<OverlayMode, string> = {
   thermal: 'Red and amber make heat · blue sheds it',
 };
 
-/** True when a part draws or supplies power, so "unpowered" is meaningful for it. */
-function needsPower(def: PartDef): boolean {
-  return Boolean(def.draw?.continuousKw || def.draw?.chargedEnergyPerShotKj || def.reactor);
-}
+/**
+ * True when a part draws or supplies power, so "unpowered" is meaningful for it.
+ *
+ * This is the sim's `participatesInPowerNetwork` now. The local copy expressed
+ * the same intent but tested `continuousKw || chargedEnergyPerShotKj || reactor`,
+ * which misses every part that reaches the net some other way: `W-RG` draws
+ * `capFedEnergyPerShotKj`, and both capacitors declare no `draw` at all. A
+ * disconnected railgun or capacitor was drawn dim -- "connectivity does not
+ * apply here" -- while `validation.ts` rejected the build for exactly it.
+ */
+const needsPower = participatesInPowerNetwork;
 
 /**
  * Peak waste heat in kW, or 0. The prototype read a flat `p.wh`; the real catalog

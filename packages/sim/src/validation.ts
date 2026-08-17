@@ -5,7 +5,7 @@
  * consequence in plain language (rule R4/R8 -- no mystery failures).
  */
 import type { Build, ChassisSpec } from './types.js';
-import { getPart } from './catalog.js';
+import { getPart, requiresPowerConnection } from './catalog.js';
 import { buildOccupancyMap, computeMassAndCoG } from './grid.js';
 import { averageDrawKw, computeCapacitorBank, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand } from './derivedStats.js';
 import { resolveSpatialPower } from './spatialPower.js';
@@ -54,9 +54,7 @@ export function validateBuild(chassis: ChassisSpec, build: Build): BuildIssue[] 
   const spatialPower = resolveSpatialPower(chassis, build);
   const { connectedInstanceIds } = spatialPower;
   const unpowered = build.parts.filter((p) => {
-    const def = getPart(p.partId);
-    const needsPower = Boolean(def.draw) || def.category === 'weapon' || def.category === 'capacitor';
-    return needsPower && !connectedInstanceIds.has(p.instanceId);
+    return requiresPowerConnection(getPart(p.partId)) && !connectedInstanceIds.has(p.instanceId);
   });
   if (unpowered.length > 0) {
     issues.push({
