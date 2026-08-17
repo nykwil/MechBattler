@@ -88,17 +88,33 @@ const HEAT_MAX_C = HEAT_DAMAGE_C;
  * instead would make the spread and the diagnostics disagree with the model they
  * report on, precisely on the builds fitted to change it.
  */
+/**
+ * The instances that are not contributing at `tSec`: destroyed, shed or shut
+ * down. Every mech-wide term the sim gates on `isPartFunctional` plus the
+ * runtime's shed/shutdown flags needs exactly this set, and none of it is on a
+ * frame -- it has to be replayed from the event stream.
+ *
+ * `DamageGrid` deliberately does NOT use this: it tracks `part-destroyed` only,
+ * because it draws permanent damage, and a shed or shut-down part is neither
+ * damaged nor gone.
+ */
+function downedAt(view: BattleView, tSec: number, mech: 0 | 1): Set<string> {
+  const down = new Set<string>();
+  for (const e of view.events) {
+    if (e.tSec > tSec) break;
+    // Narrow by type before reading `mech`: not every event has one (`victory`).
+    if (e.type !== 'part-destroyed' && e.type !== 'shed' && e.type !== 'shutdown') continue;
+    if (e.mech === mech) down.add(e.instanceId);
+  }
+  return down;
+}
+
 export function fireControlLateralMultAt(
   view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
 ): number {
   const fitted = build?.parts.filter((p) => getPart(p.partId).fireControlLateralMult !== undefined) ?? [];
   if (fitted.length === 0) return 1;
-  const down = new Set<string>();
-  for (const e of view.events) {
-    if (e.tSec > tSec) break;
-    if (e.type === 'part-destroyed' && e.mech === mech) down.add(e.instanceId);
-    if ((e.type === 'shed' || e.type === 'shutdown') && e.mech === mech) down.add(e.instanceId);
-  }
+  const down = downedAt(view, tSec, mech);
   let mult = 1;
   for (const p of fitted) {
     if (!down.has(p.instanceId)) mult *= getPart(p.partId).fireControlLateralMult!;
@@ -112,18 +128,14 @@ export function fireControlLateralMultAt(
  * profileMult, including its condition that a part is skipped once destroyed, shed
  * or shut down -- replayed from events, since none of that is on a frame.
  */
-export function targetProfileMultAt(
+function partMultProductAt(
   view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
   ctx: { speedMps: number; tile: TerrainType },
+  field: 'targetProfile' | 'mechMoveJitter' | 'turnJitter',
 ): number {
   const parts = build?.parts.filter((p) => p.modifiers?.length) ?? [];
   if (parts.length === 0) return 1;
-  const down = new Set<string>();
-  for (const e of view.events) {
-    if (e.tSec > tSec) break;
-    if (e.type !== 'part-destroyed' && e.type !== 'shed' && e.type !== 'shutdown') continue;
-    if (e.mech === mech) down.add(e.instanceId);
-  }
+  const down = downedAt(view, tSec, mech);
   let mult = 1;
   for (const p of parts) {
     if (down.has(p.instanceId)) continue;
@@ -131,9 +143,38 @@ export function targetProfileMultAt(
     // mean cell temperature, and a frame carries temperature for weapons only.
     // Ambient is the closest honest stand-in, and it is exact for every modifier
     // whose profile term does not vary with heat -- which is all of them today.
-    mult *= effectiveMults(p, { tempC: HEAT_AMBIENT_C, speedMps: ctx.speedMps, tile: ctx.tile }).targetProfile;
+    mult *= effectiveMults(p, { tempC: HEAT_AMBIENT_C, speedMps: ctx.speedMps, tile: ctx.tile })[field];
   }
   return mult;
+}
+
+export function targetProfileMultAt(
+  view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
+  ctx: { speedMps: number; tile: TerrainType },
+): number {
+  return partMultProductAt(view, build, tSec, mech, ctx, 'targetProfile');
+}
+
+/**
+ * The frame's total steadiness against its own motion: the chassis's authored
+ * `moveJitterMult` times the mech-wide product its parts contribute. This is
+ * `(self.chassis.moveJitterMult ?? 1) * self.mechMoveJitterMult(tile)` from
+ * `Battle.effectiveDispersionRad`, and it exists as one exported function
+ * because passing only the chassis half is a mistake this file has now made
+ * three times -- once for chassis steadiness, once for forest cover, and once
+ * here when `mechMoveJitter` was added to the sim and the instruments were not
+ * widened with it. Coil-sprung actuators (x0.6) drew the spread ~1.67x too
+ * wide; Weaving gait (x1.3) drew it too narrow.
+ *
+ * Every caller of `weaponSigmaRad` in the app must source
+ * `chassisMoveJitterMult` from here rather than from `getChassis`.
+ */
+export function chassisMoveJitterMultAt(
+  view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
+  ctx: { speedMps: number; tile: TerrainType },
+): number {
+  return (getChassis(view.mechs[mech].chassisId).moveJitterMult ?? 1)
+    * partMultProductAt(view, build, tSec, mech, ctx, 'mechMoveJitter');
 }
 
 export function frameIndexAt(view: BattleView, tSec: number): number {
@@ -338,9 +379,12 @@ function ShotSpread({ view, frame, tSec, mech, build }: {
       dispersionMrad: w.dispersionMrad,
       speedMps: mySpeed,
       mults,
-      // A steady frame buys motion jitter down (a Vulture to 0.35). Omitting it
-      // drew a moving scout's spread far wider than the shot it marked.
-      chassisMoveJitterMult: getChassis(view.mechs[mech].chassisId).moveJitterMult,
+      // A steady frame buys motion jitter down (a Vulture to 0.35), and so do
+      // the mech-wide suspension mods. Omitting either drew a moving scout's
+      // spread far wider than the shot it marked.
+      chassisMoveJitterMult: chassisMoveJitterMultAt(view, build, tSec, mech, {
+        speedMps: mySpeed, tile: me.tile,
+      }),
     }),
     lateralSpeedMps: lateral,
     lagS: TRACKING_LAG_S,

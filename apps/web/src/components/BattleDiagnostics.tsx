@@ -6,7 +6,10 @@ import {
   type BattleFrame, type Build,
 } from '@mechbattler/sim';
 import { crossingSpeedMps } from '../lib/evade.js';
-import { fireControlLateralMultAt, frameIndexAt, targetProfileMultAt, type BattleView } from './BattleHud.js';
+import {
+  chassisMoveJitterMultAt, fireControlLateralMultAt, frameIndexAt, targetProfileMultAt,
+  type BattleView,
+} from './BattleHud.js';
 import './BattleDiagnostics.css';
 
 /**
@@ -89,10 +92,13 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
       dispersionMrad: w.dispersionMrad,
       speedMps: speed,
       mults,
-      // The frame's own steadiness, which this overlay used to drop -- so it
-      // reported a moving Vulture's dispersion at roughly three times the
-      // figure the sim scored the shot with.
-      chassisMoveJitterMult: getChassis(view.mechs[0].chassisId).moveJitterMult,
+      // The frame's own steadiness and its mech-wide suspension mods, which
+      // this overlay used to drop -- so it reported a moving Vulture's
+      // dispersion at roughly three times the figure the sim scored the shot
+      // with, and a Coil-sprung build's at 1.67x.
+      chassisMoveJitterMult: chassisMoveJitterMultAt(view, build, tSec, 0, {
+        speedMps: speed, tile: me.tile,
+      }),
     })
     : 0;
   // The jitter row shows what movement alone added, derived by re-running the
