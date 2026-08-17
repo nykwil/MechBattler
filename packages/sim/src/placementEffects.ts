@@ -36,6 +36,39 @@ export interface LocationEffectTotals {
 }
 
 /**
+ * Zone membership is a pure function of the chassis and where the part sits on
+ * it — `partId`, `origin`, `rotation`, none of which is ever reassigned in place
+ * (the workshop rebuilds `PlacedPart`s instead). A battle therefore recomputes
+ * one unchanging answer for every weapon, on every frame, for the whole fight.
+ *
+ * It measured 40.7% of total CPU in `scripts/tank-vs-sniper.ts` under
+ * `--cpu-prof` — the single largest cost in the sim, ahead of `Simulation.step`
+ * at 5.9% — because `Combatant.weaponRangeMultiplier` and `weaponArcDeg` call it
+ * per weapon per frame, and `estimateExpectedDps` calls it again for every option
+ * the autopilot prices. Rebuilding a `Set` per zone per call is most of that.
+ *
+ * Two caches, both keyed on object identity so they invalidate exactly when the
+ * workshop hands over new objects: the per-chassis zone cell sets (shared by
+ * every part) and the per-part result. `integrity` is mutated in place during a
+ * fight, but nothing here reads it, so the entry stays correct.
+ */
+const zoneCellCache = new WeakMap<ChassisSpec, { zoneId: string; effect: ChassisLocationEffectSpec; cells: Set<string> }[]>();
+const resultCache = new WeakMap<ChassisSpec, WeakMap<PlacedPart, LocationEffectTotals>>();
+
+function zonesFor(chassis: ChassisSpec) {
+  let zones = zoneCellCache.get(chassis);
+  if (!zones) {
+    zones = (chassis.locationZones ?? []).map((zone) => ({
+      zoneId: zone.id,
+      effect: zone.effect,
+      cells: new Set(zone.cells.map((cell) => spatialCellKey(chassis, cell))),
+    }));
+    zoneCellCache.set(chassis, zones);
+  }
+  return zones;
+}
+
+/**
  * Authored zones require the whole footprint. A large gun cannot touch one
  * articulated cell and claim that cell's bonus for the entire weapon.
  */
@@ -43,21 +76,30 @@ export function locationEffectsForPart(
   chassis: ChassisSpec,
   placed: PlacedPart,
 ): LocationEffectTotals {
-  const def = getPart(placed.partId);
-  const occupied = getOccupiedCells(placed, def).map((cell) => spatialCellKey(chassis, cell));
+  let byPart = resultCache.get(chassis);
+  if (!byPart) resultCache.set(chassis, (byPart = new WeakMap()));
+  const hit = byPart.get(placed);
+  if (hit) return hit;
+
+  const zones = zonesFor(chassis);
   const effects: AppliedLocationEffect[] = [];
-  for (const zone of chassis.locationZones ?? []) {
-    const zoneCells = new Set(zone.cells.map((cell) => spatialCellKey(chassis, cell)));
-    if (occupied.length > 0 && occupied.every((cell) => zoneCells.has(cell))) {
-      effects.push({ ...zone.effect, zoneId: zone.id });
+  if (zones.length > 0) {
+    const def = getPart(placed.partId);
+    const occupied = getOccupiedCells(placed, def).map((cell) => spatialCellKey(chassis, cell));
+    for (const zone of zones) {
+      if (occupied.length > 0 && occupied.every((cell) => zone.cells.has(cell))) {
+        effects.push({ ...zone.effect, zoneId: zone.zoneId });
+      }
     }
   }
-  return {
+  const totals: LocationEffectTotals = {
     effects,
     weaponArcBonusDeg: effects.reduce((sum, effect) => sum + (effect.weaponArcBonusDeg ?? 0), 0),
     weaponRangeMultiplier: effects.reduce((mult, effect) => mult * (effect.weaponRangeMultiplier ?? 1), 1),
     heatMultiplier: effects.reduce((mult, effect) => mult * (effect.heatMultiplier ?? 1), 1),
   };
+  byPart.set(placed, totals);
+  return totals;
 }
 
 export interface PlacementCellEffects {

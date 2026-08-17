@@ -444,6 +444,8 @@ export class Combatant {
   hpByInstance = new Map<string, number>();
   private heatDamageSeen = new Map<string, number>();
   private occupancy: ReturnType<typeof buildOccupancyMap>;
+  /** Lazy, fight-lifetime spatial occupancy; see `weaponArcDeg`. */
+  private spatialOccupancy: ReturnType<typeof buildSpatialOccupancy> | null = null;
   /** Weapon-toggle latency per instance (docs/04 §4 Sticky). */
   private orderLatencyById = new Map<string, number>();
   private pendingWeaponToggles = new Map<string, { value: boolean; atS: number }>();
@@ -649,7 +651,14 @@ export class Combatant {
   }
 
   weaponArcDeg(instanceId: string, baseArcDeg: number): number {
-    const occupancy = buildSpatialOccupancy(this.chassis, this.build);
+    // Occupancy is fixed for the fight: it is derived from the chassis and each
+    // part's origin/rotation, none of which change once the battle starts. This
+    // rebuilt all of it per weapon per frame, which made `buildSpatialOccupancy`
+    // 18.1% of sim CPU (the top cost, once `locationEffectsForPart` was cached).
+    // Which supports are *functional* does change, so only the lookup is cached
+    // and the arc bonus is still recomputed against live state below.
+    this.spatialOccupancy ??= buildSpatialOccupancy(this.chassis, this.build);
+    const occupancy = this.spatialOccupancy;
     const cells = occupancy.cellsByInstance.get(instanceId) ?? [];
     let bonus = 0;
     for (const cell of cells) {
