@@ -59,7 +59,7 @@ describe('the two buckets', () => {
   });
 
   it('takes the worst offender for a latency floor, not their sum', () => {
-    const m = new ModBuilder().atLeast('orderLatencyS', 0.8).atLeast('orderLatencyS', 0.4).resolve();
+    const m = new ModBuilder().best('orderLatencyS', 0.8).best('orderLatencyS', 0.4).resolve();
     expect(m.orderLatencyS).toBe(0.8);
   });
 });

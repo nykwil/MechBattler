@@ -120,15 +120,78 @@ export function neutralMults(): EffectiveMults {
 }
 
 /**
- * The fields that carry a *percentage* modifier, and therefore have two
- * buckets. Everything else is either a physical quantity summed into a total
- * (`extraHeatKw`, `orderLatencyS`), a boolean, or an override
- * (`conduction`, `cookoffSplash`, which are set to 0 rather than scaled).
+ * How a knob combines when more than one source touches it.
+ *
+ *  - `pooled`   carries percentage modifiers, so it has the two buckets below
+ *               (`inc` and `scale`). Neutral 1.
+ *  - `sum`      a physical quantity accumulated into a total (kW of heat).
+ *  - `max`      redundancy that must never stack: the worst (or best) single
+ *               source wins and copies buy nothing. The catalog already leans on
+ *               this -- `U-ACT`'s comment is explicit that a second Stride is
+ *               redundancy, not multiplicative speed.
+ *  - `flag`     a boolean or an outright override, set rather than combined.
  */
-export type ScalableField =
-  | 'damage' | 'cycleS' | 'dispersionMrad' | 'moveJitter' | 'lateralPenalty'
-  | 'overkillCarry' | 'drawKw' | 'outputKw' | 'radiator' | 'thermalMass'
-  | 'hp' | 'massKg' | 'targetProfile' | 'mechMoveJitter' | 'turnJitter';
+export type KnobKind = 'pooled' | 'sum' | 'max' | 'flag';
+
+export interface KnobSpec {
+  kind: KnobKind;
+  neutral: number | boolean;
+}
+
+/**
+ * Every knob the sim can bend, and how it combines. This is the registry the
+ * rest of the effect system is derived from, and it exists to make one class of
+ * mistake impossible: a knob added without a declared stacking rule is a
+ * **compile error**, because the table is checked against `keyof EffectiveMults`.
+ *
+ * Before this, the stacking rule lived wherever the knob happened to be
+ * reduced, which is how the same named concept came to combine three different
+ * ways depending on who declared it.
+ */
+export const EFFECT_KNOBS = {
+  // Weapon
+  damage: { kind: 'pooled', neutral: 1 },
+  cycleS: { kind: 'pooled', neutral: 1 },
+  dispersionMrad: { kind: 'pooled', neutral: 1 },
+  moveJitter: { kind: 'pooled', neutral: 1 },
+  lateralPenalty: { kind: 'pooled', neutral: 1 },
+  overkillCarry: { kind: 'pooled', neutral: 1 },
+  // Power
+  drawKw: { kind: 'pooled', neutral: 1 },
+  outputKw: { kind: 'pooled', neutral: 1 },
+  // Thermal
+  radiator: { kind: 'pooled', neutral: 1 },
+  extraHeatKw: { kind: 'sum', neutral: 0 },
+  conduction: { kind: 'flag', neutral: 1 },
+  cookoffSplash: { kind: 'flag', neutral: 1 },
+  thermalMass: { kind: 'pooled', neutral: 1 },
+  // Defense
+  hp: { kind: 'pooled', neutral: 1 },
+  massKg: { kind: 'pooled', neutral: 1 },
+  targetProfile: { kind: 'pooled', neutral: 1 },
+  mechMoveJitter: { kind: 'pooled', neutral: 1 },
+  turnJitter: { kind: 'pooled', neutral: 1 },
+  shedFirst: { kind: 'flag', neutral: false },
+  firstPriority: { kind: 'flag', neutral: false },
+  harvestsHeat: { kind: 'flag', neutral: false },
+  orderLatencyS: { kind: 'max', neutral: 0 },
+  ignoreTerrainSlow: { kind: 'flag', neutral: false },
+} as const satisfies Record<keyof EffectiveMults, KnobSpec>;
+
+type KnobsOfKind<K extends KnobKind> = {
+  [F in keyof typeof EFFECT_KNOBS]: typeof EFFECT_KNOBS[F]['kind'] extends K ? F : never;
+}[keyof typeof EFFECT_KNOBS];
+
+/**
+ * The fields that carry a *percentage* modifier, and therefore have two
+ * buckets. Derived from the registry rather than listed again, so the two
+ * cannot drift.
+ */
+export type ScalableField = KnobsOfKind<'pooled'>;
+/** Fields where the worst/best single source wins and copies buy nothing. */
+export type MaxField = KnobsOfKind<'max'>;
+/** Physical quantities accumulated into a total. */
+export type SumField = KnobsOfKind<'sum'>;
 
 /**
  * A pool that has summed to `1 + add <= 0` has inverted the effect it was
@@ -141,23 +204,33 @@ export const ADDITIVE_POOL_FLOOR = 0;
 /**
  * How two sources of the same bonus combine (docs/04 §4b).
  *
- * Two buckets, deliberately:
+ * Three buckets, deliberately:
  *
  *  - `inc(field, pct)` joins the **additive** pool. Sources sum, then apply
  *    once: two "-30%" parts give `1 - 0.6 = 0.4`, not `0.7 x 0.7 = 0.49`.
  *  - `scale(field, mult)` joins the **multiplicative** pool. Each source
  *    multiplies separately and they compound.
+ *  - `best(field, value)` takes the **strongest single source**. Copies buy
+ *    nothing at all.
  *
- * Final value is `(1 + additivePool) * multiplicativePool`. Both pools are
- * order-independent — multiplication and addition each commute — so a
- * modifier never has to care what ran before it. Order would only matter if a
- * single source could write to both pools for one field, which the verbs make
- * awkward on purpose.
+ * For a pooled field the final value is `(1 + additivePool) * multiplicativePool`.
+ * All three are order-independent — addition, multiplication and max each
+ * commute — so a modifier never has to care what ran before it. Order would
+ * only matter if a single source could write to two buckets for one field,
+ * which the verbs make awkward on purpose.
  *
  * Content rule: **a knob's headline effect picks one bucket and stays there.**
- * The additive pool is for sources meant to compete with each other (stacking
- * three of them is deliberately worse than three separate multipliers); the
- * multiplicative pool is for sources meant to reward committing to them.
+ *
+ *  - **additive** for sources meant to compete with each other — stacking three
+ *    of them is deliberately worse than three separate multipliers.
+ *  - **multiplicative** for sources meant to reward committing to them.
+ *  - **max** for redundancy that must never stack. This is not a weaker
+ *    multiplicative: it is the rule you want when a second copy is insurance
+ *    rather than an upgrade, and it is what stops a bonus scaling with how many
+ *    cells a part happens to cover. `U-ACT`'s speed boost and `orderLatencyS`
+ *    are both this, for the same reason.
+ *
+ * A knob's bucket is declared once in `EFFECT_KNOBS`, not chosen here.
  */
 export class ModBuilder {
   private readonly base = neutralMults();
@@ -177,14 +250,18 @@ export class ModBuilder {
     return this;
   }
 
-  /** Sum into a physical quantity (kW of heat, seconds of latency). */
-  add(field: 'extraHeatKw' | 'orderLatencyS', amount: number): this {
+  /** Sum into a physical quantity (kW of heat). */
+  add(field: SumField, amount: number): this {
     this.base[field] += amount;
     return this;
   }
 
-  /** Raise a floor rather than accumulate — the worst offender wins. */
-  atLeast(field: 'orderLatencyS', value: number): this {
+  /**
+   * The strongest single source wins; copies buy nothing. Was `atLeast`, which
+   * described the mechanism (raise a floor) rather than the content rule, and
+   * was typed to the one field that happened to use it.
+   */
+  best(field: MaxField, value: number): this {
     this.base[field] = Math.max(this.base[field], value);
     return this;
   }
@@ -309,7 +386,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     id: 'sticky', name: 'Sticky', kind: 'quirk-flaw',
     blurb: 'weapon on/off orders take effect 0.8 s late',
     appliesTo: isWeapon,
-    apply: (m) => { m.atLeast('orderLatencyS', 0.8); },
+    apply: (m) => { m.best('orderLatencyS', 0.8); },
   },
   'cold-soaked': {
     id: 'cold-soaked', name: 'Cold-soaked', kind: 'quirk-flaw',
