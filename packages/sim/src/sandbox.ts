@@ -20,7 +20,7 @@ export const SANDBOX_RANGES_M = [30, 60, 100, 150, 200] as const;
 export const SANDBOX_DURATION_S = 45;
 
 /** Where a weapon's window went when it wasn't cleared to fire. */
-export type SandboxDownCause = 'range' | 'arc' | 'heat' | 'power' | 'shutdown' | 'destroyed';
+export type SandboxDownCause = 'range' | 'arc' | 'minrange' | 'heat' | 'power' | 'shutdown' | 'destroyed';
 
 export interface SandboxWeaponRow {
   partId: string;

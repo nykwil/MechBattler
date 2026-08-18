@@ -472,6 +472,8 @@ function WeaponSlot({
           ? { label: 'RANGE', blurb: 'target beyond this gun\'s reach' }
           : wf.gate === 'arc'
             ? { label: 'ARC', blurb: 'target outside the mount arc — turn to bear' }
+            : wf.gate === 'minrange'
+            ? { label: 'CLOSE', blurb: 'target inside this gun\'s minimum range — back off to shoot' }
             : wf.gate === 'heat'
               ? { label: 'HOT', blurb: `fire control holding at ≥${HEAT_FIRE_HOLD_C}°C (shutdown at ${HEAT_SHUTDOWN_C}°C)` }
               : { label: 'HOLD', blurb: 'fire control holding' };

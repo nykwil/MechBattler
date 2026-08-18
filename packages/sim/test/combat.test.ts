@@ -16,7 +16,7 @@ import { getPart } from '../src/catalog.js';
 const TC_MULT = getPart('U-TC1').fireControlLateralMult!;
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import { getChassis } from '../src/chassis.js';
-import { BRANCH_PROBE_TEMPLATES } from '../src/templates.js';
+import { BRANCH_PROBE_TEMPLATES, TEMPLATES } from '../src/templates.js';
 
 /**
  * Legal CH-5 Mule layouts (mask + core cell per src/chassis.ts):
@@ -384,6 +384,41 @@ describe('body collision (a floor no order can close past)', () => {
     if (weaponsOrder.verb === 'weapons') {
       expect(weaponsOrder.enabled['ac']).toBe(false);
     }
+  });
+
+  /**
+   * The gate above only ever bites for real on W-MG, the one gun that authors
+   * `falloff.min` -- everything else ramps from 0 and is positive at any range
+   * a hull collision permits. The frame the HUD reads had no reason code for
+   * it: a Stitcher inside its 10 m floor was silenced by the sim while the
+   * readout said nothing was stopping it.
+   */
+  it('names the minimum-range gate in the frame the readout reads', () => {
+    const mgBuild = () => structuredClone(
+      TEMPLATES.find((t) => t.id === 'mule-skirmisher')!.build,
+    );
+    const inside = new Battle({
+      builds: [mgBuild(), mgBuild()],
+      // 4 m spawn settles at 9.6 m after the first tick's hull push -- inside
+      // the Stitcher's 10 m floor, and far enough out that the gun is still
+      // powered rather than shed, so the gate is the only thing silencing it.
+      seed: 7, spawnDistanceM: 4, timeoutS: 1,
+    });
+    inside.step();
+    const mg = inside.frames[0]!.mechs[0]!.weapons.find((w) => w.instanceId === 'mg1')!;
+    expect(mg.status).toBe('ok');
+    expect(mg.gate).toBe('minrange');
+
+    // Outside the floor and the same gun reports clear, so the reason is the
+    // range band and not some other silence standing in for it.
+    const outside = new Battle({
+      builds: [mgBuild(), mgBuild()],
+      seed: 7, spawnDistanceM: 30, timeoutS: 1,
+    });
+    outside.step();
+    const far = outside.frames[0]!.mechs[0]!.weapons.find((w) => w.instanceId === 'mg1')!;
+    expect(far.status).toBe('ok');
+    expect(far.gate).toBe(null);
   });
 });
 

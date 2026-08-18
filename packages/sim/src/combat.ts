@@ -335,12 +335,18 @@ export interface WeaponFrame {
   tempC: number;
   /**
    * Which fire-control gate would silence this gun right now (docs/09 M2):
-   * target outside the mount arc, beyond the despawn bound, or the part at or
-   * past the 115 °C hold line. Physical facts only — the sim never knows
-   * whether the current hold is fire control or a commander (rule R6); the
-   * HUD combines this with its own override state. null = clear to fire.
+   * target outside the mount arc, beyond the despawn bound, inside the gun's
+   * own minimum range, or the part at or past the 115 °C hold line. Physical
+   * facts only — the sim never knows whether the current hold is fire control
+   * or a commander (rule R6); the HUD combines this with its own override
+   * state. null = clear to fire.
+   *
+   * `minrange` mirrors the autopilot's `falloffAt(...) > 0` check. It was
+   * missing here, so a W-MG inside its 10 m floor was silenced by the sim
+   * while the frame reported nothing was stopping it — the readout said
+   * "Ready" about a gun that could not fire.
    */
-  gate: 'arc' | 'range' | 'heat' | null;
+  gate: 'arc' | 'range' | 'minrange' | 'heat' | null;
 }
 
 /** One mech's kinematic + status sample for a playback tick. */
@@ -1293,9 +1299,18 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     const rangeMultiplier = self.weaponRangeMultiplier(p.instanceId) * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
     const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT * rangeMultiplier;
     const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
-    // falloffAt is 0 at true point-blank for every gun that isn't a brawler
-    // (idealMin > 0 ramps from 0, and W-MG's explicit `min` hard-floors it) —
-    // firing there is heat/ammo spent on a shot the sim itself prices at zero.
+    // Don't spend heat and ammo on a shot the curve prices at exactly zero.
+    //
+    // In practice that is a minimum-range gate for the one gun that authors
+    // `falloff.min` -- W-MG, floored at 10 m. Every other gun leaves `min`
+    // undefined, so falloffAt ramps from 0 and is positive at any range above
+    // literally zero, which resolveBodyCollision makes unreachable: two hulls
+    // never come closer than 2.3-4.3 m. A Judge at 3 m therefore fires for 15%
+    // damage rather than being silenced, and that graded ramp is the design --
+    // a gun inside its band is weak, not useless. (An earlier comment here
+    // claimed the reverse, that the gate silenced every non-brawler at contact;
+    // it never did, for anything but W-MG.)
+    //
     // Range is unscaled back through the same multiplier computeWeaponEnvelope
     // uses so a hill's reach bonus doesn't get read as point-blank.
     enabled[p.instanceId] = inArc && falloffAt(def, range / rangeMultiplier) > 0 && range <= despawnRange && coolEnough;
@@ -1762,8 +1777,13 @@ export class Battle {
           * c.weaponRangeMultiplier(p.instanceId)
           * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
         const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
+        // Same order and the same unscaling the autopilot uses, so the readout
+        // names the gate the sim actually applied.
+        const rangeMultiplier = c.weaponRangeMultiplier(p.instanceId)
+          * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
         if (rangeToEnemy > despawnRange) gate = 'range';
         else if (bearingOffset > halfArc) gate = 'arc';
+        else if (falloffAt(def, rangeToEnemy / rangeMultiplier) <= 0) gate = 'minrange';
         else if (tempC >= HEAT_FIRE_HOLD_C) gate = 'heat';
       }
       weapons.push({

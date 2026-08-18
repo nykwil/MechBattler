@@ -6,8 +6,11 @@
  * that defines behavior (part catalog, chassis, templates, the modifier
  * registry, and the headline dial constants). The lateral-penalty values left
  * this list in Aug 2026 when they became catalog fields -- `PARTS` covers them
- * now, and duplicating them here would have hashed the same number twice. and catches what humans forget.
- * Stamp both into anything that outlives a session.
+ * now, and duplicating them here would have hashed the same number twice.
+ *
+ * The two are belt and braces: `SIM_VERSION` is bumped by judgement, and the
+ * hash is derived, so it catches what humans forget. Stamp both into anything
+ * that outlives a session.
  */
 import { PARTS } from './catalog.js';
 import { CHASSIS } from './chassis.js';
