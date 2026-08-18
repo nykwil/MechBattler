@@ -32,7 +32,7 @@ import {
   buildThermalModel,
   type ThermalModel,
 } from './thermal.js';
-import { EXTERIOR_PASSIVE_K, buildSpatialOccupancy, spatialCellKey } from './spatial.js';
+import { EXTERIOR_PASSIVE_K, spatialCellKey } from './spatial.js';
 import { INSTANCE_KNOBS, cachedOccupancy, resolveBuildEffects } from './buildEffects.js';
 import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
 import type { TerrainType } from './terrain.js';

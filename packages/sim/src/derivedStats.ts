@@ -19,7 +19,7 @@ import { dexp } from './dmath.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
-import { locationEffectsForPart, resolvePlacementEffects } from './placementEffects.js';
+import { resolvePlacementEffects } from './placementEffects.js';
 import { INSTANCE_KNOBS, resolveBuildEffects, resolveSpeedMultiplier } from './buildEffects.js';
 import { connectedInstanceIds, resolveSpatialPower } from './spatialPower.js';
 
