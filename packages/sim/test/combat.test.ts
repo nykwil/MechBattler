@@ -367,6 +367,36 @@ describe('body collision (a floor no order can close past)', () => {
     expect(minSeen).toBeGreaterThanOrEqual(minSepM - 1e-6);
   });
 
+  /**
+   * The hull push used to run after the wall clamp and nothing re-clamped, so
+   * a mech already flat against a wall could be shoved back out through it and
+   * that position written straight into the recorded frame. Small -- 3 mm in an
+   * 8 m arena, and unreachable at 60 m -- but a recorded position being inside
+   * the arena should be an invariant rather than a near-miss, and a cramped
+   * arena is exactly where a future ram or knockback would make it not one.
+   */
+  it('never records a position outside the arena, even pinned in a corner', () => {
+    const build = () => structuredClone(
+      TEMPLATES.find((t) => t.id === 'bastion-tank')!.build,
+    );
+    for (const [lengthM, widthM, spawnDistanceM] of [[20, 20, 8], [8, 8, 4]] as const) {
+      for (let seed = 1; seed <= 6; seed += 1) {
+        const battle = new Battle({
+          builds: [build(), build()],
+          seed, spawnDistanceM, arenaLengthM: lengthM, arenaWidthM: widthM, timeoutS: 25,
+        });
+        while (battle.step()) { /* run it out */ }
+        expect(battle.frames.length).toBeGreaterThan(0);
+        for (const frame of battle.frames) {
+          for (const mech of frame.mechs) {
+            expect(Math.abs(mech.x), `seed ${seed} @${lengthM}m`).toBeLessThanOrEqual(lengthM / 2);
+            expect(Math.abs(mech.y), `seed ${seed} @${lengthM}m`).toBeLessThanOrEqual(widthM / 2);
+          }
+        }
+      }
+    }
+  });
+
   it("won't hold a gun's trigger down inside its own dead zone", () => {
     // muleGunline's W-AC (Judge) has idealMin > 0, so falloffAt(def, 0) is 0
     // (docs/03 §5, test/minrange.test.ts) — a shot from contact range is a

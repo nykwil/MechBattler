@@ -1718,8 +1718,7 @@ export class Battle {
       }
     }
 
-    // Movement, then clamp to the arena walls (a mech pinned against a wall
-    // loses the velocity component driving it into the wall -- no sticking).
+    // Movement, then clamp to the arena walls.
     for (const i of [0, 1] as const) {
       // Partial locomotion power is a slower mech, not a stopped one; the core
       // only sheds outright when its network can feed it nothing at all.
@@ -1730,12 +1729,15 @@ export class Battle {
       const baseMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
       const speedMult = (baseMult < 1 && c.ignoresTerrainSlow(this.lastSnapshots[i]) ? 1 : baseMult) * locomotionFrac;
       integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult, this.lastSnapshots[i]);
-      if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
-      else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
-      if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
-      else if (c.pos.y > this.arenaHalfWidthM) { c.pos.y = this.arenaHalfWidthM; c.vel.y = Math.min(0, c.vel.y); }
+      this.clampToArena(c);
     }
+    // The hull push can shove a mech that was already flat against a wall back
+    // out through it, and the frame below records wherever it lands. Measured
+    // at 3 mm in an 8x8 m arena and never at all at 60x60, so this is holding
+    // an invariant rather than fixing a visible drift -- but "a recorded
+    // position is inside the arena" should be true, not nearly true.
     this.resolveBodyCollision();
+    for (const c of this.combatants) this.clampToArena(c);
 
     if (this.recordFrames) {
       this.frames.push({
@@ -1843,6 +1845,17 @@ export class Battle {
    * that floor from opposite sides in one tick — so it is enforced here, once,
    * on the resolved positions rather than threaded through every mover.
    */
+  /**
+   * A mech pinned against a wall loses the velocity component driving it into
+   * the wall, so it slides along instead of sticking.
+   */
+  private clampToArena(c: Combatant): void {
+    if (c.pos.x < -this.arenaHalfLengthM) { c.pos.x = -this.arenaHalfLengthM; c.vel.x = Math.max(0, c.vel.x); }
+    else if (c.pos.x > this.arenaHalfLengthM) { c.pos.x = this.arenaHalfLengthM; c.vel.x = Math.min(0, c.vel.x); }
+    if (c.pos.y < -this.arenaHalfWidthM) { c.pos.y = -this.arenaHalfWidthM; c.vel.y = Math.max(0, c.vel.y); }
+    else if (c.pos.y > this.arenaHalfWidthM) { c.pos.y = this.arenaHalfWidthM; c.vel.y = Math.min(0, c.vel.y); }
+  }
+
   private resolveBodyCollision(): void {
     const [a, b] = this.combatants;
     const minSepM = meanSilhouetteHalfWidthM(a.chassis) + meanSilhouetteHalfWidthM(b.chassis);
