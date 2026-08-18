@@ -8,7 +8,8 @@ import {
 } from '../src/diversity.js';
 import { auditModifierLoadout } from '../src/modifiers.js';
 import { computeSpeedProfile } from '../src/derivedStats.js';
-import { computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from '../src/grid.js';
+import { computeLoadScaledSpeeds, computeMassAndCoG } from '../src/grid.js';
+import { resolveSpeedMultiplier } from '../src/buildEffects.js';
 import { getChassis } from '../src/chassis.js';
 import { validateWholeBuildPlacement } from '../src/spatial.js';
 
@@ -61,7 +62,9 @@ describe('build diversity and perk guardrails', () => {
     expect(profile.strafe).toBeCloseTo(base.strafe * 1.15);
     expect(profile.rev).toBeCloseTo(base.rev * 1.15);
     const stride = build.parts.find((part) => part.partId === 'U-ACT')!;
-    expect(computePartSpeedMultiplier([...build.parts, { ...stride, instanceId: 'redundant-stride' }])).toBe(1.15);
+    expect(resolveSpeedMultiplier(
+      [...build.parts, { ...stride, instanceId: 'redundant-stride' }], () => true,
+    )).toBe(1.15);
   });
 
   it('part overlap audit exposes the known ammo placeholder', () => {

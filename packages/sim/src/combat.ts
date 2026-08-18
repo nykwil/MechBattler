@@ -23,10 +23,13 @@
 import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
-import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
+import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, type LoadScaledSpeeds } from './grid.js';
 import { exposedEquipmentTickets, type AttackDirection } from './spatial.js';
 import { connectedInstanceIds } from './spatialPower.js';
-import { INSTANCE_KNOBS, resolveBuildEffects, type BuildEffects } from './buildEffects.js';
+import {
+  INSTANCE_KNOBS, resolveBuildEffects, resolveFireControlLateralMult, resolveSpeedMultiplier,
+  type BuildEffects,
+} from './buildEffects.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
@@ -522,12 +525,12 @@ export class Combatant {
 
   /** Load-scaled speeds with one functional, powered booster applied. */
   activeSpeeds(snapshot: SimSnapshot | null): LoadScaledSpeeds {
-    const boost = computePartSpeedMultiplier(this.build.parts, (part) =>
-      this.speedBoosterIds.includes(part.instanceId) &&
-      this.isPartFunctional(part.instanceId) &&
+    const boost = resolveSpeedMultiplier(this.build.parts, (instanceId) =>
+      this.speedBoosterIds.includes(instanceId) &&
+      this.isPartFunctional(instanceId) &&
       (snapshot === null || (
-        !snapshot.shedInstanceIds.includes(part.instanceId) &&
-        !snapshot.shutdownInstanceIds.includes(part.instanceId)
+        !snapshot.shedInstanceIds.includes(instanceId) &&
+        !snapshot.shutdownInstanceIds.includes(instanceId)
       )),
     );
     return boost === 1 ? this.speeds : {
@@ -631,15 +634,12 @@ export class Combatant {
    * effect, the combatant only multiplies what is currently working.
    */
   fireControlLateralMult(snapshot: SimSnapshot | null): number {
-    let mult = 1;
-    for (const p of this.build.parts) {
-      const declared = getPart(p.partId).fireControlLateralMult;
-      if (declared === undefined || !this.isPartFunctional(p.instanceId)) continue;
-      if (snapshot !== null && (snapshot.shedInstanceIds.includes(p.instanceId)
-        || snapshot.shutdownInstanceIds.includes(p.instanceId))) continue;
-      mult *= declared;
-    }
-    return mult;
+    return resolveFireControlLateralMult(this.build.parts, (instanceId) =>
+      this.isPartFunctional(instanceId)
+      && (snapshot === null || (
+        !snapshot.shedInstanceIds.includes(instanceId)
+        && !snapshot.shutdownInstanceIds.includes(instanceId)
+      )));
   }
 
   hasFunctionalWeapons(): boolean {

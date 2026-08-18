@@ -5,7 +5,6 @@ import {
   MECH_KNOBS,
   PARTS,
   SPATIAL_DEMO_TEMPLATE,
-  computePartSpeedMultiplier,
   getChassis,
   getPart,
   locationEffectsForPart,
@@ -69,11 +68,14 @@ describe('resolveBuildEffects reproduces the reductions it replaces', () => {
     }
   });
 
-  it('matches computePartSpeedMultiplier on the mech-wide speed knob', () => {
+  it('matches the best-Stride max the grid helper used to compute', () => {
     for (const { name, build } of templates()) {
       const chassis = getChassis(build.chassisId);
+      const expected = build.parts.reduce(
+        (best, p) => Math.max(best, getPart(p.partId).speedMult ?? 1), 1,
+      );
       expect(resolveBuildEffects(chassis, build, allActive).mech.speedMultiplier, name)
-        .toBeCloseTo(computePartSpeedMultiplier(build.parts), 12);
+        .toBeCloseTo(expected, 12);
     }
   });
 
@@ -113,7 +115,6 @@ describe('the mech-scoped buckets, which the templates do not cover', () => {
     expect(twoMult).toBe(oneMult);
     // The bucket is doing the work: multiplicative would be 1.3225.
     expect(twoMult).not.toBeCloseTo(oneMult * oneMult, 6);
-    expect(twoMult).toBeCloseTo(computePartSpeedMultiplier(two), 12);
   });
 
   it('fire control compounds instead, so two computers cost and buy twice', () => {

@@ -16,11 +16,11 @@ import type { Build, ChassisSpec, PartDef, PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { dexp } from './dmath.js';
-import { computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier } from './grid.js';
+import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
 import { locationEffectsForPart, resolvePlacementEffects } from './placementEffects.js';
-import { INSTANCE_KNOBS, resolveBuildEffects } from './buildEffects.js';
+import { INSTANCE_KNOBS, resolveBuildEffects, resolveSpeedMultiplier } from './buildEffects.js';
 import { connectedInstanceIds, resolveSpatialPower } from './spatialPower.js';
 
 export interface SpeedProfile {
@@ -37,7 +37,7 @@ export function computeSpeedProfile(chassis: ChassisSpec, build: Build): SpeedPr
   const massAndCoG = computeMassAndCoG(chassis, build.parts, build.routes);
   const scaled = computeLoadScaledSpeeds(chassis, massAndCoG);
   const connected = connectedInstanceIds(chassis, build);
-  const boost = computePartSpeedMultiplier(build.parts, (part) => connected.has(part.instanceId));
+  const boost = resolveSpeedMultiplier(build.parts, (instanceId) => connected.has(instanceId));
   return {
     massT: massAndCoG.totalMassT,
     ...scaled,
