@@ -10,7 +10,7 @@
  * never get crowded out of the budget by their own plumbing.
  */
 import type { Build, CellRef, PlacedPart, Rotation } from './types.js';
-import { getPart } from './catalog.js';
+import { competesForPowerBudget, getPart } from './catalog.js';
 import { getChassis, regionIdAt } from './chassis.js';
 import { checkPlacement, getOccupiedCells } from './grid.js';
 import { checkSpatialPartPlacement, spatialCellKey } from './spatial.js';
@@ -61,11 +61,6 @@ const FILL_POOL = ['W-AC', 'W-MG', 'U-RAD', 'U-TC1', 'U-ARM'];
  */
 function fillWeaponCap(budget: number): number {
   return Math.max(2, Math.floor(budget / 8));
-}
-
-function drawsFromReactor(partId: string): boolean {
-  const def = getPart(partId);
-  return Boolean(def.draw?.continuousKw || def.draw?.chargedEnergyPerShotKj);
 }
 
 function shuffled<T>(items: T[], rng: Pcg32): T[] {
@@ -179,7 +174,7 @@ export function generateOpponent({
     routes = routes.filter((route) => !stampedCells.has(spatialCellKey(chassis, route)));
     remaining -= def.tier;
     if (def.category === 'weapon') weaponsAdded++;
-    if (drawsFromReactor(partId)) powerPriority.push(placed.instanceId);
+    if (competesForPowerBudget(getPart(partId))) powerPriority.push(placed.instanceId);
   }
 
   // Wiring is free structure: power everything the fill added. A fill part

@@ -14,7 +14,7 @@
  * adjust the build" loop so matchup softness becomes a measured property.
  */
 import type { Build, PlacedPart } from './types.js';
-import { getPart } from './catalog.js';
+import { competesForPowerBudget, getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { checkPlacement, getOccupiedCells } from './grid.js';
 import { connectedInstanceIds } from './spatialPower.js';
@@ -100,7 +100,7 @@ function addParts(build: Build, partId: string, count: number, opts: { frontFirs
     }
     if (!placed) break;
     parts = [...parts, placed];
-    if (def.draw?.continuousKw || def.draw?.chargedEnergyPerShotKj) priority = [...priority, placed.instanceId];
+    if (competesForPowerBudget(def)) priority = [...priority, placed.instanceId];
     placedCount++;
   }
   if (placedCount === 0) return null;

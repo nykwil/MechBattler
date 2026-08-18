@@ -312,6 +312,25 @@ export function requiresPowerConnection(def: PartDef): boolean {
  * it, and `resolveSpatialPower` does count sources in `connectedInstanceIds`,
  * so an isolated one is worth showing as unpowered even though no rule rejects it.
  */
+/**
+ * True when a part can ever compete for the power budget, and so belongs on
+ * `build.powerPriority` where the player orders what gets shed first.
+ *
+ * Deliberately narrower than `requiresPowerConnection`. `Simulation` only ranks
+ * instances that requested a positive draw this tick, and it computes that draw
+ * from `continuousKw` or a weapon's `chargedEnergyPerShotKj` -- nothing else can
+ * reach `requestedKw`. So a capacitor or a cap-fed railgun on the priority list
+ * is an entry the player can drag up and down to no effect whatsoever.
+ *
+ * Three copies of this existed and one disagreed: `progression.ts` used
+ * `draw || weapon`, which put W-RG on the AI's lists but not the player's. The
+ * entry was inert either way, which is why nothing ever caught it.
+ */
+export function competesForPowerBudget(def: PartDef): boolean {
+  return Boolean(def.draw?.continuousKw
+    || (def.category === 'weapon' && def.draw?.chargedEnergyPerShotKj));
+}
+
 export function participatesInPowerNetwork(def: PartDef): boolean {
   return requiresPowerConnection(def) || Boolean(def.reactor);
 }

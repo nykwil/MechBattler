@@ -8,6 +8,7 @@ import {
   checkSpatialPartPlacement,
   getChassis,
   getOccupiedCells,
+  competesForPowerBudget,
   getPart,
   regionIdAt,
   spatialCellKey,
@@ -75,10 +76,8 @@ type Action =
   | { type: 'SET_ROUTE_TOOL'; kind: RouteKind | null }
   | { type: 'PLACE_ROUTE'; x: number; y: number };
 
-function drawsFromReactorPriority(partId: string): boolean {
-  const def = getPart(partId);
-  return Boolean(def.draw?.continuousKw || def.draw?.chargedEnergyPerShotKj);
-}
+/** The sim's rule for what can be shed, so the list holds no inert entries. */
+const drawsFromReactorPriority = (partId: string) => competesForPowerBudget(getPart(partId));
 
 function nextRotation(r: Rotation): Rotation {
   return ((r + 90) % 360) as Rotation;

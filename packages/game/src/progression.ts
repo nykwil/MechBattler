@@ -9,6 +9,7 @@ import {
   buildSpatialOccupancy,
   buildTierBudget,
   getChassis,
+  competesForPowerBudget,
   getPart,
   locationEffectsForPart,
   resolvePlacementEffects,
@@ -410,7 +411,7 @@ function candidatePlacementBuild(
             ...base,
             parts: [...base.parts, placed],
             routes: base.routes,
-            powerPriority: getPart(benched.partId).draw || getPart(benched.partId).category === 'weapon'
+            powerPriority: competesForPowerBudget(getPart(benched.partId))
               ? [...base.powerPriority, benched.id]
               : [...base.powerPriority],
           };
