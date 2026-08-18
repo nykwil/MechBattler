@@ -33,7 +33,7 @@ import {
   type ThermalModel,
 } from './thermal.js';
 import { EXTERIOR_PASSIVE_K, buildSpatialOccupancy, spatialCellKey } from './spatial.js';
-import { locationEffectsForPart } from './placementEffects.js';
+import { INSTANCE_KNOBS, cachedOccupancy, resolveBuildEffects } from './buildEffects.js';
 import { NEUTRAL_MULTS, STATIC_CTX, effectiveMults, type EffectiveMults } from './modifiers.js';
 import type { TerrainType } from './terrain.js';
 
@@ -212,32 +212,34 @@ export class Simulation {
 
   /** Re-evaluate sealed coverage when armour becomes or starts as a wreck. */
   private refreshSpatialProtection(): void {
-    const occupancy = buildSpatialOccupancy(this.chassis, this.build);
+    // Shared with the resolver below, which would otherwise build a second
+    // copy of the same static occupancy on every wreck.
+    const occupancy = cachedOccupancy(this.chassis, this.build);
     const active = (instanceId: string) => {
       const part = this.parts.find((candidate) => candidate.instanceId === instanceId);
       return Boolean(part && part.integrity > 0 && !this.runtime.get(instanceId)?.destroyed);
     };
-    const armourHeatMultByInstance = new Map<string, number>();
-    for (const stack of occupancy.stacksByCell.values()) {
-      const shell = [...stack].reverse().find((entry) =>
-        active(entry.instanceId)
-        && getPart(entry.partId).spatial?.coveredHeatMultiplier !== undefined);
-      if (!shell) continue;
-      const mult = getPart(shell.partId).spatial?.coveredHeatMultiplier ?? 1;
-      for (const entry of stack) {
-        if (entry.instanceId !== shell.instanceId) {
-          armourHeatMultByInstance.set(
-            entry.instanceId,
-            Math.max(mult, armourHeatMultByInstance.get(entry.instanceId) ?? 1),
-          );
-        }
-      }
-    }
+    // Zone heat (whole-footprint, multiplies) times armour cover (per-cell,
+    // maxes) -- both resolved in one place now, so the sim and the workshop
+    // inspector cannot disagree about what a shell is worth.
+    //
+    // This method is already the gating hook the resolver wants: it re-runs
+    // whenever armour becomes a wreck, and its result is cached in
+    // `coveredHeatMultByInstance`, which the thermal step reads five times a
+    // tick. That shape was right; only the reduction moved.
+    //
+    // One semantic was chosen rather than preserved. This took the *topmost*
+    // active shell's multiplier; `placementEffects.ts` took the *max* over
+    // everything above. Only `U-SHELL` declares `coveredHeatMultiplier`, so the
+    // two agree on today's catalog -- but they are different rules, and the
+    // resolver keeps max, which is the one the inspector already showed the
+    // player.
+    const effects = resolveBuildEffects(this.chassis, this.build, active);
     for (const part of this.parts) {
-      const locationMult = locationEffectsForPart(this.chassis, part).heatMultiplier;
       this.coveredHeatMultByInstance.set(
         part.instanceId,
-        locationMult * (armourHeatMultByInstance.get(part.instanceId) ?? 1),
+        effects.byInstance.get(part.instanceId)?.heatMultiplier
+          ?? INSTANCE_KNOBS.heatMultiplier.neutral,
       );
     }
     for (const cell of this.thermal.cells.values()) {
