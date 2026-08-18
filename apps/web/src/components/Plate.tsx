@@ -7,6 +7,7 @@ import {
   isExteriorCell,
   isPortCell,
   participatesInPowerNetwork,
+  resolveBuildEffects,
   regionIdAt,
   resolveSpatialPower,
   resolveThermalPaths,
@@ -146,6 +147,17 @@ export function Plate({
     () => resolveThermalPaths(chassis, { parts, routes }),
     [chassis, parts, routes],
   );
+  /**
+   * Placement multiplies the heat a part actually generates -- an armour shell
+   * over a reactor is the point of `coveredHeatMultiplier`. The overlay drew
+   * the rated figure, so the one build that makes a part run hot was the one
+   * build where the heat view understated it. Straight from the resolver, the
+   * same number `Simulation` burns.
+   */
+  const placementHeat = useMemo(
+    () => resolveBuildEffects(chassis, { parts, routes }, () => true).byInstance,
+    [chassis, parts, routes],
+  );
 
   const coreRegionId = chassis.coreCell.regionId
     ?? regionIdAt(chassis, chassis.coreCell.x, chassis.coreCell.y)
@@ -201,7 +213,7 @@ export function Plate({
     return set;
   }, [ghostCells]);
 
-  function fillFor(def: PartDef, live: boolean, x: number, y: number): string {
+  function fillFor(def: PartDef, live: boolean, x: number, y: number, instanceId: string): string {
     if (overlay === 'power') {
       if (def.isConduit) return 'var(--signal-blue)';
       if (!needsPower(def)) return 'var(--line-bright)';
@@ -210,7 +222,8 @@ export function Plate({
     if (overlay === 'thermal') {
       const t = thermalSnapshot?.[`${x},${y}`];
       if (t !== undefined) return thermalColor(t);
-      const waste = wasteHeatKw(def);
+      const waste = wasteHeatKw(def)
+        * (placementHeat.get(instanceId)?.heatMultiplier ?? 1);
       if (waste) return waste >= 7 ? 'var(--signal-red)' : 'var(--signal-amber)';
       // Radiators are the app's cooling parts; the catalog marks them perimeterOnly.
       if (def.perimeterOnly) return 'var(--signal-blue)';
@@ -351,7 +364,7 @@ export function Plate({
         const def = getPart(occ.partId);
         const live = powered.has(occ.instanceId);
         classes.push('filled');
-        style.background = fillFor(def, live, x, y);
+        style.background = fillFor(def, live, x, y, occ.instanceId);
         // In Parts view the hatch is the only cue for a dead part, so keep it.
         // Power view already says it in position and colour, so drop the noise.
         if (!live && needsPower(def) && overlay !== 'power') classes.push('unpowered');

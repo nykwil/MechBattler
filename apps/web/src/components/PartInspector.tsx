@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import {
   connectedInstanceIds,
   getPart,
+  requiresPowerConnection,
   resolvePlacementEffects,
   type Build,
   type ChassisSpec,
@@ -40,7 +41,11 @@ export function PartInspector({
   if (!placed) return null;
 
   const def = getPart(placed.partId);
-  const drawsPower = Boolean(def.draw) || def.category === 'weapon';
+  // Was a local copy that read `draw || weapon`, missing the capacitor arm --
+  // so a fitted, unwired capacitor showed no power row at all while
+  // validation.ts rejected the build for exactly that. Same rule as Plate,
+  // autowire and validation now.
+  const drawsPower = requiresPowerConnection(def);
   const powered = connected.has(placed.instanceId);
   const stackNames = placement?.cells[0]?.stackInstanceIds.map((instanceId) => {
     const item = build.parts.find((part) => part.instanceId === instanceId);

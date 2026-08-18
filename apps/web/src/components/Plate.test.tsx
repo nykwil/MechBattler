@@ -337,4 +337,34 @@ describe('Plate accessibility structure', () => {
       expect(cell.getAttribute('aria-label')).toMatch(/column \d+, row \d+/);
     }
   });
+
+  /**
+   * The thermal overlay drew each part's *rated* waste heat, so the one build
+   * that makes a part run hot -- a shell sealed over it -- was the build where
+   * the heat view understated it. R-C40 is rated 6 kW, under the overlay's 7 kW
+   * red threshold; Carapace's 1.25x puts it at 7.5 and over.
+   */
+  it('colours a sealed reactor by the heat it will actually make, not its rating', () => {
+    const reactor = {
+      instanceId: 'r1', partId: 'R-C40',
+      origin: { regionId: 'body', x: 0, y: 0 }, rotation: 0 as const, integrity: 1,
+    };
+    const shell = {
+      instanceId: 's1', partId: 'U-SHELL',
+      origin: { regionId: 'body', x: 0, y: 0 }, rotation: 0 as const, integrity: 1,
+    };
+    // Pick the reactor's own cells by name: the shell sits on top of two of
+    // them, so the plate's first filled cell is the shell, not the part under
+    // test. The multiplier is per instance, so every reactor cell moves.
+    const fill = (parts: typeof reactor[]) => {
+      const { container } = renderPlate({ parts, overlay: 'thermal' });
+      const cells = [...container.querySelectorAll('.cell.filled')]
+        .filter((node) => node.getAttribute('aria-label')?.includes('Lump')) as HTMLElement[];
+      expect(cells.length).toBeGreaterThan(0);
+      return [...new Set(cells.map((node) => node.style.background))];
+    };
+
+    expect(fill([reactor])).toEqual(['var(--signal-amber)']);
+    expect(fill([reactor, shell])).toEqual(['var(--signal-red)']);
+  });
 });
