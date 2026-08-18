@@ -325,7 +325,30 @@ export interface ModifierDef {
    * content picks its bucket deliberately.
    */
   apply: (m: ModBuilder, ctx: ModifierCtx, def: PartDef) => void;
+  /**
+   * Whether this modifier's *conditional* half is in effect at `ctx`. Absent
+   * means unconditional -- the modifier always does what it does.
+   *
+   * Declared here, beside `apply` and sharing its threshold constant, because
+   * the balance harness needs to know and used to answer by retyping the
+   * comparison in another file. It drifted: `diversity.ts` measured hull-down
+   * against 0.5 m/s where the perk uses 1.5, under-reported activation
+   * sevenfold, and printed the perk as dead. Read it from here instead.
+   *
+   * Not derivable by diffing `effectiveMults` with and without the modifier:
+   * hull-down and gyrostabilized both scale `massKg` unconditionally, so that
+   * diff reports "always active" for exactly the perks in question.
+   */
+  isActive?: (ctx: ModifierCtx, def: PartDef) => boolean;
 }
+
+/**
+ * Thresholds shared between a modifier's `apply` and its `isActive`, so the
+ * number is written once and the two cannot disagree.
+ */
+export const COLD_BORE_MAX_C = 40;
+export const FEVER_CYCLE_MIN_C = 50;
+export const HULL_DOWN_MAX_MPS = 1.5;
 
 const isWeapon = (d: PartDef) => d.category === 'weapon';
 const isRadiator = (d: PartDef) => d.id === 'U-RAD';
@@ -413,8 +436,9 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     // normal operating band but reachable by a deliberately hot-running fit.
     apply: (m, ctx) => {
       m.scale('drawKw', 1.15);
-      m.scale('cycleS', Math.max(0.85, 1 - Math.max(0, ctx.tempC - 50) * 0.003));
+      m.scale('cycleS', Math.max(0.85, 1 - Math.max(0, ctx.tempC - FEVER_CYCLE_MIN_C) * 0.003));
     },
+    isActive: (ctx) => ctx.tempC > FEVER_CYCLE_MIN_C,
   },
   'cold-bore': {
     id: 'cold-bore', name: 'Cold bore', kind: 'mod',
@@ -424,7 +448,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     appliesTo: isWeapon,
     apply: (m, ctx) => {
       m.scale('damage', 0.95);
-      if (ctx.tempC < 40) {
+      if (ctx.tempC < COLD_BORE_MAX_C) {
         m.scale('damage', 1.15);
         m.scale('dispersionMrad', 0.5);
         // The jitter half was added Aug 2026, when raising MOVE_JITTER_MRAD_PER_MPS
@@ -435,12 +459,14 @@ export const MODIFIERS: Record<string, ModifierDef> = {
         m.scale('moveJitter', 0.5);
       }
     },
+    isActive: (ctx) => ctx.tempC < COLD_BORE_MAX_C,
   },
   'tidecooler': {
     id: 'tidecooler', name: 'Tidecooler', kind: 'mod',
     blurb: 'radiator ×2 while wading — camp the water',
     appliesTo: isRadiator,
     apply: (m, ctx) => { if (ctx.tile === 'water') m.scale('radiator', 2); },
+    isActive: (ctx) => ctx.tile === 'water',
   },
   'gyrostabilized': {
     id: 'gyrostabilized', name: 'Gyrostabilized', kind: 'mod',
@@ -456,7 +482,11 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     tradeoff: 'Requires a powered two-cell Stride and adds 15% servo mass; moving turns it off.',
     maxCopiesPerBuild: 1,
     appliesTo: (d) => d.id === 'U-ACT',
-    apply: (m, ctx) => { m.scale('massKg', 1.15); if (ctx.speedMps < 1.5) m.scale('targetProfile', 0.4); },
+    apply: (m, ctx) => {
+      m.scale('massKg', 1.15);
+      if (ctx.speedMps < HULL_DOWN_MAX_MPS) m.scale('targetProfile', 0.4);
+    },
+    isActive: (ctx) => ctx.speedMps < HULL_DOWN_MAX_MPS,
   },
   'coil-sprung': {
     id: 'coil-sprung', name: 'Coil-sprung actuators', kind: 'mod',
