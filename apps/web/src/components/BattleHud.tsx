@@ -4,7 +4,7 @@ import {
   HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
   computeHitModel, effectiveMults, falloffAt, meanSilhouetteHalfWidthM,
   FOREST_COVER_MULT,
-  weaponSigmaRad, TRACKING_LAG_S,
+  weaponSigmaRad, TRACKING_LAG_S, resolveFireControlLateralMult,
   type BattleEvent, type BattleFrame, type Build, type MechFrame, type WeaponFrame, type PartDef, type TerrainGrid, type TerrainType,
 } from '@mechbattler/sim';
 import { eventText, fmtTime } from '../lib/battleText.js';
@@ -77,10 +77,10 @@ const HEAT_MAX_C = HEAT_DAMAGE_C;
  * The mech's fire-control share of the lateral-target penalty at this moment --
  * `Combatant.fireControlLateralMult` replayed from the event stream.
  *
- * A product rather than a boolean, and read from each part's catalog field
- * rather than matching the id 'U-TC1', because both are true of the sim: copies
- * compound, and any part may declare the effect. It does not touch fire-control
- * lag, so it cannot silently improve a slow shell's reach.
+ * The product itself comes from the sim's `resolveFireControlLateralMult` --
+ * the same call `Combatant.fireControlLateralMult` makes -- so the HUD cannot
+ * disagree with the model it reports on. Only the gating is the HUD's, because
+ * only the HUD has to replay it.
  *
  * The sim requires the part to be fitted, functional, and neither shed nor shut
  * down. Only the first is visible from a build, so the rest is replayed up to
@@ -112,14 +112,9 @@ function downedAt(view: BattleView, tSec: number, mech: 0 | 1): Set<string> {
 export function fireControlLateralMultAt(
   view: BattleView, build: Build | undefined, tSec: number, mech: 0 | 1,
 ): number {
-  const fitted = build?.parts.filter((p) => getPart(p.partId).fireControlLateralMult !== undefined) ?? [];
-  if (fitted.length === 0) return 1;
+  if (!build) return 1;
   const down = downedAt(view, tSec, mech);
-  let mult = 1;
-  for (const p of fitted) {
-    if (!down.has(p.instanceId)) mult *= getPart(p.partId).fireControlLateralMult!;
-  }
-  return mult;
+  return resolveFireControlLateralMult(build.parts, (id) => !down.has(id));
 }
 
 /**
