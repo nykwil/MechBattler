@@ -1864,15 +1864,28 @@ export class Battle {
     if (dist >= minSepM || dist < 1e-6) return;
     const push = norm(delta);
     const overlap = minSepM - dist;
-    a.pos = sub(a.pos, scale(push, overlap / 2));
-    b.pos = add(b.pos, scale(push, overlap / 2));
+    // Split by mass, not evenly: the light mech gives way. Template masses run
+    // 0.96 t to 3.48 t, so a Bastion shoving a Vulture moves it about three
+    // times as far as it moves itself, where an even split had a scout hold a
+    // tank off as well as a tank holds a scout. Same `massT` the stagger
+    // threshold and recoil kick already use, so tonnage means one thing.
+    //
+    // Reduces exactly to the previous halves when the two masses are equal,
+    // which is the equal-mass case the old constant silently assumed.
+    const massA = Math.max(a.massT, 1e-6);
+    const massB = Math.max(b.massT, 1e-6);
+    const shareA = massB / (massA + massB);
+    const shareB = massA / (massA + massB);
+    a.pos = sub(a.pos, scale(push, overlap * shareA));
+    b.pos = add(b.pos, scale(push, overlap * shareB));
     // Kill the closing component so the pair settles at arm's length instead
     // of being shoved apart and immediately driven back together next tick.
+    // Split the same way, which is what conserves momentum along the normal.
     const relVel = sub(b.vel, a.vel);
     const closingSpeed = -(relVel.x * push.x + relVel.y * push.y);
     if (closingSpeed > 0) {
-      a.vel = sub(a.vel, scale(push, closingSpeed / 2));
-      b.vel = add(b.vel, scale(push, closingSpeed / 2));
+      a.vel = sub(a.vel, scale(push, closingSpeed * shareA));
+      b.vel = add(b.vel, scale(push, closingSpeed * shareB));
     }
   }
 

@@ -368,6 +368,51 @@ describe('body collision (a floor no order can close past)', () => {
   });
 
   /**
+   * The push used to be split evenly, which is the equal-mass special case
+   * written as a constant: a 1.9 t scout held a 7.1 t tank off exactly as well
+   * as the tank held the scout. Weighted by the same `massT` the stagger
+   * threshold and recoil kick use, the light mech gives way.
+   *
+   * Worth knowing how little this is exercised today: across 200 fights and
+   * ~230k ticks over five matchups, hulls touched in one fight -- the autopilot
+   * holds its preferred range and almost never closes to contact. So this is
+   * right rather than impactful, and it is pinned here directly because no
+   * integration fixture reaches it (GOLDEN's pair never gets within 46 m).
+   */
+  it('splits the hull push by mass, so the light mech gives way', () => {
+    const at = (a: string, b: string) => {
+      const battle = new Battle({
+        builds: [
+          structuredClone(TEMPLATES.find((t) => t.id === a)!.build),
+          structuredClone(TEMPLATES.find((t) => t.id === b)!.build),
+        ],
+        seed: 5, spawnDistanceM: 1, timeoutS: 1,
+      });
+      const [x, y] = battle.combatants;
+      const from = [{ ...x.pos }, { ...y.pos }];
+      battle.step();
+      return {
+        massRatio: x.massT / y.massT,
+        moveRatio: Math.hypot(y.pos.x - from[1]!.x, y.pos.y - from[1]!.y)
+          / Math.hypot(x.pos.x - from[0]!.x, x.pos.y - from[0]!.y),
+      };
+    };
+
+    const uneven = at('bastion-tank', 'vulture-skirmisher');
+    expect(uneven.massRatio).toBeGreaterThan(3);
+    // Displacement is inverse to mass. Not exact: locomotion also moved them
+    // this tick, so allow the ratio to sit within 15% of the mass ratio.
+    expect(uneven.moveRatio).toBeGreaterThan(uneven.massRatio * 0.85);
+    expect(uneven.moveRatio).toBeLessThan(uneven.massRatio * 1.15);
+
+    // Equal masses reduce to the halves the old constant assumed.
+    const even = at('vulture-skirmisher', 'vulture-skirmisher');
+    expect(even.massRatio).toBeCloseTo(1, 6);
+    expect(even.moveRatio).toBeGreaterThan(0.85);
+    expect(even.moveRatio).toBeLessThan(1.15);
+  });
+
+  /**
    * The hull push used to run after the wall clamp and nothing re-clamped, so
    * a mech already flat against a wall could be shoved back out through it and
    * that position written straight into the recorded frame. Small -- 3 mm in an
