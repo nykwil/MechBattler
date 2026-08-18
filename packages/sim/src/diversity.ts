@@ -8,8 +8,9 @@ import type { Build } from './types.js';
 import { getChassis, getUsableCellCount } from './chassis.js';
 import { getPart } from './catalog.js';
 import { getOccupiedCells } from './grid.js';
-import { auditModifierLoadout, MODIFIERS } from './modifiers.js';
-import { runBattle } from './combat.js';
+import { auditModifierLoadout, MODIFIERS, type ModifierCtx } from './modifiers.js';
+import { runBattle, TICK_S } from './combat.js';
+import { terrainAt } from './terrain.js';
 import { dhypot } from './dmath.js';
 import { analyzeRoundRobin, runRoundRobin, type RoundRobinReport } from './harness.js';
 import { TEMPLATES, type TemplateDef } from './templates.js';
@@ -224,7 +225,28 @@ function cohortResults(build: Build, seeds: number, baseSeed: number): { winRate
   return { winRate: battles > 0 ? wins / battles : 0, byOpponent };
 }
 
+/**
+ * How often the perk's conditional half is actually in effect.
+ *
+ * The condition is read from the modifier registry, never restated here. This
+ * function used to carry an if/else chain keyed on `perkId` with the thresholds
+ * retyped, and it drifted: hull-down was counted below 0.5 m/s where the perk
+ * fires below 1.5, which under-reported it sevenfold and printed a live perk as
+ * dead. It also had no fallthrough, so a perk added to PERK_CASES without a
+ * branch silently measured 0% and was reported dead by default -- the failure
+ * pointed the wrong way.
+ *
+ * A modifier with no declared `isActive` is unconditional and counts every
+ * tick, which is the truthful reading for something like gyrostabilized.
+ */
 function activationRate(perkCase: PerkCase, seeds: number, baseSeed: number): number {
+  const modifier = MODIFIERS[perkCase.perkId];
+  if (!modifier) throw new Error(`Perk case ${perkCase.id} names unknown modifier ${perkCase.perkId}`);
+  const carrier = perkCase.perk.parts.find((part) => part.instanceId === perkCase.carrierId);
+  if (!carrier) throw new Error(`Perk case ${perkCase.id} names unfitted carrier ${perkCase.carrierId}`);
+  const carrierDef = getPart(carrier.partId);
+  if (!modifier.isActive) return 1;
+
   let active = 0;
   let samples = 0;
   // Measure the conditional over the same complete canonical opponent set as
@@ -244,17 +266,20 @@ function activationRate(perkCase: PerkCase, seeds: number, baseSeed: number): nu
       for (let frameIndex = 0; frameIndex < report.frames.length; frameIndex++) {
         const frame = report.frames[frameIndex]!;
         const mech = frame.mechs[selfIndex];
-        const carrier = mech.weapons.find((weapon) => weapon.instanceId === perkCase.carrierId);
         const previous = report.frames[Math.max(0, frameIndex - 1)]!.mechs[selfIndex];
-        const speed = dhypot(
-          mech.x - previous.x,
-          mech.y - previous.y,
-        ) / 0.05;
+        const weapon = mech.weapons.find((w) => w.instanceId === perkCase.carrierId);
+        const ctx: ModifierCtx = {
+          // A frame carries per-part temperature only for weapons. Every
+          // temperature-conditioned modifier shipped is `appliesTo: isWeapon`,
+          // so this is exact today; a future one on a non-weapon carrier (as
+          // hull-down already is) would read the mech's hottest cell instead,
+          // which is an over-estimate rather than a silent undefined.
+          tempC: weapon?.tempC ?? mech.hottestCellC,
+          speedMps: dhypot(mech.x - previous.x, mech.y - previous.y) / TICK_S,
+          tile: terrainAt(report.terrain, mech.x, mech.y),
+        };
         samples++;
-        if (perkCase.perkId === 'cold-bore' && carrier && carrier.tempC < 40) active++;
-        else if (perkCase.perkId === 'fever-cycle' && carrier && carrier.tempC > 50) active++;
-        else if (perkCase.perkId === 'gyrostabilized' && speed > 0.5) active++;
-        else if (perkCase.perkId === 'hull-down' && speed < 0.5) active++;
+        if (modifier.isActive(ctx, carrierDef)) active++;
       }
     }
   }

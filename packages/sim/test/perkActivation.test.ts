@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   COLD_BORE_MAX_C, FEVER_CYCLE_MIN_C, HULL_DOWN_MAX_MPS,
-  MODIFIERS, PARTS, effectiveMults,
+  MODIFIERS, PARTS, PERK_CASES, effectiveMults,
   type ModifierCtx, type PartDef, type PlacedPart,
 } from '../src/index.js';
 
@@ -102,5 +102,29 @@ describe('the declared boundaries are the documented ones', () => {
 
   it('gyrostabilized declares nothing, because it is unconditional', () => {
     expect(MODIFIERS['gyrostabilized']!.isActive).toBeUndefined();
+  });
+});
+
+/**
+ * The stress cases have to be wired to real registry entries and real fitted
+ * carriers. `activationRate` throws on either, rather than measuring nothing
+ * and reporting 0% -- which is how the old if/else chain would have handled a
+ * perk nobody remembered to add a branch for.
+ */
+describe('every stressed perk is wired to something real', () => {
+  it('names a registered modifier and a carrier that is actually fitted', () => {
+    expect(PERK_CASES.length).toBeGreaterThan(0);
+    for (const perkCase of PERK_CASES) {
+      expect(MODIFIERS[perkCase.perkId], `${perkCase.id} -> ${perkCase.perkId}`).toBeDefined();
+      const carrier = perkCase.perk.parts.find((p) => p.instanceId === perkCase.carrierId);
+      expect(carrier, `${perkCase.id} carrier ${perkCase.carrierId}`).toBeDefined();
+      // And the carrier is a part the modifier will actually attach to.
+      expect(
+        MODIFIERS[perkCase.perkId]!.appliesTo(PARTS[carrier!.partId]!),
+        `${perkCase.perkId} does not apply to ${carrier!.partId}`,
+      ).toBe(true);
+      expect(carrier!.modifiers ?? [], `${perkCase.id} carrier is not carrying it`)
+        .toContain(perkCase.perkId);
+    }
   });
 });
