@@ -24,9 +24,8 @@ import type { Build, ChassisSpec, PartDef } from './types.js';
 import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier, type LoadScaledSpeeds } from './grid.js';
-import { buildSpatialOccupancy, exposedEquipmentTickets, type AttackDirection } from './spatial.js';
+import { exposedEquipmentTickets, type AttackDirection } from './spatial.js';
 import { connectedInstanceIds } from './spatialPower.js';
-import { locationEffectsForPart } from './placementEffects.js';
 import { INSTANCE_KNOBS, resolveBuildEffects, type BuildEffects } from './buildEffects.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
@@ -445,8 +444,6 @@ export class Combatant {
   hpByInstance = new Map<string, number>();
   private heatDamageSeen = new Map<string, number>();
   private occupancy: ReturnType<typeof buildOccupancyMap>;
-  /** Lazy, fight-lifetime spatial occupancy; see `weaponArcDeg`. */
-  private spatialOccupancy: ReturnType<typeof buildSpatialOccupancy> | null = null;
   /** Weapon-toggle latency per instance (docs/04 §4 Sticky). */
   private orderLatencyById = new Map<string, number>();
   private pendingWeaponToggles = new Map<string, { value: boolean; atS: number }>();
@@ -652,30 +649,45 @@ export class Combatant {
   }
 
   weaponArcDeg(instanceId: string, baseArcDeg: number): number {
-    // Occupancy is fixed for the fight: it is derived from the chassis and each
-    // part's origin/rotation, none of which change once the battle starts. This
-    // rebuilt all of it per weapon per frame, which made `buildSpatialOccupancy`
-    // 18.1% of sim CPU (the top cost, once `locationEffectsForPart` was cached).
-    // Which supports are *functional* does change, so only the lookup is cached
-    // and the arc bonus is still recomputed against live state below.
-    this.spatialOccupancy ??= buildSpatialOccupancy(this.chassis, this.build);
-    const occupancy = this.spatialOccupancy;
-    const cells = occupancy.cellsByInstance.get(instanceId) ?? [];
-    let bonus = 0;
-    for (const cell of cells) {
-      const stack = occupancy.stacksByCell.get(`${cell.regionId}:${cell.x},${cell.y}`) ?? [];
-      for (const entry of stack) {
-        if (entry.instanceId === instanceId || !this.isPartFunctional(entry.instanceId)) continue;
-        const runtime = this.sim.instanceRuntime.get(entry.instanceId);
-        if (runtime?.isShed || runtime?.isShutdown) continue;
-        bonus = Math.max(bonus, getPart(entry.partId).spatial?.weaponArcBonusDeg ?? 0);
-      }
+    const bonus = this.gatedEffects().byInstance.get(instanceId)?.weaponArcBonusDeg
+      ?? INSTANCE_KNOBS.weaponArcBonusDeg.neutral;
+    return Math.min(360, baseArcDeg + bonus);
+  }
+
+  /** Is this instance contributing right now? The gating every gated knob shares. */
+  private isContributing(instanceId: string): boolean {
+    if (!this.isPartFunctional(instanceId)) return false;
+    const runtime = this.sim.instanceRuntime.get(instanceId);
+    return !runtime?.isShed && !runtime?.isShutdown;
+  }
+
+  /**
+   * Effects resolved against live gating, recomputed only when the gating
+   * actually changes.
+   *
+   * Gating flips in about ten places across a tick -- brownout shedding,
+   * thermal shutdown and restart, destruction -- so an invalidation protocol
+   * threaded through all of them would be one missed call away from a stale
+   * arc. Instead the fingerprint is recomputed per call and the resolve is
+   * skipped when it matches: O(parts) against O(parts x cells x stack), which
+   * is the same answer the per-call walk gave, an order of magnitude cheaper,
+   * and impossible to invalidate wrongly.
+   */
+  private gatedCache: BuildEffects | null = null;
+  private gatedFingerprint = -1;
+
+  private gatedEffects(): BuildEffects {
+    let fingerprint = 0;
+    for (const p of this.build.parts) {
+      fingerprint = ((fingerprint * 31) + (this.isContributing(p.instanceId) ? 1 : 0)) | 0;
     }
-    const placed = this.build.parts.find((part) => part.instanceId === instanceId);
-    const locationBonus = placed
-      ? locationEffectsForPart(this.chassis, placed).weaponArcBonusDeg
-      : 0;
-    return Math.min(360, baseArcDeg + locationBonus + bonus);
+    if (this.gatedCache === null || fingerprint !== this.gatedFingerprint) {
+      this.gatedCache = resolveBuildEffects(
+        this.chassis, this.build, (id) => this.isContributing(id),
+      );
+      this.gatedFingerprint = fingerprint;
+    }
+    return this.gatedCache;
   }
 
   /**
