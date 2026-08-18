@@ -45,6 +45,14 @@ export interface PlacementKnobSpec {
   neutral: number;
 }
 
+/** The per-cell half of a mixed-scope knob, before it folds into the total. */
+export interface PerCellEffects {
+  /** Best arc-granting support under any of this part's cells. */
+  supportArcBonusDeg: number;
+  /** Worst heat penalty from armour covering any of this part's cells. */
+  armourHeatMultiplier: number;
+}
+
 /** Placement-derived effects for one fitted instance. */
 export interface InstanceEffects {
   /** Zone range bonus. Multiplies the whole falloff envelope. */
@@ -53,6 +61,14 @@ export interface InstanceEffects {
   weaponArcBonusDeg: number;
   /** Zone heat (whole-footprint, multiplies) times armour cover (per-cell, maxes). */
   heatMultiplier: number;
+  /**
+   * The per-cell contributions kept separate as well as folded in, because the
+   * workshop inspector shows the player where an arc came from -- "90 + 25
+   * location + 25 support". Reconstructing them by subtracting and dividing the
+   * totals would work today and break the day a bucket changes, so they are
+   * reported rather than inferred.
+   */
+  perCell: PerCellEffects;
 }
 
 /** Aggregates over every currently-contributing part. */
@@ -69,11 +85,19 @@ export interface MechEffects {
  * scope is a compile error -- the same guardrail `EFFECT_KNOBS` gives the
  * modifier substrate.
  */
+/**
+ * `perCell` is a breakdown of knobs already declared below, not a knob itself,
+ * so it is the one field carved out of the exhaustiveness check -- by name, so
+ * that a *new* field still fails to compile. Its own members are checked
+ * against `PER_CELL_KNOBS` instead, which leaves both halves guarded.
+ */
+type ScalarInstanceKnob = Exclude<keyof InstanceEffects, 'perCell'>;
+
 export const INSTANCE_KNOBS = {
   weaponRangeMultiplier: { bucket: 'mul', scope: 'whole-footprint', neutral: 1 },
   weaponArcBonusDeg: { bucket: 'sum', scope: 'whole-footprint', neutral: 0 },
   heatMultiplier: { bucket: 'mul', scope: 'whole-footprint', neutral: 1 },
-} as const satisfies Record<keyof InstanceEffects, PlacementKnobSpec>;
+} as const satisfies Record<ScalarInstanceKnob, PlacementKnobSpec>;
 
 export const MECH_KNOBS = {
   speedMultiplier: { bucket: 'max', scope: 'mech', neutral: 1 },
@@ -85,10 +109,10 @@ export const MECH_KNOBS = {
  * `EffectScope`: a bonus that came from under one cell must not be collected
  * once per cell.
  */
-const PER_CELL_KNOBS = {
+export const PER_CELL_KNOBS = {
   supportArcBonusDeg: { bucket: 'max', scope: 'per-cell', neutral: 0 },
   armourHeatMultiplier: { bucket: 'max', scope: 'per-cell', neutral: 1 },
-} as const satisfies Record<string, PlacementKnobSpec>;
+} as const satisfies Record<keyof PerCellEffects, PlacementKnobSpec>;
 
 export interface BuildEffects {
   byInstance: Map<string, InstanceEffects>;
@@ -120,6 +144,10 @@ const neutralInstance = (): InstanceEffects => ({
   weaponRangeMultiplier: INSTANCE_KNOBS.weaponRangeMultiplier.neutral,
   weaponArcBonusDeg: INSTANCE_KNOBS.weaponArcBonusDeg.neutral,
   heatMultiplier: INSTANCE_KNOBS.heatMultiplier.neutral,
+  perCell: {
+    supportArcBonusDeg: PER_CELL_KNOBS.supportArcBonusDeg.neutral,
+    armourHeatMultiplier: PER_CELL_KNOBS.armourHeatMultiplier.neutral,
+  },
 });
 
 /**
@@ -223,6 +251,8 @@ function resolveInstance(
     }
   }
 
+  out.perCell.supportArcBonusDeg = supportArc;
+  out.perCell.armourHeatMultiplier = armourHeat;
   out.weaponArcBonusDeg += supportArc;
   out.heatMultiplier *= armourHeat;
   return out;

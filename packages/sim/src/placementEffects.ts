@@ -5,9 +5,9 @@
  */
 import { getPart } from './catalog.js';
 import { getOccupiedCells } from './grid.js';
+import { cachedOccupancy, resolveBuildEffects } from './buildEffects.js';
 import {
   EXTERIOR_PASSIVE_K,
-  buildSpatialOccupancy,
   exposedEquipmentTickets,
   isExteriorCell,
   isPortCell,
@@ -150,12 +150,19 @@ export function resolvePlacementEffects(
   const isFunctional = functional ?? ((candidateId: string) =>
     (build.parts.find((part) => part.instanceId === candidateId)?.integrity ?? 0) > 0);
   const def = getPart(placed.partId);
-  const occupancy = buildSpatialOccupancy(chassis, build);
+  const occupancy = cachedOccupancy(chassis, build);
   const occupied = occupancy.cellsByInstance.get(instanceId) ?? [];
   const stackAbove = new Set<string>();
   const stackBelow = new Set<string>();
-  let armourHeatMultiplier = 1;
-  let supportArcBonusDeg = 0;
+
+  // Every *number* below comes from the resolver. This function used to run its
+  // own support-arc max, its own armour-heat max and its own arc sum beside the
+  // engine's, and the two agreed only because a test said so. What is left here
+  // is what the resolver has no business knowing: which cells, which regions,
+  // what is stacked on what, and how exposed it all is.
+  const effects = resolveBuildEffects(chassis, build, isFunctional)
+    .byInstance.get(instanceId)!;
+  const { supportArcBonusDeg, armourHeatMultiplier } = effects.perCell;
 
   const cells = occupied.map((cell): PlacementCellEffects => {
     const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
@@ -164,23 +171,6 @@ export function resolvePlacementEffects(
     const below = ownIndex < 0 ? [] : stack.slice(0, ownIndex);
     for (const entry of above) stackAbove.add(entry.instanceId);
     for (const entry of below) stackBelow.add(entry.instanceId);
-    for (const entry of above) {
-      if (!isFunctional(entry.instanceId)) continue;
-      const candidate = getPart(entry.partId);
-      if (candidate.spatial?.coveredHeatMultiplier !== undefined) {
-        armourHeatMultiplier = Math.max(
-          armourHeatMultiplier,
-          candidate.spatial.coveredHeatMultiplier,
-        );
-      }
-    }
-    for (const entry of below) {
-      if (!isFunctional(entry.instanceId)) continue;
-      supportArcBonusDeg = Math.max(
-        supportArcBonusDeg,
-        getPart(entry.partId).spatial?.weaponArcBonusDeg ?? 0,
-      );
-    }
     const passiveCoolingBlocked = above.some((entry) =>
       isFunctional(entry.instanceId)
       && getPart(entry.partId).spatial?.blocksPassiveCooling === true);
@@ -218,15 +208,15 @@ export function resolvePlacementEffects(
     portCellCount: cells.filter((cell) => cell.port).length,
     location,
     armourHeatMultiplier,
-    effectiveHeatMultiplier: location.heatMultiplier * armourHeatMultiplier,
+    effectiveHeatMultiplier: effects.heatMultiplier,
     stackAboveInstanceIds: [...stackAbove],
     stackBelowInstanceIds: [...stackBelow],
     supportArcBonusDeg,
     baseWeaponArcDeg,
     effectiveWeaponArcDeg: baseWeaponArcDeg === null
       ? null
-      : Math.min(360, baseWeaponArcDeg + location.weaponArcBonusDeg + supportArcBonusDeg),
-    weaponRangeMultiplier: location.weaponRangeMultiplier,
+      : Math.min(360, baseWeaponArcDeg + effects.weaponArcBonusDeg),
+    weaponRangeMultiplier: effects.weaponRangeMultiplier,
     exposure,
   };
 }

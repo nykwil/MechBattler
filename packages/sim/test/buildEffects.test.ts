@@ -3,6 +3,7 @@ import {
   TEMPLATES,
   INSTANCE_KNOBS,
   MECH_KNOBS,
+  PER_CELL_KNOBS,
   PARTS,
   SPATIAL_DEMO_TEMPLATE,
   getChassis,
@@ -47,7 +48,16 @@ describe('resolveBuildEffects reproduces the reductions it replaces', () => {
     }
   });
 
-  it('matches resolvePlacementEffects on arc and heat, which mix two scopes', () => {
+  /**
+   * There used to be an equivalence test here against `resolvePlacementEffects`.
+   * It delegates to this resolver now, so the assertion would compare a value
+   * to itself and pass whatever either one did. What guards those numbers is
+   * `placementFixture.test.ts`, which recorded them before the delegation.
+   *
+   * What is still worth asserting is the *wiring*: that the inspector reports
+   * the resolver's figures rather than quietly falling back to a neutral.
+   */
+  it('is what resolvePlacementEffects reports, breakdown included', () => {
     for (const { name, build } of templates()) {
       const chassis = getChassis(build.chassisId);
       const effects = resolveBuildEffects(chassis, build, allActive);
@@ -56,14 +66,31 @@ describe('resolveBuildEffects reproduces the reductions it replaces', () => {
         const got = effects.byInstance.get(placed.instanceId)!;
         const where = `${name}/${placed.instanceId}`;
 
-        expect(got.heatMultiplier, where).toBeCloseTo(placement.effectiveHeatMultiplier, 12);
-
-        // resolvePlacementEffects only exposes the combined arc for weapons.
-        const base = placement.baseWeaponArcDeg;
-        if (base !== null) {
-          expect(Math.min(360, base + got.weaponArcBonusDeg), where)
-            .toBeCloseTo(placement.effectiveWeaponArcDeg!, 12);
+        expect(placement.effectiveHeatMultiplier, where).toBe(got.heatMultiplier);
+        expect(placement.weaponRangeMultiplier, where).toBe(got.weaponRangeMultiplier);
+        expect(placement.supportArcBonusDeg, where).toBe(got.perCell.supportArcBonusDeg);
+        expect(placement.armourHeatMultiplier, where).toBe(got.perCell.armourHeatMultiplier);
+        if (placement.baseWeaponArcDeg !== null) {
+          expect(placement.effectiveWeaponArcDeg, where)
+            .toBe(Math.min(360, placement.baseWeaponArcDeg + got.weaponArcBonusDeg));
         }
+      }
+    }
+  });
+
+  it('folds the per-cell breakdown into the totals it reports', () => {
+    for (const { name, build } of templates()) {
+      const chassis = getChassis(build.chassisId);
+      const effects = resolveBuildEffects(chassis, build, allActive);
+      for (const placed of build.parts) {
+        const zone = locationEffectsForPart(chassis, placed);
+        const got = effects.byInstance.get(placed.instanceId)!;
+        const where = `${name}/${placed.instanceId}`;
+        // The breakdown is reported, not inferred -- so it has to add up.
+        expect(got.weaponArcBonusDeg, where)
+          .toBeCloseTo(zone.weaponArcBonusDeg + got.perCell.supportArcBonusDeg, 12);
+        expect(got.heatMultiplier, where)
+          .toBeCloseTo(zone.heatMultiplier * got.perCell.armourHeatMultiplier, 12);
       }
     }
   });
@@ -187,5 +214,7 @@ describe('the invariants the per-cell reductions rely on', () => {
       .toEqual(['heatMultiplier', 'weaponArcBonusDeg', 'weaponRangeMultiplier']);
     expect(Object.keys(MECH_KNOBS).sort())
       .toEqual(['fireControlLateralMult', 'speedMultiplier']);
+    expect(Object.keys(PER_CELL_KNOBS).sort())
+      .toEqual(['armourHeatMultiplier', 'supportArcBonusDeg']);
   });
 });
