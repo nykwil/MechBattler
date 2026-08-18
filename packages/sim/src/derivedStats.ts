@@ -20,6 +20,7 @@ import { computeLoadScaledSpeeds, computeMassAndCoG, computePartSpeedMultiplier 
 import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { RADIATOR_CAP_KW } from './thermal.js';
 import { locationEffectsForPart, resolvePlacementEffects } from './placementEffects.js';
+import { INSTANCE_KNOBS, resolveBuildEffects } from './buildEffects.js';
 import { connectedInstanceIds, resolveSpatialPower } from './spatialPower.js';
 
 export interface SpeedProfile {
@@ -236,10 +237,15 @@ export interface IdealRangeBand {
 
 export function computeIdealRangeBand(build: Build): IdealRangeBand {
   const chassis = getChassis(build.chassisId);
+  // Gating is irrelevant to range: it comes from the chassis zone a weapon sits
+  // wholly inside, so a wrecked neighbour cannot change it. The workshop is
+  // costing an intact build anyway.
+  const effects = resolveBuildEffects(chassis, build, () => true);
   const perWeapon = weaponInstances(build).map(({ part, def }) => computeWeaponEnvelope(
     part,
     def,
-    locationEffectsForPart(chassis, part).weaponRangeMultiplier,
+    effects.byInstance.get(part.instanceId)?.weaponRangeMultiplier
+      ?? INSTANCE_KNOBS.weaponRangeMultiplier.neutral,
   ));
   if (perWeapon.length === 0) return { perWeapon, bandStart: 0, bandEnd: 0, mismatched: false };
 

@@ -27,6 +27,7 @@ import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, computeP
 import { buildSpatialOccupancy, exposedEquipmentTickets, type AttackDirection } from './spatial.js';
 import { connectedInstanceIds } from './spatialPower.js';
 import { locationEffectsForPart } from './placementEffects.js';
+import { INSTANCE_KNOBS, resolveBuildEffects, type BuildEffects } from './buildEffects.js';
 import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
@@ -677,11 +678,21 @@ export class Combatant {
     return Math.min(360, baseArcDeg + locationBonus + bonus);
   }
 
+  /**
+   * Resolver output with every part treated as contributing.
+   *
+   * Only safe for knobs whose sources are gating-independent -- today that is
+   * `weaponRangeMultiplier` alone, which comes from the chassis zone a part sits
+   * wholly inside and so cannot change while the fight runs. Arc and heat mix in
+   * per-cell sources from supports and armour that DO drop out when those parts
+   * are destroyed or shed, and must not be read from here.
+   */
+  private ungatedEffects: BuildEffects | null = null;
+
   weaponRangeMultiplier(instanceId: string): number {
-    const placed = this.build.parts.find((part) => part.instanceId === instanceId);
-    return placed
-      ? locationEffectsForPart(this.chassis, placed).weaponRangeMultiplier
-      : 1;
+    this.ungatedEffects ??= resolveBuildEffects(this.chassis, this.build, () => true);
+    return this.ungatedEffects.byInstance.get(instanceId)?.weaponRangeMultiplier
+      ?? INSTANCE_KNOBS.weaponRangeMultiplier.neutral;
   }
 
   functionalMassFrac(): number {
