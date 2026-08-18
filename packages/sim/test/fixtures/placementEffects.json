@@ -1,0 +1,777 @@
+{
+  "spatial-demo": {
+    "reactor": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "turret": {
+      "partId": "U-TUR",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1.25,
+      "effectiveHeatMultiplier": 1.25,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "mg": {
+      "partId": "W-MG",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 25,
+      "armourHeatMultiplier": 1.25,
+      "effectiveHeatMultiplier": 1.25,
+      "baseWeaponArcDeg": 90,
+      "effectiveWeaponArcDeg": 140
+    },
+    "shell": {
+      "partId": "U-SHELL",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 25,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "carbine": {
+      "partId": "W-CB",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 50,
+      "effectiveWeaponArcDeg": 75
+    },
+    "sink": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "vulture-skirmisher": {
+    "reactor": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cb": {
+      "partId": "W-CB",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 50,
+      "effectiveWeaponArcDeg": 50
+    },
+    "mg": {
+      "partId": "W-MG",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 90,
+      "effectiveWeaponArcDeg": 90
+    },
+    "sink": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm1": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm2": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "mule-gunline": {
+    "reactor": {
+      "partId": "R-C40",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "ac": {
+      "partId": "W-AC",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 60,
+      "effectiveWeaponArcDeg": 60
+    },
+    "con1": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "rad": {
+      "partId": "U-RAD",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "mule-skirmisher": {
+    "reactor": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "mg1": {
+      "partId": "W-MG",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 90,
+      "effectiveWeaponArcDeg": 115
+    },
+    "con1": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "con2": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "mg2": {
+      "partId": "W-MG",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 90,
+      "effectiveWeaponArcDeg": 90
+    },
+    "arm1": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm2": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm3": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "mule-laser-boat": {
+    "reactorE": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "reactorC": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "bridge": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "pipe": {
+      "partId": "U-PIPE",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "las1": {
+      "partId": "W-LAS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 70,
+      "effectiveWeaponArcDeg": 70
+    },
+    "las2": {
+      "partId": "W-LAS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 70,
+      "effectiveWeaponArcDeg": 70
+    },
+    "rad": {
+      "partId": "U-RAD",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "railgun-mule": {
+    "rg": {
+      "partId": "W-RG",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 30,
+      "effectiveWeaponArcDeg": 30
+    },
+    "reactor": {
+      "partId": "R-C40",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "conA": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "conB": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "conC": {
+      "partId": "U-CON",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cap1": {
+      "partId": "P-CAP",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cap2": {
+      "partId": "P-CAP",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cap3": {
+      "partId": "P-CAP",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cap4": {
+      "partId": "P-CAP",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "rad": {
+      "partId": "U-RAD",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm1": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm2": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm3": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 25,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "vulture-sniper": {
+    "reactor": {
+      "partId": "R-E25",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "cb": {
+      "partId": "W-CB",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 50,
+      "effectiveWeaponArcDeg": 50
+    },
+    "coldSink": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "sink": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm1": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm2": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "arm3": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1.1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  },
+  "bastion-tank": {
+    "reactor": {
+      "partId": "R-C90",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "tc": {
+      "partId": "U-TC1",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "br": {
+      "partId": "W-BR",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": 45,
+      "effectiveWeaponArcDeg": 45
+    },
+    "radRight": {
+      "partId": "U-RAD",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "radBottom": {
+      "partId": "U-RAD",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "hs1": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "hs2": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "hs3": {
+      "partId": "U-HS",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a00": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a01": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a02": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a03": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a10": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a11": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a12": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a13": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a14": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 0.85,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    },
+    "a15": {
+      "partId": "U-ARM",
+      "weaponRangeMultiplier": 1,
+      "locationArcBonusDeg": 0,
+      "locationHeatMultiplier": 1,
+      "supportArcBonusDeg": 0,
+      "armourHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 1,
+      "baseWeaponArcDeg": null,
+      "effectiveWeaponArcDeg": null
+    }
+  }
+}
