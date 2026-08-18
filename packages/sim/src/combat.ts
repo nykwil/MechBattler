@@ -1006,6 +1006,11 @@ export function estimateExpectedDps(
   // Pose is unknown at planning time; use the mean silhouette half-width.
   const halfWidthM = meanSilhouetteHalfWidthM(target.chassis) * coverMult *
     target.profileMult(mods.targetTile ?? 'open', targetSpeedMps);
+  // Loop-invariant, like fireControlMult and halfWidthM above: it is the
+  // shooter's own steadiness at this tile and speed, and no weapon changes it.
+  // Inside the loop it walked every modified part once per gun.
+  const chassisMoveJitterMult = (shooter.chassis.moveJitterMult ?? 1)
+    * shooter.mechMoveJitterMult(mods.shooterTile ?? 'open', shooterSpeedMps);
   let dps = 0;
   for (const p of shooter.build.parts) {
     const def = getPart(p.partId);
@@ -1029,8 +1034,7 @@ export function estimateExpectedDps(
         dispersionMrad: w.dispersionMrad,
         speedMps: shooterSpeedMps,
         mults: m,
-        chassisMoveJitterMult: (shooter.chassis.moveJitterMult ?? 1)
-          * shooter.mechMoveJitterMult(mods.shooterTile ?? 'open', shooterSpeedMps),
+        chassisMoveJitterMult,
       }),
       lateralSpeedMps: targetLateralMps,
       lagS,
