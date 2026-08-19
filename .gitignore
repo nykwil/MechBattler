@@ -12,3 +12,10 @@ packages/game/artifacts/
 graphify-out/
 .claude/skills/graphify/
 *.graphify-bak
+
+# Balance harness raw output: regenerable in ~4 min by `npm run balance:collect`,
+# and it churns a timestamp on every run. The two files that ARE tracked are
+# artifacts/balance-baseline.json (the deliberate reference point) and
+# artifacts/balance-report.md (the diff that makes a swing visible in review).
+artifacts/balance.json
+artifacts/diversity.json

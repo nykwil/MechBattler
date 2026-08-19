@@ -8,6 +8,10 @@ import { TEMPLATES } from '../src/templates.js';
 import { evaluateMatchup, searchAdaptation } from '../src/adaptation.js';
 import { MATCHUP_BAND_LOW } from '../src/harness.js';
 
+// Report-only by default (see scripts/balance.ts): balance is a deliberate
+// pass, not something feature work should be blocked by. --strict gates it.
+const strict = process.argv.includes('--strict');
+
 const seeds = Number(process.argv[2]) || 20;
 const started = Date.now();
 const pct = (x: number) => `${Math.round(x * 100)}%`.padStart(4);
@@ -34,4 +38,5 @@ for (let i = 0; i < TEMPLATES.length; i++) {
 }
 
 console.log(`\n${hardCount} HARD matchup(s). ${((Date.now() - started) / 1000).toFixed(1)}s`);
-if (hardCount > 0) process.exitCode = 1;
+if (hardCount > 0 && strict) process.exitCode = 1;
+else if (hardCount > 0) console.log('(report-only — pass --strict to make this fail)');

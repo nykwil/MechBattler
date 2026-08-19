@@ -14,6 +14,10 @@
  */
 import { Battle, TEMPLATES } from '../src/index.js';
 
+// Report-only by default (see scripts/balance.ts): balance is a deliberate
+// pass, not something feature work should be blocked by. --strict gates it.
+const strict = process.argv.includes('--strict');
+
 const SEEDS = Number(process.argv[2]) || 6;
 /** Crossing-speed buckets, m/s of target motion across the line of sight. */
 const BANDS = [0.5, 2, 4];
@@ -113,9 +117,11 @@ console.log(`\nevasion is worth ${spreadPoints.toFixed(1)} points of hit rate`);
 console.log(`${((Date.now() - started) / 1000).toFixed(1)}s`);
 if (spreadPoints < MIN_EVASION_SPREAD_POINTS) {
   console.error(
-    `\nFAIL: evasion is worth only ${spreadPoints.toFixed(1)} points, floor is ${MIN_EVASION_SPREAD_POINTS}.`
+    `\n${strict ? 'FAIL' : 'FINDING'}: evasion is worth only ${spreadPoints.toFixed(1)} points,`
+    + ` floor is ${MIN_EVASION_SPREAD_POINTS}.`
     + `\nCrossing in front of a gun has stopped mattering — check TRACKING_LAG_S,`
     + ` MOVE_JITTER_MRAD_PER_MPS, the lateral penalty, and projectile speeds.`,
   );
-  process.exitCode = 1;
+  if (strict) process.exitCode = 1;
+  else console.error('(report-only — pass --strict to make this fail)');
 }
