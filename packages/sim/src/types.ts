@@ -93,8 +93,33 @@ export interface HeatProfile {
   idleHeatKw?: number;
 }
 
-/** Ballistic weapon stats. See docs/03-combat-spec.md §5. */
+/**
+ * What a weapon consumes to fire, which is the axis the player reads as
+ * "energy gun or ammo gun". Purely descriptive today -- no rule branches on it
+ * yet -- and it exists first so that any rule which later does has one place to
+ * ask, rather than inferring the answer from `draw` (which does not survive
+ * contact: `W-RG` is cap-fed but throws a slug, and `W-SC` is a flamer on a
+ * continuous draw) or matching part ids (the mistake `simulation.ts`'s
+ * hardcoded `'U-AMMO'` cook-off check still makes).
+ *
+ *  - `ballistic` a chemically or electromagnetically launched slug: MG,
+ *    autocannon, carbine, siege gun, and the railgun, which pays an energy cost
+ *    on top of the projectile it still has to carry.
+ *  - `energy`    nothing physical leaves the mech. Laser, ion.
+ *  - `missile`   self-propelled ordnance, reloaded as whole rounds rather than
+ *    fed from a belt. Rocket pod.
+ *  - `chemical`  burns a fuel to project heat rather than mass. Scald.
+ *
+ * Four classes rather than two is a deliberate bet that missiles and fuel want
+ * different rules from belt-fed guns. If they never earn one, collapsing them
+ * into `ballistic` is a one-line change here plus the catalog rows.
+ */
+export type WeaponClass = 'ballistic' | 'energy' | 'missile' | 'chemical';
+
+/** Weapon stats. See docs/03-combat-spec.md §5. */
 export interface WeaponSpec {
+  /** What it consumes to fire. See `WeaponClass`. */
+  weaponClass: WeaponClass;
   damage: number;
   /** Number of sub-projectiles per shot (e.g. rocket pod salvo). */
   salvoCount?: number;

@@ -152,6 +152,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 2 },
     heat: { heatPerShotKj: 0.4 },
     weapon: {
+      weaponClass: 'ballistic',
       damage: 1.5, cycleS: 0.1, projectileSpeed: 400, dispersionMrad: 8,
       falloff: { min: 10, idealMin: 10, idealMax: 40, max: 90 }, mountArcDeg: 90,
     },
@@ -163,6 +164,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 6 },
     heat: { heatPerShotKj: 3 },
     weapon: {
+      weaponClass: 'ballistic',
       damage: 11.5, cycleS: 0.75, projectileSpeed: 300, dispersionMrad: 4,
       falloff: { idealMin: 20, idealMax: 50, max: 150 }, mountArcDeg: 60,
       recoilKnS: 0.4,
@@ -183,6 +185,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { chargedEnergyPerShotKj: 30, minChargeS: 1.0, maxChargeKw: 30 },
     heat: { heatPerShotKj: 9 },
     weapon: {
+      weaponClass: 'energy',
       damage: 19, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
       falloff: { idealMin: 25, idealMax: 60, max: 140 }, mountArcDeg: 70,
     },
@@ -193,6 +196,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 1 },
     heat: { heatPerShotKj: 2 },
     weapon: {
+      weaponClass: 'missile',
       damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 125, dispersionMrad: 20.0,
       falloff: { idealMin: 30, idealMax: 40, max: 120 }, mountArcDeg: 120,
     },
@@ -203,6 +207,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { capFedEnergyPerShotKj: 220 },
     heat: { heatPerShotKj: 25 },
     weapon: {
+      weaponClass: 'ballistic',
       damage: 85, cycleS: 5, projectileSpeed: 1000, dispersionMrad: 1.2,
       falloff: { idealMin: 50, idealMax: 80, max: 240 }, mountArcDeg: 30,
       recoilKnS: 8,
@@ -227,6 +232,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 4 },
     heat: { heatPerShotKj: 0.8 },
     weapon: {
+      weaponClass: 'ballistic',
       damage: 8, cycleS: 0.6, projectileSpeed: 450, dispersionMrad: 2,
       falloff: { idealMin: 35, idealMax: 60, max: 180 }, mountArcDeg: 50,
       recoilKnS: 0.2,
@@ -242,6 +248,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 8 },
     heat: { heatPerShotKj: 6 },
     weapon: {
+      weaponClass: 'ballistic',
       damage: 40, cycleS: 2.0, projectileSpeed: 200, dispersionMrad: 6,
       falloff: { idealMin: 0, idealMax: 15, max: 45 }, mountArcDeg: 45,
       recoilKnS: 2,
@@ -260,6 +267,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { continuousKw: 5 },
     heat: { heatPerShotKj: 3 },
     weapon: {
+      weaponClass: 'chemical',
       damage: 3, cycleS: 0.4, projectileSpeed: 'hitscan', dispersionMrad: 3,
       falloff: { idealMin: 0, idealMax: 20, max: 45 }, mountArcDeg: 90,
       enemyHeatKj: 6,
@@ -275,6 +283,7 @@ export const PARTS: Record<string, PartDef> = {
     draw: { chargedEnergyPerShotKj: 25, minChargeS: 0.8, maxChargeKw: 30 },
     heat: { heatPerShotKj: 6 },
     weapon: {
+      weaponClass: 'energy',
       damage: 5, cycleS: 1.4, projectileSpeed: 'hitscan', dispersionMrad: 1.8,
       falloff: { idealMin: 25, idealMax: 50, max: 150 }, mountArcDeg: 60,
       capDrainKj: 25,

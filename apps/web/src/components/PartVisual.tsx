@@ -71,6 +71,11 @@ export function chipsFor(def: PartDef): Chip[] {
   if (def.weapon) {
     const dps = (def.weapon.damage * (def.weapon.salvoCount ?? 1)) / def.weapon.cycleS;
     chips.push({ text: `${dps.toFixed(1)} dps`, kind: 'dmg' });
+    // What it consumes to fire, straight from the catalog. Nothing branches on
+    // it in the sim yet, so the chip states the class and claims no mechanic --
+    // the alternative was leaving the player to infer it from the draw chips,
+    // which is exactly the inference that gets the railgun and flamer wrong.
+    chips.push({ text: def.weapon.weaponClass, kind: 'note' });
     if (def.draw?.continuousKw) chips.push({ text: `−${def.draw.continuousKw} kW`, kind: 'energy' });
     if (def.draw?.chargedEnergyPerShotKj) chips.push({ text: `−${def.draw.chargedEnergyPerShotKj} kJ/shot`, kind: 'energy' });
     if (def.draw?.capFedEnergyPerShotKj) chips.push({ text: `−${def.draw.capFedEnergyPerShotKj} kJ/shot, caps only`, kind: 'energy' });
