@@ -1,0 +1,134 @@
+{
+  "recordedAt": "2026-08-19T04:02:48.324Z",
+  "simVersion": "2.13.0",
+  "seedsPerPair": 20,
+  "note": "Deliberate reference point. Re-record only as part of a balance pass, never to make a swing go away.",
+  "standings": [
+    {
+      "id": "vulture-sniper",
+      "budget": 9,
+      "wins": 89,
+      "losses": 31,
+      "draws": 0,
+      "winRate": 0.7416666666666667
+    },
+    {
+      "id": "mule-gunline",
+      "budget": 6,
+      "wins": 79,
+      "losses": 41,
+      "draws": 0,
+      "winRate": 0.6583333333333333
+    },
+    {
+      "id": "railgun-mule",
+      "budget": 21,
+      "wins": 64,
+      "losses": 56,
+      "draws": 0,
+      "winRate": 0.5333333333333333
+    },
+    {
+      "id": "vulture-skirmisher",
+      "budget": 8,
+      "wins": 56,
+      "losses": 64,
+      "draws": 0,
+      "winRate": 0.4666666666666667
+    },
+    {
+      "id": "mule-skirmisher",
+      "budget": 8,
+      "wins": 54,
+      "losses": 66,
+      "draws": 0,
+      "winRate": 0.45
+    },
+    {
+      "id": "mule-laser-boat",
+      "budget": 10,
+      "wins": 50,
+      "losses": 70,
+      "draws": 0,
+      "winRate": 0.4166666666666667
+    },
+    {
+      "id": "bastion-tank",
+      "budget": 25,
+      "wins": 28,
+      "losses": 92,
+      "draws": 0,
+      "winRate": 0.23333333333333334
+    }
+  ],
+  "perkCases": [
+    {
+      "id": "vulture-cold-bore",
+      "perkId": "cold-bore",
+      "controlWinRate": 0.5619047619047619,
+      "perkWinRate": 0.5619047619047619,
+      "delta": 0,
+      "activationRate": 0.3540136187245259,
+      "bestMatchup": {
+        "opponentId": "railgun-mule",
+        "delta": 0.1333333333333333
+      },
+      "worstMatchup": {
+        "opponentId": "vulture-skirmisher",
+        "delta": -0.19999999999999996
+      },
+      "loadoutIssues": []
+    },
+    {
+      "id": "mule-fever-cycle",
+      "perkId": "fever-cycle",
+      "controlWinRate": 0.3523809523809524,
+      "perkWinRate": 0.3904761904761905,
+      "delta": 0.03809523809523807,
+      "activationRate": 0.5941480929735098,
+      "bestMatchup": {
+        "opponentId": "mule-skirmisher",
+        "delta": 0.2
+      },
+      "worstMatchup": {
+        "opponentId": "railgun-mule",
+        "delta": -0.19999999999999996
+      },
+      "loadoutIssues": []
+    },
+    {
+      "id": "mule-gyro-gunship",
+      "perkId": "gyrostabilized",
+      "controlWinRate": 0.5428571428571428,
+      "perkWinRate": 0.5238095238095238,
+      "delta": -0.01904761904761898,
+      "activationRate": 1,
+      "bestMatchup": {
+        "opponentId": "vulture-sniper",
+        "delta": 0.13333333333333336
+      },
+      "worstMatchup": {
+        "opponentId": "mule-laser-boat",
+        "delta": -0.2666666666666667
+      },
+      "loadoutIssues": []
+    },
+    {
+      "id": "bastion-hull-down",
+      "perkId": "hull-down",
+      "controlWinRate": 0.3619047619047619,
+      "perkWinRate": 0.42857142857142855,
+      "delta": 0.06666666666666665,
+      "activationRate": 0.36962270000182357,
+      "bestMatchup": {
+        "opponentId": "bastion-tank",
+        "delta": 0.1333333333333333
+      },
+      "worstMatchup": {
+        "opponentId": "vulture-sniper",
+        "delta": 0
+      },
+      "loadoutIssues": []
+    }
+  ]
+}

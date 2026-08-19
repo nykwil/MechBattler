@@ -145,6 +145,32 @@ terrain cover, target profile and target speed in turn, and each was found only 
 reviewing the fix for the previous one. If you are drawing a number the sim also
 derives, read it from the sim or derive it from frames and events — never type it.
 
+## Balance is its own pass, and it does not gate feature work
+
+None of the balance harnesses fail a build. `sim:balance`, `sim:diversity`,
+`sim:adapt`, `sim:hitrate`, `game:balance` and `game:match-balance` are
+report-only; pass `--strict` to any of them to restore the gate when you are
+deliberately balancing. `game:audit` stays hard -- it checks content validity
+(impossible content, self-dependent unlocks), not balance.
+
+What replaces the gate:
+
+```bash
+npm run balance:collect   # runs both harnesses, writes artifacts/*.json (~4 min)
+npm run balance:report    # artifacts/balance-report.md, diffed against the baseline
+```
+
+The report names any build that moved 5+ points since
+`artifacts/balance-baseline.json`, so a feature commit that quietly costs a
+build 20 points shows up as a changed file in review rather than a red build.
+Re-baseline with `npm run balance:report -- --rebaseline`, and only ever as part
+of a deliberate balance pass -- **never to make a swing go away.**
+
+`docs/17-balance-findings.md` is the hand-written record of causes. Read F1
+before touching any weapon curve: the four-band reshape in `bede033` deleted
+both damage floors and cost every gun 38–62% of its curve area, which is the
+whole of the current regression. It was bisected, not guessed.
+
 ## The design source is the prototypes, not the prose
 
 `docs/prototypes/mobile-builder.html` and `mobile-battle.html` are the recovered
