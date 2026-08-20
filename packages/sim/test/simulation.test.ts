@@ -56,24 +56,29 @@ describe('brownout priority shedding (docs/02 §2 -- the signature rule)', () =>
     const parts: PlacedPart[] = [
       { instanceId: 'reactor', partId: 'R-E25', origin: { x: 1, y: 0 }, rotation: 0, integrity: 1 },
     ];
-    // A contiguous conduit strip so every W-AC below is on the same energized network.
-    for (let x = 1; x <= 9; x++) {
+    // A contiguous conduit strip so every consumer below is on the same energized network.
+    for (let x = 1; x <= 15; x++) {
       parts.push({ instanceId: `conduit${x}`, partId: 'U-CON', origin: { x, y: 2 }, rotation: 0, integrity: 1 });
     }
-    const wacIds = ['wac0', 'wac1', 'wac2', 'wac3', 'wac4'];
-    wacIds.forEach((id, i) => {
-      parts.push({ instanceId: id, partId: 'W-AC', origin: { x: 1 + 2 * i, y: 3 }, rotation: 0, integrity: 1 });
+    // Strides, not autocannons. Ballistic guns fire mechanically now
+    // (`firesMechanically`) -- they never request from the bus, so they can
+    // never be shed, and a brownout test built out of them proves nothing.
+    // Lasers would work but draw 30 kW each, over a conduit's 60 kW ceiling
+    // once two share the strip, so the shedding would be route capacity rather
+    // than priority. A 4 kW continuous utility isolates the rule under test.
+    const loadIds = ['act0', 'act1', 'act2', 'act3', 'act4', 'act5', 'act6'];
+    loadIds.forEach((id, i) => {
+      parts.push({ instanceId: id, partId: 'U-ACT', origin: { x: 1 + 2 * i, y: 3 }, rotation: 0, integrity: 1 });
     });
 
-    const build: Build = { chassisId: chassis.id, parts, powerPriority: wacIds };
+    const build: Build = { chassisId: chassis.id, parts, powerPriority: loadIds };
     const sim = new Simulation(chassis, build);
-    const weaponsEnabled = Object.fromEntries(wacIds.map((id) => [id, true]));
 
-    // 5 x 6kW = 30kW requested against a 25kW reactor -> exactly one (the
+    // 7 x 4kW = 28kW requested against a 25kW reactor -> exactly one (the
     // lowest-priority, last in the list) must be shed.
-    const snap = sim.step(0.05, { weaponsEnabled, speedSetting: 'stationary' });
-    expect(snap.shedInstanceIds).toEqual(['wac4']);
-    expect(snap.totalDemandKw).toBeCloseTo(30, 3);
+    const snap = sim.step(0.05, { weaponsEnabled: {}, speedSetting: 'stationary' });
+    expect(snap.shedInstanceIds).toEqual(['act6']);
+    expect(snap.totalDemandKw).toBeCloseTo(28, 3);
   });
 });
 

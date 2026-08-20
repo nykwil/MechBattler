@@ -117,15 +117,20 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
   });
 
   it('miswired sheds first regardless of priority position', () => {
-    // Two continuous-draw weapons on a reactor that can power only one.
-    // The miswired gun sits FIRST in priority yet must be the one shed.
+    // A miswired laser sits FIRST in priority yet must be the one shed.
+    //
+    // A laser, because Miswired only rolls onto parts that draw
+    // (`appliesTo: Boolean(d.draw)`) and ballistic guns no longer do -- they
+    // fire mechanically, so nothing about brownout order can reach them. The
+    // machine guns stay in the build precisely to show that: they are enabled
+    // and firing throughout, and never appear in the shed list.
     const build: Build = {
       chassisId: 'CH-5',
       parts: [
         { ...part('reactor', 'R-E25', 3, 3), origin: { regionId: 'body', x: 3, y: 3 } },
-        { ...part('mg1', 'W-MG', 3, 1, { modifiers: ['miswired'] }), origin: { regionId: 'right-shoulder', x: 3, y: 1 } },
+        { ...part('mg1', 'W-MG', 3, 1), origin: { regionId: 'right-shoulder', x: 3, y: 1 } },
         { ...part('mg2', 'W-MG', 1, 1), origin: { regionId: 'left-shoulder', x: 1, y: 1 } },
-        { ...part('ac', 'W-AC', 1, 3), origin: { regionId: 'body', x: 1, y: 3 } },
+        { ...part('las', 'W-LAS', 1, 3, { modifiers: ['miswired'] }), origin: { regionId: 'body', x: 1, y: 3 } },
         { ...part('act', 'U-ACT', 3, 5), origin: { regionId: 'body', x: 3, y: 5 } },
         { ...part('tc', 'U-TC1', 5, 3), origin: { regionId: 'body', x: 5, y: 3 } },
       ],
@@ -133,18 +138,20 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
         { kind: 'wire', regionId: 'body', x: 1, y: 2 },
         { kind: 'wire', regionId: 'body', x: 4, y: 2 },
       ],
-      powerPriority: [CORE_INSTANCE_ID, 'mg2', 'ac', 'act', 'tc', 'mg1'],
+      powerPriority: [CORE_INSTANCE_ID, 'las', 'act', 'tc'],
     };
     const sim = new Simulation(getChassis('CH-5'), build);
     let lastShed: string[] = [];
     for (let t = 0; t < 100; t++) {
       lastShed = sim.step(1 / 20, {
-        weaponsEnabled: { mg1: true, mg2: true, ac: true },
+        weaponsEnabled: { mg1: true, mg2: true, las: true },
         speedSetting: 'cruise',
       }).shedInstanceIds;
     }
     if (lastShed.length > 0) {
-      expect(lastShed).toContain('mg1');
+      expect(lastShed).toContain('las');
+      // Mechanical guns are not shed-able at all, whatever the bus is doing.
+      expect(lastShed).not.toContain('mg1');
       expect(lastShed).not.toContain('mg2');
     } else {
       throw new Error('test setup: expected a brownout — raise the load');

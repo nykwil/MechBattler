@@ -105,6 +105,35 @@ cannot recover, not as the cause of the drop.
 
 ---
 
+## F4 — Mechanical firing moved the archetype triangle
+
+**Status:** noted, not chased. Feature work, recorded here so it is not
+rediscovered as a mystery.
+
+Making ballistic/missile/chemical weapons fire without the bus (`SIM_VERSION`
+2.14.0) moved `tank-vs-sniper`:
+
+```
+                        before   after
+fast sniper vs gunline    55%      58%
+gunline     vs tank       82%      82%
+tank        vs sniper     53%      43%   <- triangle no longer holds
+full armor (16 plates)    53%      43%
+8 plates removed          60%      45%
+```
+
+The rock-paper-scissors triangle wants every leg above 50%, and `tank vs
+sniper` is now below it. Expected direction: ballistic builds no longer pay
+reactor load, which frees budget for everyone carrying guns, and the sniper
+benefits more than the tank does.
+
+`GOLDEN` did **not** move, and that is not evidence of safety — its fight sheds
+nothing in 1121 ticks, so it cannot observe a rule about brownouts at all. The
+rule is pinned by `test/mechanicalFire.test.ts` instead, which builds the
+shortage deliberately: on a 25 kW bus a machine gun fires 101 shots and a laser
+0; swap in a 90 kW reactor and the machine gun fires the same 101 while the
+laser goes to 4.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

@@ -21,7 +21,7 @@
  *    only spawn distance matters for now).
  */
 import type { Build, ChassisSpec, PartDef } from './types.js';
-import { getPart } from './catalog.js';
+import { firesMechanically, getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, type LoadScaledSpeeds } from './grid.js';
 import { exposedEquipmentTickets, type AttackDirection } from './spatial.js';
@@ -1768,7 +1768,10 @@ export class Battle {
       // A post-shot cooldown reads as 0 — the bar visibly resets on fire.
       let readyFrac = 0;
       if (!destroyed && !rt.isShutdown) {
-        if (def.draw?.continuousKw) readyFrac = Math.min(rt.cycleTimer / def.weapon!.cycleS, 1);
+        // Mechanically-fired guns run the same cycle timer with no draw at all,
+        // so keying this on `draw` alone would draw every ballistic gun as
+        // permanently un-ready while it was visibly shooting.
+        if (def.draw?.continuousKw || firesMechanically(def)) readyFrac = Math.min(rt.cycleTimer / def.weapon!.cycleS, 1);
         else if (def.draw?.chargedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1);
         else if (def.draw?.capFedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1);
       }

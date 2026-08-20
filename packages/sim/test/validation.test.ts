@@ -39,13 +39,16 @@ describe('build validation (docs/02 §2, warn-only philosophy)', () => {
   });
 
   it('warns CANNOT SUSTAIN FIRE when demand exceeds supply', () => {
-    // Whisper (25 kW) driving an autocannon + locomotion on a heavy mule.
+    // Whisper (25 kW) driving a laser + locomotion on a heavy mule.
+    // A laser rather than the autocannons this used to fit: ballistic guns
+    // fire mechanically now (`firesMechanically`) and draw nothing from the
+    // bus, so no number of them can outrun a reactor. Ember averages 15 kW
+    // (30 kJ/shot over a 2 s cycle) against ~19 kW of locomotion.
     const build: Build = {
       chassisId: 'CH-5',
       parts: [
         part('reactor', 'R-E25', 3, 1),
-        part('ac', 'W-AC', 1, 3), part('con', 'U-CON', 3, 3),
-        part('ac2', 'W-AC', 4, 3), // second AC: 12 kW weapons + ~19 kW locomotion > 25 kW
+        part('las', 'W-LAS', 1, 3), part('con', 'U-CON', 3, 3),
       ],
       powerPriority: [],
     };

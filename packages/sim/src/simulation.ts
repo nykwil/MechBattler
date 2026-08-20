@@ -21,7 +21,7 @@
  *    stable for this spec's k values but noted for future scrutiny.
  */
 import type { ChassisSpec, PlacedPart, Build } from './types.js';
-import { getPart } from './catalog.js';
+import { firesMechanically, getPart } from './catalog.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
 import { resolveSpatialPower, type SpatialPowerNetwork } from './spatialPower.js';
 import {
@@ -194,7 +194,10 @@ export class Simulation {
       const rt = freshRuntime();
       // Cycle-fed weapons enter battle loaded: the first shot doesn't wait a
       // full cycle (matters for long-cycle weapons like the rocket pod).
-      if (def.category === 'weapon' && def.draw?.continuousKw && def.weapon) rt.cycleTimer = def.weapon.cycleS;
+      // Keyed on "fires off a cycle timer", not on having a reactor draw:
+      // ballistic guns fire mechanically now and would otherwise start a full
+      // cycle behind, losing their first shot.
+      if (def.weapon && (def.draw?.continuousKw || firesMechanically(def))) rt.cycleTimer = def.weapon.cycleS;
       this.runtime.set(p.instanceId, rt);
       const staticM = effectiveMults(p, STATIC_CTX);
       if (staticM.shedFirst) this.shedFirstIds.add(p.instanceId);
@@ -622,6 +625,42 @@ export class Simulation {
           if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
           rt.chargeKj = 0;
           rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
+        }
+      }
+    }
+
+    // --- 6b. Resolve firing for weapons the bus does not feed ---
+    //
+    // The loop above is driven by `deliveredKw`, so it can only ever fire a
+    // weapon that was handed power this tick. A ballistic gun is not, and must
+    // not be: brownout immunity is the whole point of the class. It fires here
+    // instead, off its cycle timer alone.
+    //
+    // Everything else still applies. It has to be wired (fire control and the
+    // feed motor earn the connection even though the shot does not draw), it
+    // stops when the part overheats, and it makes the same heat -- so a
+    // ballistic build trades power fragility for a thermal ceiling rather than
+    // getting a gun with no limiter at all.
+    for (const p of this.parts) {
+      const def = getPart(p.partId);
+      if (!firesMechanically(def)) continue;
+      if (!this.networkIdByInstance.has(p.instanceId)) continue;
+      const rt = this.runtime.get(p.instanceId)!;
+      if (rt.destroyed || rt.isShutdown || rt.cookedOff) continue;
+      if (command.weaponsEnabled[p.instanceId] !== true) continue;
+
+      const eff = M(p.instanceId);
+      const cycleS = def.weapon!.cycleS * eff.cycleS;
+      rt.cycleTimer += dtSec;
+      while (rt.cycleTimer >= cycleS) {
+        rt.cycleTimer -= cycleS;
+        const totalDamage = def.weapon!.damage * eff.damage * (def.weapon!.salvoCount ?? 1);
+        shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage });
+        if (def.heat?.heatPerShotKj) {
+          addHeat(
+            this.thermal.cellKeysByInstance.get(p.instanceId)!,
+            def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1),
+          );
         }
       }
     }

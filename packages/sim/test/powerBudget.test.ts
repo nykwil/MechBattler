@@ -17,9 +17,11 @@ describe('what belongs on the power priority list', () => {
     const differ = Object.values(PARTS)
       .filter((d) => competesForPowerBudget(d) !== requiresPowerConnection(d))
       .map((d) => d.id).sort();
-    // Both capacitors and the cap-fed railgun: each must reach the net to work
-    // at all, and none of them can ever be shed.
-    expect(differ).toEqual(['P-CAP', 'P-CAP2', 'W-RG']);
+    // Both capacitors, the cap-fed railgun, and every mechanically-fired gun:
+    // each must reach the net to work at all -- fire control and the feed motor
+    // earn the wire -- and none of them can ever be shed, because none of them
+    // requests kilowatts the bus could refuse.
+    expect(differ).toEqual(['P-CAP', 'P-CAP2', 'W-AC', 'W-BR', 'W-CB', 'W-MG', 'W-RG', 'W-RKT', 'W-SC']);
     for (const id of differ) expect(requiresPowerConnection(PARTS[id]!), id).toBe(true);
   });
 

@@ -40,6 +40,7 @@ describe('energy margin (docs/02 §6)', () => {
     const parts: PlacedPart[] = [
       { instanceId: 'reactor', partId: 'R-E25', origin: { regionId: 'right-hardpoint', x: 3, y: 1 }, rotation: 0, integrity: 1 },
       { instanceId: 'mg', partId: 'W-MG', origin: { regionId: 'left-hardpoint', x: 0, y: 1 }, rotation: 0, integrity: 1 },
+      { instanceId: 'tc', partId: 'U-TC1', origin: { regionId: 'body', x: 1, y: 1 }, rotation: 0, integrity: 1 },
     ];
     const build: Build = {
       chassisId: chassis.id,
@@ -54,7 +55,10 @@ describe('energy margin (docs/02 §6)', () => {
     const margin = computeEnergyMargin(chassis, build);
 
     const expectedLocomotion = 1.2 * profile.massT * (profile.fwd * 0.65);
-    expect(margin.demandKw).toBeCloseTo(expectedLocomotion + 2 /* W-MG continuous draw */, 4);
+    // The machine gun contributes nothing: ballistic guns fire mechanically
+    // now (`firesMechanically`) and never load the bus. The targeting computer
+    // is here so the non-locomotion term is not vacuously zero.
+    expect(margin.demandKw).toBeCloseTo(expectedLocomotion + 3 /* U-TC1 continuous draw */, 4);
     expect(margin.marginKw).toBeCloseTo(margin.supplyKw - margin.demandKw, 6);
     expect(margin.supplyKw).toBeCloseTo(25, 5);
   });

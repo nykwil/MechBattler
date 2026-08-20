@@ -23,10 +23,13 @@ describe('heat balance bar math (docs/01 §9, docs/02 §3)', () => {
   });
 
   it('combustion reactors bill high-band waste when demand exceeds half of supply', () => {
-    // W-AC (6 kW) + locomotion on a Mule pushes an R-C40 (40 kW) past 50% load.
+    // W-LAS (15 kW average) + locomotion on a Mule pushes an R-C40 (40 kW)
+    // past 50% load. A laser rather than the autocannon this used to fit:
+    // ballistic guns fire mechanically now (`firesMechanically`) and put no
+    // load on the reactor at all, so they cannot move it between waste bands.
     const parts: PlacedPart[] = [
       { instanceId: 'reactor', partId: 'R-C40', origin: { x: 3, y: 1 }, rotation: 0, integrity: 1 },
-      { instanceId: 'ac', partId: 'W-AC', origin: { x: 1, y: 3 }, rotation: 0, integrity: 1 },
+      { instanceId: 'las', partId: 'W-LAS', origin: { x: 1, y: 3 }, rotation: 0, integrity: 1 },
     ];
     const build: Build = { chassisId: 'CH-5', parts, powerPriority: [] };
     const balance = computeHeatBalance(getChassis('CH-5'), build);

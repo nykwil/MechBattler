@@ -149,7 +149,6 @@ export const PARTS: Record<string, PartDef> = {
   'W-MG': {
     id: 'W-MG', name: 'Stitcher (machine gun)', category: 'weapon',
     shape: line(2), massKg: 120, hp: 25, tier: 1,
-    draw: { continuousKw: 2 },
     heat: { heatPerShotKj: 0.4 },
     weapon: {
       weaponClass: 'ballistic',
@@ -161,7 +160,6 @@ export const PARTS: Record<string, PartDef> = {
   'W-AC': {
     id: 'W-AC', name: 'Judge (autocannon)', category: 'weapon',
     shape: rect(2, 3), massKg: 500, hp: 45, tier: 2,
-    draw: { continuousKw: 6 },
     heat: { heatPerShotKj: 3 },
     weapon: {
       weaponClass: 'ballistic',
@@ -193,7 +191,6 @@ export const PARTS: Record<string, PartDef> = {
   'W-RKT': {
     id: 'W-RKT', name: 'Pepperbox (rocket pod)', category: 'weapon',
     shape: rect(2, 2), massKg: 260, hp: 35, tier: 2,
-    draw: { continuousKw: 1 },
     heat: { heatPerShotKj: 2 },
     weapon: {
       weaponClass: 'missile',
@@ -229,7 +226,6 @@ export const PARTS: Record<string, PartDef> = {
     // from 68% back over the 70% flag.
     id: 'W-CB', name: 'Needle (carbine)', category: 'weapon',
     shape: line(2), massKg: 180, hp: 20, tier: 3,
-    draw: { continuousKw: 4 },
     heat: { heatPerShotKj: 0.8 },
     weapon: {
       weaponClass: 'ballistic',
@@ -245,7 +241,6 @@ export const PARTS: Record<string, PartDef> = {
   'W-BR': {
     id: 'W-BR', name: 'Maul (siege gun)', category: 'weapon',
     shape: rect(2, 3), massKg: 650, hp: 50, tier: 3,
-    draw: { continuousKw: 8 },
     heat: { heatPerShotKj: 6 },
     weapon: {
       weaponClass: 'ballistic',
@@ -264,7 +259,6 @@ export const PARTS: Record<string, PartDef> = {
   'W-SC': {
     id: 'W-SC', name: 'Scald (flamer)', category: 'weapon',
     shape: rect(2, 2), massKg: 280, hp: 30, tier: 3,
-    draw: { continuousKw: 5 },
     heat: { heatPerShotKj: 3 },
     weapon: {
       weaponClass: 'chemical',
@@ -338,6 +332,26 @@ export function requiresPowerConnection(def: PartDef): boolean {
 export function competesForPowerBudget(def: PartDef): boolean {
   return Boolean(def.draw?.continuousKw
     || (def.category === 'weapon' && def.draw?.chargedEnergyPerShotKj));
+}
+
+/**
+ * True when this weapon's shot is not paid for out of the electrical bus, so it
+ * keeps firing through a brownout, a shed bus, or a dead reactor.
+ *
+ * The class says what it consumes; the draw says whether it still needs the
+ * bus anyway. `W-RG` is the one weapon where those disagree on purpose: it is
+ * ballistic -- it throws a slug -- but it bought 1000 m/s of muzzle velocity by
+ * taking a capacitor feed, so it dies with the reactor. That is the cost of the
+ * hardest-hitting gun in the catalog, not an oversight.
+ *
+ * Mechanical firing does NOT mean unconstrained. These weapons still have to be
+ * wired (fire control and the feed motor justify the connection even though the
+ * shot does not draw), still stop when the part overheats, and still make heat.
+ * What they stop caring about is who wins the power budget.
+ */
+export function firesMechanically(def: PartDef): boolean {
+  if (!def.weapon || def.weapon.weaponClass === 'energy') return false;
+  return !def.draw?.chargedEnergyPerShotKj && !def.draw?.capFedEnergyPerShotKj;
 }
 
 export function participatesInPowerNetwork(def: PartDef): boolean {

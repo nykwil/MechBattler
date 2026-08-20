@@ -211,9 +211,12 @@ describe('useBuild detach', () => {
 
   it('restores brownout rank rather than demoting a moved part', () => {
     const { result } = renderHook(() => useBuild('CH-5'));
-    // Two power-drawing parts, so there is a rank order to disturb.
-    placeAt(result, 'W-AC', 1, 1);
-    placeAt(result, 'W-CB', 3, 1);
+    // Two power-drawing parts, so there is a rank order to disturb. Energy
+    // weapons specifically: ballistic guns fire mechanically now
+    // (`firesMechanically`), never request from the bus, and so are correctly
+    // absent from the priority list entirely.
+    placeAt(result, 'W-LAS', 1, 1);
+    placeAt(result, 'W-ION', 4, 1);
     const first = result.current.state.parts[0].instanceId;
     const rankBefore = result.current.state.powerPriority.indexOf(first);
     expect(rankBefore).toBeGreaterThanOrEqual(0);
