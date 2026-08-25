@@ -18,7 +18,7 @@ import {
   validateWholeBuildPlacement,
   type PlacedPart,
 } from '../src/index.js';
-import { forwardClearance, partHeight } from '../src/spatial.js';
+import { cellCeiling, forwardClearance, occupantTop, partHeight, stackBase } from '../src/spatial.js';
 
 const chassis = getChassis('CH-5');
 const demo = () => structuredClone(SPATIAL_DEMO_TEMPLATE.build);
@@ -339,5 +339,50 @@ describe('component height (docs/superpowers/specs/2026-08-24-component-height-d
     expect(partHeight(getPart('P-CAP'))).toBe(2);
     expect(partHeight(getPart('U-ARM'))).toBe(0);
     expect(partHeight(getPart('U-SHELL'))).toBe(0);
+  });
+});
+
+describe('cell ceilings', () => {
+  const chassis = getChassis('CH-5'); // Mule, 6x6, body mask rows 2-5
+  const cell = (x: number, y: number) => ({ regionId: 'body', x, y });
+  const occ = (parts: PlacedPart[]) => buildSpatialOccupancy(chassis, { parts, routes: [] });
+
+  const gun: PlacedPart = {
+    instanceId: 'gun', partId: 'W-AC', origin: cell(1, 3), rotation: 0, integrity: 1,
+  };
+
+  it('is unbounded where nothing imposes one', () => {
+    expect(cellCeiling(chassis, occ([]), cell(1, 2))).toBe(Infinity);
+  });
+
+  it('is lowered to a gun clearance in the gun own lane, ahead of it only', () => {
+    // W-AC is rect(2,3) at body (1,3): it fills x 1-2, y 3-5.
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, cell(1, 2))).toBe(1);
+    expect(cellCeiling(chassis, o, cell(2, 2))).toBe(1);
+    // Not in its lanes:
+    expect(cellCeiling(chassis, o, cell(3, 2))).toBe(Infinity);
+  });
+
+  it('never lets a gun block itself', () => {
+    // Excluding the gun is what makes its own front cells placeable.
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, cell(1, 3), 'gun')).toBe(Infinity);
+    expect(cellCeiling(chassis, o, cell(1, 4), 'gun')).toBe(Infinity);
+  });
+
+  it('does not cross a region seam', () => {
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, { regionId: 'left-shoulder', x: 1, y: 1 })).toBe(Infinity);
+  });
+
+  it('reads a stack base from what is already underneath', () => {
+    const sink: PlacedPart = {
+      instanceId: 'sink', partId: 'U-HS', origin: cell(1, 2), rotation: 0, integrity: 1,
+    };
+    const o = occ([sink]);
+    expect(occupantTop(chassis, o, cell(1, 2), 'sink')).toBe(1);
+    expect(stackBase(chassis, o, cell(1, 2), getPart('U-ARM'))).toBe(1);
+    expect(stackBase(chassis, o, cell(1, 2), getPart('U-ARM'), 'sink')).toBe(0);
   });
 });

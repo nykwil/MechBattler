@@ -45,6 +45,77 @@ export function forwardClearance(def: PartDef): number | undefined {
   return def.spatial?.clearsForward;
 }
 
+/**
+ * Levels already used beneath a part about to occupy this cell. Occupants at or
+ * below the candidate's layer are underneath it: `stacksByCell` is sorted by
+ * layer and stable within a layer, so a riser landing on a riser correctly reads
+ * a base of one.
+ */
+export function stackBase(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  def: PartDef,
+  excludeInstanceId?: string,
+): number {
+  const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
+  const order = LAYER_ORDER[equipmentLayer(def)];
+  return stack
+    .filter((entry) => entry.instanceId !== excludeInstanceId && LAYER_ORDER[entry.layer] <= order)
+    .reduce((sum, entry) => sum + partHeight(getPart(entry.partId)), 0);
+}
+
+/** The level the top of an already-placed occupant reaches in this cell. */
+export function occupantTop(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  instanceId: string,
+): number {
+  const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
+  const index = stack.findIndex((entry) => entry.instanceId === instanceId);
+  if (index < 0) return 0;
+  return stack
+    .slice(0, index + 1)
+    .reduce((sum, entry) => sum + partHeight(getPart(entry.partId)), 0);
+}
+
+/**
+ * The highest a part may reach in this cell. Weapons behind it in the same lane
+ * lower it, because their barrels are in the way; an authored clearance zone
+ * lowers it because the bay has a roof.
+ *
+ * `excludeInstanceId` is what stops a multi-cell gun from blocking itself: a
+ * 2x3 gun occupies three cells in its own lane, and without the exclusion its
+ * rear cells would impose a ceiling of 1 on its front cells.
+ */
+export function cellCeiling(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  excludeInstanceId?: string,
+): number {
+  let ceiling = clearanceZoneHeight(chassis, cell);
+  for (let y = cell.y + 1; y < chassis.height; y++) {
+    const behind = { regionId: cell.regionId, x: cell.x, y };
+    const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, behind)) ?? [];
+    for (const entry of stack) {
+      if (entry.instanceId === excludeInstanceId) continue;
+      const clears = forwardClearance(getPart(entry.partId));
+      if (clears === undefined) continue;
+      const base = occupantTop(chassis, occupancy, behind, entry.instanceId)
+        - partHeight(getPart(entry.partId));
+      ceiling = Math.min(ceiling, base + clears);
+    }
+  }
+  return ceiling;
+}
+
+/** Authored chassis roofs. Filled in by the clearance-zone task. */
+function clearanceZoneHeight(_chassis: ChassisSpec, _cell: Required<CellRef>): number {
+  return Infinity;
+}
+
 export function resolveCellRef(chassis: ChassisSpec, cell: CellRef): Required<CellRef> {
   return {
     regionId: cell.regionId ?? regionIdAt(chassis, cell.x, cell.y) ?? 'body',
