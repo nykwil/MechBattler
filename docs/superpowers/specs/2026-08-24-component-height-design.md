@@ -33,11 +33,19 @@ Both live in `PartSpatialSpec` (`packages/sim/src/types.ts`), beside `layer` and
 common case and then lies about every interesting one: a low turret wants a
 clear lane at height 3, a hull-down mortar wants to block nothing at all.
 
-One field on the chassis, in `ChassisRegionSpec`:
+One field on the chassis: `ChassisSpec.clearanceZones`, a list of
+`{ id, cells, height }` mirroring the existing `locationZones` shape.
 
 | Field | Meaning | Default |
 |---|---|---|
-| `clearance` | Ceiling of every cell in this region, before weapons lower it further. | unbounded |
+| `clearanceZones[].cells` | Cells sharing one authored roof. | none |
+| `clearanceZones[].height` | Ceiling of those cells, before weapons lower it further. | — |
+
+Cells in no zone are unbounded. This is per-cell, not per-region, on purpose: a
+region-wide roof is too blunt. The Mule's shoulder regions are only two mask
+rows deep, so a `rect(2,3)` gun cannot fit in one; a `clearance: 2` on the Mule's
+body would not mean "guns go on the shoulders", it would mean the Mule can never
+mount a big gun at all. A low roof has to be able to be one bay.
 
 ### The arithmetic
 
@@ -53,7 +61,7 @@ imposed(w)  = base(w) + clearsForward(w)          -- weapons only
 and for a cell `c` in region `r` at `(x, y)`:
 
 ```
-ceiling(c, excluding p) = min( clearance(r),
+ceiling(c, excluding p) = min( height of c's clearance zone, if any,
                                imposed(w, x) for every weapon w != p in region r
                                              occupying some cell (x, y') with y' > y )
 ```
@@ -86,15 +94,45 @@ thing in front of it is placed first, the second one is refused. A rule phrased
 as "a weapon may not be placed behind a tall part" would need a second,
 mirror-image rule for the other order, and the two would drift.
 
-### Risers
+### Risers and turret mounts
 
-A **riser** is a support-layer part whose only purpose is `height`. Placing a
-part on one raises its `base`, which raises `top` *and* `imposed` together — so a
-gun on a 1-riser both stands taller and lets a gun stand in front of it. Stacking
-firepower in one lane is therefore a thing you buy with mass and a support slot,
-which is the intended answer to "one gun per lane".
+Raised mounting is a support-layer part the gun stacks on. Placing a part on one
+raises its `base`, which raises `top` *and* `imposed` together — so a raised gun
+both stands taller and tolerates more in its lane. Stacking firepower in one lane
+is therefore bought with mass and a support slot, which is the intended answer to
+"one gun per lane".
 
-Two of them: tier 1 at `height: 1`, tier 2 at `height: 2`.
+The progression is one level per riser, and it takes two to stack guns: a gun
+stands 3 and clears 1, so clearing another gun needs a base of 2. One riser buys
+you a reactor in the lane; two buy you a second gun. That is the intended shape,
+not an off-by-one.
+
+`U-TUR` (Gimbal, turret support) becomes the first of these: it is already a
+support part weapons stack on, and already carries `weaponArcBonusDeg: 25`, so
+`height: 1` makes the turret mount a raised mount that also swings wider. A
+raised mount that costs power and gives arc is a better first riser than a dumb
+block.
+
+Stacks require identical footprints (`sameCells` → `footprint-mismatch`), so a
+riser exists per shape rather than per part. Guns come in five shapes; risers
+cover three:
+
+| Riser | Shape | Raises |
+|---|---|---|
+| `U-RISE2` | `rect(2, 2)` | `W-RKT`, `W-SC` |
+| `U-RISE3` | `rect(2, 3)` | `W-AC`, `W-BR` |
+| `U-RISEL` | `line(3)` | `W-LAS`, `W-ION` |
+| (`U-TUR`) | `line(2)` | `W-MG`, `W-CB` |
+
+`W-RG` (railgun, `rect(2,5)`) has no riser and cannot be raised. A gun that size
+sits where it sits.
+
+Every riser is `layer: 'support'`, `height: 1`, `stacksOn: ['support']` — so two
+risers stack for height 2, and a gimbal may sit on a riser. Height 2 is a
+quantity of risers, not a second part.
+
+Every weapon gains `stacksOn: ['support']`. Only `W-MG` declares it today, which
+is why nothing but the machine gun can currently sit on a gimbal.
 
 ### Armour is height 0
 
@@ -112,6 +150,7 @@ Starting point, to be adjusted once the stock builds are re-laid:
 | Small guns (`W-MG`, `W-CB`, `W-SC`) | 1 | 0 |
 | Reactors, capacitors | 2 | — |
 | Utility, ammo, heat sinks, radiators, conduit | 1 | — |
+| `U-TUR` (gimbal), risers | 1 | — |
 | `U-ARM`, `U-SHELL` | 0 | — |
 | Risers (new) | 1 / 2 | — |
 
@@ -119,11 +158,11 @@ A small gun sits low and has no clearance at all in front of it: nothing may
 share its lane forward, not even a wire run's worth of equipment. That is the
 trade for its size.
 
-One authored interior clearance, so the field is a mechanic and not a dead type:
-the **Mule's body region gets `clearance: 2`**. The hauler's hull is a bay with a
-roof; its guns go on the shoulders. This is the one content call in this design
-worth re-checking after the stock builds are re-laid — if it guts the Mule as a
-brawler, raise it to 3 rather than deleting the field.
+One authored clearance zone, so the field is a mechanic and not a dead type:
+the **Mule's rear body row** — `body` cells `(1,5) (2,5) (3,5) (4,5)`, the
+`.####.` row — is a cargo bay with `height: 1`. Only flat equipment goes in the
+hauler's boot: ammo, sinks, wiring. Not a reactor, not a gun. The rest of the
+hull is untouched, so the Mule keeps every weapon it can mount today.
 
 ## Where the code goes
 
