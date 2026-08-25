@@ -18,6 +18,7 @@ import {
   validateWholeBuildPlacement,
   type PlacedPart,
 } from '../src/index.js';
+import { forwardClearance, partHeight } from '../src/spatial.js';
 
 const chassis = getChassis('CH-5');
 const demo = () => structuredClone(SPATIAL_DEMO_TEMPLATE.build);
@@ -310,5 +311,33 @@ describe('uniform exposed-face damage', () => {
       kinds.add(result.targetKind ?? 'none');
     }
     expect(kinds).toEqual(new Set(['equipment', 'chassis']));
+  });
+});
+
+describe('component height (docs/superpowers/specs/2026-08-24-component-height-design.md)', () => {
+  it('defaults an unauthored part to one level and no imposed clearance', () => {
+    expect(partHeight(getPart('U-AMMO'))).toBe(1);
+    expect(forwardClearance(getPart('U-AMMO'))).toBeUndefined();
+  });
+
+  it('stands the big guns three levels tall, clearing one level ahead', () => {
+    for (const id of ['W-AC', 'W-RG', 'W-BR', 'W-LAS', 'W-RKT', 'W-ION']) {
+      expect(partHeight(getPart(id)), id).toBe(3);
+      expect(forwardClearance(getPart(id)), id).toBe(1);
+    }
+  });
+
+  it('sits the small guns low, and lets nothing at all stand in front of them', () => {
+    for (const id of ['W-MG', 'W-CB', 'W-SC']) {
+      expect(partHeight(getPart(id)), id).toBe(1);
+      expect(forwardClearance(getPart(id)), id).toBe(0);
+    }
+  });
+
+  it('gives reactors and capacitors two levels, and armour none at all', () => {
+    expect(partHeight(getPart('R-C40'))).toBe(2);
+    expect(partHeight(getPart('P-CAP'))).toBe(2);
+    expect(partHeight(getPart('U-ARM'))).toBe(0);
+    expect(partHeight(getPart('U-SHELL'))).toBe(0);
   });
 });

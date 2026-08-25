@@ -39,6 +39,18 @@ export interface PartSpatialSpec {
   layer?: EquipmentLayer;
   /** Which layer may sit immediately below this part. */
   stacksOn?: EquipmentLayer[];
+  /**
+   * Levels this part occupies above the floor of its cell. A weapon's cells are
+   * its mounting point, not its barrel, so height is what decides whether the
+   * thing in front of it is in the way. See the height design spec.
+   */
+  height?: number;
+  /**
+   * The ceiling this part imposes on every cell ahead of it in its own lane,
+   * measured from its own base. Authored per weapon rather than derived from
+   * height: a low turret wants a clear lane, a hull-down mortar blocks nothing.
+   */
+  clearsForward?: number;
   /** Maximum electrical load that can pass through this part's cells. */
   electricalCapacityKw?: number;
   /** Electrical relay override. Equipment conducts by default; `false` opts out. */

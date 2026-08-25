@@ -35,6 +35,16 @@ export function equipmentLayer(def: PartDef): EquipmentLayer {
   return def.spatial?.layer ?? 'payload';
 }
 
+/** Levels a part occupies. Unauthored parts are one level. */
+export function partHeight(def: PartDef): number {
+  return def.spatial?.height ?? 1;
+}
+
+/** The ceiling this part imposes forward, or undefined if it imposes none. */
+export function forwardClearance(def: PartDef): number | undefined {
+  return def.spatial?.clearsForward;
+}
+
 export function resolveCellRef(chassis: ChassisSpec, cell: CellRef): Required<CellRef> {
   return {
     regionId: cell.regionId ?? regionIdAt(chassis, cell.x, cell.y) ?? 'body',

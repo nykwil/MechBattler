@@ -41,6 +41,7 @@ export const PARTS: Record<string, PartDef> = {
   'U-ARM': {
     id: 'U-ARM', name: 'Plate (armor)', category: 'structural',
     shape: [{ dx: 0, dy: 0 }], massKg: 150, hp: 60, tier: 1,
+    spatial: { height: 0 },
   },
   'U-AMMO': {
     id: 'U-AMMO', name: 'Bin (ammo store)', category: 'utility',
@@ -84,6 +85,7 @@ export const PARTS: Record<string, PartDef> = {
       stacksOn: ['payload'],
       coveredHeatMultiplier: 1.25,
       blocksPassiveCooling: true,
+      height: 0,
     },
   },
 
@@ -92,31 +94,31 @@ export const PARTS: Record<string, PartDef> = {
     id: 'R-C40', name: 'Lump (combustion S)', category: 'reactor',
     shape: rect(2, 2), massKg: 350, hp: 50, tier: 1, thermalMassPerCell: 2.0,
     reactor: { archetype: 'combustion', outputKw: 40, wasteHeatKw: [3, 6], throttleLagS: 2.0 },
-    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, height: 2 },
   },
   'R-C90': {
     id: 'R-C90', name: 'Furnace (combustion M)', category: 'reactor',
     shape: rect(3, 3), massKg: 900, hp: 90, tier: 3, thermalMassPerCell: 2.0,
     reactor: { archetype: 'combustion', outputKw: 90, wasteHeatKw: [7, 15], throttleLagS: 3.0 },
-    spatial: { transfersPower: true, electricalCapacityKw: 90, transfersHeat: true },
+    spatial: { transfersPower: true, electricalCapacityKw: 90, transfersHeat: true, height: 2 },
   },
   'R-E25': {
     id: 'R-E25', name: 'Whisper (electric S)', category: 'reactor',
     shape: rect(2, 2), massKg: 300, hp: 45, tier: 1, thermalMassPerCell: 2.0,
     reactor: { archetype: 'electric', outputKw: 25, wasteHeatKw: 1, throttleLagS: 0 },
-    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, height: 2 },
   },
   'R-E60': {
     id: 'R-E60', name: 'Arc (electric M)', category: 'reactor',
     shape: rect(3, 3), massKg: 750, hp: 80, tier: 3, thermalMassPerCell: 2.0,
     reactor: { archetype: 'electric', outputKw: 60, wasteHeatKw: 3, throttleLagS: 0 },
-    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, height: 2 },
   },
   'P-CAP': {
     id: 'P-CAP', name: 'Jolt (capacitor)', category: 'capacitor',
     shape: line(2), massKg: 90, hp: 20, tier: 2,
     capacitor: { storedKj: 60, chargeKw: 20, dischargeKw: 80 },
-    spatial: { transfersPower: true, electricalCapacityKw: 60 },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, height: 2 },
   },
   // The heavy sibling to the Jolt: over 3× the reserve (nearly a full railgun
   // shot banked) but slow to fill and slow to dump. A big-alpha reservoir vs the
@@ -125,7 +127,7 @@ export const PARTS: Record<string, PartDef> = {
     id: 'P-CAP2', name: 'Reservoir (capacitor L)', category: 'capacitor',
     shape: rect(2, 2), massKg: 320, hp: 35, tier: 3,
     capacitor: { storedKj: 200, chargeKw: 25, dischargeKw: 60 },
-    spatial: { transfersPower: true, electricalCapacityKw: 60 },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, height: 2 },
   },
 
   // --- Weapons (docs/03 §5, power draw docs/02 §2) ---
@@ -155,7 +157,7 @@ export const PARTS: Record<string, PartDef> = {
       damage: 1.5, cycleS: 0.1, projectileSpeed: 400, dispersionMrad: 8,
       falloff: { min: 10, idealMin: 10, idealMax: 40, max: 90 }, mountArcDeg: 90,
     },
-    spatial: { layer: 'payload', stacksOn: ['support'] },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 1, clearsForward: 0 },
   },
   'W-AC': {
     id: 'W-AC', name: 'Judge (autocannon)', category: 'weapon',
@@ -167,6 +169,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 20, idealMax: 50, max: 150 }, mountArcDeg: 60,
       recoilKnS: 0.4,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
   // Retuned Jul 2026 (docs/07): the original laser was the worst
   // energy-per-dps and heat-per-dps in the catalog (45 kJ + 12 kJ heat per
@@ -187,6 +190,7 @@ export const PARTS: Record<string, PartDef> = {
       damage: 19, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
       falloff: { idealMin: 25, idealMax: 60, max: 140 }, mountArcDeg: 70,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
   'W-RKT': {
     id: 'W-RKT', name: 'Pepperbox (rocket pod)', category: 'weapon',
@@ -197,6 +201,7 @@ export const PARTS: Record<string, PartDef> = {
       damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 125, dispersionMrad: 20.0,
       falloff: { idealMin: 30, idealMax: 40, max: 120 }, mountArcDeg: 120,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
   'W-RG': {
     id: 'W-RG', name: 'Longshot (railgun)', category: 'weapon',
@@ -209,6 +214,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 50, idealMax: 80, max: 240 }, mountArcDeg: 30,
       recoilKnS: 8,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
   // Light precision carbine: the fast-scout sniper enabler. Long band, tight
   // dispersion, low mass -- a Vulture can kite with it -- but modest DPS and a
@@ -233,6 +239,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 35, idealMax: 60, max: 180 }, mountArcDeg: 50,
       recoilKnS: 0.2,
     },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 1, clearsForward: 0 },
   },
   // Heavy short-range brute: the tank's payoff weapon. Enormous close damage
   // that falls off a cliff past 45 m, heavy, slow projectile, big power/heat
@@ -248,6 +255,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 0, idealMax: 15, max: 45 }, mountArcDeg: 45,
       recoilKnS: 2,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
   // System-attacking weapons (docs/07 Track C §4): higher-tier tech that hits a
   // simulated system, not just HP. Legible on existing gauges (enemy heat on the
@@ -266,6 +274,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 0, idealMax: 20, max: 45 }, mountArcDeg: 90,
       enemyHeatKj: 6,
     },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 1, clearsForward: 0 },
   },
   // Static: an ion cannon. Modest damage, but each hit bleeds the enemy's stored
   // capacitor charge — starves railgun alphas and Surge-gate/Thermocouple builds
@@ -282,6 +291,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 25, idealMax: 50, max: 150 }, mountArcDeg: 60,
       capDrainKj: 25,
     },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
 };
 
