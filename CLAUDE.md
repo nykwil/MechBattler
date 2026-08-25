@@ -166,6 +166,13 @@ build 20 points shows up as a changed file in review rather than a red build.
 Re-baseline with `npm run balance:report -- --rebaseline`, and only ever as part
 of a deliberate balance pass -- **never to make a swing go away.**
 
+`docs/19-watchlist.md` is what we are deliberately keeping an eye on: decisions
+taken knowingly that want revisiting with more evidence, and things that are fine
+now but could bite. Read it before a balance pass or before touching placement --
+it is where the reasons live, not just the facts. Add to it rather than letting a
+judgement die in a review thread, and delete an entry once it is fixed or once it
+is written down somewhere that is not a watchlist.
+
 `docs/17-balance-findings.md` is the hand-written record of causes. Read F1
 before touching any weapon curve: the four-band reshape in `bede033` deleted
 both damage floors and cost every gun 38–62% of its curve area, which is the
