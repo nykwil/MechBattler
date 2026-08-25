@@ -203,7 +203,9 @@ export type SpatialPlacementReason =
   | 'route-on-equipment'
   | 'duplicate-route'
   | 'incompatible-stack'
-  | 'footprint-mismatch';
+  | 'footprint-mismatch'
+  | 'ceiling-exceeded'
+  | 'blocks-firing-lane';
 
 export interface SpatialPlacementError {
   reason: SpatialPlacementReason;
@@ -232,6 +234,19 @@ export function checkSpatialPartPlacement(
       return { reason: 'out-of-region' };
     }
   }
+  const stackError = checkStackLegality(chassis, occupancy, build, candidate, candidateDef, cells);
+  if (stackError) return stackError;
+  return checkHeightLegality(chassis, occupancy, candidate, candidateDef, cells);
+}
+
+function checkStackLegality(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  build: Pick<Build, 'parts' | 'routes'>,
+  candidate: PlacedPart,
+  candidateDef: PartDef,
+  cells: Required<CellRef>[],
+): SpatialPlacementError | null {
   const overlaps = new Map<string, PlacedPart>();
   for (const cell of cells) {
     const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
@@ -257,6 +272,47 @@ export function checkSpatialPartPlacement(
   }
   if (!(candidateDef.spatial?.stacksOn ?? []).includes(equipmentLayer(belowDef))) {
     return { reason: 'incompatible-stack' };
+  }
+  return null;
+}
+
+/**
+ * A part must fit under the ceiling of every cell it covers, and a weapon must
+ * not bury something already standing in its lane. Both directions are the same
+ * inequality read from opposite ends, which is why the rule is order-independent:
+ * whichever of the two parts is placed second is the one refused.
+ */
+function checkHeightLegality(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  candidate: PlacedPart,
+  def: PartDef,
+  cells: Required<CellRef>[],
+): SpatialPlacementError | null {
+  const height = partHeight(def);
+  for (const cell of cells) {
+    const base = stackBase(chassis, occupancy, cell, def, candidate.instanceId);
+    if (base + height > cellCeiling(chassis, occupancy, cell, candidate.instanceId)) {
+      return { reason: 'ceiling-exceeded' };
+    }
+  }
+
+  const clears = forwardClearance(def);
+  if (clears === undefined) return null;
+  const own = new Set(cells.map((cell) => spatialCellKey(chassis, cell)));
+  for (const cell of cells) {
+    const imposed = stackBase(chassis, occupancy, cell, def, candidate.instanceId) + clears;
+    for (let y = 0; y < cell.y; y++) {
+      const ahead = { regionId: cell.regionId, x: cell.x, y };
+      const key = spatialCellKey(chassis, ahead);
+      if (own.has(key)) continue;
+      for (const entry of occupancy.stacksByCell.get(key) ?? []) {
+        if (entry.instanceId === candidate.instanceId) continue;
+        if (occupantTop(chassis, occupancy, ahead, entry.instanceId) > imposed) {
+          return { reason: 'blocks-firing-lane' };
+        }
+      }
+    }
   }
   return null;
 }

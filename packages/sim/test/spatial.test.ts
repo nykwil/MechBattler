@@ -386,3 +386,54 @@ describe('cell ceilings', () => {
     expect(stackBase(chassis, o, cell(1, 2), getPart('U-ARM'), 'sink')).toBe(0);
   });
 });
+
+describe('placement under a ceiling', () => {
+  const bastion = getChassis('CH-9'); // Bastion: hull is x 2-5, y 0-8, core at (2,4)
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'hull', x, y }, rotation: 0, integrity: 1 });
+  const check = (parts: PlacedPart[], candidate: PlacedPart) =>
+    checkSpatialPartPlacement(bastion, { parts, routes: [] }, candidate);
+
+  // W-AC is rect(2,3): at (4,5) it fills x 4-5, y 5-7, and clears 1 level ahead.
+  const gun = at('gun', 'W-AC', 4, 5);
+
+  it('accepts a flat part in front of a gun', () => {
+    // U-AMMO is line(2): one level tall, so it fits under a ceiling of 1.
+    expect(check([gun], at('ammo', 'U-AMMO', 4, 3))).toBeNull();
+  });
+
+  it('refuses a two-level reactor in front of a gun', () => {
+    // R-E25 is rect(2,2) and two levels tall.
+    expect(check([gun], at('reactor', 'R-E25', 4, 2))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('refuses the gun when the reactor got there first', () => {
+    expect(check([at('reactor', 'R-E25', 4, 2)], gun)?.reason).toBe('blocks-firing-lane');
+  });
+
+  it('leaves a gun placeable on an empty chassis, so it never blocks itself', () => {
+    // The gun occupies three cells in its own lane. Without excluding itself,
+    // its rear cells impose a ceiling of 1 on its front cells and no gun is
+    // ever placeable anywhere.
+    expect(check([], gun)).toBeNull();
+  });
+
+  it('ignores a tall part behind the gun', () => {
+    const forward = at('gun', 'W-AC', 4, 4); // fills y 4-6
+    expect(check([forward], at('reactor', 'R-E25', 4, 7))).toBeNull();
+  });
+
+  it('lets a small gun clear nothing at all in its lane', () => {
+    // W-MG is one level tall and clears 0: even a heat sink is in the way.
+    const mg = at('mg', 'W-MG', 4, 5);
+    expect(check([mg], at('sink', 'U-HS', 4, 3))?.reason).toBe('ceiling-exceeded');
+    expect(check([at('sink', 'U-HS', 4, 3)], mg)?.reason).toBe('blocks-firing-lane');
+  });
+
+  it('lets armour cover a part that is already at the ceiling', () => {
+    // U-SHELL is line(2), armour layer, height 0: it skins the ammo bin without
+    // raising it, so the bin stays legal under the gun's ceiling of 1.
+    const ammo = at('ammo', 'U-AMMO', 4, 3);
+    expect(check([gun, ammo], at('shell', 'U-SHELL', 4, 3))).toBeNull();
+  });
+});
