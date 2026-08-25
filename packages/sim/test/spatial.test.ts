@@ -465,3 +465,42 @@ describe('authored chassis clearance', () => {
     expect(check(at('reactor', 'R-E25', 1, 2))).toBeNull();
   });
 });
+
+describe('raised mounting', () => {
+  const chassis = getChassis('CH-9'); // Bastion: hull is x 2-5, y 0-8
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'hull', x, y }, rotation: 0, integrity: 1 });
+  const check = (parts: PlacedPart[], candidate: PlacedPart) =>
+    checkSpatialPartPlacement(chassis, { parts, routes: [] }, candidate);
+
+  const riser = (instanceId: string) => at(instanceId, 'U-RISE3', 4, 5);
+  const gun = at('gun', 'W-AC', 4, 5); // rect(2,3), x 4-5, y 5-7
+
+  it('makes the gimbal a raised mount', () => {
+    expect(partHeight(getPart('U-TUR'))).toBe(1);
+  });
+
+  it('lets every weapon stand on a support, not just the machine gun', () => {
+    for (const id of ['W-AC', 'W-BR', 'W-LAS', 'W-RKT', 'W-ION', 'W-CB', 'W-SC']) {
+      expect(getPart(id).spatial?.stacksOn, id).toContain('support');
+    }
+  });
+
+  it('stacks a riser under a gun, and a riser under a riser', () => {
+    expect(check([], riser('r1'))).toBeNull();
+    expect(check([riser('r1')], riser('r2'))).toBeNull();
+    expect(check([riser('r1')], gun)).toBeNull();
+  });
+
+  it('raises what a gun will tolerate in its lane, one level per riser', () => {
+    // Ground level: the gun clears 1, so a two-level reactor is in the way.
+    expect(check([gun], at('reactor', 'R-E25', 4, 3))?.reason).toBe('ceiling-exceeded');
+    // One riser: base 1, so it now clears 2 and the reactor fits.
+    expect(check([riser('r1'), at('gun', 'W-AC', 4, 5)], at('reactor', 'R-E25', 4, 3))).toBeNull();
+    // Two risers: base 2, so it clears 3 -- a whole second gun in the same lane.
+    expect(check(
+      [riser('r1'), riser('r2'), at('gun', 'W-AC', 4, 5)],
+      at('front', 'W-AC', 4, 0),
+    )).toBeNull();
+  });
+});

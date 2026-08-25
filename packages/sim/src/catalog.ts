@@ -75,7 +75,24 @@ export const PARTS: Record<string, PartDef> = {
       transfersHeat: true,
       thermalConductance: 1.5,
       weaponArcBonusDeg: 25,
+      height: 1,
+      stacksOn: ['support'],
     },
+  },
+  'U-RISE2': {
+    id: 'U-RISE2', name: 'Block (riser)', category: 'structural',
+    shape: rect(2, 2), massKg: 60, hp: 20, tier: 1,
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
+  },
+  'U-RISE3': {
+    id: 'U-RISE3', name: 'Pylon (riser)', category: 'structural',
+    shape: rect(2, 3), massKg: 90, hp: 25, tier: 1,
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
+  },
+  'U-RISEL': {
+    id: 'U-RISEL', name: 'Beam (riser)', category: 'structural',
+    shape: line(3), massKg: 70, hp: 20, tier: 1,
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
   },
   'U-SHELL': {
     id: 'U-SHELL', name: 'Carapace (sealed shell)', category: 'structural',
@@ -169,7 +186,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 20, idealMax: 50, max: 150 }, mountArcDeg: 60,
       recoilKnS: 0.4,
     },
-    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
   // Retuned Jul 2026 (docs/07): the original laser was the worst
   // energy-per-dps and heat-per-dps in the catalog (45 kJ + 12 kJ heat per
@@ -190,7 +207,7 @@ export const PARTS: Record<string, PartDef> = {
       damage: 19, cycleS: 2.0, projectileSpeed: 'hitscan', dispersionMrad: 1.5,
       falloff: { idealMin: 25, idealMax: 60, max: 140 }, mountArcDeg: 70,
     },
-    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
   'W-RKT': {
     id: 'W-RKT', name: 'Pepperbox (rocket pod)', category: 'weapon',
@@ -201,7 +218,7 @@ export const PARTS: Record<string, PartDef> = {
       damage: 6, salvoCount: 6, cycleS: 15, projectileSpeed: 125, dispersionMrad: 20.0,
       falloff: { idealMin: 30, idealMax: 40, max: 120 }, mountArcDeg: 120,
     },
-    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
   'W-RG': {
     id: 'W-RG', name: 'Longshot (railgun)', category: 'weapon',
@@ -255,7 +272,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 0, idealMax: 15, max: 45 }, mountArcDeg: 45,
       recoilKnS: 2,
     },
-    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
   // System-attacking weapons (docs/07 Track C §4): higher-tier tech that hits a
   // simulated system, not just HP. Legible on existing gauges (enemy heat on the
@@ -291,7 +308,7 @@ export const PARTS: Record<string, PartDef> = {
       falloff: { idealMin: 25, idealMax: 50, max: 150 }, mountArcDeg: 60,
       capDrainKj: 25,
     },
-    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
 };
 
