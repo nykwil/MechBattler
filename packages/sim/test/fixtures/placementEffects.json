@@ -387,7 +387,7 @@
     "conB": {
       "partId": "U-CON",
       "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 25,
+      "locationArcBonusDeg": 0,
       "locationHeatMultiplier": 1,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,
@@ -409,7 +409,7 @@
     "cap1": {
       "partId": "P-CAP",
       "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 0,
+      "locationArcBonusDeg": 25,
       "locationHeatMultiplier": 1,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,
@@ -420,7 +420,7 @@
     "cap2": {
       "partId": "P-CAP",
       "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 0,
+      "locationArcBonusDeg": 25,
       "locationHeatMultiplier": 1,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,
@@ -439,21 +439,10 @@
       "baseWeaponArcDeg": null,
       "effectiveWeaponArcDeg": null
     },
-    "cap4": {
-      "partId": "P-CAP",
-      "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 0,
-      "locationHeatMultiplier": 1,
-      "supportArcBonusDeg": 0,
-      "armourHeatMultiplier": 1,
-      "effectiveHeatMultiplier": 1,
-      "baseWeaponArcDeg": null,
-      "effectiveWeaponArcDeg": null
-    },
     "rad": {
       "partId": "U-RAD",
       "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 25,
+      "locationArcBonusDeg": 0,
       "locationHeatMultiplier": 1,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,

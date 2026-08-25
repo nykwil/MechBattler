@@ -49,7 +49,8 @@ export interface PlacementError {
   reason:
     | 'out-of-mask' | 'overlap' | 'perimeter-required' | 'core-occupied'
     | 'out-of-region' | 'route-on-equipment' | 'duplicate-route'
-    | 'incompatible-stack' | 'footprint-mismatch';
+    | 'incompatible-stack' | 'footprint-mismatch'
+    | 'ceiling-exceeded' | 'blocks-firing-lane';
 }
 
 /** Checks whether `candidate` can legally be placed given the parts already on the chassis. */

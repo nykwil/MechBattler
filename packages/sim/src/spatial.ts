@@ -35,6 +35,106 @@ export function equipmentLayer(def: PartDef): EquipmentLayer {
   return def.spatial?.layer ?? 'payload';
 }
 
+/** Levels a part occupies. Unauthored parts are one level. */
+export function partHeight(def: PartDef): number {
+  return def.spatial?.height ?? 1;
+}
+
+/** The ceiling this part imposes forward, or undefined if it imposes none. */
+export function forwardClearance(def: PartDef): number | undefined {
+  return def.spatial?.clearsForward;
+}
+
+/**
+ * Levels already used beneath a part about to occupy this cell. Occupants at or
+ * below the candidate's layer are underneath it: `stacksByCell` is sorted by
+ * layer and stable within a layer, so a riser landing on a riser correctly reads
+ * a base of one.
+ */
+export function stackBase(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  def: PartDef,
+  excludeInstanceId?: string,
+): number {
+  const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
+  const order = LAYER_ORDER[equipmentLayer(def)];
+  return stack
+    .filter((entry) => entry.instanceId !== excludeInstanceId && LAYER_ORDER[entry.layer] <= order)
+    .reduce((sum, entry) => sum + partHeight(getPart(entry.partId)), 0);
+}
+
+/** The level the top of an already-placed occupant reaches in this cell. */
+export function occupantTop(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  instanceId: string,
+): number {
+  const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
+  const index = stack.findIndex((entry) => entry.instanceId === instanceId);
+  if (index < 0) return 0;
+  return stack
+    .slice(0, index + 1)
+    .reduce((sum, entry) => sum + partHeight(getPart(entry.partId)), 0);
+}
+
+/**
+ * The highest a part may reach in this cell. Weapons behind it in the same lane
+ * lower it, because their barrels are in the way; an authored clearance zone
+ * lowers it because the bay has a roof.
+ *
+ * `excludeInstanceId` is what stops a multi-cell gun from blocking itself: a
+ * 2x3 gun occupies three cells in its own lane, and without the exclusion its
+ * rear cells would impose a ceiling of 1 on its front cells.
+ */
+export function cellCeiling(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  cell: Required<CellRef>,
+  excludeInstanceId?: string,
+): number {
+  let ceiling = clearanceZoneHeight(chassis, cell);
+  for (let y = cell.y + 1; y < chassis.height; y++) {
+    const behind = { regionId: cell.regionId, x: cell.x, y };
+    const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, behind)) ?? [];
+    for (const entry of stack) {
+      if (entry.instanceId === excludeInstanceId) continue;
+      const clears = forwardClearance(getPart(entry.partId));
+      if (clears === undefined) continue;
+      const base = occupantTop(chassis, occupancy, behind, entry.instanceId)
+        - partHeight(getPart(entry.partId));
+      ceiling = Math.min(ceiling, base + clears);
+    }
+  }
+  return ceiling;
+}
+
+const clearanceCellCache = new WeakMap<ChassisSpec, { height: number; cells: Set<string> }[]>();
+
+function clearanceZonesFor(chassis: ChassisSpec) {
+  let zones = clearanceCellCache.get(chassis);
+  if (!zones) {
+    zones = (chassis.clearanceZones ?? []).map((zone) => ({
+      height: zone.height,
+      cells: new Set(zone.cells.map((cell) => spatialCellKey(chassis, cell))),
+    }));
+    clearanceCellCache.set(chassis, zones);
+  }
+  return zones;
+}
+
+/** Authored chassis roofs, e.g. an interior cargo bay. */
+function clearanceZoneHeight(chassis: ChassisSpec, cell: Required<CellRef>): number {
+  const key = spatialCellKey(chassis, cell);
+  let height = Infinity;
+  for (const zone of clearanceZonesFor(chassis)) {
+    if (zone.cells.has(key)) height = Math.min(height, zone.height);
+  }
+  return height;
+}
+
 export function resolveCellRef(chassis: ChassisSpec, cell: CellRef): Required<CellRef> {
   return {
     regionId: cell.regionId ?? regionIdAt(chassis, cell.x, cell.y) ?? 'body',
@@ -122,7 +222,9 @@ export type SpatialPlacementReason =
   | 'route-on-equipment'
   | 'duplicate-route'
   | 'incompatible-stack'
-  | 'footprint-mismatch';
+  | 'footprint-mismatch'
+  | 'ceiling-exceeded'
+  | 'blocks-firing-lane';
 
 export interface SpatialPlacementError {
   reason: SpatialPlacementReason;
@@ -151,6 +253,19 @@ export function checkSpatialPartPlacement(
       return { reason: 'out-of-region' };
     }
   }
+  const stackError = checkStackLegality(chassis, occupancy, build, candidate, candidateDef, cells);
+  if (stackError) return stackError;
+  return checkHeightLegality(chassis, occupancy, candidate, candidateDef, cells);
+}
+
+function checkStackLegality(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  build: Pick<Build, 'parts' | 'routes'>,
+  candidate: PlacedPart,
+  candidateDef: PartDef,
+  cells: Required<CellRef>[],
+): SpatialPlacementError | null {
   const overlaps = new Map<string, PlacedPart>();
   for (const cell of cells) {
     const stack = occupancy.stacksByCell.get(spatialCellKey(chassis, cell)) ?? [];
@@ -176,6 +291,47 @@ export function checkSpatialPartPlacement(
   }
   if (!(candidateDef.spatial?.stacksOn ?? []).includes(equipmentLayer(belowDef))) {
     return { reason: 'incompatible-stack' };
+  }
+  return null;
+}
+
+/**
+ * A part must fit under the ceiling of every cell it covers, and a weapon must
+ * not bury something already standing in its lane. Both directions are the same
+ * inequality read from opposite ends, which is why the rule is order-independent:
+ * whichever of the two parts is placed second is the one refused.
+ */
+function checkHeightLegality(
+  chassis: ChassisSpec,
+  occupancy: SpatialOccupancy,
+  candidate: PlacedPart,
+  def: PartDef,
+  cells: Required<CellRef>[],
+): SpatialPlacementError | null {
+  const height = partHeight(def);
+  for (const cell of cells) {
+    const base = stackBase(chassis, occupancy, cell, def, candidate.instanceId);
+    if (base + height > cellCeiling(chassis, occupancy, cell, candidate.instanceId)) {
+      return { reason: 'ceiling-exceeded' };
+    }
+  }
+
+  const clears = forwardClearance(def);
+  if (clears === undefined) return null;
+  const own = new Set(cells.map((cell) => spatialCellKey(chassis, cell)));
+  for (const cell of cells) {
+    const imposed = stackBase(chassis, occupancy, cell, def, candidate.instanceId) + clears;
+    for (let y = 0; y < cell.y; y++) {
+      const ahead = { regionId: cell.regionId, x: cell.x, y };
+      const key = spatialCellKey(chassis, ahead);
+      if (own.has(key)) continue;
+      for (const entry of occupancy.stacksByCell.get(key) ?? []) {
+        if (entry.instanceId === candidate.instanceId) continue;
+        if (occupantTop(chassis, occupancy, ahead, entry.instanceId) > imposed) {
+          return { reason: 'blocks-firing-lane' };
+        }
+      }
+    }
   }
   return null;
 }

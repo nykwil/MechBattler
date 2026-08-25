@@ -3,6 +3,26 @@ import { describe, expect, it } from 'vitest';
 import { SPATIAL_DEMO_TEMPLATE, getChassis, type Build } from '@mechbattler/sim';
 import { PartInspector } from './PartInspector.js';
 
+function renderInspector(partId: string) {
+  const base = structuredClone(SPATIAL_DEMO_TEMPLATE.build);
+  const build: Build = {
+    ...base,
+    parts: [...base.parts, {
+      instanceId: 'inspected', partId,
+      origin: { regionId: 'body', x: 0, y: 0 }, rotation: 0, integrity: 1,
+    }],
+  };
+  return render(
+    <PartInspector
+      chassis={getChassis(build.chassisId)}
+      build={build}
+      selectedInstanceId="inspected"
+      onDetach={() => {}}
+      onDeselect={() => {}}
+    />,
+  );
+}
+
 describe('PartInspector spatial consequences', () => {
   it('explains location, stack, cooling, power, heat, arc, and exposure together', () => {
     const build = structuredClone(SPATIAL_DEMO_TEMPLATE.build);
@@ -58,5 +78,20 @@ describe('PartInspector spatial consequences', () => {
     const text = container.textContent ?? '';
     expect(text).toContain('Power network');
     expect(text).toContain('unpowered');
+  });
+
+  it('shows how tall a part stands and what it demands ahead', () => {
+    const { container } = renderInspector('W-AC');
+    const text = container.textContent ?? '';
+    expect(text).toContain('Height');
+    expect(text).toContain('3 levels');
+    expect(text).toContain('Clear ahead');
+    expect(text).toContain('1 level');
+  });
+
+  it('says nothing about clearance for a part that imposes none', () => {
+    const { container } = renderInspector('U-AMMO');
+    const text = container.textContent ?? '';
+    expect(text).not.toContain('Clear ahead');
   });
 });

@@ -39,6 +39,18 @@ export interface PartSpatialSpec {
   layer?: EquipmentLayer;
   /** Which layer may sit immediately below this part. */
   stacksOn?: EquipmentLayer[];
+  /**
+   * Levels this part occupies above the floor of its cell. A weapon's cells are
+   * its mounting point, not its barrel, so height is what decides whether the
+   * thing in front of it is in the way. See the height design spec.
+   */
+  height?: number;
+  /**
+   * The ceiling this part imposes on every cell ahead of it in its own lane,
+   * measured from its own base. Authored per weapon rather than derived from
+   * height: a low turret wants a clear lane, a hull-down mortar blocks nothing.
+   */
+  clearsForward?: number;
   /** Maximum electrical load that can pass through this part's cells. */
   electricalCapacityKw?: number;
   /** Electrical relay override. Equipment conducts by default; `false` opts out. */
@@ -239,6 +251,21 @@ export interface ChassisLocationZoneSpec {
   effect: ChassisLocationEffectSpec;
 }
 
+/**
+ * A set of cells with an authored roof. Per-cell rather than per-region on
+ * purpose: a region-wide roof is too blunt to be usable. The Mule's shoulder
+ * regions are two mask rows deep, so a rect(2,3) gun cannot fit in one, and
+ * roofing the whole hull would not mean "guns go on the shoulders" -- it would
+ * mean the Mule can never mount a big gun at all.
+ */
+export interface ChassisClearanceZoneSpec {
+  id: string;
+  name: string;
+  cells: CellRef[];
+  /** Highest level a part may reach in these cells. */
+  height: number;
+}
+
 export interface ChassisSpec {
   id: string;
   name: string;
@@ -258,6 +285,8 @@ export interface ChassisSpec {
   ports?: ChassisPortSpec[];
   /** Named cell-location effects, applied only when a part fits wholly inside a zone. */
   locationZones?: ChassisLocationZoneSpec[];
+  /** Authored low roofs, e.g. an interior cargo bay. */
+  clearanceZones?: ChassisClearanceZoneSpec[];
   /** Number of non-equipment tickets in the directional hit pool. */
   chassisHitTickets: number;
   /** Global structural body pool. Ordinary hits never target the old core cell. */

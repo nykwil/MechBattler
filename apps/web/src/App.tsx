@@ -52,6 +52,8 @@ const REJECTION_COPY: Record<string, string> = {
   'out-of-region': 'Crosses a region seam',
   'incompatible-stack': 'Those parts cannot stack',
   'footprint-mismatch': 'Stack footprints must match',
+  'ceiling-exceeded': 'Too tall for that spot',
+  'blocks-firing-lane': 'Its firing lane is blocked',
 };
 
 export default function App() {

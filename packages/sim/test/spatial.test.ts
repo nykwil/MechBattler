@@ -18,6 +18,7 @@ import {
   validateWholeBuildPlacement,
   type PlacedPart,
 } from '../src/index.js';
+import { cellCeiling, forwardClearance, occupantTop, partHeight, stackBase } from '../src/spatial.js';
 
 const chassis = getChassis('CH-5');
 const demo = () => structuredClone(SPATIAL_DEMO_TEMPLATE.build);
@@ -310,5 +311,196 @@ describe('uniform exposed-face damage', () => {
       kinds.add(result.targetKind ?? 'none');
     }
     expect(kinds).toEqual(new Set(['equipment', 'chassis']));
+  });
+});
+
+describe('component height (docs/superpowers/specs/2026-08-24-component-height-design.md)', () => {
+  it('defaults an unauthored part to one level and no imposed clearance', () => {
+    expect(partHeight(getPart('U-AMMO'))).toBe(1);
+    expect(forwardClearance(getPart('U-AMMO'))).toBeUndefined();
+  });
+
+  it('stands the big guns three levels tall, clearing one level ahead', () => {
+    for (const id of ['W-AC', 'W-RG', 'W-BR', 'W-LAS', 'W-RKT', 'W-ION']) {
+      expect(partHeight(getPart(id)), id).toBe(3);
+      expect(forwardClearance(getPart(id)), id).toBe(1);
+    }
+  });
+
+  it('sits the small guns low, and lets nothing at all stand in front of them', () => {
+    for (const id of ['W-MG', 'W-CB', 'W-SC']) {
+      expect(partHeight(getPart(id)), id).toBe(1);
+      expect(forwardClearance(getPart(id)), id).toBe(0);
+    }
+  });
+
+  it('gives reactors and capacitors two levels, and armour none at all', () => {
+    expect(partHeight(getPart('R-C40'))).toBe(2);
+    expect(partHeight(getPart('P-CAP'))).toBe(2);
+    expect(partHeight(getPart('U-ARM'))).toBe(0);
+    expect(partHeight(getPart('U-SHELL'))).toBe(0);
+  });
+});
+
+describe('cell ceilings', () => {
+  const chassis = getChassis('CH-5'); // Mule, 6x6, body mask rows 2-5
+  const cell = (x: number, y: number) => ({ regionId: 'body', x, y });
+  const occ = (parts: PlacedPart[]) => buildSpatialOccupancy(chassis, { parts, routes: [] });
+
+  const gun: PlacedPart = {
+    instanceId: 'gun', partId: 'W-AC', origin: cell(1, 3), rotation: 0, integrity: 1,
+  };
+
+  it('is unbounded where nothing imposes one', () => {
+    expect(cellCeiling(chassis, occ([]), cell(1, 2))).toBe(Infinity);
+  });
+
+  it('is lowered to a gun clearance in the gun own lane, ahead of it only', () => {
+    // W-AC is rect(2,3) at body (1,3): it fills x 1-2, y 3-5.
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, cell(1, 2))).toBe(1);
+    expect(cellCeiling(chassis, o, cell(2, 2))).toBe(1);
+    // Not in its lanes:
+    expect(cellCeiling(chassis, o, cell(3, 2))).toBe(Infinity);
+  });
+
+  it('never lets a gun block itself', () => {
+    // Excluding the gun is what makes its own front cells placeable.
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, cell(1, 3), 'gun')).toBe(Infinity);
+    expect(cellCeiling(chassis, o, cell(1, 4), 'gun')).toBe(Infinity);
+  });
+
+  it('does not cross a region seam', () => {
+    const o = occ([gun]);
+    expect(cellCeiling(chassis, o, { regionId: 'left-shoulder', x: 1, y: 1 })).toBe(Infinity);
+  });
+
+  it('reads a stack base from what is already underneath', () => {
+    const sink: PlacedPart = {
+      instanceId: 'sink', partId: 'U-HS', origin: cell(1, 2), rotation: 0, integrity: 1,
+    };
+    const o = occ([sink]);
+    expect(occupantTop(chassis, o, cell(1, 2), 'sink')).toBe(1);
+    expect(stackBase(chassis, o, cell(1, 2), getPart('U-ARM'))).toBe(1);
+    expect(stackBase(chassis, o, cell(1, 2), getPart('U-ARM'), 'sink')).toBe(0);
+  });
+});
+
+describe('placement under a ceiling', () => {
+  const bastion = getChassis('CH-9'); // Bastion: hull is x 2-5, y 0-8, core at (2,4)
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'hull', x, y }, rotation: 0, integrity: 1 });
+  const check = (parts: PlacedPart[], candidate: PlacedPart) =>
+    checkSpatialPartPlacement(bastion, { parts, routes: [] }, candidate);
+
+  // W-AC is rect(2,3): at (4,5) it fills x 4-5, y 5-7, and clears 1 level ahead.
+  const gun = at('gun', 'W-AC', 4, 5);
+
+  it('accepts a flat part in front of a gun', () => {
+    // U-AMMO is line(2): one level tall, so it fits under a ceiling of 1.
+    expect(check([gun], at('ammo', 'U-AMMO', 4, 3))).toBeNull();
+  });
+
+  it('refuses a two-level reactor in front of a gun', () => {
+    // R-E25 is rect(2,2) and two levels tall.
+    expect(check([gun], at('reactor', 'R-E25', 4, 2))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('refuses the gun when the reactor got there first', () => {
+    expect(check([at('reactor', 'R-E25', 4, 2)], gun)?.reason).toBe('blocks-firing-lane');
+  });
+
+  it('leaves a gun placeable on an empty chassis, so it never blocks itself', () => {
+    // The gun occupies three cells in its own lane. Without excluding itself,
+    // its rear cells impose a ceiling of 1 on its front cells and no gun is
+    // ever placeable anywhere.
+    expect(check([], gun)).toBeNull();
+  });
+
+  it('ignores a tall part behind the gun', () => {
+    const forward = at('gun', 'W-AC', 4, 4); // fills y 4-6
+    expect(check([forward], at('reactor', 'R-E25', 4, 7))).toBeNull();
+  });
+
+  it('lets a small gun clear nothing at all in its lane', () => {
+    // W-MG is one level tall and clears 0: even a heat sink is in the way.
+    const mg = at('mg', 'W-MG', 4, 5);
+    expect(check([mg], at('sink', 'U-HS', 4, 3))?.reason).toBe('ceiling-exceeded');
+    expect(check([at('sink', 'U-HS', 4, 3)], mg)?.reason).toBe('blocks-firing-lane');
+  });
+
+  it('lets armour cover a part that is already at the ceiling', () => {
+    // U-SHELL is line(2), armour layer, height 0: it skins the ammo bin without
+    // raising it, so the bin stays legal under the gun's ceiling of 1.
+    const ammo = at('ammo', 'U-AMMO', 4, 3);
+    expect(check([gun, ammo], at('shell', 'U-SHELL', 4, 3))).toBeNull();
+  });
+});
+
+describe('authored chassis clearance', () => {
+  const chassis = getChassis('CH-5'); // Mule: body is rows 2-5, row 5 is '.####.'
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'body', x, y }, rotation: 0, integrity: 1 });
+  const check = (candidate: PlacedPart) =>
+    checkSpatialPartPlacement(chassis, { parts: [], routes: [] }, candidate);
+
+  it('roofs the Mule cargo row at one level', () => {
+    expect(cellCeiling(chassis, buildSpatialOccupancy(chassis, { parts: [], routes: [] }),
+      { regionId: 'body', x: 2, y: 5 })).toBe(1);
+  });
+
+  it('takes flat equipment in the bay', () => {
+    expect(check(at('ammo', 'U-AMMO', 1, 5))).toBeNull();
+  });
+
+  it('refuses a reactor that hangs into the bay', () => {
+    // R-E25 is rect(2,2): at (1,4) it fills y 4-5, so its lower half is in the
+    // boot. Nothing one row tall is two levels tall, so hanging in is the only
+    // way to violate a one-row bay -- which is exactly the rule worth having.
+    expect(check(at('reactor', 'R-E25', 1, 4))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('leaves the rest of the hull unroofed', () => {
+    expect(check(at('reactor', 'R-E25', 1, 2))).toBeNull();
+  });
+});
+
+describe('raised mounting', () => {
+  const chassis = getChassis('CH-9'); // Bastion: hull is x 2-5, y 0-8
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'hull', x, y }, rotation: 0, integrity: 1 });
+  const check = (parts: PlacedPart[], candidate: PlacedPart) =>
+    checkSpatialPartPlacement(chassis, { parts, routes: [] }, candidate);
+
+  const riser = (instanceId: string) => at(instanceId, 'U-RISE3', 4, 5);
+  const gun = at('gun', 'W-AC', 4, 5); // rect(2,3), x 4-5, y 5-7
+
+  it('makes the gimbal a raised mount', () => {
+    expect(partHeight(getPart('U-TUR'))).toBe(1);
+  });
+
+  it('lets every weapon stand on a support, not just the machine gun', () => {
+    for (const id of ['W-AC', 'W-BR', 'W-LAS', 'W-RKT', 'W-ION', 'W-CB', 'W-SC']) {
+      expect(getPart(id).spatial?.stacksOn, id).toContain('support');
+    }
+  });
+
+  it('stacks a riser under a gun, and a riser under a riser', () => {
+    expect(check([], riser('r1'))).toBeNull();
+    expect(check([riser('r1')], riser('r2'))).toBeNull();
+    expect(check([riser('r1')], gun)).toBeNull();
+  });
+
+  it('raises what a gun will tolerate in its lane, one level per riser', () => {
+    // Ground level: the gun clears 1, so a two-level reactor is in the way.
+    expect(check([gun], at('reactor', 'R-E25', 4, 3))?.reason).toBe('ceiling-exceeded');
+    // One riser: base 1, so it now clears 2 and the reactor fits.
+    expect(check([riser('r1'), at('gun', 'W-AC', 4, 5)], at('reactor', 'R-E25', 4, 3))).toBeNull();
+    // Two risers: base 2, so it clears 3 -- a whole second gun in the same lane.
+    expect(check(
+      [riser('r1'), riser('r2'), at('gun', 'W-AC', 4, 5)],
+      at('front', 'W-AC', 4, 0),
+    )).toBeNull();
   });
 });
