@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import {
   connectedInstanceIds,
+  forwardClearance,
   getPart,
+  partHeight,
   requiresPowerConnection,
   resolvePlacementEffects,
   type Build,
@@ -81,6 +83,18 @@ export function PartInspector({
 
       <div className="inspector-rows">
         <div className="inspector-row"><span>Mass</span><span>{def.massKg} kg</span></div>
+        <div className="inspector-row">
+          <span>Height</span>
+          <span>{partHeight(def)} level{partHeight(def) === 1 ? '' : 's'}</span>
+        </div>
+        {forwardClearance(def) !== undefined && (
+          <div className="inspector-row">
+            <span>Clear ahead</span>
+            <span>
+              {forwardClearance(def)} level{forwardClearance(def) === 1 ? '' : 's'}
+            </span>
+          </div>
+        )}
         <div className="inspector-row">
           <span>Hit points</span>
           <span>{Math.round(def.hp * placed.integrity)} / {def.hp}{placed.integrity < 1 ? ` (${Math.round(placed.integrity * 100)}% integrity)` : ''}</span>
