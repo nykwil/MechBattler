@@ -1,5 +1,10 @@
 # Component Height Implementation Plan
 
+**Shipped 25 Aug 2026**, merged as `502cb0f`. All nine tasks landed, plus a
+fix wave closing the final review's findings. Kept for the record; the rule
+it describes lives in `packages/sim/src/spatial.ts` and the design rationale
+in `2026-08-24-component-height-design.md` beside this file.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give parts a height and cells a ceiling, so a gun's lane in front of it can only hold flat equipment, a riser buys you a second gun in that lane, and a chassis can have a low-roofed bay.

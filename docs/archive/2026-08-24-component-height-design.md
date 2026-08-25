@@ -2,6 +2,14 @@
 
 *2026-08-24*
 
+**Shipped 25 Aug 2026**, merged as `502cb0f`. This is the design as agreed and
+as built: the arithmetic below is what `packages/sim/src/spatial.ts` implements.
+Three claims in the first draft were wrong and were corrected before
+implementation — the Mule's body is too shallow to put anything in front of a
+three-row gun, a one-row bay is violated by a part hanging *into* it rather than
+sitting in it, and one riser does not clear a gun. The plan beside this file
+records what was actually built.
+
 ## The problem
 
 A weapon's cells are its *mounting point*, not its barrel. Nothing in the grid
