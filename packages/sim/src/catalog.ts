@@ -79,20 +79,23 @@ export const PARTS: Record<string, PartDef> = {
       stacksOn: ['support'],
     },
   },
+  // Risers carry transfersHeat, so their cells are thermal edges for whatever
+  // sits on top -- destroy a 20 HP riser and the gun standing on it loses its
+  // heat path along with its support.
   'U-RISE2': {
     id: 'U-RISE2', name: 'Block (riser)', category: 'structural',
     shape: rect(2, 2), massKg: 60, hp: 20, tier: 1,
-    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, electricalCapacityKw: 60, transfersHeat: true },
   },
   'U-RISE3': {
     id: 'U-RISE3', name: 'Pylon (riser)', category: 'structural',
     shape: rect(2, 3), massKg: 90, hp: 25, tier: 1,
-    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, electricalCapacityKw: 60, transfersHeat: true },
   },
   'U-RISEL': {
     id: 'U-RISEL', name: 'Beam (riser)', category: 'structural',
     shape: line(3), massKg: 70, hp: 20, tier: 1,
-    spatial: { layer: 'support', stacksOn: ['support'], height: 1, transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, thermalConductance: 1 },
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, electricalCapacityKw: 60, transfersHeat: true },
   },
   'U-SHELL': {
     id: 'U-SHELL', name: 'Carapace (sealed shell)', category: 'structural',

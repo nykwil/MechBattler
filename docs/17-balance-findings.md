@@ -147,7 +147,7 @@ it, so it is now a three-capacitor railgun.
 |---|---|---|---|
 | mule-laser-boat | 42% | 71% | +29 |
 | vulture-skirmisher | 47% | 71% | +24 |
-| railgun-mule | 49% | 49% | -4 |
+| railgun-mule | 53% | 49% | -4 |
 | mule-skirmisher | 45% | 47% | +2 |
 | bastion-tank | 23% | 16% | -7 |
 | vulture-sniper | 74% | 57% | -17 |

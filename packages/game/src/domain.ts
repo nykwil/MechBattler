@@ -3,6 +3,7 @@ import {
   MODIFIERS,
   Pcg32,
   checkPlacement,
+  checkSpatialPartPlacement,
   getChassis,
   getPart,
   validateWholeBuildPlacement,
@@ -457,21 +458,27 @@ export function refitPart(
   const benched = run.bench.find((candidate) => candidate.id === partInstanceId);
   if (!benched) return run;
   const candidate: InstalledPart = { ...benched, ...placement };
-  const issue = checkPlacement(
-    getChassis(run.mech.chassisId),
-    mechToBuild(run.mech).parts,
-    {
-      instanceId: candidate.id,
-      partId: candidate.partId,
-      integrity: candidate.integrity,
-      modifiers: candidate.modifiers,
-      variant: candidate.variant,
-      origin: candidate.origin,
-      rotation: candidate.rotation,
-    },
-    getPart(candidate.partId),
-  );
+  const chassis = getChassis(run.mech.chassisId);
+  const build = mechToBuild(run.mech);
+  const candidatePart: PlacedPart = {
+    instanceId: candidate.id,
+    partId: candidate.partId,
+    integrity: candidate.integrity,
+    modifiers: candidate.modifiers,
+    variant: candidate.variant,
+    origin: candidate.origin,
+    rotation: candidate.rotation,
+  };
+  const partDef = getPart(candidate.partId);
+  const issue = checkPlacement(chassis, build.parts, candidatePart, partDef);
   if (issue) return run;
+  // The grid check alone only sees mask, overlap, core cell and perimeter --
+  // it would happily bury a gun. Run the same stacking/region/ceiling check
+  // the workshop's validated path uses (adaptation.ts's addParts) so this
+  // build-mutating API can't produce a mech the player could never have
+  // placed by hand.
+  const spatialIssue = checkSpatialPartPlacement(chassis, { parts: build.parts, routes: build.routes ?? [] }, candidatePart, partDef);
+  if (spatialIssue) return run;
   return {
     ...run,
     mech: { ...run.mech, parts: [...run.mech.parts, candidate] },
