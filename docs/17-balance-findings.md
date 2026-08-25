@@ -134,6 +134,38 @@ shortage deliberately: on a 25 kW bus a machine gun fires 101 shots and a laser
 0; swap in a 90 kW reactor and the machine gun fires the same 101 while the
 laser goes to 4.
 
+## F5 — Re-laying the stock builds for component height moved five of seven
+
+Measured 2026-08-25 on `feat/component-height`, against the 2026-08-19
+baseline. Nothing about a weapon curve changed; what changed is *where the
+parts sit*. Every stock template in `templates.ts` was re-laid in `7ca70de`
+so that no gun fires through its own hull, and `railgun-mule` lost a fourth
+capacitor outright — after the re-lay there was no legal 2-cell run left for
+it, so it is now a three-capacitor railgun.
+
+| build | baseline | now | delta |
+|---|---|---|---|
+| mule-laser-boat | 42% | 71% | +29 |
+| vulture-skirmisher | 47% | 71% | +24 |
+| railgun-mule | 49% | 49% | -4 |
+| mule-skirmisher | 45% | 47% | +2 |
+| bastion-tank | 23% | 16% | -7 |
+| vulture-sniper | 74% | 57% | -17 |
+| mule-gunline | 66% | 39% | -27 |
+
+The two things worth noticing:
+
+- **The swing is not where the content loss is.** `railgun-mule` is the build
+  that actually lost a part and it moved -4, inside the noise band for 20
+  seeds. `mule-gunline` kept every part it had and moved -27. So this is a
+  *geometry* effect — exposure, arcs, which cells are exterior, what sits in
+  front of what — not a budget effect.
+- **The correlation got slightly worse** (-0.586 → -0.637). F2 is unchanged
+  as a finding; height did not cause it and did not fix it.
+
+Not re-baselined. Per the working agreement the baseline is only ever re-cut
+during a deliberate balance pass, and this was a feature pass.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
