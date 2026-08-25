@@ -80,8 +80,13 @@ export function muleSpatialDemo(): Build {
 function vultureSkirmisher(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
-    regionalPart('cb', 'W-CB', 'left-hardpoint', 0, 1),
-    regionalPart('mg', 'W-MG', 'left-hardpoint', 0, 2),
+    // Aug 2026 (component height): the carbine used to sit at (0,1)-(1,1) with
+    // the MG directly behind it at (0,2)-(1,2), so the machine gun — which
+    // clears nothing forward — was firing through the carbine. Both guns are
+    // now vertical, one lane each, which keeps the loadout and the
+    // long-sight hardpoint bonus untouched.
+    regionalPart('cb', 'W-CB', 'left-hardpoint', 0, 1, 90),
+    regionalPart('mg', 'W-MG', 'left-hardpoint', 1, 1, 90),
     regionalPart('sink', 'U-HS', 'body', 2, 3),
     regionalPart('arm1', 'U-ARM', 'body', 2, 0),
     regionalPart('arm2', 'U-ARM', 'right-hardpoint', 3, 0),
@@ -93,7 +98,11 @@ function vultureSkirmisher(): Build {
 function muleGunline(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-C40', 'body', 3, 2),
-    regionalPart('ac', 'W-AC', 'body', 1, 4, 90),
+    // Aug 2026 (component height): the autocannon sat at (1,4)-(3,5), and the
+    // Mule's cargo bay roofs (1..4,5) at one level. Moved a row forward onto
+    // (0,3)-(2,4); the coupler at (1,2) is one level and still fits under the
+    // ceiling of 1 the gun now imposes on its lane.
+    regionalPart('ac', 'W-AC', 'body', 0, 3, 90),
     regionalPart('con1', 'U-CON', 'body', 1, 2),
     regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
   ];
@@ -114,7 +123,10 @@ function muleSkirmisher(): Build {
     regionalPart('mg1', 'W-MG', 'left-shoulder', 1, 1),
     regionalPart('con1', 'U-CON', 'body', 1, 2),
     regionalPart('con2', 'U-CON', 'body', 1, 3),
-    regionalPart('mg2', 'W-MG', 'body', 1, 4, 90),
+    // Aug 2026 (component height): mg2 was at (1,4)-(1,5) with both couplers
+    // standing in column 1 ahead of it. The couplers carry the left-shoulder
+    // port and cannot move, so the gun did: column 5, beside the reactor.
+    regionalPart('mg2', 'W-MG', 'body', 5, 3, 90),
     regionalPart('arm1', 'U-ARM', 'right-shoulder', 3, 0),
     regionalPart('arm2', 'U-ARM', 'right-shoulder', 4, 0),
     regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
@@ -130,13 +142,21 @@ function muleSkirmisher(): Build {
  */
 function muleLaserBoat(): Build {
   const parts: PlacedPart[] = [
-    regionalPart('reactorE', 'R-E25', 'body', 0, 3),
-    regionalPart('reactorC', 'R-E25', 'body', 4, 3),
-    // Ordinary touching equipment now forms the central electrical spine.
-    regionalPart('bridge', 'U-CON', 'body', 2, 3),
-    regionalPart('pipe', 'U-PIPE', 'body', 3, 3),
-    regionalPart('las1', 'W-LAS', 'body', 1, 5),
-    regionalPart('las2', 'W-LAS', 'body', 3, 2),
+    // Aug 2026 (component height): las1 used to lie across the cargo bay at
+    // (1,5)-(3,5), three levels under a one-level roof. Two three-level guns
+    // that clear one level forward cannot share a lane with a two-level
+    // reactor, so the guns took the two outer columns — nothing on this hull
+    // is ever in front of them there — and the reactors took the middle. The
+    // heat pipe now sits on the left-shoulder port cell (1,2) itself, which is
+    // why the hand-authored coolant route there is gone: the pipe conducts
+    // across the seam where the route only bridged it, and the coupler took
+    // the right-shoulder port cell for the same reason.
+    regionalPart('reactorE', 'R-E25', 'body', 1, 3),
+    regionalPart('reactorC', 'R-E25', 'body', 3, 3),
+    regionalPart('bridge', 'U-CON', 'body', 4, 2),
+    regionalPart('pipe', 'U-PIPE', 'body', 1, 2),
+    regionalPart('las1', 'W-LAS', 'body', 5, 2, 90),
+    regionalPart('las2', 'W-LAS', 'body', 0, 2, 90),
     regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
   ];
   // Armor plate removed and the combustion half of the hybrid downgraded to a
@@ -151,7 +171,7 @@ function muleLaserBoat(): Build {
   // plants itself to keep both lasers charged instead of browning one out.
   return wired({
     chassisId: 'CH-5', parts,
-    routes: [{ kind: 'coolant', regionId: 'body', x: 1, y: 2 }],
+    routes: [],
     powerPriority: ['las1', 'las2', CORE_INSTANCE_ID],
   });
 }
@@ -159,19 +179,34 @@ function muleLaserBoat(): Build {
 /** CH-5 railgun sniper — the docs/02 §4 worked example, filling the whole grid. */
 function railgunMule(): Build {
   const parts: PlacedPart[] = [
+    // Aug 2026 (component height), and the one build in the roster whose
+    // loadout did not survive intact — it is now a *three*-capacitor railgun.
+    //
+    // The gun is 2x5 and clears one level forward, so every body cell ahead of
+    // it is single-level; the cargo bay roofs at one; and the core cell (2,2)
+    // breaks the front rank, so a five-wide gun cannot stand there instead.
+    // That leaves exactly three body cells that can take a two-level part
+    // (column 5, which the gun does not cover) and the ten shoulder cells. A
+    // 2x2 reactor eats one shoulder whole and the other shoulder shape holds
+    // two capacitors — three in total, with two unpaired singles left over that
+    // no 2-cell capacitor can span. The fourth capacitor has no legal cell on
+    // this chassis, so it is gone rather than silently mis-fitted.
+    //
+    // The rest is a re-lay: the reactor swapped shoulders with the radiator so
+    // the caps get the shoulder's 2x2 block, and the radiator (one level,
+    // perimeter) moved into the cargo bay it now fits under.
     regionalPart('rg', 'W-RG', 'body', 0, 3, 90),
-    regionalPart('reactor', 'R-C40', 'right-shoulder', 3, 0),
-    regionalPart('conA', 'U-CON', 'left-shoulder', 1, 0),
-    regionalPart('conB', 'U-CON', 'left-shoulder', 2, 0),
+    regionalPart('reactor', 'R-C40', 'left-shoulder', 1, 0),
+    regionalPart('conA', 'U-CON', 'right-shoulder', 5, 1),
+    regionalPart('conB', 'U-CON', 'body', 5, 4),
     regionalPart('conC', 'U-CON', 'body', 0, 2),
-    regionalPart('cap1', 'P-CAP', 'body', 4, 2),
-    regionalPart('cap2', 'P-CAP', 'body', 1, 5),
-    regionalPart('cap3', 'P-CAP', 'body', 3, 5),
-    regionalPart('cap4', 'P-CAP', 'body', 5, 3, 90),
-    regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
+    regionalPart('cap1', 'P-CAP', 'right-shoulder', 3, 0),
+    regionalPart('cap2', 'P-CAP', 'right-shoulder', 3, 1),
+    regionalPart('cap3', 'P-CAP', 'body', 5, 2, 90),
+    regionalPart('rad', 'U-RAD', 'body', 1, 5),
     regionalPart('arm1', 'U-ARM', 'body', 1, 2),
-    regionalPart('arm2', 'U-ARM', 'body', 3, 2),
-    regionalPart('arm3', 'U-ARM', 'right-shoulder', 5, 1),
+    regionalPart('arm2', 'U-ARM', 'body', 4, 2),
+    regionalPart('arm3', 'U-ARM', 'left-shoulder', 0, 1),
   ];
   return wired({ chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'rg'] });
 }
@@ -237,8 +272,10 @@ function bastionTank(): Build {
 function vultureCloseScout(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
-    regionalPart('mg1', 'W-MG', 'left-hardpoint', 0, 1),
-    regionalPart('mg2', 'W-MG', 'left-hardpoint', 0, 2),
+    // Aug 2026 (component height): stacked front-to-back, the rear MG was
+    // firing through the front one. One lane each.
+    regionalPart('mg1', 'W-MG', 'left-hardpoint', 0, 1, 90),
+    regionalPart('mg2', 'W-MG', 'left-hardpoint', 1, 1, 90),
     regionalPart('armBodyFront', 'U-ARM', 'body', 2, 0),
     regionalPart('armBodyRear', 'U-ARM', 'body', 2, 3),
     regionalPart('armRight', 'U-ARM', 'right-hardpoint', 3, 0),
@@ -269,11 +306,16 @@ function bastionLaserBunker(): Build {
     // laser mid-fight. Electric beside combustion also keeps the hybrid supply
     // this direction is supposed to be about.
     regionalPart('reactor2', 'R-E25', 'hull', 3, 5),
+    // Aug 2026 (component height): both lasers ran across columns 2-4, so the
+    // rear gun was shooting down the length of its own hull — through the front
+    // laser and both reactors. It now stands vertically in column 5, the one
+    // lane on this hull with nothing in front of it, and the heat sink sits
+    // with it.
     regionalPart('laserFront', 'W-LAS', 'hull', 2, 0),
-    regionalPart('laserRear', 'W-LAS', 'hull', 2, 7),
+    regionalPart('laserRear', 'W-LAS', 'hull', 5, 6, 90),
     regionalPart('radLeft', 'U-RAD', 'left-sponson', 0, 2, 90),
     regionalPart('radRight', 'U-RAD', 'right-sponson', 7, 2, 90),
-    regionalPart('sink', 'U-HS', 'hull', 5, 7),
+    regionalPart('sink', 'U-HS', 'hull', 5, 5),
     regionalPart('arm0', 'U-ARM', 'hull', 2, 1),
     regionalPart('arm1', 'U-ARM', 'hull', 3, 1),
     regionalPart('arm2', 'U-ARM', 'hull', 4, 1),
@@ -460,11 +502,14 @@ function probeVultureRange(): Build {
 function probeVultureColdBuild(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
+    // Aug 2026 (component height): both carbines shared column 1, the rear one
+    // behind the front one. Carbines clear nothing forward, so the pair split
+    // into the hardpoint's two columns and the cooling moved in behind them.
     regionalPart('cb', 'W-CB', 'left-hardpoint', 1, 0, 90),
-    regionalPart('cb2', 'W-CB', 'left-hardpoint', 1, 2, 90),
-    regionalPart('coldSink', 'U-HS', 'left-hardpoint', 0, 2),
+    regionalPart('cb2', 'W-CB', 'left-hardpoint', 0, 1, 90),
+    regionalPart('coldSink', 'U-HS', 'left-hardpoint', 1, 3),
     regionalPart('sink', 'U-HS', 'body', 2, 3),
-    regionalPart('arm1', 'U-ARM', 'left-hardpoint', 0, 1),
+    regionalPart('arm1', 'U-ARM', 'left-hardpoint', 1, 2),
     regionalPart('arm2', 'U-ARM', 'body', 2, 0),
   ];
   return wired({

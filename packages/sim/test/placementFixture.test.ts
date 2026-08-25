@@ -52,9 +52,13 @@ function builds(): { name: string; build: Build }[] {
 describe('placement effects, frozen against the shipped templates', () => {
   it('covers every build and instance the fixture records', () => {
     expect(builds().map((b) => b.name).sort()).toEqual(Object.keys(expected).sort());
-    // 69 instances across 8 builds, and every column has a non-neutral value
+    // 68 instances across 8 builds, and every column has a non-neutral value
     // somewhere -- a fixture where everything is 1 would pass no matter what.
-    expect(builds().reduce((n, b) => n + b.build.parts.length, 0)).toBe(69);
+    // Re-recorded Aug 2026 with the component-height re-lay: `railgun-mule`
+    // lost its fourth capacitor (no legal two-level cell remains for it) and
+    // its reactor, radiator and capacitor bank swapped regions, which moves
+    // four `locationArcBonusDeg` readings. No other build's numbers moved.
+    expect(builds().reduce((n, b) => n + b.build.parts.length, 0)).toBe(68);
   });
 
   for (const key of [

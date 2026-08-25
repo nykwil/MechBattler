@@ -112,7 +112,9 @@ describe('game content', () => {
   it('has one route for every enabled part and no dead ammo placeholder', () => {
     const audit = auditGameContent();
     expect(audit.errors).toEqual([]);
-    expect(audit.counts.enabledParts).toBe(24);
+    // 27 since the component-height work added the three risers (U-RISE2,
+    // U-RISE3, U-RISEL), each of which carries its own unlock route.
+    expect(audit.counts.enabledParts).toBe(27);
     expect(GAME_CONTENT.enabledPartIds).not.toContain('U-AMMO');
   });
 

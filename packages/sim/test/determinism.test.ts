@@ -138,10 +138,17 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 //
 // Re-pinned SIM_VERSION 2.10.0: falloff/range rename and combat changes moved
 // winner, duration, shots, and final state hash for this matchup.
+//
+// Re-pinned SIM_VERSION 2.15.0 for the component-height re-lay of the stock
+// builds. Both mechs in this matchup moved: the gunline's autocannon came out
+// of the cargo bay onto (0,3)-(2,4), and the skirmisher's second MG left the
+// couplers' lane for column 5. Different guns now face different armour from
+// different angles, so the outcome flips. Determinism is untouched -- the
+// paired-battle and seed-divergence tests above still pass.
 const GOLDEN = {
-  winner: 1 as const,
+  winner: 0 as const,
   reason: 'chassis-failure',
-  durationS: 56.05,
-  shots: [61, 607],
-  finalHash: 2077016774,
+  durationS: 49,
+  shots: [64, 536],
+  finalHash: 3312721149,
 };
