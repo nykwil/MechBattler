@@ -111,9 +111,28 @@ export function cellCeiling(
   return ceiling;
 }
 
-/** Authored chassis roofs. Filled in by the clearance-zone task. */
-function clearanceZoneHeight(_chassis: ChassisSpec, _cell: Required<CellRef>): number {
-  return Infinity;
+const clearanceCellCache = new WeakMap<ChassisSpec, { height: number; cells: Set<string> }[]>();
+
+function clearanceZonesFor(chassis: ChassisSpec) {
+  let zones = clearanceCellCache.get(chassis);
+  if (!zones) {
+    zones = (chassis.clearanceZones ?? []).map((zone) => ({
+      height: zone.height,
+      cells: new Set(zone.cells.map((cell) => spatialCellKey(chassis, cell))),
+    }));
+    clearanceCellCache.set(chassis, zones);
+  }
+  return zones;
+}
+
+/** Authored chassis roofs, e.g. an interior cargo bay. */
+function clearanceZoneHeight(chassis: ChassisSpec, cell: Required<CellRef>): number {
+  const key = spatialCellKey(chassis, cell);
+  let height = Infinity;
+  for (const zone of clearanceZonesFor(chassis)) {
+    if (zone.cells.has(key)) height = Math.min(height, zone.height);
+  }
+  return height;
 }
 
 export function resolveCellRef(chassis: ChassisSpec, cell: CellRef): Required<CellRef> {

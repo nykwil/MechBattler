@@ -231,6 +231,12 @@ export const CHASSIS: Record<string, ChassisSpec> = {
         },
       },
     ],
+    clearanceZones: [{
+      id: 'mule-cargo-bay',
+      name: 'Cargo bay',
+      cells: [1, 2, 3, 4].map((x) => ({ regionId: 'body', x, y: 5 })),
+      height: 1,
+    }],
   },
   'CH-9': {
     id: 'CH-9', name: 'Bastion', type: 'Assault biped',

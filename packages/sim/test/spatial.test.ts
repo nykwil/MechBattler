@@ -437,3 +437,31 @@ describe('placement under a ceiling', () => {
     expect(check([gun, ammo], at('shell', 'U-SHELL', 4, 3))).toBeNull();
   });
 });
+
+describe('authored chassis clearance', () => {
+  const chassis = getChassis('CH-5'); // Mule: body is rows 2-5, row 5 is '.####.'
+  const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId: 'body', x, y }, rotation: 0, integrity: 1 });
+  const check = (candidate: PlacedPart) =>
+    checkSpatialPartPlacement(chassis, { parts: [], routes: [] }, candidate);
+
+  it('roofs the Mule cargo row at one level', () => {
+    expect(cellCeiling(chassis, buildSpatialOccupancy(chassis, { parts: [], routes: [] }),
+      { regionId: 'body', x: 2, y: 5 })).toBe(1);
+  });
+
+  it('takes flat equipment in the bay', () => {
+    expect(check(at('ammo', 'U-AMMO', 1, 5))).toBeNull();
+  });
+
+  it('refuses a reactor that hangs into the bay', () => {
+    // R-E25 is rect(2,2): at (1,4) it fills y 4-5, so its lower half is in the
+    // boot. Nothing one row tall is two levels tall, so hanging in is the only
+    // way to violate a one-row bay -- which is exactly the rule worth having.
+    expect(check(at('reactor', 'R-E25', 1, 4))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('leaves the rest of the hull unroofed', () => {
+    expect(check(at('reactor', 'R-E25', 1, 2))).toBeNull();
+  });
+});
