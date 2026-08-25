@@ -4,6 +4,7 @@ import { standardOps, searchAdaptation, isKeystone } from '../src/adaptation.js'
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
 import { checkPlacement } from '../src/grid.js';
+import { validateWholeBuildPlacement } from '../src/spatial.js';
 
 describe('adaptation ops (docs/05 R10: fitting-only, never keystones)', () => {
   const gunline = TEMPLATES.find((t) => t.id === 'mule-gunline')!.build;
@@ -22,6 +23,15 @@ describe('adaptation ops (docs/05 R10: fitting-only, never keystones)', () => {
         expect(checkPlacement(chassis, placed, p, getPart(p.partId)), `${op.id}/${p.instanceId}`).toBeNull();
         placed.push(p);
       }
+    }
+  });
+
+  it('never produces a fitting the workshop would refuse', () => {
+    for (const op of standardOps()) {
+      const adapted = op.apply(gunline);
+      if (!adapted) continue;
+      const issues = validateWholeBuildPlacement(getChassis(adapted.chassisId), adapted);
+      expect(issues, `${op.id}: ${JSON.stringify(issues)}`).toEqual([]);
     }
   });
 

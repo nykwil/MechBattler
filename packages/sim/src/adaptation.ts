@@ -17,6 +17,7 @@ import type { Build, PlacedPart } from './types.js';
 import { competesForPowerBudget, getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { checkPlacement, getOccupiedCells } from './grid.js';
+import { checkSpatialPartPlacement } from './spatial.js';
 import { connectedInstanceIds } from './spatialPower.js';
 import { runBattle } from './combat.js';
 
@@ -85,6 +86,10 @@ function addParts(build: Build, partId: string, count: number, opts: { frontFirs
           instanceId: freshId(parts, partId), partId, origin: cell, rotation, integrity: 1,
         };
         if (checkPlacement(chassis, parts, candidate, def) !== null) continue;
+        // The workshop's rules, not just the grid's: stacking, regions and the
+        // ceiling. Without this the auto-placer can hand back a fitting the
+        // player could never have built by hand.
+        if (checkSpatialPartPlacement(chassis, { parts, routes: build.routes ?? [] }, candidate, def) !== null) continue;
         if (opts.requireConnected) {
           // Ask whichever power model this build actually runs under. This used
           // to call computeConnectivity unconditionally, so on a regioned
