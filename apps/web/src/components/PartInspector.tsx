@@ -77,7 +77,7 @@ export function PartInspector({
       <ChipRow def={def} />
       {(placed.modifiers?.length || placed.variant) && (
         <div style={{ marginTop: 6 }}>
-          <ModChips modifiers={placed.modifiers} variant={placed.variant} />
+          <ModChips partId={placed.partId} modifiers={placed.modifiers} variant={placed.variant} />
         </div>
       )}
 

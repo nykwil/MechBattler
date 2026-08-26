@@ -455,7 +455,7 @@ function benchSection(
         return (
           <div key={`${b.partId}-${i}`} className="run-bench-row">
             <span className="run-bench-name">
-              {def.name} <ModChips modifiers={b.modifiers} variant={b.variant} />
+              {def.name} <ModChips partId={b.partId} modifiers={b.modifiers} variant={b.variant} />
             </span>
             <span className="run-bench-int">{Math.round(b.integrity * 100)}%</span>
             {fullRepairCost > 0 && (

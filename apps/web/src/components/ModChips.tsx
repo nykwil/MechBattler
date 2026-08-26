@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MODIFIERS, type PlacedPart } from '@mechbattler/sim';
+import { MODIFIERS, identifyUnique, type PlacedPart } from '@mechbattler/sim';
 import './ModChips.css';
 
 /**
@@ -10,9 +10,16 @@ import './ModChips.css';
  * docs/14 §10: the explanations were `title=` only, which no touch device can
  * reach. They are tappable disclosures now, and the chip is a real button.
  */
-export function ModChips({ modifiers, variant, interactive = true }: {
+export function ModChips({ modifiers, variant, partId, interactive = true }: {
   modifiers?: string[];
   variant?: PlacedPart['variant'];
+  /**
+   * The catalog part these chips belong to. Only needed to recognise a named
+   * unique, which is a part id plus exactly this mod, these quirks and this
+   * variant — read from `identifyUnique`, never stamped on the instance, so it
+   * cannot be lost by a mapping that copies fields one at a time.
+   */
+  partId?: string;
   /**
    * False where the chips sit inside a button — a salvage candidate row, say.
    * A button inside a button is invalid HTML and browsers may swallow the click,
@@ -25,9 +32,27 @@ export function ModChips({ modifiers, variant, interactive = true }: {
   const [openId, setOpenId] = useState<string | null>(null);
   const mods = (modifiers ?? []).map((id) => MODIFIERS[id]).filter((m) => m !== undefined);
   const deltas = Object.entries(variant ?? {}).filter(([, mult]) => mult !== 1);
+  const unique = partId ? identifyUnique({ partId, modifiers, variant }) : undefined;
   if (mods.length === 0 && deltas.length === 0) return null;
   return (
     <span className="mod-chips">
+      {unique && (
+        <span className="mod-chip-wrap">
+          {interactive ? (
+            <button
+              type="button"
+              className="mod-chip unique"
+              aria-expanded={openId === unique.id}
+              onClick={(e) => { e.stopPropagation(); setOpenId(openId === unique.id ? null : unique.id); }}
+            >
+              {unique.name}
+            </button>
+          ) : (
+            <span className="mod-chip unique">{unique.name}</span>
+          )}
+          {(!interactive || openId === unique.id) && <span className="mod-chip-detail">{unique.blurb}</span>}
+        </span>
+      )}
       {mods.map((m) => {
         const detail = [m.blurb, m.tradeoff].filter(Boolean).join(' Cost: ');
         const open = openId === m.id;

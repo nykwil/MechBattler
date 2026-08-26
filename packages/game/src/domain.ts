@@ -3,6 +3,7 @@ import {
   MODIFIERS,
   Pcg32,
   RARITY_WEIGHT,
+  identifyUnique,
   pickWeighted,
   checkPlacement,
   checkSpatialPartPlacement,
@@ -176,14 +177,21 @@ export function createSalvageCandidates(args: {
     const stat = stats[Math.floor(rollRng.nextFloat() * stats.length)]!;
     const mult = rollVariantMult(rollRng);
     const quirk = rollQuirk(rollRng, placed.partId);
-    const modifiers = [...(placed.modifiers ?? []), ...(quirk && !placed.modifiers?.includes(quirk) ? [quirk] : [])];
+    // A unique comes off the wreck as itself. The rolls above still run — the
+    // RNG stream must stay in step for every other candidate — but a named
+    // piece keeps its own variant and takes no extra quirk, because a unique
+    // *is* its mod, quirks and variant (docs/04 §4c). Rerolling any of that
+    // anonymised the piece at the exact moment the player earned it.
+    const unique = identifyUnique(placed);
+    const rolled = [...(placed.modifiers ?? []), ...(quirk && !placed.modifiers?.includes(quirk) ? [quirk] : [])];
+    const modifiers = unique ? [...(placed.modifiers ?? [])] : rolled;
     return {
       id: `salvage-${args.run.seed}-${args.run.nodeIndex}-${index}`,
       sourceInstanceId: placed.instanceId,
       partId: placed.partId,
       integrity,
       modifiers: modifiers.length > 0 ? modifiers : undefined,
-      variant: mult !== 1 ? { [stat]: mult } : undefined,
+      variant: unique ? { ...placed.variant } : (mult !== 1 ? { [stat]: mult } : undefined),
       provenance: { source: 'salvage', nodeIndex: args.run.nodeIndex, opponentName: args.opponentName },
       origin: placed.origin,
       rotation: placed.rotation,

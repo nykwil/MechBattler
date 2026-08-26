@@ -4,6 +4,7 @@ import {
   TEMPLATES,
   UNIQUES,
   applyUnique,
+  identifyUnique,
   type BattleReport,
   type Build,
 } from '@mechbattler/sim';
@@ -23,6 +24,7 @@ import {
   createPristineDepthCheckpoints,
   createRun,
   createRunCheckpoint,
+  createSalvageCandidates,
   deleteSavedMech,
   defaultProfile,
   finalizeSalvage,
@@ -565,6 +567,50 @@ describe('mod scarcity, pricing and uniques (docs/04 §4b)', () => {
     }
     expect(elites).toBeGreaterThan(0);
     expect(uniques / elites).toBeLessThan(0.25);
+  });
+});
+
+describe('a unique survives being looted (docs/04 §4c)', () => {
+  it('identifies itself from what it carries, not from a stamped field', () => {
+    const unique = UNIQUES['kiln-sister']!;
+    const stamped = applyUnique(
+      { instanceId: 'w', partId: unique.partId, origin: { x: 0, y: 0 }, rotation: 0, integrity: 1 },
+      unique,
+    );
+    expect(identifyUnique(stamped)?.id).toBe('kiln-sister');
+    // One extra quirk and it is no longer that piece of metal — the identity is
+    // the exact bundle, which is what makes deriving it safe.
+    expect(identifyUnique({ ...stamped, modifiers: [...stamped.modifiers!, 'lucky'] })).toBeUndefined();
+    expect(identifyUnique({ partId: unique.partId, modifiers: [unique.modifierId] })).toBeUndefined();
+  });
+
+  it('comes off the wreck as itself, with no rerolled variant or extra quirk', () => {
+    // The bug this pins: salvage rolls a fresh variant and may add a quirk for
+    // every candidate, which anonymised a named piece at the moment it was won.
+    const unique = UNIQUES['assize']!;
+    const enemy = TEMPLATES.find((template) => template.id === 'mule-gunline')!.build;
+    const carrier = applyUnique(
+      { ...enemy.parts[0]!, instanceId: 'carrier', partId: unique.partId },
+      unique,
+    );
+    const enemyBuild = { ...enemy, parts: [carrier, ...enemy.parts.slice(1)] };
+    const report = {
+      seed: 9, durationS: 10, winner: 0 as const, reason: 'core' as const, events: [],
+      mechs: [
+        { chassisId: 'CH-5', capacitorMaxKj: 0, shotsFired: 0, shotsHit: 0, damageDealt: 0, partsLost: [], partsFinalHp: [], functionalMassFrac: 1, coreHpRemaining: 50, chassisIntegrityRemaining: 100, chassisIntegrityMax: 100, chassisIntegrityFrac: 1 },
+        { chassisId: enemyBuild.chassisId, capacitorMaxKj: 0, shotsFired: 0, shotsHit: 0, damageDealt: 0, partsLost: [], partsFinalHp: [], functionalMassFrac: 1, coreHpRemaining: 0, chassisIntegrityRemaining: 0, chassisIntegrityMax: 100, chassisIntegrityFrac: 0 },
+      ],
+    } as unknown as BattleReport;
+
+    const candidates = createSalvageCandidates({
+      run: { seed: 3, nodeIndex: 2 }, report, enemyBuild, opponentName: 'Elite', purse: 0,
+    });
+    const looted = candidates.find((candidate) => candidate.sourceInstanceId === 'carrier')!;
+    expect(identifyUnique(looted)?.id).toBe('assize');
+    expect(looted.variant).toEqual(unique.variant);
+    expect(looted.modifiers).toEqual([unique.modifierId, ...unique.quirkIds]);
+    // Everything else still rolls: the RNG stream is untouched by the exception.
+    expect(candidates.some((candidate) => candidate.sourceInstanceId !== 'carrier' && candidate.variant)).toBe(true);
   });
 });
 

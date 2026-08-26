@@ -35,3 +35,15 @@
   line-height: 1.45;
   color: var(--ink-secondary);
 }
+
+/* A named unique (docs/04 §4c) is the one chip that is filled rather than
+   outlined. The mod, quirk and variant chips beside it describe *what it does*
+   and stay as they are; this one says which piece of metal it is, so it has to
+   read as a different kind of fact at a glance rather than a fourth colour in
+   the same row. */
+.mod-chip.unique {
+  color: var(--bg-deep);
+  background: var(--signal-amber);
+  border-color: var(--signal-amber);
+  font-weight: 600;
+}

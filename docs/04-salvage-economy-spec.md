@@ -221,6 +221,24 @@ authoring one is naming and numbers rather than plumbing. They live in
 naming an unknown part, a mod that cannot ride it, or a second mod smuggled in as a
 quirk.
 
+Two consequences that are easy to get wrong, and are now pinned by tests:
+
+- **A unique comes off the wreck as itself.** Salvage rolls a fresh variant and may add
+  a quirk to every candidate (§4), which would anonymise a named piece at the exact
+  moment the player earned it. Uniques are exempt from both rolls — the rolls still
+  *run*, so the RNG stream stays in step for every other candidate, but the named part
+  keeps its own bundle.
+- **Identity is derived, never stamped.** A part is that unique when its part id, its
+  single mod, its quirks and its variant all match the definition. There is no
+  `uniqueId` field, because one would have to survive every mapping between
+  `PlacedPart`, `PartInstance` and `SalvageCandidate` — several of which copy fields
+  one at a time — and a missed one would silently anonymise the piece with nothing to
+  catch it. `identifyUnique()` is what the UI asks.
+
+The name appears wherever the part does: it is the one chip drawn filled rather than
+outlined, above the mod and quirk chips that say what it *does*, and tapping it
+discloses the provenance line.
+
 ### 4d. What a new mod must declare
 
 The authoring contract, for a person or a generator. `game:audit` warns about the

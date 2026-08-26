@@ -138,7 +138,7 @@ export function WreckScreen({
                 >
                   <span className="wreck-row-mark">{isTaken ? '▣' : '□'}</span>
                   <span className="wreck-row-name">
-                    {definition.name} <ModChips modifiers={candidate.modifiers ?? []} variant={candidate.variant} interactive={false} />
+                    {definition.name} <ModChips partId={candidate.partId} modifiers={candidate.modifiers ?? []} variant={candidate.variant} interactive={false} />
                   </span>
                   <span className="wreck-row-int">{Math.round(candidate.integrity * 100)}%</span>
                   <span className="wreck-row-scrap">{isTaken ? 'take' : `+${candidate.scrapValue}`}</span>

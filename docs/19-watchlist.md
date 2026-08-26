@@ -72,6 +72,22 @@ because "it cannot stand on that" is the thing the player can act on. And the
 fourth is gone rather than pinned: the inspector now says "nothing may stand
 ahead" instead of "0 levels", so there is no backwards copy left to test.
 
+## Uniques (added 26 Aug 2026)
+
+**A unique sells for exactly what its stock part sells for.** Scrap value is
+`tier x multiplier x integrity`, and a unique is an ordinary part underneath, so
+the Assize fetches the same 13 scrap as any autocannon. That is arguably right —
+the metal is worth what the metal is worth, and the value is the identity, not
+the resale — but it does mean a player short of scrap can scrap a named piece
+without the price ever telling them it was special. Left alone deliberately:
+pricing rarity into salvage is an economy change and belongs in a balance pass,
+not beside the content that introduced it.
+
+**Nothing yet stops a unique being fed to the machinist's copy rules.** It cannot
+take a second mod (the one-mod-per-part rule already refuses), so this is fine
+today. It is listed because the interaction was reasoned about rather than
+tested, and because a future mod-removal or reroll service would break it.
+
 ## Ammo stays a placeholder — on purpose (25 Aug 2026)
 
 **No decision is being taken on ammunition for now.** `U-AMMO` remains in the

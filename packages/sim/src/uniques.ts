@@ -103,6 +103,42 @@ export function applyUnique<T extends PlacedPart>(placed: T, unique: UniqueDef):
   };
 }
 
+/**
+ * Recognise a unique from what a part instance actually carries.
+ *
+ * Derived rather than stamped: an explicit `uniqueId` field would have to
+ * survive every mapping between `PlacedPart`, `PartInstance` and
+ * `SalvageCandidate`, several of which copy fields one at a time, and a missed
+ * one would silently anonymise the piece with nothing to catch it. A unique is
+ * exactly its mod, its quirks and its variant, so those *are* the identity.
+ *
+ * A random roll reproducing all three is not a false positive worth guarding
+ * against — a variant multiplier alone is one of dozens of values on one of
+ * four stats, and it would have to land beside the right mod and the right
+ * quirks. If it ever did, the part genuinely is that piece of metal.
+ */
+export function identifyUnique(placed: {
+  partId: string;
+  modifiers?: string[];
+  variant?: PlacedPart['variant'];
+}): UniqueDef | undefined {
+  const carried = new Set(placed.modifiers ?? []);
+  return Object.values(UNIQUES).find((unique) => {
+    if (unique.partId !== placed.partId) return false;
+    if (carried.size !== unique.quirkIds.length + 1) return false;
+    if (!carried.has(unique.modifierId)) return false;
+    if (!unique.quirkIds.every((id) => carried.has(id))) return false;
+    const variant = placed.variant ?? {};
+    const keys = new Set([...Object.keys(unique.variant), ...Object.keys(variant)]);
+    for (const key of keys) {
+      const want = unique.variant[key as keyof typeof unique.variant];
+      const has = variant[key as keyof typeof variant];
+      if (want === undefined || has === undefined || Math.abs(want - has) > 1e-6) return false;
+    }
+    return true;
+  });
+}
+
 export interface UniqueIssue {
   uniqueId: string;
   message: string;
