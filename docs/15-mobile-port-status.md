@@ -398,8 +398,11 @@ not the implementer's to make, or a gap named deliberately rather than papered o
 
 ### Decisions waiting on the owner
 
-**1. Merge `mobile-first` into `main`.** 113 commits. It publishes to the GitHub
-Pages demo and changes what desktop visitors see, so it was never done unasked.
+*Reviewed 25 Aug 2026: 1 and 3 are settled below; 2, the retry economy, is still open.*
+
+**1. Merge `mobile-first` into `main`.** ~~113 commits.~~ **Done.** The port is on
+`main` and is what the GitHub Pages demo publishes. There is no second
+interface: above 768px the same shell centres a 560px column (docs/14 §15).
 
 **2. The retry economy** (§7). A first fight is fair — 48.3% against a stated band of
 0.35–0.65. A retry wins one time in thirty-one. That is three separable calls:
@@ -409,11 +412,12 @@ opponent (the harness cycles them, so it usually draws the elite).
 `scripts/starter-odds.mjs` re-measures after any change. **The standing read that the
 starting blueprint is too weak is wrong** — buffing it would treat none of this.
 
-**3. Ammo on mobile.** The sim does not consume ammo (`diversity.ts` calls `U-AMMO` a
-dead placeholder until Track C). A placeholder was asked for and exists in the gun
-chip's hover blurb, but it does not fit on the chip itself beside band and arc at
-390px — it clipped when tried. Recommendation: leave it off the chip until the sim
-models it, rather than displace two real numbers with a fake one.
+**3. Ammo on mobile.** ~~Waiting on a call.~~ **Settled 25 Aug 2026: leave it off.**
+The sim does not consume ammo and no decision is being taken on the system for now
+(user call). The recommendation below stands as the implemented behaviour — a
+placeholder lives in the gun chip's hover blurb, but not on the chip itself, where
+a fake number would displace band or arc at 390px. The single record of the
+deferral is `19-watchlist.md`; the specced system is `01 §7`.
 
 ### Gaps named on purpose
 

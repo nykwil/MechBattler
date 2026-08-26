@@ -314,7 +314,7 @@ describe('uniform exposed-face damage', () => {
   });
 });
 
-describe('component height (docs/superpowers/specs/2026-08-24-component-height-design.md)', () => {
+describe('component height (docs/archive/2026-08-24-component-height-design.md)', () => {
   it('defaults an unauthored part to one level and no imposed clearance', () => {
     expect(partHeight(getPart('U-AMMO'))).toBe(1);
     expect(forwardClearance(getPart('U-AMMO'))).toBeUndefined();

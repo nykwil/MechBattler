@@ -1572,7 +1572,10 @@ wrong under `warnings`.
   budget arithmetic decide. Fresh now meets Bastions 9 times per cohort and beats
   them; all three chassis unlock. See "Opponent doctrines".
 - **Both profiles sit at or above the 0.8 win-rate ceiling**, and the per-node
-  curve is flat rather than declining — the ladder stops posing new questions
+  curve is flat rather than declining — *re-measure this: on 25 Aug 2026, after
+  component height, `game:balance -- 4` reported round 1 0.897, round 4 0.238,
+  round 7 0.000 and nothing reaching round 10. That is a cliff, not a flat curve.
+  See `19-watchlist.md`* — — the ladder stops posing new questions
   after about node 3. This is deliberate and measured (see the eleventh pass):
   the ramp settings that fix it cost build diversity. **Settled Aug 2026 in
   favour of the sandbox**: `ladderBudgetPerNode` stays at 1.0, because 1.5 cost
@@ -1598,8 +1601,9 @@ wrong under `warnings`.
   directions but did not move the share much, because the templates themselves
   lead with plating. Reducing it further means re-authoring the probe fits,
   which changes what each chassis *is* and should be a deliberate design pass.
-- `U-AMMO` is flagged dead by `sim:diversity` in its own right, pending the
-  ammo system it is a placeholder for.
+- `U-AMMO` is flagged dead by `sim:diversity` in its own right. **Expected
+  output, not a regression**: ammunition is deliberately deferred and no decision
+  is being taken on it — see `19-watchlist.md`.
 - **Accuracy is not a live build axis.** 91.8% of shots hit, so targeting
   computers, cold-bore variants, cover and crossing angles buy very little.
   `WEAPON_DISPERSION_SCALE` is the dial and is calibrated above; moving it needs

@@ -119,7 +119,7 @@ Stats in other columns live in their pillar's spec. Tier drives salvage/repair c
 | U-RAD | Gill (radiator) | 1×3 | 100 kg | 25 | 2 | Perimeter cells only |
 | U-HS | Brick (heat sink) | 1×1 | 60 kg | 20 | 1 | — |
 | U-ARM | Plate (armor) | 1×1 | 150 kg | 60 | 1 | — |
-| U-AMMO | Bin (ammo store) | 1×2 | 200 kg | 30 | 1 | Feeds adjacent or conduit-connected ballistic weapons; cook-off risk (see 02 §6) |
+| U-AMMO | Bin (ammo store) | 1×2 | 200 kg | 30 | 1 | **Disabled placeholder** — nothing consumes ammo; cook-off risk (02 §6) and `sacrificial-casing` are live. Deferred on purpose, see `19-watchlist.md` |
 | U-TC1 | Abacus (targeting computer) | 1×1 | 50 kg | 15 | 2 | — |
 | U-ACT | Stride (servo booster) | 1×2 | 160 kg | 25 | 2 | +15% all chassis speeds while powered |
 
@@ -195,19 +195,24 @@ flavor noise.
 - **Test bench**: run the real sim against a stationary/moving target dummy without leaving
   the workshop. Same code path as the arena (rule R6). Planned diagnostics extensions in
   02 §6.
-- **Quick build audit** (planned, Jul 2026 notes intake): one button that inspects the
+- **Quick build audit** ✅ *shipped* — the FAULT/WARN/HINT panel: one button that inspects the
   current build and reports findings in three severities — **hard errors** (a required
   subsystem cannot function: orphaned reactor, weapon with no power path), **warnings**
   (functions but starved, knife-edge hot, arc-blocked, or never satisfies its firing gate),
   and **optimization notes** (works, but routing or cooling is wasteful). Principle: help
   the player *find* the problem; never make the building decision for them.
-- **Auto-wire baseline** (planned, same intake): an optional operation that lays a
+- **Auto-wire baseline** ✅ *shipped* (the ⚡ button): an optional operation that lays a
   functional (not optimal) conduit graph so a new player gets a running mech to improve,
   rather than a dead one to debug. Hand-routing remains the optimization game (05 R1
   routing-tedium mitigation).
-- **Weapon arc visualization** (planned, same intake): placed weapons draw their mount arc
+- **Weapon arc visualization** ✅ *shipped* — placed weapons draw their mount arc
   as an overlay wedge in the workshop, so arc coverage/blind spots are a visible build
   property before the fight (rule R5) — arcs already gate fire in combat (03 §5).
+
+**Still open** (25 Aug 2026): per-conduit load display, auto-route *suggestion*
+(05 R1, distinct from the shipped auto-wire baseline), drag-and-drop, and undo.
+Placement today is click-to-place with `R` to rotate. Build save/load is handled by
+the garage's saved blueprints rather than in the workshop.
 
 ## 10. Turret mounts (post-v1 design sketch)
 

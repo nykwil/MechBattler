@@ -13,7 +13,7 @@ in `2026-08-24-component-height-design.md` beside this file.
 
 **Tech Stack:** TypeScript, npm workspaces, vitest. Sim is `packages/sim`, web is `apps/web`.
 
-**Spec:** `docs/superpowers/specs/2026-08-24-component-height-design.md`
+**Spec:** `docs/archive/2026-08-24-component-height-design.md`
 
 ## Global Constraints
 

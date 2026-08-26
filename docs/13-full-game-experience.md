@@ -1,6 +1,6 @@
 # 13 — Full Game Experience
 
-Status: implemented on `codex/full-game-experience` (Jul 25 2026). This document is the
+Status: implemented and merged to `main` (Jul 25 2026). This document is the
 authoritative application-level contract. The battle simulation remains governed by
 specs 01–03.
 

@@ -315,7 +315,8 @@ looked like a cockpit and told you nothing you could act on.
 
 **No ammo.** `U-AMMO` is in the catalog but disabled, and `audit.ts` enforces it —
 *"U-AMMO must remain disabled until ammunition is functional"*; `diversity.ts` calls it a dead
-placeholder pending Track C. Weapons are power- and heat-limited, so there are no per-gun counts
+placeholder — deliberately, and no decision is being taken on the system for now (25 Aug 2026,
+see `19-watchlist.md`). Weapons are power- and heat-limited, so there are no per-gun counts
 to show and inventing them would put a mechanic on screen that does not exist.
 
 **Hull and mass are different numbers.** Hull is structural HP remaining. Functional mass is the

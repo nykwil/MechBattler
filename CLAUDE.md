@@ -47,8 +47,11 @@ checks screens; the campaign is a flow, and the bug that made the mobile interfa
 unable to advance the run at all left every screen rendering perfectly.
 
 The win is made deterministic by stripping the opponent's weapons in localStorage
-before the fight, which is the only liberty it takes. A fair win is about one in
-eight (docs/15 §7), which is why that path went unverified for the whole port.
+before the fight, which is the only liberty it takes. That liberty is about
+determinism, not difficulty: a fair round-1 win was about one in eight when the
+port was written (docs/15 §7, why that path went unverified for the whole port),
+but `game:balance -- 4` measures round 1 at **0.897** as of 25 Aug 2026. Do not
+quote the old figure.
 
 **Edits are not live until vite has rebuilt.** Twice a change looked like it had
 failed when the browser was still being served the old module -- once for minutes.
@@ -165,6 +168,10 @@ The report names any build that moved 5+ points since
 build 20 points shows up as a changed file in review rather than a red build.
 Re-baseline with `npm run balance:report -- --rebaseline`, and only ever as part
 of a deliberate balance pass -- **never to make a swing go away.**
+
+`docs/07-status-and-handoff.md` is the map: what shipped and when, which document
+is authoritative on what, and what is actually still open. Read it before deciding
+where a new fact belongs.
 
 `docs/19-watchlist.md` is what we are deliberately keeping an eye on: decisions
 taken knowingly that want revisiting with more evidence, and things that are fine

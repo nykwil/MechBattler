@@ -1,173 +1,136 @@
-# MechBattler Balance Lab
+# MechBattler
 
-**An explainable, deterministic game-content tuning workflow built with Codex and GPT-5.6.**
+**A phone-first roguelike about building a mech, losing, and reading why.**
 
-**[Try the live Balance Lab](https://nykwil.github.io/MechBattler/)** · **[View the public repository](https://github.com/nykwil/MechBattler)**
+**[Play the live build](https://nykwil.github.io/MechBattler/)** · **[Repository](https://github.com/nykwil/MechBattler)**
 
-Game balance is usually a loop of hunches, spreadsheets, slow playtests, and changes that are hard to explain. MechBattler Balance Lab turns that loop into reproducible evidence: it runs seeded combat cohorts, identifies dominant content and hard counters, produces a ranked tuning brief, and exports the underlying results.
+You get one mech and twelve nodes. Every part you bolt on is a physical object in a
+grid: it has a footprint, a height, a mass, a heat output and a place in a power
+network you route by hand. Fights resolve in a deterministic simulation you can
+watch, command live, or skip straight to the report. Then you read the wreck —
+which lane got penetrated, which gun browned out, which radiator could not keep up —
+and refit. A destroyed core ends the run; the profile keeps what it unlocked.
 
-The included mech-building game is the proving ground. Every weapon, chassis, power network, heat system, AI doctrine, and terrain interaction runs through the same pure TypeScript simulation used by the player-facing game.
+The payoff is the diagnosis, not the spectacle.
 
-## What judges can try
+## Try it
 
-1. Open the web app to the game-first title screen; load a saved mech from the garage or continue an active run.
-2. Run the 56-battle quick audit or increase the cohort to 140/280 battles.
-3. Inspect roster standings, the 35–65% matchup guardrail, dominant-build warnings, and ranked tuning recommendations.
-4. Export the complete report as JSON.
-5. Use **Workshop Sandbox** for free building, or play the persistent salvage run with
-   combat-challenge unlocks and milestone modifications.
+1. The title screen opens the **garage**. Load a saved mech, or build one from the
+   parts your profile has unlocked, then launch a run.
+2. Pick a node from its intel card. **Fight · Live** gives you tactical pause and
+   manual control over the autopilot; **Watch** resolves it headless and replays it.
+3. Read the report: per-part damage both ways, the event timeline, and the replay
+   with its cockpit HUD. Take salvage, repair, refit, next node.
+4. **Workshop Sandbox** is free building against a test bench with the full catalog.
+5. **Balance Lab** runs the tuning workflow below in the browser and exports JSON.
 
-No account, API key, installation, or sample data is required for the live demo.
+No account, API key, or installation is needed for the live build.
 
-## Measured diversity result
+## What is underneath
 
-The current pass tests whether coherent builds create distinct choices across the
-three active regional chassis. Four representative perk builds sit beside seven
-canonical archetypes in a fixed 5-seed, 275-battle round robin. Each perk is also
-compared with its unmodified control against every canonical opponent on the same seeds.
+- **One deterministic simulation.** The game, the test bench, the live battle, the
+  replay and every balance harness share one pure TypeScript sim. Seeded PCG32, no
+  wall-clock, no `Math.random`, deterministic transcendentals — a battle replays
+  bit-identical on two JS engines, which is also the multiplayer foundation.
+- **Physical construction, not a stat sheet.** Regional grids joined by ports, bus
+  and heat-pipe routing layers, equipment stacking, sealed armour that traps heat,
+  per-cell height ceilings, and forward clearance so a gun cannot fire through its
+  own hull. Location zones give a shoulder mount its extra arc.
+- **Power and heat are the real limits.** Cell-level power networks, brownout
+  shedding against a priority list you set, per-cell heat conduction, radiators,
+  ram-air cooling, cook-off, shutdown.
+- **Stat-based shot resolution.** P(hit) from dispersion, range, target profile and
+  lateral speed × (tracking lag + time of flight). No flight simulation; drawn
+  tracers are presentation over the event log.
+- **Nothing on screen is retyped.** Every figure the interface shows is read from
+  the sim. Instruments that hardcoded a constant the sim computes are a documented,
+  repeatedly-caught class of bug here.
 
-| Diversity guardrail | Final evidence |
-|---|---:|
-| Chassis with at least two coherent identities | 3 / 3 |
-| Perks with a positive matchup niche | 4 / 4 |
-| Perk builds above 70% overall | 0 |
-| Dead perks in the representative cohort | 0 |
-| Vulture free cells after coherent fittings | 5 |
+## The Balance Lab
 
-The accepted perks are conditional trades, not flat upgrades: Cold Bore pays a
-small always-on damage penalty for an overcooled opening; Fever Cycle pays 15%
-more draw and needs a deliberate heat ramp; Gyrostabilized adds 15% weapon mass
-to reduce movement jitter; Hull-down adds a powered two-cell Stride and 15% mass
-for a smaller stationary profile. One Fever per build and one mod per part are
-enforced to block automatic stacking loops.
+Content tuning is normally hunches and spreadsheets. Here it is reproducible
+evidence: seeded cohorts, ranked findings, exported JSON.
 
-The current 210-battle stock audit remains a separate safety rail: 0 builds above
-70%, with Mule Gunline and Mule Laser Boat at 67%, and documented hard counters
-still visible. Arbitrary legal layouts are not promised viability.
+```bash
+npm run balance:collect    # both harnesses -> artifacts/*.json  (~4 min)
+npm run balance:report     # artifacts/balance-report.md, diffed against the baseline
+```
 
-See [the complete tuning report](docs/submission/TUNING-REPORT.md).
+The harnesses are **report-only by design** — balance is worked on as its own pass
+and does not gate feature work, so a swing shows up as a changed file in review
+rather than a red build. `--strict` restores the gate when you are deliberately
+balancing. `npm run game:audit` stays hard: it checks content *validity*
+(impossible content, unreachable unlocks), not balance.
+
+What they measure: `sim:balance` the roster round-robin from both spawn sides,
+`sim:adapt` whether a bad matchup is recoverable by fitting alone, `sim:diversity`
+whether coherent builds stay distinct (dead perks, dominant combinations, copy
+loops), `game:balance` how deep a real run actually reaches and what it earns, and
+`game:match-balance` isolated fight balance from pristine or captured checkpoints.
+
+Balance is honestly mid-pass, and the record says so rather than the README
+claiming a clean bill: `docs/17-balance-findings.md` F1 is an open regression with
+a bisected cause, and `docs/19-watchlist.md` lists what is deliberately being
+watched.
 
 ## Run locally
 
-Requirements: Node.js 20+ and npm.
+Node.js 20+ and npm.
 
 ```bash
 npm install
-npm run web:dev
+npm run web:dev            # the app
+npm run verify             # tests, builds, audits and the report-only balance rails
 ```
 
-Open the printed local URL. For a production build:
+572 tests pass today: 336 simulation, 205 web, 24 game domain, 7 prototype.
+
+Individual pieces:
 
 ```bash
-npm run web:build
+npm run sim:test  game:test  web:test        # tests
+npm run game:audit                            # content validity (hard gate)
+npm run game:loop -- --seeds 1 --battles 8    # progression cohort
+npm run sim:balance -- 10                     # roster round robin
+npm run sim:diversity -- 5                    # build-diversity stress
 ```
 
-Run the standalone 3D locomotion and payload-physics experiment:
-
-```bash
-npm run prototype:dev
-```
-
-It is intentionally separate from the deployed game. The lab converts real mech builds,
-part masses, placement, and weapon recoil into procedural biped/quad presentation without
-changing the deterministic combat simulation.
-
-Run the headless workflow directly:
-
-```bash
-npm run sim:balance -- 10
-npm run sim:adapt -- 10
-npm run sim:diversity -- 5
-npm run game:loop -- --seeds 1 --battles 8
-```
-
-The balance command runs every canonical pair from both spawn sides. The
-progression command runs real fight, salvage, repair, mod, scrapyard, and refit
-decisions for fresh and one-hour profiles, with full JSON traces available via
-`--json PATH`.
-
-## Verification
-
-```bash
-npm run sim:test
-npm run game:test
-npm run game:audit
-npm run game:balance -- 1
-npm run game:match-balance -- 1
-npm run game:loop -- --seeds 1 --battles 8
-npm run sim:build
-npm run sim:balance -- 10
-npm run sim:diversity -- 5
-npm run web:build
-npm run web:test
-npm run prototype:test
-npm run prototype:build
-```
-
-Current verification covers **394 tests** (26 game, 199 simulation, 162 web, 7
-prototype), deterministic run-depth and checkpoint-match reports, the canonical
-210-battle balance rail, the 275-battle perk diversity gate, a 128-battle
-progression cohort, production builds, mobile screen audit, and campaign smoke.
-
-The workshop and battle interfaces are the mobile design, ported from the prototypes in
-`docs/prototypes/`. To look at them:
+The interface is a phone design. To look at it without a phone:
 
 ```bash
 npm run web:shot -- 'http://localhost:5160/?view=workshop' /tmp/shot.png --w 390 --h 844
+npm run web:audit          # seven screens against the invariants that have broken before
+npm run web:campaign       # drives one whole campaign node end to end
 ```
 
-`scripts/drive.mjs` drives Chrome over the DevTools Protocol: a true phone viewport (which
-`--window-size` cannot give, having a 500px floor), repeatable `--tap`/`--tapText`/`--key`, and
-`--eval` for measurements. `?view=` reaches any surface directly — `workshop`, `battle`,
-`report`, `salvage`, `balance`.
-
-## How it works
-
-- **One deterministic engine:** the game, test bench, live battle, replay, balance harness, and adaptation search share a pure TypeScript simulation.
-- **Seeded cohort testing:** every matchup runs from alternating spawn sides over the same seed set; rerunning identical content produces an identical verdict.
-- **Build-diversity stress:** representative perk/control pairs expose dead conditions, dominant combinations, copy loops, and chassis-specific abuse before rare content ships.
-- **Explainable guardrails:** the tool flags overall win rates above 70%, stock matchups outside 35–65%, weak archetype kernels, and budget context.
-- **Actionable diagnosis:** findings point designers toward content/loadout changes or fitting-only adaptation before suggesting global rule changes.
-- **Evidence export:** the web workflow exports the complete report and derived brief as JSON.
-- **Deterministic multiplayer foundation:** state hashing, versioned simulation content, tick-stamped orders, sealed replays, and dispute verification are already tested.
-
-## Codex + GPT-5.6 collaboration
-
-This project was built during the OpenAI Build Week submission period with Codex using GPT-5.6. The collaboration was deliberately split between human product judgment and agentic execution.
-
-The human-directed decisions included:
-
-- Protect physical power/coolant routing and player-set brownout priority as the core mechanics.
-- Treat diagnosis and refitting—not spectacle—as the payoff loop.
-- Preserve archetype identity and tune content before rewriting global combat rules.
-- Deliberately defer the broad tuning pass, then make that evidence-driven workflow the submission itself.
-- Reject “perfect balance” as a misleading goal; surface remaining failures honestly.
-
-Codex accelerated:
-
-- Turning interconnected design documents into the deterministic simulation, React workshop, arena, run structure, and test suite.
-- Building batch balance, adaptation-search, replay-verification, and content diagnostics tooling.
-- Reading battle telemetry to isolate power starvation, heat collapse, range-access, and loadout-kernel failures.
-- Implementing and testing constrained tuning changes, then rerunning identical cohorts for before/after evidence.
-- Rejecting empty-frame silhouette abuse, unreachable heat thresholds, and cooling-strip overcorrections from battle-level telemetry.
-- Building the judge-facing Balance Lab and preparing reproducible submission materials.
-
-The dated Git history distinguishes work completed after the July 13 submission-period start. The `/feedback` Codex session ID for the primary build task is supplied in the Devpost entry.
+`scripts/drive.mjs` drives Chrome over the DevTools Protocol: a true phone viewport
+(which `--window-size` cannot give, having a 500px floor), repeatable
+`--tap`/`--tapText`/`--key`, and `--eval` for measurements. `?view=` reaches any
+surface directly — `workshop`, `battle`, `report`, `salvage`, `balance`.
 
 ## Repository map
 
 ```text
-apps/web/                 React + Vite workshop, battles, and Balance Lab
-docs/prototypes/          Recovered mobile UX prototypes; the design source of truth
-scripts/drive.mjs         CDP driver for screenshotting and driving the app
+apps/web/                 React + Vite: shell, workshop, battle, replay, run, Balance Lab
 apps/physics-prototype/   Standalone React Three Fiber IK and payload-physics lab
-packages/game/            Persistent run, profile, saved-mech, and balance domain
-packages/sim/src/         Deterministic simulation and analysis library
-packages/sim/scripts/     Balance, adaptation, and matchup CLI workflows
-packages/sim/test/        160 behavioral and determinism tests
-docs/                     Product and simulation design specifications
-docs/submission/          Tuning evidence, demo script, and Devpost copy
+packages/sim/             The deterministic simulation and its analysis harnesses
+packages/game/            Persistent run, match, profile and content domain
+scripts/drive.mjs         CDP driver for screenshotting and driving the app
+docs/                     Design specs, status, balance findings, watchlist
+docs/prototypes/          The recovered mobile UX prototypes — the design source of truth
+docs/archive/             Finished plans, historical records, Build Week submission
 ```
+
+Start with `docs/07-status-and-handoff.md`; `CLAUDE.md` carries the working rules.
+
+## Origins
+
+The simulation, workshop and the Balance Lab workflow were built during the OpenAI
+Build Week submission period (July 2026) with Codex, and the evidence from that
+pass — including the 280-battle before/after tuning report — is preserved in
+[`docs/archive/submission/`](docs/archive/submission/TUNING-REPORT.md). The game has
+moved on considerably since: the run structure, the mobile port, spatial
+construction and component height all came after.
 
 ## License
 
