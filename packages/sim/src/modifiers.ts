@@ -305,6 +305,26 @@ const NEUTRAL = NEUTRAL_MULTS;
 
 export type ModifierKind = 'quirk-flaw' | 'quirk-gift' | 'mod';
 
+/**
+ * How scarce a mod is wherever mods are handed out — the machinist's offers
+ * and the mod an elite carries. Named rather than numeric so an author picks
+ * an intent and the weights stay in one table; before this existed both roll
+ * sites drew uniformly, which made the most build-defining mod in the game
+ * exactly as common as the least.
+ *
+ * Rarity is acquisition, not behaviour, so it is deliberately *not* part of
+ * `simContentHash()`: a battle is decided by the modifiers a build actually
+ * carries, and those ride the instance.
+ */
+export type ModifierRarity = 'common' | 'uncommon' | 'rare';
+
+/** Relative draw weight per rarity. A rare mod is a sixth as likely as a common one. */
+export const RARITY_WEIGHT: Record<ModifierRarity, number> = {
+  common: 6,
+  uncommon: 3,
+  rare: 1,
+};
+
 export interface ModifierDef {
   id: string;
   name: string;
@@ -315,6 +335,18 @@ export interface ModifierDef {
   tradeoff?: string;
   /** High-leverage perks may be unique per build to prevent copy loops. */
   maxCopiesPerBuild?: number;
+  /**
+   * Scarcity at both roll sites. Required on `kind: 'mod'` — `game:audit`
+   * warns about a mod that declares none, because an unrated mod silently
+   * takes the commonest weight.
+   */
+  rarity?: ModifierRarity;
+  /**
+   * What the machinist charges to fit it, in scrap. Defaults to the economy's
+   * `machinistBaseCost`. A mod that redefines a build should not cost what a
+   * placement convenience costs.
+   */
+  scrapCost?: number;
   /** Which parts can carry this modifier (reuse across the catalog). */
   appliesTo: (def: PartDef) => boolean;
   /**
@@ -420,6 +452,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   // --- Mods (docs/04 §4b) ---------------------------------------------------
   'marsh-pistons': {
     id: 'marsh-pistons', name: 'Marsh pistons', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 30,
     blurb: 'no water/forest speed penalty · servo draw ×1.5',
     tradeoff: 'Consumes 6 kW instead of 4 kW and occupies the Stride fitting.',
     maxCopiesPerBuild: 1,
@@ -428,6 +461,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'fever-cycle': {
     id: 'fever-cycle', name: 'Fever cycle', kind: 'mod',
+    rarity: 'rare', scrapCost: 45,
     blurb: 'hotter than 50 °C cycles faster · weapon draw ×1.15',
     tradeoff: 'Pays 15% more power at every temperature and must sustain a hot firing rhythm.',
     maxCopiesPerBuild: 1,
@@ -442,6 +476,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'cold-bore': {
     id: 'cold-bore', name: 'Cold bore', kind: 'mod',
+    rarity: 'rare', scrapCost: 45,
     blurb: 'below 40 °C: dispersion ×0.5, move jitter ×0.5, damage ×1.15 · damage ×0.95 always',
     tradeoff: 'Gets a hard overcooled opening, then deals 5% less damage after warming.',
     maxCopiesPerBuild: 1,
@@ -463,6 +498,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'tidecooler': {
     id: 'tidecooler', name: 'Tidecooler', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 25,
     blurb: 'radiator ×2 while wading — camp the water',
     appliesTo: isRadiator,
     apply: (m, ctx) => { if (ctx.tile === 'water') m.scale('radiator', 2); },
@@ -470,6 +506,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'gyrostabilized': {
     id: 'gyrostabilized', name: 'Gyrostabilized', kind: 'mod',
+    rarity: 'rare', scrapCost: 40,
     blurb: 'own movement aim jitter ×0.4 · weapon mass ×1.15',
     tradeoff: 'The reinforced mount adds 15% weapon mass and worsens load/CoG pressure.',
     maxCopiesPerBuild: 1,
@@ -478,6 +515,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'hull-down': {
     id: 'hull-down', name: 'Hull-down suspension', kind: 'mod',
+    rarity: 'rare', scrapCost: 45,
     blurb: 'below 1.5 m/s target profile ×0.4 · servo mass ×1.15',
     tradeoff: 'Requires a powered two-cell Stride and adds 15% servo mass; moving turns it off.',
     maxCopiesPerBuild: 1,
@@ -490,6 +528,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'coil-sprung': {
     id: 'coil-sprung', name: 'Coil-sprung actuators', kind: 'mod',
+    rarity: 'rare', scrapCost: 40,
     blurb: 'own movement aim jitter ×0.6, mech-wide · servo mass ×1.15',
     tradeoff: 'Damped legs add 15% servo mass and worsen load/CoG pressure, like Gyrostabilized — '
       + 'but this buys down every gun at once instead of one.',
@@ -499,6 +538,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'gyro-flywheel': {
     id: 'gyro-flywheel', name: 'Gyro flywheel', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 30,
     blurb: 'halves the fast-turn dispersion spike · +0.5 kW waste heat',
     tradeoff: 'The spinning mass sheds its own heat into the chassis continuously, whether or not you turn.',
     maxCopiesPerBuild: 1,
@@ -507,6 +547,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'weaving-gait': {
     id: 'weaving-gait', name: 'Weaving gait', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 30,
     blurb: 'above 4 m/s target profile ×0.8 · own movement aim jitter ×1.3, mech-wide',
     tradeoff: 'The irregular stride that makes you harder to lead also makes your own guns worse '
       + 'on the move — it only pays off if you shoot while closing rather than standing to fire.',
@@ -519,30 +560,35 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   },
   'insulated-mount': {
     id: 'insulated-mount', name: 'Insulated mount', kind: 'mod',
+    rarity: 'common', scrapCost: 15,
     blurb: 'no heat conduction to grid neighbors — place it anywhere',
     appliesTo: any,
     apply: (m) => { m.set('conduction', 0); },
   },
   'ram-bore': {
     id: 'ram-bore', name: 'Ram bore', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 30,
     blurb: 'overkill penetration carries 75% instead of 50%',
     appliesTo: isWeapon,
     apply: (m) => { m.scale('overkillCarry', 1.5); },
   },
   'sacrificial-casing': {
     id: 'sacrificial-casing', name: 'Sacrificial casing', kind: 'mod',
+    rarity: 'common', scrapCost: 15,
     blurb: 'cook-off vents outward — no splash to neighbors',
     appliesTo: (d) => d.id === 'U-AMMO',
     apply: (m) => { m.set('cookoffSplash', 0); },
   },
   'surge-gate': {
     id: 'surge-gate', name: 'Surge gate', kind: 'mod',
+    rarity: 'rare', scrapCost: 45,
     blurb: 'first claim on power — fires from capacitors even while browned out',
     appliesTo: isWeapon,
     apply: (m) => { m.set('firstPriority', true); },
   },
   'thermocouple-skin': {
     id: 'thermocouple-skin', name: 'Thermocouple skin', kind: 'mod',
+    rarity: 'uncommon', scrapCost: 35,
     blurb: 'trickles its own waste heat back into charge — wants to sit by the reactor',
     appliesTo: (d) => d.category === 'capacitor',
     apply: (m) => { m.set('harvestsHeat', true); },

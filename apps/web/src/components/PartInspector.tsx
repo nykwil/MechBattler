@@ -90,8 +90,15 @@ export function PartInspector({
         {forwardClearance(def) !== undefined && (
           <div className="inspector-row">
             <span>Clear ahead</span>
+            {/*
+              A clearance of 0 is the *strictest* demand in the system — nothing
+              may stand in this gun's lane at all — and "0 levels" read as the
+              opposite, "needs no clearance". Say what it means instead.
+            */}
             <span>
-              {forwardClearance(def)} level{forwardClearance(def) === 1 ? '' : 's'}
+              {forwardClearance(def) === 0
+                ? 'nothing may stand ahead'
+                : `${forwardClearance(def)} level${forwardClearance(def) === 1 ? '' : 's'}`}
             </span>
           </div>
         )}

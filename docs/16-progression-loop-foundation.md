@@ -1572,10 +1572,12 @@ wrong under `warnings`.
   budget arithmetic decide. Fresh now meets Bastions 9 times per cohort and beats
   them; all three chassis unlock. See "Opponent doctrines".
 - **Both profiles sit at or above the 0.8 win-rate ceiling**, and the per-node
-  curve is flat rather than declining — *re-measure this: on 25 Aug 2026, after
-  component height, `game:balance -- 4` reported round 1 0.897, round 4 0.238,
-  round 7 0.000 and nothing reaching round 10. That is a cliff, not a flat curve.
-  See `19-watchlist.md`* — — the ladder stops posing new questions
+  curve is flat rather than declining — *superseded twice over. On 25 Aug 2026,
+  after component height, `game:balance -- 4` reported round 1 0.897, round 4
+  0.238, round 7 0.000 and nothing reaching round 10: a cliff, not a flat curve.
+  And the 0.8 "ceiling" it is measured against is gone — the target is now a
+  declining band per checkpoint (`balanceTargetWinRateByDepth`), under which the
+  opening is in band and rounds 4 and 7 are the finding. See `19-watchlist.md`* — — the ladder stops posing new questions
   after about node 3. This is deliberate and measured (see the eleventh pass):
   the ramp settings that fix it cost build diversity. **Settled Aug 2026 in
   favour of the sandbox**: `ladderBudgetPerNode` stays at 1.0, because 1.5 cost

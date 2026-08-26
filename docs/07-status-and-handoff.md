@@ -108,6 +108,13 @@ Each entry names where its plan went.
   `balance:report` diffs them against `artifacts/balance-baseline.json` and names
   any build that moved 5+ points. Aug 2026
 
+- **The content-authoring contract** — `game:audit` gained a warnings channel: a
+  weapon with no authored height or clearance, a part with no differentiation
+  verdict, a chassis with no declared identity, or a mod with no rarity or price
+  is reported without failing the build. Mods carry rarity and their own price;
+  uniques are named pre-rolled bundles in `packages/sim/src/uniques.ts`. The
+  contract itself is `01 §7` (parts) and `04 §4c–4d` (mods). Aug 25 2026
+
 Weapon content since the specs: **Scald (W-SC)** deposits heat into the struck
 cell and **Static (W-ION)** drains stored charge — the two system-attacking guns —
 plus **Reservoir (P-CAP2)**, the big-alpha capacitor. Shipped Jul 22 2026; not yet
@@ -116,6 +123,10 @@ folded into templates, elites or the balance cohort.
 ## 5. What is open
 
 ### Balance and progression
+
+The win-rate target is a **declining curve per checkpoint**
+(`balanceTargetWinRateByDepth`, 25 Aug 2026), not one flat 0.35–0.65 band. Round 1
+is in band; rounds 4 and 7 warn, and that cliff is the open question.
 
 `16-progression-loop-foundation.md` § *Remaining warnings* is the live list. In
 short: both profiles sit at or above the 0.8 win-rate ceiling with a flat per-node
@@ -185,10 +196,10 @@ These are decisions, not gaps. Do not re-propose them without new evidence.
 - **Manual four-verb order UI** beyond the live-battle controls, **turret mounts**,
   irregular L/T/S part shapes, the RogueTech-style soft heat-penalty ramp,
   physics/IK presentation, async PvP.
-- **The retry economy** (`15` §7). Whether a lost fight strips parts permanently,
-  whether a node should be re-attemptable in that state, and whether the retry
-  should face a fresh opponent are three separable calls, still unmade.
-  `scripts/starter-odds.mjs` re-measures a first fight in isolation.
+- **The retry economy** (`15` §7) — *settled 25 Aug 2026 and no longer deferred*:
+  a lost fight still strips destroyed parts, the node stays re-attemptable, and a
+  retry always met the same three deterministic cards (the elite-cycling was a
+  harness artefact). Recorded in `15` §9.
 
 ## 7. Ideas worth mining (captured, undecided)
 

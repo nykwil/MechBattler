@@ -4,7 +4,7 @@ import {
   generateTerrain, getChassis, getPart, type Build, type TerrainType,
 } from '@mechbattler/sim';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, RUN_LENGTH, START_BUDGET, benchSellValue,
+  BENCH_CAP, RUN_LENGTH, START_BUDGET, benchSellValue,
   repairCost, type BenchPart, type RunPhase,
 } from '../state/runState.js';
 import { buildTierBudget } from '@mechbattler/sim';
@@ -12,7 +12,7 @@ import { hasReactor, hasWeapon, launchBlockers } from '../lib/launchGate.js';
 import { planRepairAll } from '../lib/repairPlan.js';
 import type { YardOffer } from '../lib/ladder.js';
 import { MODIFIERS } from '@mechbattler/sim';
-import { GAME_CONTENT } from '@mechbattler/game';
+import { GAME_CONTENT, modScrapCost } from '@mechbattler/game';
 import { ModChips } from './ModChips.js';
 import type { OpponentDef } from '../lib/opponents.js';
 import type { FightMode } from './ArenaPanel.js';
@@ -279,7 +279,9 @@ export function RunPanel({
               0,
             );
             const atLimit = mod.maxCopiesPerBuild !== undefined && copies >= mod.maxCopiesPerBuild;
-            const disabled = !applicable || atLimit || run.data.scrap < MACHINIST_MOD_COST;
+            // Price comes from the domain, per mod — never a constant retyped here.
+            const cost = modScrapCost(modId);
+            const disabled = !applicable || atLimit || run.data.scrap < cost;
             return (
               <div key={modId} className="run-bench-row">
                 <span className="run-bench-name">
@@ -292,7 +294,7 @@ export function RunPanel({
                   disabled={disabled}
                   onClick={() => chosenTarget && onApplyMilestoneMod(chosenTarget.id, modId)}
                 >
-                  apply −{MACHINIST_MOD_COST}
+                  apply −{cost}
                 </button>
               </div>
             );

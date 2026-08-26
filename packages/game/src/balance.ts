@@ -16,6 +16,19 @@ import {
 } from './matches.js';
 import type { MatchInstance, RunCheckpoint, RunInstance } from './types.js';
 
+/**
+ * The intended win-rate band at a checkpoint (docs/04, docs/16). Depths the
+ * curve does not name fall back to the nearest shallower one it does, so an
+ * added checkpoint reports against a stated target instead of silently
+ * inheriting a flat default nobody chose.
+ */
+export function targetBandAtDepth(roundDepth: number): { min: number; max: number } {
+  const curve = GAME_CONTENT.run.balanceTargetWinRateByDepth;
+  const named = Object.keys(curve).map(Number).sort((a, b) => a - b);
+  const at = named.filter((depth) => depth <= roundDepth).pop() ?? named[0]!;
+  return curve[at]!;
+}
+
 export interface RunBalanceOptions {
   seedsPerKit?: number;
   baseSeed?: number;
@@ -325,11 +338,9 @@ export function runBalanceHarness(options: RunBalanceOptions = {}): RunBalanceHa
     if (depth.runsReached === 0) {
       warnings.push(`No natural progression checkpoint reached round ${depth.roundDepth}`);
     }
-    if (depth.matches > 0 && (
-      depth.winRate < GAME_CONTENT.run.balanceTargetWinRateMin
-      || depth.winRate > GAME_CONTENT.run.balanceTargetWinRateMax
-    )) {
-      warnings.push(`Round ${depth.roundDepth} match win rate ${depth.winRate} is outside the target band`);
+    const band = targetBandAtDepth(depth.roundDepth);
+    if (depth.matches > 0 && (depth.winRate < band.min || depth.winRate > band.max)) {
+      warnings.push(`Round ${depth.roundDepth} match win rate ${depth.winRate} is outside the target band ${band.min}-${band.max}`);
     }
   }
   const totals = {
@@ -481,11 +492,9 @@ export function runCheckpointMatchHarness(
     draws: records.filter((record) => record.winner === 'draw').length,
   };
   for (const depth of depths) {
-    if (depth.matches > 0 && (
-      depth.winRate < GAME_CONTENT.run.balanceTargetWinRateMin
-      || depth.winRate > GAME_CONTENT.run.balanceTargetWinRateMax
-    )) {
-      warnings.push(`Round ${depth.roundDepth} isolated win rate ${depth.winRate} is outside the target band`);
+    const band = targetBandAtDepth(depth.roundDepth);
+    if (depth.matches > 0 && (depth.winRate < band.min || depth.winRate > band.max)) {
+      warnings.push(`Round ${depth.roundDepth} isolated win rate ${depth.winRate} is outside the target band ${band.min}-${band.max}`);
     }
   }
   const reportWithoutDigest = {

@@ -88,7 +88,6 @@ export interface BenchPart {
 }
 
 /** Scrap cost to have the machinist apply a mod at a scrapyard (docs/04 §4b). */
-export const MACHINIST_MOD_COST = GAME_CONTENT.economy.machinistBaseCost;
 /** Tier budget for a custom-frame starting loadout (docs/04 §7; wiring free). */
 export const START_BUDGET = GAME_CONTENT.run.startingTierBudget;
 

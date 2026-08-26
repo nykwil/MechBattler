@@ -255,6 +255,8 @@ export interface RunConfig {
   ladderBudgetPerNode: number;
   eliteChance: number;
   eliteBudgetBonus: number;
+  /** Chance an elite's modded part is a named unique instead (docs/04 §4b). */
+  uniqueChance: number;
   scrapyardCount: number;
   scrapyardOfferCount: number;
   scrapyardIntegrityMin: number;
@@ -263,8 +265,15 @@ export interface RunConfig {
   balanceCheckpointDepths: number[];
   /** Prevent non-core retry loops from making automated cohorts unbounded. */
   balanceMaxAttemptsPerNode: number;
-  balanceTargetWinRateMin: number;
-  balanceTargetWinRateMax: number;
+  /**
+   * The intended difficulty *curve*, as a win-rate band per checkpoint depth.
+   *
+   * One flat band across the whole ladder was the wrong instrument: it reported
+   * a winnable opening and an unplayable depth as the same kind of failure, and
+   * a roguelike whose first fight is a coin flip never shows anyone its content.
+   * Keyed by the depths in `balanceCheckpointDepths`.
+   */
+  balanceTargetWinRateByDepth: Record<number, { min: number; max: number }>;
 }
 
 export interface GameContent {

@@ -438,6 +438,31 @@ describe('placement under a ceiling', () => {
   });
 });
 
+describe('the forward scan stops at a region seam', () => {
+  // CH-5 is three regions. A gun in a shoulder shares an x column with body
+  // cells, and the lane rule must not reach across the seam into them --
+  // blocking never crosses a region (same regionId *and* same x).
+  const mule = getChassis('CH-5');
+  const inRegion = (instanceId: string, partId: string, regionId: string, x: number, y: number): PlacedPart =>
+    ({ instanceId, partId, origin: { regionId, x, y }, rotation: 0, integrity: 1 });
+
+  it('does not roof a body cell from a shoulder gun in the same column', () => {
+    const shoulderGun = inRegion('mg', 'W-MG', 'left-shoulder', 0, 1);
+    const occupancy = buildSpatialOccupancy(mule, { parts: [shoulderGun], routes: [] });
+    expect(cellCeiling(mule, occupancy, { regionId: 'left-shoulder', x: 0, y: 0 })).toBe(0);
+    expect(cellCeiling(mule, occupancy, { regionId: 'body', x: 0, y: 2 })).toBe(Infinity);
+  });
+
+  it('lets a two-level reactor sit in the body under a shoulder gun column', () => {
+    const shoulderGun = inRegion('mg', 'W-MG', 'left-shoulder', 0, 1);
+    expect(checkSpatialPartPlacement(
+      mule,
+      { parts: [shoulderGun], routes: [] },
+      inRegion('reactor', 'R-E25', 'body', 0, 2),
+    )).toBeNull();
+  });
+});
+
 describe('authored chassis clearance', () => {
   const chassis = getChassis('CH-5'); // Mule: body is rows 2-5, row 5 is '.####.'
   const at = (instanceId: string, partId: string, x: number, y: number): PlacedPart =>
@@ -490,6 +515,53 @@ describe('raised mounting', () => {
     expect(check([], riser('r1'))).toBeNull();
     expect(check([riser('r1')], riser('r2'))).toBeNull();
     expect(check([riser('r1')], gun)).toBeNull();
+  });
+
+  it('is not enough on its own to clear a gun for a three-level part', () => {
+    // The watchlist called this out: every existing case proved a riser makes
+    // room, none proved it runs out. One riser lifts the gun to base 1, so its
+    // lane clears 2 -- a two-level reactor fits, a three-level gun still does
+    // not, and that ceiling is what stops a riser being a free pass.
+    const raised = [riser('r1'), at('gun', 'W-AC', 4, 5)];
+    expect(check(raised, at('reactor', 'R-E25', 4, 3))).toBeNull();
+    expect(check(raised, at('front', 'W-AC', 4, 0))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('reports the stacking failure, not the ceiling, when a part fails both', () => {
+    // A Block riser is rect(2,2), exactly a Whisper's footprint, so a reactor
+    // dropped on one gets past the footprint check and then fails two rules at
+    // once: it declares no `stacksOn`, and at base 1 its two levels break the
+    // gun's ceiling of 1. Which reason surfaces was never pinned. Stacking
+    // wins, and should: "it cannot stand on that" is the thing the player can
+    // act on, while the ceiling is a consequence of standing there at all.
+    const gun = at('gun', 'W-AC', 4, 5); // rect(2,3): y 5-7, clears 1 ahead
+    const block = at('block', 'U-RISE2', 4, 3); // rect(2,2): y 3-4, under the ceiling
+    expect(check([gun], block)).toBeNull();
+    expect(check([gun, block], at('reactor', 'R-E25', 4, 3))?.reason).toBe('incompatible-stack');
+    // The same reactor one cell over, off the riser, fails only the ceiling.
+    expect(check([gun], at('reactor', 'R-E25', 4, 3))?.reason).toBe('ceiling-exceeded');
+  });
+
+  it('severs the gun heat path when the riser under it is destroyed', () => {
+    // A riser carries `transfersHeat`, so the cells it occupies are thermal
+    // edges for whatever stands on them. Losing 20 HP of support therefore
+    // costs the gun above it its conduction as well as its perch. The
+    // watchlist asked whether that is a mechanic or an accident: it is the
+    // mechanic. Support is structure, structure carries heat, and a player can
+    // read the consequence straight off the thermal overlay.
+    // A legal arrangement: the Pepperbox is rect(2,2) and stacks on support,
+    // so it sits squarely on a Block riser of the same footprint.
+    const block = at('block', 'U-RISE2', 4, 5);
+    const pod = at('pod', 'W-RKT', 4, 5);
+    expect(check([], block)).toBeNull();
+    expect(check([block], pod)).toBeNull();
+    const build = { chassisId: 'CH-9', parts: [block, pod], routes: [], powerPriority: [] };
+    const sim = new Simulation(chassis, build);
+    const riserCells = new Set(sim.thermal.cellKeysByInstance.get('block'));
+    expect(sim.thermal.edges.some((edge) => riserCells.has(edge.aKey) || riserCells.has(edge.bKey))).toBe(true);
+
+    sim.destroyPart('block');
+    expect(sim.thermal.edges.some((edge) => riserCells.has(edge.aKey) || riserCells.has(edge.bKey))).toBe(false);
   });
 
   it('raises what a gun will tolerate in its lane, one level per riser', () => {

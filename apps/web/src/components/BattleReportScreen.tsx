@@ -95,7 +95,9 @@ export function BattleReportScreen({
           </div>
         )}
 
-        {view === 'replay' && hasReplay && <BattlePlayback report={report} names={names} yourBuild={yourBuild} />}
+        {view === 'replay' && hasReplay && (
+          <BattlePlayback report={report} names={names} yourBuild={yourBuild} foeBuild={opponent.build} />
+        )}
 
         {view === 'report' && (<>
         <div className="report-columns">

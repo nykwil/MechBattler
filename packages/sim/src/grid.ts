@@ -1,7 +1,10 @@
 /**
  * Grid placement, connectivity, and mass/CoG. See docs/01-chassis-grid-spec.md.
  */
-import type { CellOffset, CellRef, ChassisSpec, PartDef, PlacedPart, Rotation, RouteCell } from './types.js';
+import type {
+  CellOffset, CellRef, ChassisSpec, PartDef, PlacedPart, Rotation, RouteCell,
+  SpatialPlacementReason,
+} from './types.js';
 import { getPart } from './catalog.js';
 import { STATIC_CTX, effectiveMults } from './modifiers.js';
 import { dhypot } from './dmath.js';
@@ -46,11 +49,10 @@ export function isPerimeterCell(chassis: ChassisSpec, x: number, y: number, regi
 const cellKey = (x: number, y: number) => `${x},${y}`;
 
 export interface PlacementError {
+  /** The grid's own reasons, plus every spatial reason (declared once, in `types.ts`). */
   reason:
     | 'out-of-mask' | 'overlap' | 'perimeter-required' | 'core-occupied'
-    | 'out-of-region' | 'route-on-equipment' | 'duplicate-route'
-    | 'incompatible-stack' | 'footprint-mismatch'
-    | 'ceiling-exceeded' | 'blocks-firing-lane';
+    | SpatialPlacementReason;
 }
 
 /** Checks whether `candidate` can legally be placed given the parts already on the chassis. */

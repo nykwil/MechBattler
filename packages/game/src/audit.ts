@@ -1,5 +1,6 @@
 import {
-  BRANCH_PROBE_TEMPLATES, CHASSIS, MODIFIERS, ModBuilder, PARTS, TEMPLATES, validateBuild,
+  BRANCH_PROBE_TEMPLATES, CHASSIS, CHASSIS_IDENTITIES, MODIFIERS, ModBuilder, PARTS, TEMPLATES,
+  auditPartDifferentiation, auditUniques, validateBuild,
   type ModifierCtx, type ScalableField,
 } from '@mechbattler/sim';
 import { GAME_CONTENT, getGameplayTemplate } from './content.js';
@@ -9,6 +10,14 @@ import { ENEMY_FIELDABLE_PART_IDS } from './nodes.js';
 export interface GameAudit {
   ok: boolean;
   errors: string[];
+  /**
+   * Content authored outside a mechanic rather than against it — reported, not
+   * gated. `errors` stays the hard gate; these exist because a long content
+   * pass can silently produce parts that opt out of a system (a weapon with no
+   * authored height never participates in component height at all) and nothing
+   * would have said so.
+   */
+  warnings: string[];
   counts: {
     enabledParts: number;
     enabledChassis: number;
@@ -108,6 +117,7 @@ function saturatedAdditivePools(): string[] {
 
 export function auditGameContent(): GameAudit {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const saturated = saturatedAdditivePools();
   errors.push(...saturated);
   const starterLegality: GameAudit['starterLegality'] = [];
@@ -151,12 +161,32 @@ export function auditGameContent(): GameAudit {
     !== GAME_CONTENT.run.balanceCheckpointDepths.length) {
     errors.push('Balance checkpoint depths must be unique');
   }
-  if (GAME_CONTENT.run.balanceTargetWinRateMin < 0
-    || GAME_CONTENT.run.balanceTargetWinRateMax > 1
-    || GAME_CONTENT.run.balanceTargetWinRateMin >= GAME_CONTENT.run.balanceTargetWinRateMax) {
-    errors.push('Balance target win-rate band is invalid');
+  const curve = GAME_CONTENT.run.balanceTargetWinRateByDepth;
+  for (const [depth, band] of Object.entries(curve)) {
+    if (band.min < 0 || band.max > 1 || band.min >= band.max) {
+      errors.push(`Balance target win-rate band at round ${depth} is invalid`);
+    }
+  }
+  for (const depth of GAME_CONTENT.run.balanceCheckpointDepths) {
+    if (!curve[depth]) warnings.push(`Checkpoint depth ${depth} has no declared target band`);
+  }
+  // The curve should decline: a later node that asks less than an earlier one
+  // is almost certainly a typo, and it would make the warnings unreadable.
+  const declared = Object.keys(curve).map(Number).sort((a, b) => a - b);
+  for (let index = 1; index < declared.length; index++) {
+    const previous = curve[declared[index - 1]!]!;
+    const current = curve[declared[index]!]!;
+    if (current.min > previous.min || current.max > previous.max) {
+      errors.push(`Balance target band rises from round ${declared[index - 1]} to ${declared[index]}`);
+    }
   }
   const enabled = new Set(GAME_CONTENT.enabledPartIds);
+  // `auditPartDifferentiation()` is a hand-written list; new content falls out
+  // of it silently, which is exactly what the warning below is for. A verdict
+  // may name a pair ("W-CB vs W-LAS"), so split on the separator.
+  const differentiated = new Set(
+    auditPartDifferentiation().flatMap((finding) => finding.parts.split(' vs ').map((part) => part.trim())),
+  );
   const routed = new Map<string, string[]>();
   for (const id of GAME_CONTENT.initialPartIds) {
     if (!enabled.has(id)) errors.push(`Initial part ${id} is not enabled`);
@@ -227,6 +257,36 @@ export function auditGameContent(): GameAudit {
       ],
     };
   });
+  // --- Authoring contract (docs/01 §7, docs/04 §4b) -------------------------
+  // Warnings, not errors: content mid-authoring is allowed to be incomplete,
+  // but it must not be able to go unnoticed.
+  for (const id of enabled) {
+    const def = PARTS[id];
+    if (!def) continue;
+    if (def.category === 'weapon') {
+      if (def.spatial?.height === undefined) {
+        warnings.push(`${id} authors no spatial.height — it defaults to one level and sits outside component height`);
+      }
+      if (def.spatial?.clearsForward === undefined) {
+        warnings.push(`${id} authors no spatial.clearsForward — it demands no clear lane ahead of it`);
+      }
+    }
+    if (!differentiated.has(id)) {
+      warnings.push(`${id} has no verdict in auditPartDifferentiation() — nothing checks what it competes with`);
+    }
+  }
+  for (const id of enabledChassis) {
+    if (!CHASSIS_IDENTITIES[id]) {
+      warnings.push(`Chassis ${id} has no entry in CHASSIS_IDENTITIES — the diversity stress cannot say what it is for`);
+    }
+  }
+  for (const modifier of Object.values(MODIFIERS)) {
+    if (modifier.kind !== 'mod') continue;
+    if (!modifier.rarity) warnings.push(`Mod ${modifier.id} declares no rarity — it draws at the commonest weight`);
+    if (modifier.scrapCost === undefined) warnings.push(`Mod ${modifier.id} declares no scrapCost — the machinist charges it the base price`);
+  }
+  for (const issue of auditUniques()) errors.push(`Unique ${issue.uniqueId} ${issue.message}`);
+
   const defaultGarageProfile = defaultProfile();
   const defaultGarage = defaultGarageProfile.savedMechs.map((savedMech) => {
     const garageErrors = savedMechErrors(defaultGarageProfile, savedMech.build);
@@ -243,6 +303,7 @@ export function auditGameContent(): GameAudit {
   return {
     ok: errors.length === 0,
     errors,
+    warnings,
     counts: {
       enabledParts: GAME_CONTENT.enabledPartIds.length,
       enabledChassis: GAME_CONTENT.enabledChassisIds.length,

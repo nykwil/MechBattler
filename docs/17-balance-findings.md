@@ -163,8 +163,17 @@ The two things worth noticing:
 - **The correlation got slightly worse** (-0.586 → -0.637). F2 is unchanged
   as a finding; height did not cause it and did not fix it.
 
-Not re-baselined. Per the working agreement the baseline is only ever re-cut
-during a deliberate balance pass, and this was a feature pass.
+**Re-baselined 26 Aug 2026**, deliberately, as the closing step of the
+decisions pass before content generation. The reasoning: the reference was the
+19 Aug cut, so every future diff would have mixed height's swing with whatever
+new content did, and the diff is the only instrument that makes a swing visible
+in review. The swing above is therefore now *baked into* the reference — it is
+not fixed, and this table stays as the record of what moved. F1 is untouched and
+still open.
+
+The re-cut moved nothing else: correlation is -0.637 either side of it, and the
+regenerated report reads "None. Every build is within noise of the reference"
+because the reference is now the same measurement.
 
 ## Non-findings, recorded so they are not re-investigated
 

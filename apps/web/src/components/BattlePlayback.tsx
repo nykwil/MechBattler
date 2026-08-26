@@ -12,11 +12,19 @@ import './BattlePlayback.css';
 
 const SPEEDS = [1, 2, 4, 8] as const;
 
-export function BattlePlayback({ report, names, yourBuild }: {
+export function BattlePlayback({ report, names, yourBuild, foeBuild }: {
   report: BattleReport;
   names: [string, string];
   /** Your build, so the replay console shows the same damage widget as the live one. */
   yourBuild?: Build;
+  /**
+   * The opponent's build. The diagnostics apply the target's own profile
+   * modifiers to its silhouette exactly as the sim does; without it they fall
+   * back to a neutral profile and quietly draw a number the sim never used.
+   * `MechReport` carries no build, so this comes from the match that produced
+   * the report, the same source the live battle reads.
+   */
+  foeBuild?: Build;
 }) {
   const [tSec, setTSec] = useState(0);
   const [playing, setPlaying] = useState(true);
@@ -46,7 +54,7 @@ export function BattlePlayback({ report, names, yourBuild }: {
 
   return (
     <div className="playback">
-      <BattleScene view={report} tSec={tSec} names={names} yourBuild={yourBuild} />
+      <BattleScene view={report} tSec={tSec} names={names} yourBuild={yourBuild} foeBuild={foeBuild} />
 
       <div className="playback-controls">
         <button

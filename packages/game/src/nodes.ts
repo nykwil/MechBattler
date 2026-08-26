@@ -1,12 +1,16 @@
 import {
   MODIFIERS,
   Pcg32,
+  RARITY_WEIGHT,
+  applyUnique,
   computeBurstDps,
   generateOpponent,
   getChassis,
   getPart,
   headlineWeapon,
   modifierIdsFor,
+  pickWeighted,
+  uniquesForPart,
   LADDER_TEMPLATES,
   type Build,
 } from '@mechbattler/sim';
@@ -246,9 +250,22 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): RunOpponent
         const carrier = carriers[Math.floor(rng.nextFloat() * carriers.length)]!;
         const pool = modifierIdsFor(getPart(carrier.partId))
           .filter((id) => MODIFIERS[id]!.kind === 'mod');
-        const modifierId = pool[Math.floor(rng.nextFloat() * pool.length)]!;
+        // Weighted by rarity, one float — the same draw cost as the uniform
+        // pick it replaced, so nothing downstream in this card reseeds.
+        const modifierId = pickWeighted(pool, (id) => RARITY_WEIGHT[MODIFIERS[id]!.rarity ?? 'common'], rng)!;
         carrier.modifiers = [...(carrier.modifiers ?? []), modifierId];
         carries = `${MODIFIERS[modifierId]!.name} ${getPart(carrier.partId).name.split(' ')[0]}`;
+
+        // A unique replaces that roll outright, on its own stream so the odds
+        // can be retuned without shifting the epithet and spawn draws below.
+        // It overwrites rather than adds: a unique *is* the roll (docs/04 §4b).
+        const uniqueRng = new Pcg32(cardSeed ^ 0x0117e);
+        const candidates = uniquesForPart(carrier.partId);
+        if (candidates.length > 0 && uniqueRng.nextFloat() < GAME_CONTENT.run.uniqueChance) {
+          const unique = pickWeighted(candidates, (u) => RARITY_WEIGHT[u.rarity], uniqueRng)!;
+          Object.assign(carrier, applyUnique(carrier, unique));
+          carries = unique.name;
+        }
       }
     }
 

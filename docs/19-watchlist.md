@@ -11,13 +11,15 @@ not only the fact.
 
 ## Balance
 
-**The baseline predates component height.** `artifacts/balance-baseline.json` is
-the 19 Aug 2026 cut. The height rule moved five builds by 5+ points —
-`mule-laser-boat` +29, `vulture-skirmisher` +24, `bastion-tank` −7,
-`vulture-sniper` −17, `mule-gunline` −27 — and correlation went −0.586 → −0.637.
-It was **not** re-cut, per the working agreement. Re-cut it in a deliberate
-balance pass, never to make the swing go away. Causes are written up as F5 in
-`docs/17-balance-findings.md`.
+**The baseline now includes component height's swing** (re-cut 26 Aug 2026,
+deliberately, before the content-generation pass). The height rule had moved five
+builds by 5+ points — `mule-laser-boat` +29, `vulture-skirmisher` +24,
+`bastion-tank` −7, `vulture-sniper` −17, `mule-gunline` −27, correlation −0.586 →
+−0.637 — and that is now the reference rather than a pending diff. **Nothing was
+fixed by re-cutting**; the record of what moved and why is F5 in
+`docs/17-balance-findings.md`, and F1 is still the open regression. The reason to
+re-cut was that a stale reference would have mixed height's swing into every diff
+the content pass produced, and the diff is the whole instrument.
 
 **The swing is geometry, not budget.** `railgun-mule` is the build that actually
 lost a part and it moved −4. `mule-gunline` kept every part and moved −27. Watch
@@ -30,12 +32,26 @@ the height work.
 
 **The ladder's difficulty curve is a cliff, not a ramp** (measured 25 Aug 2026,
 `game:balance -- 4`, post component height). Round 1 wins **0.897**, round 4
-**0.238**, round 7 **0.000**, and no run reached round 10 or 12. That is a
-different shape from the flat curve `docs/16` recorded — the opening is easier than
-the 0.65 ceiling and the middle is below the 0.35 floor, so the run now falls off
-rather than levelling. Nothing was tuned to cause it; component height is the
-obvious suspect and is unproven as one. Re-measure at the start of the next balance
-pass before reading `16`'s "flat rather than declining" as current.
+**0.238**, round 7 **0.000**, and no run reached round 10 or 12. Nothing was tuned
+to cause it; component height is the obvious suspect and is unproven as one.
+
+What changed since: the *target* is now a declining curve per checkpoint
+(`balanceTargetWinRateByDepth`, 25 Aug 2026) rather than one flat 0.35–0.65 band
+applied everywhere, because the old instrument called a winnable opening and an
+unplayable depth the same kind of failure. Under the new target round 1 is in band
+and **rounds 4 and 7 still warn**, which is the point — the finding survives, and
+is now the only thing warning. No budget or content dial moved to get there.
+The cliff itself is still unexplained and belongs to the next balance pass.
+
+**`simContentHash()` differs between source and compiled runs.** Measured
+26 Aug 2026: the same content hashes `5e2b472e` under `tsx` and `bd14455b` from
+`dist`. The cause is benign — the fingerprint includes `apply.toString()` for
+every modifier, and compilation strips the comments inside those functions — but
+the hash is the multiplayer lock-in stamp (docs/11 M0), so a replay stamped from
+a source run would not match one stamped from a build of the identical content.
+Nothing depends on it today, and the fix (hash a normalised form, or the
+modifier's declared fields only) is a change to a determinism contract, which is
+not something to slip into an unrelated pass.
 
 ## Component height (shipped 25 Aug 2026, `502cb0f`)
 
@@ -45,26 +61,16 @@ are accounted for, the Mule has room for exactly three two-level parts. The
 fourth capacitor has no legal cell. Forced, not chosen — but if the railgun build
 reads as weak, this is where to look first.
 
-**"Clear ahead 0 levels" reads backwards.** In the part inspector, a small gun's
-clearance of 0 is the *strictest* possible demand — nothing may stand in its lane
-— but the phrasing sounds like "needs no clearance". Left alone deliberately: it
-is a copy decision, not a bug. "Nothing may stand ahead" is the likely fix.
+~~**`grid.ts` and `spatial.ts` each declare the placement-reason union.**~~ Fixed
+25 Aug 2026: `SpatialPlacementReason` is declared once in `types.ts`, which both
+can import without a cycle, and `PlacementError` composes it.
 
-**Destroying a riser breaks the heat path of the gun on it.** A riser carries
-`transfersHeat`, so losing 20 HP of support severs its cells' thermal edges. That
-may be a good mechanic or an accident; nothing tests it either way.
-
-**`grid.ts` and `spatial.ts` each declare the placement-reason union.** They
-duplicate each other, and the duplication is why `web:build` broke silently when
-the two height reasons were added to only one of them. Left as-is on purpose —
-deduplicating it is a refactor, not a fix — but the next reason added must go in
-both.
-
-**Four test gaps, all judged non-blocking**, each correct by construction or by
-inspection and none pinned against a future reshuffle: the forward scan's region
-seam; that a stacking error outranks a ceiling error; that one riser is *not*
-enough to clear a gun; and that a `clearsForward: 0` part renders "0 levels"
-rather than hiding the inspector row.
+~~**Four test gaps.**~~ Closed 25 Aug 2026, and two of them said something. The
+region seam and the riser ceiling behaved as designed. The precedence case does
+have an answer worth knowing — a stacking failure outranks a ceiling failure,
+because "it cannot stand on that" is the thing the player can act on. And the
+fourth is gone rather than pinned: the inspector now says "nothing may stand
+ahead" instead of "0 levels", so there is no backwards copy left to test.
 
 ## Ammo stays a placeholder — on purpose (25 Aug 2026)
 

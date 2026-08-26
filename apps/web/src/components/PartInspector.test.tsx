@@ -94,4 +94,14 @@ describe('PartInspector spatial consequences', () => {
     const text = container.textContent ?? '';
     expect(text).not.toContain('Clear ahead');
   });
+
+  it('spells out the strictest demand rather than printing "0 levels"', () => {
+    // A small gun clears 0: nothing may stand in its lane. Printed as a number
+    // it read as "needs no clearance", which is the opposite of the rule.
+    const { container } = renderInspector('W-MG');
+    const text = container.textContent ?? '';
+    expect(text).toContain('Clear ahead');
+    expect(text).toContain('nothing may stand ahead');
+    expect(text).not.toContain('0 level');
+  });
 });

@@ -187,11 +187,60 @@ effects below have explicit mechanical costs:
 | Surge gate (weapon) | Fires from capacitor even while browned out — priority-immune |
 
 The fixed diversity stress accepted Cold Bore, Fever Cycle, Gyrostabilized, Hull-down,
-and Marsh pistons as costly identity levers and rejected duplicate Fever stacking. The
-remaining open questions are whether mods survive the part's destruction in any form;
-machinist pricing; whether "uniques" are just a mod +
-extreme variant + quirk pre-rolled under a proper name (current lean: yes — legendary
-metal, not new rules).
+and Marsh pistons as costly identity levers and rejected duplicate Fever stacking.
+
+### 4c. The four open questions, settled (25 Aug 2026)
+
+Settled deliberately before a content-generation pass, because a generator bakes
+whatever is undecided into dozens of entries at once.
+
+**A mod does not survive its part's destruction.** It rides the instance and dies with
+it. This was already the behaviour — settlement removes destroyed parts — and is now
+the intent: salvage already offers the alternative (take the part at integrity, mod and
+all) and whole-wreck recovery is the deliberate exception. Identity is worth protecting
+only if it can be lost.
+
+**Rarity is a weight on the modifier, and both roll sites read it.**
+`ModifierDef.rarity` is `common` / `uncommon` / `rare`, weighted 6 / 3 / 1, and it
+drives the machinist's offers and the mod an elite carries. Both used to draw
+uniformly, which made the most build-defining mod in the game exactly as common as the
+least. A mod that can never be offered is dead content, so weighting is scarcity, never
+exclusion — a test pins that every mod still appears across a large sample.
+
+**The machinist prices each mod.** `ModifierDef.scrapCost` overrides
+`machinistBaseCost`; today they run 15 (a placement convenience like Insulated mount) to
+45 (a build-defining, copy-limited lever like Fever cycle or Cold bore). The UI reads
+the price from the domain — it is never retyped in a component.
+
+**A "unique" is a named pre-rolled bundle: one mod, an extreme variant, and quirks.**
+Legendary metal, not new rules text. Uniques are legal under the rules everything else
+obeys (one mod per part, quirks on top), so nothing in combat has to know they exist and
+authoring one is naming and numbers rather than plumbing. They live in
+`packages/sim/src/uniques.ts`; an elite's modded part is a unique instead
+`run.uniqueChance` of the time, on its own RNG stream. `game:audit` rejects a unique
+naming an unknown part, a mod that cannot ride it, or a second mod smuggled in as a
+quirk.
+
+### 4d. What a new mod must declare
+
+The authoring contract, for a person or a generator. `game:audit` warns about the
+mechanical half of it; the rest is judgement and stays here.
+
+| Field | Required | Notes |
+|---|---|---|
+| `id`, `name`, `blurb` | yes | The blurb is the one-liner shown everywhere the part appears. |
+| `kind` | yes | `mod`, `quirk-gift` or `quirk-flaw`. |
+| `appliesTo` | yes | Gate by what the part *is*, so one mod can serve many parts. |
+| `apply` | yes | Bends knobs the sim already has. A new knob is one field plus one call site — never a new rule. |
+| `isActive` | if conditional | Declared beside `apply`, sharing its threshold constant, so no harness ever retypes the comparison. |
+| `rarity` | on mods | Warned if missing; an unrated mod silently draws at the commonest weight. |
+| `scrapCost` | on mods | Warned if missing; falls back to `machinistBaseCost`. |
+| `tradeoff` | on build-defining mods | The explicit opportunity cost, in words, on the card. |
+| `maxCopiesPerBuild` | on high-leverage mods | The copy-loop guard. |
+
+And it must still clear the design bar above: a parameter not a rule, referencing a
+system and never another mod, bending a trade-off rather than a stat, with a cost that
+is simulated and legible on an instrument that already exists.
 
 ## 5. Run structure
 

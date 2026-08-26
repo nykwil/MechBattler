@@ -398,19 +398,31 @@ not the implementer's to make, or a gap named deliberately rather than papered o
 
 ### Decisions waiting on the owner
 
-*Reviewed 25 Aug 2026: 1 and 3 are settled below; 2, the retry economy, is still open.*
+*Reviewed 25 Aug 2026: all three are settled below.*
 
 **1. Merge `mobile-first` into `main`.** ~~113 commits.~~ **Done.** The port is on
 `main` and is what the GitHub Pages demo publishes. There is no second
 interface: above 768px the same shell centres a 560px column (docs/14 §15).
 
-**2. The retry economy** (§7). A first fight is fair — 48.3% against a stated band of
-0.35–0.65. A retry wins one time in thirty-one. That is three separable calls:
-whether a lost fight strips parts permanently, whether a node should be
-re-attemptable in that state at all, and whether the retry should face a fresh
-opponent (the harness cycles them, so it usually draws the elite).
-`scripts/starter-odds.mjs` re-measures after any change. **The standing read that the
-starting blueprint is too weak is wrong** — buffing it would treat none of this.
+**2. The retry economy** (§7). ~~Three separable calls.~~ **Settled 25 Aug 2026: it
+stays as it is.** Two of the three were never real, and the evidence for the third is
+gone:
+
+- *Does a lost fight strip parts permanently?* Yes, and it stays yes. Settlement
+  removes destroyed parts; salvage and whole-wreck recovery are the ways to get metal
+  back. Loss has to cost something.
+- *Should the node be re-attemptable in that state?* Yes, unchanged. A non-core loss
+  keeps the node, which is the "read the loss, refit, try again" loop the whole game is
+  built around.
+- *Does the retry face a fresh opponent?* **No — it never did in the game.**
+  `ladderOpponents(runSeed, nodeIndex)` is deterministic, so a retry meets the same
+  three cards. The elite-cycling described here was the old harness spine; the current
+  one samples every scouted choice and follows the first winning branch.
+
+And the death spiral it was written about has gone: round 1 measured 0.147 when this
+was written and **0.897** on 25 Aug 2026 (`game:balance -- 4`). The ladder's problem is
+now the opposite end — see the difficulty curve in `docs/19-watchlist.md`.
+`scripts/starter-odds.mjs` still isolates a first fight if the question returns.
 
 **3. Ammo on mobile.** ~~Waiting on a call.~~ **Settled 25 Aug 2026: leave it off.**
 The sim does not consume ammo and no decision is being taken on the system for now

@@ -120,6 +120,10 @@ export const GAME_CONTENT: GameContent = {
     ladderBudgetPerNode: 1,
     eliteChance: 0.25,
     eliteBudgetBonus: 4,
+    // One elite in eight carries a named unique rather than a loose mod. Rare
+    // enough that meeting one is an event; common enough that a 12-node run
+    // usually shows you exactly one piece of legendary metal to chase.
+    uniqueChance: 0.125,
     // 2 -> 3, Aug 2026. Only 41% of runs ever reached a scrapyard at all, so
     // the loop's purchasing step was absent from most of them — and buying is
     // the only way to get a part the opponents in front of you do not drop,
@@ -130,8 +134,22 @@ export const GAME_CONTENT: GameContent = {
     scrapyardIntegrityMax: 0.95,
     balanceCheckpointDepths: [1, 4, 7, 10, 12],
     balanceMaxAttemptsPerNode: 2,
-    balanceTargetWinRateMin: 0.35,
-    balanceTargetWinRateMax: 0.65,
+    // The difficulty curve, declared per checkpoint (Aug 25 2026). One flat
+    // 0.35-0.65 band used to be applied at every depth, and measured 0.897 /
+    // 0.238 / 0.000 at rounds 1 / 4 / 7 -- it called the opening broken and the
+    // depth broken in the same words. An opening has to be winnable or nobody
+    // reaches the content; a late node has to be able to end the run. The
+    // targets below say that, so the warnings mean something: under them round
+    // 1 is in band and rounds 4 and 7 still warn, which is the finding, not the
+    // instrument. No budget or content dial moved to get here --
+    // `ladderBudgetPerNode` stays 1.0 for the diversity reasons in docs/16.
+    balanceTargetWinRateByDepth: {
+      1: { min: 0.75, max: 0.92 },
+      4: { min: 0.50, max: 0.70 },
+      7: { min: 0.35, max: 0.55 },
+      10: { min: 0.25, max: 0.45 },
+      12: { min: 0.25, max: 0.45 },
+    },
   },
   enabledChassisIds: ENABLED_CHASSIS_IDS,
   enabledPartIds: ENABLED_PART_IDS,

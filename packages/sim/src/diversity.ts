@@ -182,6 +182,18 @@ export function auditPartDifferentiation(): PartDifferentiationFinding[] {
     { parts: 'U-TC1 vs gyrostabilized', verdict: 'distinct', evidence: 'TC counters target lateral motion for 3 kW; gyro counters own motion but adds substantial weapon mass.' },
     { parts: 'U-ACT', verdict: 'distinct', evidence: '2 cells + 4 kW buy a capped 15% translation-speed boost; perk variants bend terrain or stillness.' },
     { parts: 'U-AMMO', verdict: 'dead-placeholder', evidence: 'Adds cook-off risk but ballistics do not consume ammo yet; not a positive fitting choice until Track C ammo lands.' },
+    // Added Aug 2026, when `game:audit` started warning about parts with no
+    // verdict at all: sixteen of them had none, so nothing said what they
+    // competed with. Every line below is read off the catalog, not estimated.
+    { parts: 'U-CON vs U-PIPE', verdict: 'distinct', evidence: '1-cell damageable equipment either way, but one carries 60 kW of power and the other 4 conductance of heat; a port needs whichever layer it is short of.' },
+    { parts: 'U-RISE2 vs U-RISE3 vs U-RISEL', verdict: 'overlap-watch', evidence: 'Three risers doing one job — a level of support at 60 kW that also conducts heat. They separate only on footprint and mass (2x2/60 kg, 2x3/90 kg, 1x3/70 kg), so the choice is geometric rather than functional.' },
+    { parts: 'U-TUR vs U-RISE2', verdict: 'distinct', evidence: 'Both lift a gun a level; the gimbal pays 2 kW and 30 kg more for +25 degrees of arc, which a riser never buys.' },
+    { parts: 'U-SHELL vs U-ARM', verdict: 'distinct', evidence: '60 HP over 2 cells that seals what it covers (heat x1.25, no passive cooling) vs 60 HP in one cell that only blocks a lane.' },
+    { parts: 'R-C90 vs R-E60', verdict: 'distinct', evidence: 'The tier-3 repeat of the same choice as R-C40 vs R-E25: 90 kW lagged and hot against 60 kW instant and cool, at 900 kg against 750 kg.' },
+    { parts: 'P-CAP vs P-CAP2', verdict: 'distinct', evidence: 'A small snappy reserve against a large slow one — the alpha-strike cap only pays off for a gun that spends it all at once.' },
+    { parts: 'W-RKT vs W-BR', verdict: 'distinct', evidence: 'Both hit hard up close: the pod throws a 6x6 salvo at 20 mrad on a 15 s cycle through a 120-degree arc, the siege gun a single 40 at 6 mrad every 2 s through 45. Saturation vs a hammer.' },
+    { parts: 'W-RG vs W-CB', verdict: 'distinct', evidence: 'The two long guns: 85 damage at 1.2 mrad from a 10-cell tier-4 mount fed 220 kJ a shot, against 8 damage at 2 mrad from 2 cells with no draw at all.' },
+    { parts: 'W-SC vs W-ION', verdict: 'distinct', evidence: 'Both attack a system rather than HP, and opposite ones: the flamer dumps 6 kJ into the struck cell inside 45 m, the ion bleeds 25 kJ of stored charge out to 150 m.' },
   ];
 }
 

@@ -6,7 +6,7 @@ import { ArenaPanel } from './components/ArenaPanel.js';
 import { RunPanel } from './components/RunPanel.js';
 import { WreckScreen } from './components/WreckScreen.js';
 import {
-  BENCH_CAP, MACHINIST_MOD_COST, PURSE_BASE,
+  BENCH_CAP, PURSE_BASE,
   chassisRepairCost, useRun,
 } from './state/runState.js';
 import { useProfile } from './state/profileState.js';
@@ -34,7 +34,7 @@ import { PartsSheet } from './components/PartsSheet.js';
 import { IntelSheet } from './components/IntelSheet.js';
 import { Sheet } from './components/Sheet.js';
 import { NewRunScreen, ProfileScreen, TitleScreen } from './components/GameFrontDoor.js';
-import { createSalvageCandidates, settleBuildDamage, type SavedMech } from '@mechbattler/game';
+import { createSalvageCandidates, modScrapCost, settleBuildDamage, type SavedMech } from '@mechbattler/game';
 import './App.css';
 
 const PLATE_VIEWS: { id: OverlayMode; label: string }[] = [
@@ -661,8 +661,10 @@ export default function App() {
                     })) : []),
                   ]}
                   onApplyMilestoneMod={(targetId, modId) => {
-                    if (runScrap < MACHINIST_MOD_COST) return;
-                    addScrap(-MACHINIST_MOD_COST);
+                    // Per-mod price, read from the domain (docs/04 §4b).
+                    const cost = modScrapCost(modId);
+                    if (runScrap < cost) return;
+                    addScrap(-cost);
                     if (targetId.startsWith('installed:')) {
                       applyModifier(targetId.slice('installed:'.length), modId);
                     } else if (targetId.startsWith('bench:')) {

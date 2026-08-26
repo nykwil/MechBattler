@@ -60,3 +60,26 @@ export class Pcg32 {
     return mag * dcos(2 * Math.PI * u2);
   }
 }
+
+/**
+ * Draw one item with probability proportional to its weight, consuming exactly
+ * one `nextFloat()` — the same cost as the uniform draw it replaces, so a roll
+ * site can adopt it without reseeding everything downstream of it.
+ *
+ * Zero or negative weights are treated as zero; if every weight is zero the
+ * draw falls back to uniform rather than returning nothing, because a content
+ * mistake should not silently empty a loot table.
+ */
+export function pickWeighted<T>(items: readonly T[], weightOf: (item: T) => number, rng: Pcg32): T | undefined {
+  if (items.length === 0) return undefined;
+  const weights = items.map((item) => Math.max(0, weightOf(item)));
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+  const roll = rng.nextFloat();
+  if (total <= 0) return items[Math.min(items.length - 1, Math.floor(roll * items.length))];
+  let cursor = roll * total;
+  for (let index = 0; index < items.length; index++) {
+    cursor -= weights[index]!;
+    if (cursor < 0) return items[index];
+  }
+  return items[items.length - 1];
+}

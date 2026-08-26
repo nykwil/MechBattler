@@ -42,7 +42,9 @@ React/localStorage are adapters. Battles receive a normal sim `Build`; their
 3. On a win, evaluate challenges/chassis discovery and show the enemy wreck.
 4. Either move selected intact parts to the bench and scrap everything else, or pay for
    exceptional whole-wreck recovery and replace the mech with the surviving enemy layout.
-5. After wins 3/6/9, resolve or skip one seeded machinist service.
+5. After wins 3/6/9, resolve or skip one seeded machinist service. Its three offers
+   are drawn weighted by mod rarity, and each mod is priced on its own definition
+   rather than a flat fee (docs/04 §4c).
 6. Advance to the next node and persist schema v2.
 
 Core/chassis damage resets between encounters unless the core was destroyed; equipment
@@ -50,7 +52,10 @@ integrity persists. Before every next fight—including after a non-core loss—
 bay can spend run scrap on installed or benched equipment, either one part at a time or
 as a full repair. Reloading preserves active/prep/over runs, including an unresolved
 wreck or mod service. Opponents and both versions of scrapyard stock are generated once
-and saved verbatim, so later content-generator changes cannot rewrite an existing run.
+and saved verbatim, so later content-generator changes cannot rewrite an existing run —
+including an elite's carried mod, and the named unique it is sometimes drawn as instead
+(`run.uniqueChance`, rolled on its own stream so the odds can be retuned without
+reseeding the rest of the card).
 Legacy run/profile/history records migrate forward, stable bench ids are synthesized
 deterministically, and existing unlocks are never revoked.
 

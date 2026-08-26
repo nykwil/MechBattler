@@ -13,6 +13,7 @@ import type {
   PlacedPart,
   RouteCell,
   RouteKind,
+  SpatialPlacementReason,
 } from './types.js';
 import { getPart } from './catalog.js';
 import { regionIdAt } from './chassis.js';
@@ -216,15 +217,6 @@ export function buildSpatialOccupancy(chassis: ChassisSpec, build: Pick<Build, '
   }
   return { stacksByCell, stacksByProjectedCell, cellsByInstance, routesByCell };
 }
-
-export type SpatialPlacementReason =
-  | 'out-of-region'
-  | 'route-on-equipment'
-  | 'duplicate-route'
-  | 'incompatible-stack'
-  | 'footprint-mismatch'
-  | 'ceiling-exceeded'
-  | 'blocks-firing-lane';
 
 export interface SpatialPlacementError {
   reason: SpatialPlacementReason;

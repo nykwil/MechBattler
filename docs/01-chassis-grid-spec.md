@@ -110,6 +110,25 @@ Full thermal model in `02-power-heat-spec.md`. Grid-relevant rules:
 
 Stats in other columns live in their pillar's spec. Tier drives salvage/repair costs.
 
+### What a new part must declare (the authoring contract)
+
+Written down 25 Aug 2026, before a content-generation pass. `game:audit` enforces the
+first two as **errors** and warns about the rest; nothing here is new policy, it is the
+existing rules collected in one place.
+
+| Requirement | Checked by | Why |
+|---|---|---|
+| Exactly one starting unlock route — initial kit *or* one challenge | error | Two routes make a part free; none makes it unreachable. |
+| An in-run acquisition route (scrapyard stock), unless it is a conduit or heat pipe | error | Otherwise the part exists only in the Sandbox. |
+| `spatial.height` on every weapon | warning | An unauthored part defaults to one level and silently opts out of component height. |
+| `spatial.clearsForward` on every weapon | warning | Absent means it demands no clear lane — it never participates in the lane rule. |
+| A verdict in `auditPartDifferentiation()` | warning | The hand-written list is what says which part it competes with; new content falls out of it silently. |
+| `spatial.layer` / `stacksOn` where it stacks | build | A payload that may sit on support says so; armour declares what it covers. |
+| `weaponClass` on every weapon | compiler | The field is required — what a gun consumes is how the player reads it. |
+
+Judgement that stays prose: what the part is *for*, whether it earns a place beside its
+neighbours, and where it sits on the tier curve. A gate cannot check identity.
+
 ### Structural / utility
 
 | ID | Name | Shape | Mass | HP | Tier | Placement rules |

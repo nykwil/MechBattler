@@ -97,6 +97,24 @@ export interface PowerDraw {
   maxChargeKw?: number;
 }
 
+/**
+ * Why a placement was refused, for the reasons the spatial rules own (regions,
+ * routes, stacking, height).
+ *
+ * It lives in `types.ts` rather than beside the rules because both `grid.ts`
+ * and `spatial.ts` need it and `grid.ts` cannot import `spatial.ts` without a
+ * cycle. It used to be declared in full in both files, which is how adding the
+ * two height reasons to only one of them broke `web:build` silently.
+ */
+export type SpatialPlacementReason =
+  | 'out-of-region'
+  | 'route-on-equipment'
+  | 'duplicate-route'
+  | 'incompatible-stack'
+  | 'footprint-mismatch'
+  | 'ceiling-exceeded'
+  | 'blocks-firing-lane';
+
 /** Heat generation profile. See docs/02-power-heat-spec.md §3. */
 export interface HeatProfile {
   /** Heat deposited per shot/salvo, in kJ, split evenly across the part's cells. */

@@ -2,6 +2,8 @@ import {
   CORE_INSTANCE_ID,
   MODIFIERS,
   Pcg32,
+  RARITY_WEIGHT,
+  pickWeighted,
   checkPlacement,
   checkSpatialPartPlacement,
   getChassis,
@@ -266,16 +268,29 @@ export function settleBattle(args: {
 
 
 
+/**
+ * What the machinist charges to fit a mod. Per-mod, falling back to the base
+ * price: a mod that redefines a build and a mod that buys a placement
+ * convenience should not cost the same once there are many of them.
+ */
+export function modScrapCost(modifierId: string): number {
+  return MODIFIERS[modifierId]?.scrapCost ?? GAME_CONTENT.economy.machinistBaseCost;
+}
+
 export function modOffers(runSeed: number, afterWin: number): string[] {
   const rng = new Pcg32((runSeed * 977 + afterWin) ^ 0x3ac41);
   const pool = Object.values(MODIFIERS)
-    .filter((modifier) => modifier.kind === 'mod' && modifier.id !== 'sacrificial-casing')
-    .map((modifier) => modifier.id);
-  for (let index = pool.length - 1; index > 0; index--) {
-    const swap = Math.floor(rng.nextFloat() * (index + 1));
-    [pool[index], pool[swap]] = [pool[swap]!, pool[index]!];
+    .filter((modifier) => modifier.kind === 'mod' && modifier.id !== 'sacrificial-casing');
+  // Weighted without replacement: a rare mod should be a rare *offer*. The
+  // uniform shuffle this replaced made the most build-defining mod in the game
+  // exactly as likely as the least, which is the opposite of build identity.
+  const offers: string[] = [];
+  while (offers.length < GAME_CONTENT.run.modOfferCount && pool.length > 0) {
+    const drawn = pickWeighted(pool, (modifier) => RARITY_WEIGHT[modifier.rarity ?? 'common'], rng)!;
+    offers.push(drawn.id);
+    pool.splice(pool.indexOf(drawn), 1);
   }
-  return pool.slice(0, GAME_CONTENT.run.modOfferCount);
+  return offers;
 }
 
 export function finalizeSalvage(run: RunInstance, takenIds: string[]): RunInstance {
@@ -325,7 +340,7 @@ export function applyRunMod(
 ): RunInstance {
   const service = run.pendingModService;
   const modifier = MODIFIERS[modifierId];
-  const cost = GAME_CONTENT.economy.machinistBaseCost;
+  const cost = modScrapCost(modifierId);
   if (!service || service.applied || !service.offerIds.includes(modifierId) || !modifier || run.scrap < cost) return run;
   const allParts = [...run.mech.parts, ...run.bench];
   const target = allParts.find((part) => part.id === partInstanceId);

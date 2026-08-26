@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   MODIFIERS,
   TEMPLATES,
+  UNIQUES,
+  applyUnique,
   type BattleReport,
   type Build,
 } from '@mechbattler/sim';
@@ -27,7 +29,9 @@ import {
   mechToBuild,
   migrateProfile,
   migrateRun,
+  ladderOpponents,
   modOffers,
+  modScrapCost,
   refitPart,
   repairOwnedPart,
   repairCost,
@@ -291,9 +295,12 @@ describe('run domain', () => {
       { id: weapon.partId } as Parameters<typeof MODIFIERS[string]['appliesTo']>[0],
     ));
     const forced = applicable ?? 'cold-bore';
-    const ready = { ...run, pendingModService: { afterWin: 3, offerIds: [forced], applied: false } };
+    // Price is per mod (docs/04 §4b), so read it rather than retyping 25 — and
+    // fund the run high enough that a rare mod is affordable at all.
+    const cost = modScrapCost(forced);
+    const ready = { ...run, scrap: 100, pendingModService: { afterWin: 3, offerIds: [forced], applied: false } };
     const next = applyRunMod(ready, weapon.id, forced);
-    expect(next.scrap).toBe(5);
+    expect(next.scrap).toBe(100 - cost);
     expect(next.pendingModService?.applied).toBe(true);
     expect(next.mech.parts.find((part) => part.id === weapon.id)?.modifiers).toContain(forced);
   });
@@ -499,5 +506,86 @@ describe('saved mech blueprints', () => {
     expect(errors.join('\n')).toContain('out-of-region');
     expect(errors.join('\n')).toContain('route-on-equipment');
     expect(errors.join('\n')).toContain('duplicate-route');
+  });
+});
+
+describe('mod scarcity, pricing and uniques (docs/04 §4b)', () => {
+  it('prices each mod on its own definition, falling back to the base cost', () => {
+    // The whole point of the field: a build-defining mod is not a placement
+    // convenience, and the two must not cost the same.
+    expect(modScrapCost('cold-bore')).toBeGreaterThan(modScrapCost('insulated-mount'));
+    expect(modScrapCost('not-a-mod')).toBe(GAME_CONTENT.economy.machinistBaseCost);
+  });
+
+  it('offers rarer mods less often than common ones', () => {
+    const counts = new Map<string, number>();
+    for (let seed = 0; seed < 400; seed++) {
+      for (const id of modOffers(seed, 3)) counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    const rare = [...counts].filter(([id]) => MODIFIERS[id]!.rarity === 'rare');
+    const common = [...counts].filter(([id]) => MODIFIERS[id]!.rarity === 'common');
+    const mean = (rows: [string, number][]) => rows.reduce((sum, [, n]) => sum + n, 0) / rows.length;
+    expect(mean(common)).toBeGreaterThan(mean(rare));
+    // Scarce, not absent — a mod nobody can ever be offered is dead content.
+    for (const modifier of Object.values(MODIFIERS)) {
+      if (modifier.kind !== 'mod' || modifier.id === 'sacrificial-casing') continue;
+      expect(counts.get(modifier.id) ?? 0, modifier.id).toBeGreaterThan(0);
+    }
+  });
+
+  it('offers the same mods for the same seed, and never the same mod twice', () => {
+    const offers = modOffers(7, 6);
+    expect(modOffers(7, 6)).toEqual(offers);
+    expect(new Set(offers).size).toBe(offers.length);
+  });
+
+  it('stamps a unique as one mod plus quirks, replacing whatever the part carried', () => {
+    const unique = UNIQUES['assize']!;
+    const stamped = applyUnique(
+      { instanceId: 'x', partId: unique.partId, origin: { x: 0, y: 0 }, rotation: 0, modifiers: ['lucky'], variant: { damage: 2 } },
+      unique,
+    );
+    expect(stamped.modifiers!.filter((id) => MODIFIERS[id]!.kind === 'mod')).toHaveLength(1);
+    expect(stamped.modifiers).toContain(unique.modifierId);
+    expect(stamped.variant).toEqual(unique.variant);
+    expect(stamped.modifiers).not.toContain('lucky');
+  });
+
+  it('drops uniques deterministically, and rarely enough to stay an event', () => {
+    const first = ladderOpponents(31, 4).map((choice) => choice.carries ?? '');
+    expect(ladderOpponents(31, 4).map((choice) => choice.carries ?? '')).toEqual(first);
+    let uniques = 0;
+    let elites = 0;
+    for (let seed = 0; seed < 300; seed++) {
+      for (const choice of ladderOpponents(seed, 5)) {
+        if (!choice.elite) continue;
+        elites++;
+        if (Object.values(UNIQUES).some((unique) => unique.name === choice.carries)) uniques++;
+      }
+    }
+    expect(elites).toBeGreaterThan(0);
+    expect(uniques / elites).toBeLessThan(0.25);
+  });
+});
+
+describe('the authoring contract warns rather than gates', () => {
+  it('passes today\'s catalog with no warnings at all', () => {
+    const audit = auditGameContent();
+    expect(audit.errors).toEqual([]);
+    expect(audit.warnings).toEqual([]);
+    expect(audit.ok).toBe(true);
+  });
+
+  it('declares a declining difficulty curve covering every checkpoint', () => {
+    const curve = GAME_CONTENT.run.balanceTargetWinRateByDepth;
+    for (const depth of GAME_CONTENT.run.balanceCheckpointDepths) expect(curve[depth]).toBeDefined();
+    const depths = Object.keys(curve).map(Number).sort((a, b) => a - b);
+    for (let index = 1; index < depths.length; index++) {
+      expect(curve[depths[index]!]!.max).toBeLessThanOrEqual(curve[depths[index - 1]!]!.max);
+    }
+    // The opening must be winnable and the depth must be able to end a run —
+    // the reason the single flat band was retired.
+    expect(curve[1]!.min).toBeGreaterThan(0.5);
+    expect(curve[12]!.max).toBeLessThan(0.5);
   });
 });
