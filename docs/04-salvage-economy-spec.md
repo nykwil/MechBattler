@@ -239,6 +239,11 @@ The name appears wherever the part does: it is the one chip drawn filled rather 
 outlined, above the mod and quirk chips that say what it *does*, and tapping it
 discloses the provenance line.
 
+**To try one:** `npm run sim:try -- CH-5 --unique assize --seeds 10` assembles a legal
+mech around it and fights the canonical roster in seconds. Vary the chassis and the
+supporting parts to find out what the piece wants to be built into — that is the
+question a unique has to answer before it is worth shipping.
+
 ### 4d. What a new mod must declare
 
 The authoring contract, for a person or a generator. `game:audit` warns about the

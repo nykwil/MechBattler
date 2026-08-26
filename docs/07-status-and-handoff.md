@@ -228,6 +228,7 @@ npm run verify             # tests, builds, audits, and the report-only balance 
 | `npm run game:loop` / `game:loop-report` | The one-hour progression cohort and its report |
 | `npm run sim:balance` / `sim:adapt` / `sim:diversity` / `sim:hitrate` | Roster round-robin, fitting-only adaptation search, build-diversity stress, hit-rate calibration. Report-only. |
 | `npm run balance:collect` then `balance:report` | Artifacts, then the diff against the baseline |
+| `npm run sim:try -- <chassis> <parts>` | Assemble a mech from a wish and fight it — the content-trial loop (see `CLAUDE.md`) |
 | `npm run web:shot` / `web:audit` / `web:campaign` | Drive a screen, audit seven screens, drive a whole campaign node |
 
 Balance harnesses do not fail a build. `game:audit` does.

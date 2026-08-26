@@ -22,6 +22,8 @@ export * from './uniques.js';
 export * from './dmath.js';
 export * from './version.js';
 export * from './lockstep.js';
+export * from './assembly.js';
 export * from './adaptation.js';
 export * from './validation.js';
 export * from './diversity.js';
+export * from './workbench.js';

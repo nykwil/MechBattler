@@ -13,12 +13,9 @@
  * which (if any) recovers a losing matchup -- automating the "read intel,
  * adjust the build" loop so matchup softness becomes a measured property.
  */
-import type { Build, PlacedPart } from './types.js';
-import { competesForPowerBudget, getPart } from './catalog.js';
-import { getChassis } from './chassis.js';
-import { checkPlacement, getOccupiedCells } from './grid.js';
-import { checkSpatialPartPlacement } from './spatial.js';
-import { connectedInstanceIds } from './spatialPower.js';
+import type { Build } from './types.js';
+import { getPart } from './catalog.js';
+import { placeParts, type PlaceOptions } from './assembly.js';
 import { runBattle } from './combat.js';
 
 export const KEYSTONE_CATEGORIES = new Set(['weapon', 'reactor']);
@@ -35,81 +32,12 @@ export interface AdaptationOp {
 }
 
 /**
- * Ids derive from the build being modified, not a module counter — the sim
- * must hold zero global mutable state (docs/11 M0: server processes are
- * shared, and lockstep replays must not depend on call history).
+ * Fitting-search wrapper over the shared placer: an op either applies fully
+ * enough to be worth reporting, or it does not apply at all.
  */
-function freshId(parts: PlacedPart[], partId: string): string {
-  let max = 0;
-  for (const p of parts) {
-    const m = /^adapt-.*-(\d+)$/.exec(p.instanceId);
-    if (m) max = Math.max(max, Number(m[1]));
-  }
-  return `adapt-${partId}-${max + 1}`;
-}
-
-function freeCells(build: Build, frontFirst: boolean): { x: number; y: number }[] {
-  const chassis = getChassis(build.chassisId);
-  const occupied = new Set<string>();
-  for (const p of build.parts) {
-    for (const c of getOccupiedCells(p, getPart(p.partId))) occupied.add(`${c.x},${c.y}`);
-  }
-  const cells: { x: number; y: number }[] = [];
-  for (let y = 0; y < chassis.height; y++) {
-    for (let x = 0; x < chassis.width; x++) {
-      if (!chassis.mask[y]?.[x]) continue;
-      if (x === chassis.coreCell.x && y === chassis.coreCell.y) continue;
-      if (!occupied.has(`${x},${y}`)) cells.push({ x, y });
-    }
-  }
-  // Grid row 0 is the mech's front (docs/01 §1).
-  return frontFirst ? cells.sort((a, b) => a.y - b.y) : cells;
-}
-
-/**
- * Adds `count` copies of a part at the first legal positions, trying both
- * rotations. `requireConnected` re-checks power connectivity so powered
- * additions (TC, caps) land on the network, not orphaned.
- */
-function addParts(build: Build, partId: string, count: number, opts: { frontFirst?: boolean; requireConnected?: boolean } = {}): Build | null {
-  const chassis = getChassis(build.chassisId);
-  const def = getPart(partId);
-  let parts = [...build.parts];
-  let priority = [...build.powerPriority];
-  let placedCount = 0;
-
-  for (let n = 0; n < count; n++) {
-    let placed: PlacedPart | null = null;
-    outer: for (const cell of freeCells({ ...build, parts }, opts.frontFirst ?? false)) {
-      for (const rotation of [0, 90] as const) {
-        const candidate: PlacedPart = {
-          instanceId: freshId(parts, partId), partId, origin: cell, rotation, integrity: 1,
-        };
-        if (checkPlacement(chassis, parts, candidate, def) !== null) continue;
-        // The workshop's rules, not just the grid's: stacking, regions and the
-        // ceiling. Without this the auto-placer can hand back a fitting the
-        // player could never have built by hand.
-        if (checkSpatialPartPlacement(chassis, { parts, routes: build.routes ?? [] }, candidate, def) !== null) continue;
-        if (opts.requireConnected) {
-          // Ask whichever power model this build actually runs under. This used
-          // to call computeConnectivity unconditionally, so on a regioned
-          // chassis -- which is all three of them -- the search checked a
-          // different question from the one the sim answers, and could report an
-          // adaptation whose new part the battle then left unpowered.
-          const trial = { ...build, parts: [...parts, candidate] };
-          if (!connectedInstanceIds(chassis, trial).has(candidate.instanceId)) continue;
-        }
-        placed = candidate;
-        break outer;
-      }
-    }
-    if (!placed) break;
-    parts = [...parts, placed];
-    if (competesForPowerBudget(def)) priority = [...priority, placed.instanceId];
-    placedCount++;
-  }
-  if (placedCount === 0) return null;
-  return { ...build, parts, powerPriority: priority };
+function addParts(build: Build, partId: string, count: number, opts: PlaceOptions = {}): Build | null {
+  const { build: next, placed } = placeParts(build, partId, count, opts);
+  return placed === 0 ? null : next;
 }
 
 function removeParts(build: Build, partId: string): Build | null {

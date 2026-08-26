@@ -148,6 +148,38 @@ terrain cover, target profile and target speed in turn, and each was found only 
 reviewing the fix for the previous one. If you are drawing a number the sim also
 derives, read it from the sim or derive it from frames and events — never type it.
 
+## Trying a build without authoring one
+
+`npm run sim:try` assembles a mech from a one-line wish and fights it against the
+canonical roster. It exists for content work: twenty variations around one new
+part, seconds each, no source file edited and no four-minute cohort.
+
+```bash
+npm run sim:try -- CH-5 W-AC:2                       # two Judges on a Mule
+npm run sim:try -- CH-5 --unique assize --seeds 10   # build around a named unique
+npm run sim:try -- CH-2 W-CB:2 --mod W-CB:cold-bore  # build around a mod
+npm run sim:try -- CH-9 W-BR:2 --budget 20 --no-armour --json
+```
+
+Name the parts that matter; it supplies the boring half — a reactor before
+anything else (the workshop tells players the same thing), then cooling, routing,
+and armour in whatever cells are left. **Completion invents no numbers**: it adds
+the smallest part that closes a gap `computeEnergyMargin`, `computeHeatBalance`
+and `validateBuild` actually measured, and every placement goes through the
+workshop's own rules, so a build it hands back is one a player could have built.
+
+Read the `!` lines. "Wanted another Gill, but no perimeter cell is left" is the
+finding — a Vulture has no room for a 3-cell radiator, which is why both canonical
+Vultures carry heat sinks instead. A stall is information, not a failure.
+
+It is not a balance verdict. Six seeds against seven templates is a smell test for
+"is this build interesting"; `sim:balance` and `balance:report` remain the
+instruments that decide whether anything moved.
+
+`assembleBuild()` and `evaluateBuild()` are exported from `@mechbattler/sim` for
+scripted sweeps — one wish per variation, in a loop, is the fast way to answer
+"which chassis wants this part?".
+
 ## Balance is its own pass, and it does not gate feature work
 
 None of the balance harnesses fail a build. `sim:balance`, `sim:diversity`,

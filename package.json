@@ -27,6 +27,7 @@
     "sim:balance": "npm run balance --workspace=@mechbattler/sim --",
     "sim:adapt": "npm run adapt --workspace=@mechbattler/sim --",
     "sim:diversity": "npm run diversity --workspace=@mechbattler/sim --",
+    "sim:try": "npm run try --workspace=@mechbattler/sim --",
     "verify": "npm run game:test && npm run game:audit && npm run game:build && npm run sim:test && npm run sim:build && npm run web:test && npm run web:build && npm run verify:balance",
     "verify:balance": "(npm run game:balance -- 1; npm run game:match-balance -- 1; npm run sim:balance -- 10; npm run sim:diversity -- 5); true",
     "balance:collect": "npm run sim:balance -- --json artifacts/balance.json && npm run sim:diversity -- --json artifacts/diversity.json",
