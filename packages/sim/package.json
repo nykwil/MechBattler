@@ -14,7 +14,8 @@
     "adapt": "node --import tsx scripts/adaptation.ts",
     "hitrate": "node --import tsx scripts/hitrate.ts",
     "diversity": "node --import tsx scripts/diversity.ts",
-    "try": "node --import tsx scripts/workbench.ts"
+    "try": "node --import tsx scripts/workbench.ts",
+    "breed": "node --import tsx scripts/breed.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.1",

@@ -156,10 +156,25 @@ export function checkChassisParity(byChassis: Map<string, RankResult[]>): I2Find
   return findings;
 }
 
-/** I3: every enabled part and mod should appear in at least one archive elite. */
-export function checkCoverage(archives: BuildArchive[]): {
+/**
+ * I3: every part and mod the sweep actually OFFERED should appear in at least
+ * one archive elite.
+ *
+ * `offered` is the union of every lock's pool, and it matters. Measured against
+ * the whole catalog instead, a one-lock smoke run reported 23 parts and 13 mods
+ * as dead content when the truth was that they had never been available to any
+ * build -- an answer that would be alarming, wrong, and identical after every
+ * possible content change. Gear that was never offered is reported separately
+ * as a gap in the SWEEP, which is a fact about coverage of the experiment
+ * rather than about the gear.
+ *
+ * Omit `offered` to check against the whole catalog, which is only meaningful
+ * for a sweep wide enough to have offered all of it.
+ */
+export function checkCoverage(archives: BuildArchive[], offered?: Iterable<string>): {
   deadParts: string[];
   deadMods: string[];
+  neverOffered: string[];
   usage: Map<string, number>;
 } {
   const usage = new Map<string, number>();
@@ -171,12 +186,16 @@ export function checkCoverage(archives: BuildArchive[]): {
       }
     }
   }
-  const deadParts = Object.keys(PARTS)
-    .filter((id) => !COVERAGE_EXEMPT_PARTS.has(id) && !usage.has(id));
-  const deadMods = Object.values(MODIFIERS)
-    .filter((def) => def.kind === 'mod' && !usage.has(def.id))
-    .map((def) => def.id);
-  return { deadParts, deadMods, usage };
+  const available = offered ? new Set(offered) : undefined;
+  const wasOffered = (id: string) => !available || available.has(id);
+
+  const allParts = Object.keys(PARTS).filter((id) => !COVERAGE_EXEMPT_PARTS.has(id));
+  const allMods = Object.values(MODIFIERS).filter((def) => def.kind === 'mod').map((def) => def.id);
+
+  const deadParts = allParts.filter((id) => wasOffered(id) && !usage.has(id));
+  const deadMods = allMods.filter((id) => wasOffered(id) && !usage.has(id));
+  const neverOffered = [...allParts, ...allMods].filter((id) => !wasOffered(id));
+  return { deadParts, deadMods, neverOffered, usage };
 }
 
 /**

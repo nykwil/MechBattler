@@ -90,6 +90,22 @@ describe('I3 — no dead gear', () => {
     expect(coverage.deadParts).toContain('W-RG');
     expect(coverage.usage.get('W-AC')).toBeGreaterThan(0);
   });
+
+  it('does not call gear dead when it was never offered', () => {
+    // A narrow sweep offers a fraction of the catalog. Measured against all of
+    // it, a one-lock run reported 23 parts and 13 mods as dead content -- an
+    // answer that is alarming, wrong, and identical after every possible
+    // content change.
+    const archive = new BuildArchive();
+    const b = buildOf('CH-5', 'W-AC', 2);
+    archive.insert({ build: b, descriptors: describeBuild(b), fitness: 0.5, genome: null });
+    const offered = new Set([...b.parts.map((p) => p.partId), 'W-RG', 'cold-bore']);
+    const coverage = checkCoverage([archive], offered);
+    expect(coverage.deadParts).toEqual(['W-RG']);
+    expect(coverage.deadMods).toEqual(['cold-bore']);
+    expect(coverage.neverOffered).toContain('W-ION');
+    expect(coverage.neverOffered).not.toContain('W-RG');
+  });
 });
 
 describe('the headline: how many ranks of enemy correct building is worth', () => {
