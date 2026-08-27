@@ -19,6 +19,7 @@ export * from './autowire.js';
 export * from './ladder.js';
 export * from './modifiers.js';
 export * from './rank.js';
+export * from './archive.js';
 export * from './uniques.js';
 export * from './dmath.js';
 export * from './version.js';
