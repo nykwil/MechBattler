@@ -10,11 +10,13 @@
  * minutes-to-an-hour. Start with `--budget 40` to prove the wiring, then spend.
  */
 import { writeFileSync } from 'node:fs';
+import { cpus } from 'node:os';
 import {
   ALL_CELL_KEYS, CHASSIS, checkChassisParity, checkCoverage, checkRankMonotonicity,
   confirmFitness, drawLock, panelStamp, ranksOfCorrectBuilding, saturationRank,
-  searchLadder, type RankResult,
+  type RankResult,
 } from '../src/index.js';
+import { searchLadderParallel } from '../src/breedParallel.js';
 
 const argv = process.argv.slice(2);
 const flag = (name: string) => argv.includes(name);
@@ -31,6 +33,7 @@ Options:
   --chassis <ids>      comma-separated (default every chassis)
   --budget <n>         screens per chassis/rank (default 600)
   --confirm-seeds <n>  seeds when re-fighting an elite on the full panel (default 6)
+  --workers <n>        worker threads for screening (default: cores - 1; 1 = serial)
   --json <path>        write the machine-readable report
 `);
   process.exit(0);
@@ -42,6 +45,7 @@ const ranks = (value('--ranks') ?? '6,8,10,12,14,16,18,20').split(',').map(Numbe
 const chassisIds = (value('--chassis') ?? Object.keys(CHASSIS).join(',')).split(',');
 const budget = num('--budget', 600);
 const confirmSeeds = num('--confirm-seeds', 6);
+const workers = num('--workers', Math.max(1, cpus().length - 1));
 
 const stamp = panelStamp();
 const started = Date.now();
@@ -53,8 +57,8 @@ for (let l = 0; l < locks; l++) {
   const byChassis = new Map<string, RankResult[]>();
   for (const chassisId of chassisIds) {
     process.stderr.write(`  ${chassisId} `);
-    byChassis.set(chassisId, searchLadder({
-      lock, chassisId, ranks, seed: baseSeed + l, budget,
+    byChassis.set(chassisId, await searchLadderParallel({
+      lock, chassisId, ranks, seed: baseSeed + l, budget, workers,
       onRank: (r) => process.stderr.write(r.legalFound === 0 ? '-' : '.'),
     }));
     process.stderr.write('\n');
@@ -102,7 +106,7 @@ const gallery = perLock.flatMap((p, l) => [...p.byChassis].flatMap(([chassisId, 
 
 const report = {
   stamp,
-  parameters: { locks, baseSeed, ranks, chassisIds, budget, confirmSeeds },
+  parameters: { locks, baseSeed, ranks, chassisIds, budget, confirmSeeds, workers },
   elapsedS: (Date.now() - started) / 1000,
   invariants: { i1, i2, i3: { deadParts: i3.deadParts, deadMods: i3.deadMods, neverOffered: i3.neverOffered } },
   saturation,
@@ -116,10 +120,12 @@ const report = {
 if (value('--json')) writeFileSync(value('--json')!, JSON.stringify(report, null, 2));
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
-console.log(`\nsim:breed — ${locks} lock(s), ${chassisIds.join('/')}, ranks ${ranks.join(',')}, budget ${budget}`);
+console.log(`\nsim:breed — ${locks} lock(s), ${chassisIds.join('/')}, ranks ${ranks.join(',')}, budget ${budget}, ${workers} worker(s)`);
 console.log(`content hash ${stamp.contentHash} — results are comparable only while the catalog holds still.`);
 console.log('Every ceiling below is the BEST FOUND, not the best that exists. A failing invariant is');
-console.log('real evidence; a passing one is only an absence of counter-evidence. Read the failures first.\n');
+console.log('real evidence; a passing one is only an absence of counter-evidence. Read the failures first.');
+console.log(`Seed ${baseSeed}, budget ${budget} and ${workers} worker(s) together identify this experiment: any`);
+console.log('fixed set of the three reproduces exactly, and changing any of them searches differently.\n');
 
 console.log('1. INVARIANTS');
 const i1Fail = i1.filter((f) => !f.pass);

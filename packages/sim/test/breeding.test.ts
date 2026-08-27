@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   LOCK_MOD_COUNT, LOCK_PART_COUNT, MIDGAME_POOL,
   crossover, develop, drawLock, genomeKey, mutate, type Genome,
-  DEFAULT_SCREEN_BUDGET, searchLadder, searchRank,
+  DEFAULT_SCREEN_BUDGET, screenBatch, searchLadder, searchRank,
 } from '../src/breeding.js';
 import { computeRank } from '../src/rank.js';
 import { getPart } from '../src/catalog.js';
@@ -142,5 +142,57 @@ describe('the search climbs a tier ladder', () => {
 
   it('has a default budget worth stating', () => {
     expect(DEFAULT_SCREEN_BUDGET).toBe(600);
+  });
+});
+
+describe('a batch of candidates can be screened off the main thread', () => {
+  // The property that has to hold for threading to be sound is NOT that a
+  // parallel sweep finds the same builds as a serial one -- it does not, and
+  // is not meant to: proposing a generation before scoring it explores wider
+  // than updating elites after every candidate. What has to hold is that a
+  // given genome scores the same no matter where or when it is scored.
+  it('scores a batch identically to scoring it in any other order', () => {
+    const lock = drawLock(5);
+    const genomes: Genome[] = lock.parts.slice(0, 3).map((partId) => ({
+      chassisId: 'CH-5', parts: [{ partId, count: 1 }], armourPlates: 0,
+    }));
+    const batched = screenBatch(genomes, lock, 14);
+    expect(screenBatch(genomes, lock, 14)).toEqual(batched);
+    // Order within the batch must not change any score — that is exactly what
+    // makes the work distributable, and it holds only because every battle
+    // seed derives from the candidate rather than from when it was evaluated.
+    expect(screenBatch([...genomes].reverse(), lock, 14)).toEqual([...batched].reverse());
+  }, 300_000);
+});
+
+describe('the sim index stays safe to bundle for a browser', () => {
+  it('reaches nothing that imports a node builtin', async () => {
+    // The web app bundles @mechbattler/sim, so anything reachable from the
+    // index has to survive rollup in a browser. Putting the worker pool in
+    // breeding.ts broke `web:build` with "node:worker_threads" unresolved;
+    // it lives in breedParallel.ts now, which the index deliberately omits.
+    const { readFileSync, readdirSync } = await import('node:fs');
+    const { fileURLToPath } = await import('node:url');
+    const srcDir = fileURLToPath(new URL('../src/', import.meta.url));
+    const index = readFileSync(`${srcDir}index.ts`, 'utf8');
+    const exported = [...index.matchAll(/from '\.\/([\w.]+)\.js'/g)].map((m) => m[1]!);
+
+    const seen = new Set<string>();
+    const walk = (name: string) => {
+      if (seen.has(name)) return;
+      seen.add(name);
+      let source: string;
+      try { source = readFileSync(`${srcDir}${name}.ts`, 'utf8'); } catch { return; }
+      expect(source, `${name}.ts is reachable from index.ts and imports a node builtin`)
+        .not.toMatch(/from 'node:/);
+      for (const m of source.matchAll(/from '\.\/([\w.]+)\.js'/g)) walk(m[1]!);
+    };
+    for (const name of exported) walk(name);
+
+    expect(seen.has('breeding')).toBe(true);
+    expect(seen.has('breedParallel')).toBe(false);
+    // And the thing being guarded against really does use node builtins.
+    expect(readdirSync(srcDir)).toContain('breedParallel.ts');
+    expect(readFileSync(`${srcDir}breedParallel.ts`, 'utf8')).toMatch(/from 'node:worker_threads'/);
   });
 });

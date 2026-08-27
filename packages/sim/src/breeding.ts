@@ -214,7 +214,7 @@ export const DEFAULT_SCREEN_BUDGET = 600;
  * *guaranteed* ceiling rather than a lucky one -- and that is precisely where
  * the rank-monotonicity invariant is anchored.
  */
-const EXHAUSTIVE_RANK = 8;
+export const EXHAUSTIVE_RANK = 8;
 
 export interface RankResult {
   rank: number;
@@ -228,7 +228,7 @@ export interface RankResult {
 }
 
 /** Every one- and two-part wish the lock allows, at a couple of armour weights. */
-function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
+export function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
   const out: Genome[] = [];
   for (const a of lock.parts) {
     for (const count of [1, 2]) {
@@ -258,6 +258,37 @@ function hashKey(key: string): number {
     hash = Math.imul(hash, 16777619);
   }
   return hash >>> 0;
+}
+
+/**
+ * Develop a candidate and decide whether it is admissible, without scoring it.
+ * The one place that decision lives, so the serial and parallel paths cannot
+ * drift apart.
+ */
+export function admit(genome: Genome, lock: Lock, rank: number): AssemblyReport | null {
+  const report = develop(genome, lock, rank);
+  if (!report.legal) return null;
+  if (computeRank(report.build) > rank) return null;
+  // `no-weapons` is only a *warning* to the workshop -- a player may park a
+  // half-built mech in the bay. It is disqualifying here. Without it the search
+  // fills its archive with things like a single heat sink: legal, scores
+  // nothing, and holding a cell a real build then cannot have.
+  if (report.issues.some((issue) => issue.code === 'no-weapons')) return null;
+  return report;
+}
+
+/**
+ * Screen a batch of genomes.
+ *
+ * Pure: no shared state, and no dependence on the order of the batch -- which
+ * is exactly what makes it safe to hand a slice of the work to a worker thread.
+ * Returns null for a genome that did not develop into an admissible mech.
+ */
+export function screenBatch(genomes: Genome[], lock: Lock, rank: number): (number | null)[] {
+  return genomes.map((genome) => {
+    const report = admit(genome, lock, rank);
+    return report === null ? null : screenFitness(report.build, hashKey(genomeKey(genome)));
+  });
 }
 
 /**
@@ -296,15 +327,8 @@ export function searchRank(opts: {
       scored.push({ genome, fitness });
       return;
     }
-    const report = develop(genome, opts.lock, opts.rank);
-    if (!report.legal) return;
-    if (computeRank(report.build) > opts.rank) return;
-    // `no-weapons` is only a *warning* to the workshop -- a player may park a
-    // half-built mech in the bay. It is disqualifying here. Without this the
-    // search fills its archive with things like a single heat sink: legal,
-    // scores 0.00, and claims a cell a real build then cannot have. Read from
-    // the sim's own verdict rather than counting weapons again here.
-    if (report.issues.some((issue) => issue.code === 'no-weapons')) return;
+    const report = admit(genome, opts.lock, opts.rank);
+    if (report === null) return;
     legalFound++;
     // The battle seed derives from the candidate, never from the order it was
     // evaluated: a parallel sweep has to reproduce a serial one exactly.
