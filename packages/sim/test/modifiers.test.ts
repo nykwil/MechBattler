@@ -3,6 +3,7 @@ import type { Build, PlacedPart } from '../src/types.js';
 import {
   MODIFIERS, NEUTRAL_MULTS, STATIC_CTX, effectiveMults, modifierIdsFor,
 } from '../src/modifiers.js';
+import { UNIQUES } from '../src/uniques.js';
 import { getPart } from '../src/catalog.js';
 import { getChassis } from '../src/chassis.js';
 import { buildThermalModel } from '../src/thermal.js';
@@ -273,6 +274,29 @@ describe('movement mods: coil-sprung, gyro flywheel, weaving gait', () => {
     for (const id of ['coil-sprung', 'gyro-flywheel', 'weaving-gait']) {
       expect(modifierIdsFor(getPart('U-ACT')), id).toContain(id);
       expect(modifierIdsFor(getPart('W-AC')), id).not.toContain(id);
+    }
+  });
+});
+
+describe('tier is the one authored number on a mod', () => {
+  it('every mod declares a tier, and nothing else declares scarcity', () => {
+    for (const def of Object.values(MODIFIERS)) {
+      if (def.kind !== 'mod') {
+        // Quirks and variants are not acquired, so they carry no tier.
+        expect(def, def.id).not.toHaveProperty('tier');
+        continue;
+      }
+      expect(def.tier, def.id).toBeGreaterThanOrEqual(1);
+      expect(def.tier, def.id).toBeLessThanOrEqual(3);
+      expect(def, def.id).not.toHaveProperty('rarity');
+      expect(def, def.id).not.toHaveProperty('scrapCost');
+    }
+  });
+
+  it('every unique declares a tier', () => {
+    for (const unique of Object.values(UNIQUES)) {
+      expect(unique.tier, unique.id).toBeGreaterThanOrEqual(1);
+      expect(unique, unique.id).not.toHaveProperty('rarity');
     }
   });
 });

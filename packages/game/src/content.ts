@@ -108,7 +108,10 @@ export const GAME_CONTENT: GameContent = {
     extractionWearMax: 0.2,
     repairCostPerPoint: 0.3,
     chassisRepairCostPerPoint: 0.2,
-    machinistBaseCost: 25,
+    // Price per tier of mod. A tier-1 convenience is 15 scrap, a tier-3
+    // build-definer 45 — within a few scrap of every price that was authored
+    // by hand before tier replaced rarity and scrapCost together.
+    machinistTierCost: 15,
   },
   run: {
     length: 12,

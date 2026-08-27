@@ -2,7 +2,6 @@ import {
   CORE_INSTANCE_ID,
   MODIFIERS,
   Pcg32,
-  RARITY_WEIGHT,
   identifyUnique,
   pickWeighted,
   checkPlacement,
@@ -282,8 +281,15 @@ export function settleBattle(args: {
  * convenience should not cost the same once there are many of them.
  */
 export function modScrapCost(modifierId: string): number {
-  return MODIFIERS[modifierId]?.scrapCost ?? GAME_CONTENT.economy.machinistBaseCost;
+  const tier = MODIFIERS[modifierId]?.tier ?? 1;
+  return tier * GAME_CONTENT.economy.machinistTierCost;
 }
+
+/**
+ * Relative draw weight for a mod or unique of this tier. Local for now; it
+ * moves to the sim's rank.ts, which is where tier's other two jobs live.
+ */
+const drawWeight = (tier: number | undefined): number => 2 ** (1 - (tier ?? 1));
 
 export function modOffers(runSeed: number, afterWin: number): string[] {
   const rng = new Pcg32((runSeed * 977 + afterWin) ^ 0x3ac41);
@@ -294,7 +300,7 @@ export function modOffers(runSeed: number, afterWin: number): string[] {
   // exactly as likely as the least, which is the opposite of build identity.
   const offers: string[] = [];
   while (offers.length < GAME_CONTENT.run.modOfferCount && pool.length > 0) {
-    const drawn = pickWeighted(pool, (modifier) => RARITY_WEIGHT[modifier.rarity ?? 'common'], rng)!;
+    const drawn = pickWeighted(pool, (modifier) => drawWeight(modifier.tier), rng)!;
     offers.push(drawn.id);
     pool.splice(pool.indexOf(drawn), 1);
   }

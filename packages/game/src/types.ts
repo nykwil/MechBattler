@@ -242,7 +242,7 @@ export interface EconomyConfig {
   extractionWearMax: number;
   repairCostPerPoint: number;
   chassisRepairCostPerPoint: number;
-  machinistBaseCost: number;
+  machinistTierCost: number;
 }
 
 export interface RunConfig {

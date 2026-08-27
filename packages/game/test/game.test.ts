@@ -516,7 +516,7 @@ describe('mod scarcity, pricing and uniques (docs/04 §4b)', () => {
     // The whole point of the field: a build-defining mod is not a placement
     // convenience, and the two must not cost the same.
     expect(modScrapCost('cold-bore')).toBeGreaterThan(modScrapCost('insulated-mount'));
-    expect(modScrapCost('not-a-mod')).toBe(GAME_CONTENT.economy.machinistBaseCost);
+    expect(modScrapCost('not-a-mod')).toBe(GAME_CONTENT.economy.machinistTierCost);
   });
 
   it('offers rarer mods less often than common ones', () => {
@@ -524,8 +524,8 @@ describe('mod scarcity, pricing and uniques (docs/04 §4b)', () => {
     for (let seed = 0; seed < 400; seed++) {
       for (const id of modOffers(seed, 3)) counts.set(id, (counts.get(id) ?? 0) + 1);
     }
-    const rare = [...counts].filter(([id]) => MODIFIERS[id]!.rarity === 'rare');
-    const common = [...counts].filter(([id]) => MODIFIERS[id]!.rarity === 'common');
+    const rare = [...counts].filter(([id]) => MODIFIERS[id]!.tier === 3);
+    const common = [...counts].filter(([id]) => MODIFIERS[id]!.tier === 1);
     const mean = (rows: [string, number][]) => rows.reduce((sum, [, n]) => sum + n, 0) / rows.length;
     expect(mean(common)).toBeGreaterThan(mean(rare));
     // Scarce, not absent — a mod nobody can ever be offered is dead content.
@@ -633,5 +633,19 @@ describe('the authoring contract warns rather than gates', () => {
     // the reason the single flat band was retired.
     expect(curve[1]!.min).toBeGreaterThan(0.5);
     expect(curve[12]!.max).toBeLessThan(0.5);
+  });
+});
+
+describe('the machinist prices a mod off its tier', () => {
+  it('charges tier x 15', () => {
+    // insulated-mount is tier 1, marsh-pistons tier 2, fever-cycle tier 3.
+    expect(modScrapCost('insulated-mount')).toBe(15);
+    expect(modScrapCost('marsh-pistons')).toBe(30);
+    expect(modScrapCost('fever-cycle')).toBe(45);
+  });
+
+  it('falls back to tier 1 for a modifier that is not a mod', () => {
+    // A quirk is not acquired, so there is nothing for the machinist to price.
+    expect(modScrapCost('lucky')).toBe(15);
   });
 });

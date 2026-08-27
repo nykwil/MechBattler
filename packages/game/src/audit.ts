@@ -282,8 +282,9 @@ export function auditGameContent(): GameAudit {
   }
   for (const modifier of Object.values(MODIFIERS)) {
     if (modifier.kind !== 'mod') continue;
-    if (!modifier.rarity) warnings.push(`Mod ${modifier.id} declares no rarity — it draws at the commonest weight`);
-    if (modifier.scrapCost === undefined) warnings.push(`Mod ${modifier.id} declares no scrapCost — the machinist charges it the base price`);
+    if (modifier.kind === 'mod' && modifier.tier === undefined) {
+      warnings.push(`Mod ${modifier.id} declares no tier — it draws at the commonest weight, costs no rank and is priced as a tier 1`);
+    }
   }
   for (const issue of auditUniques()) errors.push(`Unique ${issue.uniqueId} ${issue.message}`);
 

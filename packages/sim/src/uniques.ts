@@ -13,11 +13,11 @@
  * Because a dropped unique writes its modifiers and variant onto the part
  * instance, a battle is fully determined by the build. Uniques are therefore
  * acquisition content and deliberately outside `simContentHash()`, alongside
- * modifier rarity and pricing.
+ * a mod's tier.
  */
 import type { PlacedPart } from './types.js';
 import { getPart } from './catalog.js';
-import { MODIFIERS, type ModifierRarity } from './modifiers.js';
+import { MODIFIERS } from './modifiers.js';
 
 export interface UniqueDef {
   id: string;
@@ -33,8 +33,11 @@ export interface UniqueDef {
   variant: NonNullable<PlacedPart['variant']>;
   /** Where it came from and why it is like this. One line, on the card. */
   blurb: string;
-  /** How scarce it is where uniques are handed out. */
-  rarity: ModifierRarity;
+  /**
+   * How scarce it is where uniques are handed out, on the same scale as a
+   * mod's tier: the draw weight is `2 ^ (1 - tier)` at that roll site too.
+   */
+  tier: number;
 }
 
 /**
@@ -49,7 +52,7 @@ export const UNIQUES: Record<string, UniqueDef> = {
     quirkIds: ['cold-blooded'],
     variant: { damage: 1.1, hp: 0.9 },
     blurb: 'A court gun kept in an unheated vault between hearings. It argues best on the first word.',
-    rarity: 'rare',
+    tier: 3,
   },
   'fell-ford-widow': {
     id: 'fell-ford-widow', name: 'Widow of Fell Ford', partId: 'W-BR',
@@ -57,7 +60,7 @@ export const UNIQUES: Record<string, UniqueDef> = {
     quirkIds: ['overvolted'],
     variant: { damage: 1.12, hp: 0.85 },
     blurb: 'Bored out after the ford was lost, by a town that had decided never to be pushed off it again.',
-    rarity: 'rare',
+    tier: 3,
   },
   'kiln-sister': {
     id: 'kiln-sister', name: 'Kiln Sister', partId: 'W-LAS',
@@ -65,7 +68,7 @@ export const UNIQUES: Record<string, UniqueDef> = {
     quirkIds: ['heat-loose'],
     variant: { cycleS: 0.92, hp: 0.9 },
     blurb: 'Salvaged from a pottery works and never really retired from it. It wants to be hot.',
-    rarity: 'uncommon',
+    tier: 2,
   },
   'tidewarden': {
     id: 'tidewarden', name: 'Tidewarden', partId: 'U-RAD',
@@ -73,7 +76,7 @@ export const UNIQUES: Record<string, UniqueDef> = {
     quirkIds: ['cold-soaked'],
     variant: { hp: 1.2 },
     blurb: 'River-Claim plate, cast thick and slow. Wade with it and it will hold your whole build together.',
-    rarity: 'uncommon',
+    tier: 2,
   },
   'long-argument': {
     id: 'long-argument', name: 'The Long Argument', partId: 'W-RG',
@@ -81,7 +84,7 @@ export const UNIQUES: Record<string, UniqueDef> = {
     quirkIds: ['lucky'],
     variant: { dispersionMrad: 0.88, cycleS: 1.1 },
     blurb: 'Wired to speak whatever else is browning out, because its owners were tired of being interrupted.',
-    rarity: 'rare',
+    tier: 3,
   },
 };
 
