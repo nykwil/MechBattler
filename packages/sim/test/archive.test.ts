@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BuildArchive, cellKey, describeBuild } from '../src/archive.js';
+import { BuildArchive, cellKey, describeBuild, descriptorDistance } from '../src/archive.js';
 import { assembleBuild } from '../src/workbench.js';
 import { computeIdealRangeBand } from '../src/derivedStats.js';
 
@@ -48,5 +48,25 @@ describe('the archive keeps the best per cell', () => {
     archive.insert({ build: b, descriptors: describeBuild(b), fitness: 0.5, genome: null });
     // 3 ranges x 3 weights x 2 heats = 18 slots; one is filled.
     expect(archive.emptyCells()).toHaveLength(17);
+  });
+});
+
+describe('two builds can be told apart by a number', () => {
+  it('scores a build against itself as zero', () => {
+    const d = describeBuild(build('CH-5', 'W-AC', 2));
+    expect(descriptorDistance(d, d)).toBe(0);
+  });
+
+  it('scores a light close brawler far from a heavy long sniper', () => {
+    const close = describeBuild(build('CH-2', 'W-MG', 2));
+    const long = describeBuild(build('CH-9', 'W-RG', 1));
+    expect(descriptorDistance(close, long)).toBeGreaterThan(0.3);
+    expect(descriptorDistance(close, long)).toBeLessThanOrEqual(1);
+  });
+
+  it('is symmetric', () => {
+    const a = describeBuild(build('CH-2', 'W-MG', 2));
+    const b = describeBuild(build('CH-9', 'W-AC', 2));
+    expect(descriptorDistance(a, b)).toBeCloseTo(descriptorDistance(b, a), 10);
   });
 });

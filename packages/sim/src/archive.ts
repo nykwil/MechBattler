@@ -127,3 +127,40 @@ export class BuildArchive {
   /** Cells nobody filled. "No hot heavy brawler exists" is the finding. */
   emptyCells(): string[] { return ALL_CELL_KEYS.filter((key) => !this.grid.has(key)); }
 }
+
+/**
+ * How different two builds are, on the descriptors alone: 0 identical, 1
+ * nothing in common.
+ *
+ * Mostly categorical, because the buckets are what "a different kind of mech"
+ * means here -- the archive treats a cell as an identity, so the distance
+ * should agree with it. A first version averaged four raw quantities instead
+ * and scored a 53 m mid-range Mule against a 15 m close Bastion at 0.14: two
+ * of its four terms were binary, both happened to match, and they halved the
+ * answer. The same pair now reads as differing in one facet of four, which is
+ * what is actually true of them.
+ *
+ * The continuous half is a refinement inside a bucket, so two long-range
+ * snipers 40 m apart are not called identical. Range is normalised against the
+ * long edge and clamped, because "300 m vs 400 m" is not twice as different as
+ * "50 m vs 150 m" -- past that threshold both are simply snipers.
+ *
+ * Deliberately says nothing about chassis or parts: those are shown beside it
+ * in the compare view, and two builds made of different metal that fight the
+ * same way are not different builds in the sense this measures.
+ */
+const CATEGORICAL_SHARE = 0.7;
+
+export function descriptorDistance(a: BuildDescriptors, b: BuildDescriptors): number {
+  const facets = [
+    a.range === b.range,
+    a.weight === b.weight,
+    a.heat === b.heat,
+    a.kill === b.kill,
+  ];
+  const categorical = facets.filter((same) => !same).length / facets.length;
+  const rangeGap = Math.min(1, Math.abs(a.rangeM - b.rangeM) / RANGE_LONG_M);
+  const weightGap = Math.min(1, Math.abs(a.loadFactor - b.loadFactor));
+  const continuous = (rangeGap + weightGap) / 2;
+  return CATEGORICAL_SHARE * categorical + (1 - CATEGORICAL_SHARE) * continuous;
+}
