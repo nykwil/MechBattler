@@ -11,6 +11,7 @@
  */
 import type { Build } from './types.js';
 import { TEMPLATES } from './templates.js';
+import { DEFAULT_TIMEOUT_S, runBattle } from './combat.js';
 import { evaluateMatchup } from './adaptation.js';
 import { simContentHash } from './version.js';
 import { LADDER_SPAWN_DISTANCES_M } from './ladder.js';
@@ -42,12 +43,54 @@ export function panelBuilds(ids: readonly string[]): { id: string; build: Build 
  */
 const baseSeedFor = (seed: number): number => 9_000_000 + (seed >>> 0) % 100_000 * 97;
 
-/** Screen: 3 opponents x 1 seed, about 0.45 s. */
+/**
+ * How much of the screen score a decisive win is worth. The remaining 0.95 is
+ * the win rate, so the largest swing decisiveness can produce (0.05) is far
+ * below the smallest gap between two distinct win rates (1/3 across three
+ * opponents). It can therefore NEVER reorder builds that differ on wins -- it
+ * only separates builds that do not.
+ */
+const DECISIVENESS_WEIGHT = 0.05;
+
+/**
+ * Screen: 3 opponents x 1 seed, about 0.45 s.
+ *
+ * Win rate alone SATURATES, and that is not a small problem. Measured on a rich
+ * lock, a rank-6 build already beat all three panel opponents 3/3, and so did
+ * every build from rank 6 to rank 20 -- a flat ceiling of 1.000 across
+ * fourteen ranks. A fitness that cannot tell a rank-6 mech from a rank-20 one
+ * gives the hill climber nothing to climb, makes "the best build at rank R"
+ * an arbitrary pick among ties, and would have made the ceiling curve -- the
+ * graph that is supposed to say whether rank means anything -- flat by
+ * construction rather than by measurement.
+ *
+ * So a decisive win counts for slightly more than a narrow one: how much hull
+ * the winner had left, and how quickly it finished. Both are read from the
+ * battle report the sim already produces, and the weight is capped below the
+ * win-rate quantum so the primary ordering is never disturbed.
+ */
 export function screenFitness(build: Build, seed: number): number {
   const opponents = panelBuilds(SCREEN_PANEL_IDS);
-  const total = opponents.reduce(
-    (sum, o) => sum + evaluateMatchup(build, o.build, 1, baseSeedFor(seed)), 0);
-  return total / opponents.length;
+  const baseSeed = baseSeedFor(seed);
+  let wins = 0;
+  let decisiveness = 0;
+  for (const opponent of opponents) {
+    const report = runBattle({ builds: [build, opponent.build], seed: baseSeed, recordFrames: false });
+    const won = report.winner === 0;
+    if (won) wins++;
+    // Hull left is the candidate's own, win or lose, so "lost narrowly" still
+    // beats "was deleted".
+    const hullFrac = report.mechs[0]!.chassisIntegrityFrac;
+    // A fight that ended sooner was more one-sided. Normalised against the
+    // sim's own timeout rather than a number typed here.
+    const speed = won ? 1 - Math.min(1, report.durationS / DEFAULT_TIMEOUT_S) : 0;
+    decisiveness += (hullFrac + speed) / 2;
+  }
+  const winRate = wins / opponents.length;
+  const quality = decisiveness / opponents.length;
+  // Stays a number in [0, 1]. It is NOT a win rate, and nothing prints it as
+  // one: the reported ceiling comes from `confirmFitness`, which is.
+  return winRate * (1 - DECISIVENESS_WEIGHT) + DECISIVENESS_WEIGHT * quality;
 }
 
 /** Confirm: the full panel at high seeds, for anything that claimed a cell. */

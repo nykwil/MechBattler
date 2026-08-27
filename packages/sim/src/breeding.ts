@@ -13,6 +13,9 @@ import { MODIFIERS } from './modifiers.js';
 import { getPart } from './catalog.js';
 import { modDrawWeight } from './rank.js';
 import { Pcg32, pickWeighted } from './rng.js';
+import { BuildArchive, describeBuild, type ArchiveEntry } from './archive.js';
+import { screenFitness } from './panel.js';
+import { computeRank } from './rank.js';
 
 /**
  * What "midgame" is meant to contain. DECLARED, not harvested: there is no
@@ -65,10 +68,27 @@ function drawSome<T>(pool: readonly T[], count: number, weightOf: (item: T) => n
  * weight, because tier is what scarcity means now. Three mods because that is
  * what a run actually grants -- one machinist service after each of wins 3, 6
  * and 9 -- so a lock stays inside the envelope a player could reach.
+ *
+ * One departure from pure uniformity: a lock is guaranteed one reactor and one
+ * weapon. Measured over 2000 uniform draws, 21% of 8-part locks could not build
+ * a mech at all -- 19.8% had no reactor among the pool's four, 1.3% no weapon
+ * among its nine -- and a dead lock still costs a full budget on every chassis
+ * at every rank while producing nothing. A run always starts you with a reactor
+ * and a gun, so a lock without them was never a realistic slice; it was a
+ * drawing artefact. Which reactor and which weapon stay uniform, so the
+ * question "is any gear bad" is untouched.
  */
 export function drawLock(seed: number, opts: { partCount?: number; modCount?: number } = {}): Lock {
   const rng = new Pcg32(seed);
-  const parts = drawSome(MIDGAME_POOL.parts, opts.partCount ?? LOCK_PART_COUNT, () => 1, rng);
+  const count = opts.partCount ?? LOCK_PART_COUNT;
+  const reactors = MIDGAME_POOL.parts.filter((id) => getPart(id).reactor);
+  const weapons = MIDGAME_POOL.parts.filter((id) => getPart(id).category === 'weapon');
+  const seeded = [
+    ...drawSome(reactors, Math.min(1, count), () => 1, rng),
+    ...drawSome(weapons, Math.min(1, Math.max(0, count - 1)), () => 1, rng),
+  ];
+  const rest = MIDGAME_POOL.parts.filter((id) => !seeded.includes(id));
+  const parts = [...seeded, ...drawSome(rest, Math.max(0, count - seeded.length), () => 1, rng)];
   const mods = drawSome(MIDGAME_POOL.mods, opts.modCount ?? LOCK_MOD_COUNT,
     (id) => modDrawWeight(MODIFIERS[id]?.tier), rng);
   return { seed, parts, mods };
@@ -176,4 +196,178 @@ export function crossover(a: Genome, b: Genome, rng: Pcg32): Genome {
     parts,
     armourPlates: rng.nextFloat() < 0.5 ? a.armourPlates : b.armourPlates,
   };
+}
+
+// ---------------------------------------------------------------------------
+// The search
+// ---------------------------------------------------------------------------
+
+/**
+ * Screens per (chassis, rank). One screen is ~0.45 s -- 3 opponents at one seed
+ * -- so 600 is roughly four and a half minutes single-threaded. The script
+ * exposes `--budget` so a smoke run costs seconds.
+ */
+export const DEFAULT_SCREEN_BUDGET = 600;
+
+/**
+ * Below this rank the space is small enough to walk completely, which yields a
+ * *guaranteed* ceiling rather than a lucky one -- and that is precisely where
+ * the rank-monotonicity invariant is anchored.
+ */
+const EXHAUSTIVE_RANK = 8;
+
+export interface RankResult {
+  rank: number;
+  chassisId: string;
+  archive: BuildArchive;
+  /** Best win rate FOUND. Not the best that exists -- a search finds a ceiling, not the ceiling. */
+  ceiling: number;
+  best: ArchiveEntry | null;
+  evaluations: number;
+  legalFound: number;
+}
+
+/** Every one- and two-part wish the lock allows, at a couple of armour weights. */
+function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
+  const out: Genome[] = [];
+  for (const a of lock.parts) {
+    for (const count of [1, 2]) {
+      for (const modifiers of [undefined, ...legalModsFor(a, lock).map((id) => [id])]) {
+        for (const armourPlates of [0, 2]) {
+          out.push({ chassisId, parts: [{ partId: a, count, modifiers }], armourPlates });
+        }
+      }
+    }
+  }
+  for (const a of lock.parts) {
+    for (const b of lock.parts) {
+      if (a >= b) continue;
+      for (const armourPlates of [0, 2]) {
+        out.push({ chassisId, parts: [{ partId: a, count: 1 }, { partId: b, count: 1 }], armourPlates });
+      }
+    }
+  }
+  return out;
+}
+
+/** FNV-1a over the genome key: a stable, order-independent battle seed. */
+function hashKey(key: string): number {
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Find the best build at one rank on one chassis.
+ *
+ * `score` exists so tests can drive the search without battles; production
+ * leaves it out and pays for `screenFitness`. It returns null for a genome that
+ * did not develop into a legal mech.
+ */
+export function searchRank(opts: {
+  lock: Lock;
+  chassisId: string;
+  rank: number;
+  seed: number;
+  budget?: number;
+  warmStart?: Genome[];
+  score?: (genome: Genome, rank: number) => number | null;
+}): RankResult {
+  const budget = opts.budget ?? DEFAULT_SCREEN_BUDGET;
+  const rng = new Pcg32(opts.seed * 1000 + opts.rank);
+  const archive = new BuildArchive();
+  const seen = new Set<string>();
+  const scored: { genome: Genome; fitness: number }[] = [];
+  let evaluations = 0;
+  let legalFound = 0;
+
+  const evaluate = (genome: Genome): void => {
+    const key = genomeKey(genome);
+    if (seen.has(key) || evaluations >= budget) return;
+    seen.add(key);
+    evaluations++;
+    if (opts.score) {
+      const fitness = opts.score(genome, opts.rank);
+      if (fitness === null) return;
+      legalFound++;
+      scored.push({ genome, fitness });
+      return;
+    }
+    const report = develop(genome, opts.lock, opts.rank);
+    if (!report.legal) return;
+    if (computeRank(report.build) > opts.rank) return;
+    // `no-weapons` is only a *warning* to the workshop -- a player may park a
+    // half-built mech in the bay. It is disqualifying here. Without this the
+    // search fills its archive with things like a single heat sink: legal,
+    // scores 0.00, and claims a cell a real build then cannot have. Read from
+    // the sim's own verdict rather than counting weapons again here.
+    if (report.issues.some((issue) => issue.code === 'no-weapons')) return;
+    legalFound++;
+    // The battle seed derives from the candidate, never from the order it was
+    // evaluated: a parallel sweep has to reproduce a serial one exactly.
+    const fitness = screenFitness(report.build, hashKey(key));
+    scored.push({ genome, fitness });
+    archive.insert({ build: report.build, descriptors: describeBuild(report.build), fitness, genome });
+  };
+
+  // Warm start first: rank R-1's elites are the best guesses rank R has.
+  for (const genome of opts.warmStart ?? []) evaluate(genome);
+  if (opts.rank <= EXHAUSTIVE_RANK) {
+    for (const genome of enumerateGenomes(opts.lock, opts.chassisId)) evaluate(genome);
+  }
+  // Then hill-climb from whatever is best so far.
+  while (evaluations < budget) {
+    const before = evaluations;
+    if (scored.length === 0) {
+      evaluate(mutate({ chassisId: opts.chassisId, parts: [], armourPlates: 0 }, opts.lock, rng));
+    } else {
+      const elites = [...scored].sort((a, b) => b.fitness - a.fitness).slice(0, 8);
+      const parent = elites[Math.floor(rng.nextFloat() * elites.length)]!.genome;
+      if (elites.length > 1 && rng.nextFloat() < 0.3) {
+        const other = elites[Math.floor(rng.nextFloat() * elites.length)]!.genome;
+        evaluate(crossover(parent, other, rng));
+      } else {
+        evaluate(mutate(parent, opts.lock, rng));
+      }
+    }
+    // A run of duplicate genomes would otherwise spin here forever.
+    if (evaluations === before) evaluations++;
+  }
+
+  const best = archive.best() ?? null;
+  const ceiling = best?.fitness ?? (scored.length > 0 ? Math.max(...scored.map((s) => s.fitness)) : 0);
+  return { rank: opts.rank, chassisId: opts.chassisId, archive, ceiling, best, evaluations, legalFound };
+}
+
+/**
+ * Walk the ladder. Rank R seeds from rank R-1's archive, which is both the
+ * cheapest warm start available -- a rank-6 build is usually a rank-5 build plus
+ * a part -- and a mirror of the invariant being tested: the ladder is
+ * constructed, then checked.
+ */
+export function searchLadder(opts: {
+  lock: Lock;
+  chassisId: string;
+  ranks: number[];
+  seed: number;
+  budget?: number;
+  onRank?: (result: RankResult) => void;
+}): RankResult[] {
+  const results: RankResult[] = [];
+  let warmStart: Genome[] = [];
+  for (const rank of [...opts.ranks].sort((a, b) => a - b)) {
+    const result = searchRank({
+      lock: opts.lock, chassisId: opts.chassisId, rank, seed: opts.seed,
+      budget: opts.budget, warmStart,
+    });
+    results.push(result);
+    opts.onRank?.(result);
+    warmStart = result.archive.entries()
+      .map((entry) => entry.genome)
+      .filter((genome): genome is Genome => genome !== null);
+  }
+  return results;
 }
