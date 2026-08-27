@@ -5,13 +5,17 @@
  * *class* of strategy dominates regardless of numbers, revisit arena design.
  */
 import { runBattle, type VictoryReason } from './combat.js';
-import { getPart } from './catalog.js';
+import { computeRank } from './rank.js';
 import type { Build } from './types.js';
 import type { TemplateDef } from './templates.js';
 
-/** Tier-point budget of a build (docs/04 §5: enemy strength is Σ part tiers). */
+/**
+ * @deprecated Use `computeRank` (rank.ts). Kept so harness reports keep the
+ * field name they have always had. It now counts mods as well as parts, which
+ * is the whole point -- see rank.ts.
+ */
 export function computeBudget(build: Build): number {
-  return build.parts.reduce((sum, p) => sum + getPart(p.partId).tier, 0);
+  return computeRank(build);
 }
 
 export interface MatchupResult {

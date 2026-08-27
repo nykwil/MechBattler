@@ -8,6 +8,7 @@ import {
   getPart,
   headlineWeapon,
   modifierIdsFor,
+  modDrawWeight,
   pickWeighted,
   uniquesForPart,
   LADDER_TEMPLATES,
@@ -29,9 +30,6 @@ const EPITHETS = ['Rusty', 'Feral', 'Grim', 'Vagrant', 'Ashen', 'Copper', 'Howli
  * a third of its battles, where it scores 0.00, so short range was never a
  * tradeoff — it was strictly worse. 40 m gives a close build a real opening.
  */
-/** Scarcity per tier; see domain.ts. Both move to the sim's rank.ts. */
-const drawWeight = (tier: number | undefined): number => 2 ** (1 - (tier ?? 1));
-
 export const LADDER_SPAWN_DISTANCES_M = [40, 60, 100, 160];
 
 /**
@@ -254,7 +252,7 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): RunOpponent
           .filter((id) => MODIFIERS[id]!.kind === 'mod');
         // Weighted by tier, one float — the same draw cost as the uniform
         // pick it replaced, so nothing downstream in this card reseeds.
-        const modifierId = pickWeighted(pool, (id) => drawWeight(MODIFIERS[id]!.tier), rng)!;
+        const modifierId = pickWeighted(pool, (id) => modDrawWeight(MODIFIERS[id]!.tier), rng)!;
         carrier.modifiers = [...(carrier.modifiers ?? []), modifierId];
         carries = `${MODIFIERS[modifierId]!.name} ${getPart(carrier.partId).name.split(' ')[0]}`;
 
@@ -264,7 +262,7 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): RunOpponent
         const uniqueRng = new Pcg32(cardSeed ^ 0x0117e);
         const candidates = uniquesForPart(carrier.partId);
         if (candidates.length > 0 && uniqueRng.nextFloat() < GAME_CONTENT.run.uniqueChance) {
-          const unique = pickWeighted(candidates, (u) => drawWeight(u.tier), uniqueRng)!;
+          const unique = pickWeighted(candidates, (u) => modDrawWeight(u.tier), uniqueRng)!;
           Object.assign(carrier, applyUnique(carrier, unique));
           carries = unique.name;
         }

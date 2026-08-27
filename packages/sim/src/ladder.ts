@@ -17,6 +17,7 @@ import { checkSpatialPartPlacement, spatialCellKey } from './spatial.js';
 import { applyAutoWire } from './autowire.js';
 import { LADDER_TEMPLATES, type TemplateDef } from './templates.js';
 import { Pcg32 } from './rng.js';
+import { buildPartTier, computeRank } from './rank.js';
 
 export interface GeneratedOpponent {
   build: Build;
@@ -29,12 +30,16 @@ export interface GeneratedOpponent {
   spentTier: number;
 }
 
-/** Tier total of a build, excluding conduits and heat pipes (structure tax). */
+/**
+ * Tier total of a build's METAL, excluding conduits and heat pipes (structure
+ * tax).
+ *
+ * @deprecated Use `buildPartTier` (rank.ts) for the workshop's placement
+ * allowance, or `computeRank` for how much mech a build actually is. This alias
+ * keeps the player-facing gate's call sites unchanged.
+ */
 export function buildTierBudget(build: Build): number {
-  return build.parts.reduce((sum, p) => {
-    const def = getPart(p.partId);
-    return def.isConduit || def.isHeatPipe ? sum : sum + def.tier;
-  }, 0);
+  return buildPartTier(build);
 }
 
 /** The intel headline: the build's highest-tier weapon, if any. */
@@ -98,7 +103,7 @@ export function generateOpponent({
     ? LADDER_TEMPLATES.filter((t) => templateIds.includes(t.id))
     : LADDER_TEMPLATES;
   const frames = allowed.length > 0 ? allowed : LADDER_TEMPLATES;
-  const withBase = frames.map((t) => ({ t, base: buildTierBudget(t.build) }));
+  const withBase = frames.map((t) => ({ t, base: computeRank(t.build) }));
   const eligible = withBase.filter((x) => x.base <= budget);
   let pick: { t: TemplateDef; base: number };
   if (eligible.length === 0) {
