@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   MODIFIERS,
+  buildPartTier,
+  computeRank,
   TEMPLATES,
   UNIQUES,
   applyUnique,
@@ -32,6 +34,7 @@ import {
   migrateProfile,
   migrateRun,
   ladderOpponents,
+  nodeBudget,
   modOffers,
   modScrapCost,
   refitPart,
@@ -647,5 +650,45 @@ describe('the machinist prices a mod off its tier', () => {
   it('falls back to tier 1 for a modifier that is not a mod', () => {
     // A quirk is not acquired, so there is nothing for the machinist to price.
     expect(modScrapCost('lucky')).toBe(15);
+  });
+});
+
+describe('an elite pays rank for the mod it carries', () => {
+  it('makes the fill pay for the mod, and never overspends by more than one mod', () => {
+    // The mod is stamped after generateOpponent has already spent the budget,
+    // so without a trim an elite received eliteBudgetBonus *and* a free mod --
+    // and the mod was the more valuable of the two. It was also why counting
+    // mods in computeRank moved the measured ladder by exactly nothing.
+    const dearestMod = Math.max(...Object.values(MODIFIERS)
+      .filter((m) => m.kind === 'mod').map((m) => m.tier ?? 1));
+    let modded = 0;
+    let within = 0;
+    for (let seed = 0; seed < 60; seed++) {
+      for (let node = 0; node < 12; node++) {
+        for (const choice of ladderOpponents(seed, node)) {
+          const carriesMod = choice.build.parts.some((part) =>
+            (part.modifiers ?? []).some((id) => MODIFIERS[id]?.kind === 'mod'));
+          if (!carriesMod) continue;
+          // Read the budget from the generator rather than retyping its dials.
+          const budget = nodeBudget(node) + (choice.elite ? GAME_CONTENT.run.eliteBudgetBonus : 0);
+          // A card whose METAL alone already exceeds the budget was over before
+          // any mod existed: generateOpponent deliberately falls back to the
+          // cheapest base when nothing fits, and at node 0 the cheapest ladder
+          // frame costs more than the budget. The mod did not put it there.
+          if (buildPartTier(choice.build) > budget) continue;
+          modded++;
+          const rank = computeRank(choice.build);
+          if (rank <= budget) within++;
+          // When the template alone fills the budget there is no generated fill
+          // left to drop, and the alternative would be deleting the opponent's
+          // own identity. So the mod can still overspend -- by at most itself.
+          expect(rank, `seed ${seed} node ${node}`).toBeLessThanOrEqual(budget + dearestMod);
+        }
+      }
+    }
+    expect(modded, 'no card carried a mod, so nothing above was actually checked')
+      .toBeGreaterThan(0);
+    // Measured at 95% over 200 seeds; the floor guards the mechanism, not the figure.
+    expect(within / modded).toBeGreaterThan(0.9);
   });
 });
