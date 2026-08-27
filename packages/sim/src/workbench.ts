@@ -55,6 +55,30 @@ export interface BuildWish {
   fillArmour?: boolean;
   /** Tier-budget ceiling for anything completion adds. Default: uncapped. */
   budget?: number;
+  /**
+   * Restrict completion to this set of part ids. Without it, completion reaches
+   * into the whole catalog for a reactor or a radiator, which would hand every
+   * locked search the same reactor and make the lock meaningless.
+   *
+   * Conduits and heat pipes are exempt -- routing is structure tax laid by
+   * auto-wire, and a lock that happened to omit a conduit would forbid wiring
+   * rather than restrict gear. Omission preserves the whole-catalog behaviour
+   * `sim:try` relies on.
+   */
+  pool?: readonly string[];
+  /**
+   * Exact number of armour plates to fit, instead of filling every spare cell.
+   *
+   * Weight is a real axis of what a build IS, and the automatic fill flattens
+   * it to one value: every build comes back as heavy as its hull allows. A
+   * search that wants light builds to exist has to be able to ask for them.
+   *
+   * Fewer may be fitted than asked for. The brownout trim below still takes
+   * plates back off when their own mass browns the build out, and there may be
+   * no legal cell left -- so this is a request, not a guarantee. `fillArmour`
+   * still governs when this is omitted.
+   */
+  armourPlates?: number;
 }
 
 export interface AssemblyReport {
@@ -105,6 +129,12 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
   // under it, and the build came back with three `route-on-equipment` faults it
   // had given itself.
   const rewire = (b: Build): Build => applyAutoWire(chassis, { ...b, routes: [] }).build;
+  const allowed = wish.pool ? new Set(wish.pool) : undefined;
+  const inPool = (partId: string): boolean => {
+    if (!allowed) return true;
+    const def = getPart(partId);
+    return def.isConduit || def.isHeatPipe || allowed.has(partId);
+  };
   let build = EMPTY(wish.chassisId);
   const unplaced: AssemblyReport['unplaced'] = [];
   const added: AssemblyReport['added'] = [];
@@ -119,7 +149,7 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
   // own carbines.
   const wantsReactor = wish.parts.some((part) => getPart(part.partId).reactor);
   if (wish.complete !== false && !wantsReactor) {
-    const smallest = REACTORS()[0];
+    const smallest = REACTORS().filter(inPool)[0];
     if (smallest && withinBudget(build, smallest, wish.budget)) {
       const seeded = placeParts(build, smallest, 1, { prefix: 'wb' });
       if (seeded.placed > 0) {
@@ -167,10 +197,15 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
       // A deficit names its own size; an unpowered build has not measured one
       // yet, so start at the smallest and let the next pass read the margin.
       const need = Math.max(0, -margin.marginKw);
-      const options = REACTORS();
+      const options = REACTORS().filter(inPool);
       const pick = options.find((id) => PARTS[id]!.reactor!.outputKw >= need) ?? options[options.length - 1];
-      if (!pick) break;
       const shortfall = unpowered && margin.marginKw >= 0 ? 'something had no power path' : `energy margin ${margin.marginKw.toFixed(1)} kW`;
+      if (!pick) {
+        // A lock with no reactor in it is a finding about the lock, not an
+        // excuse to reach past it into the catalog.
+        blocked.push({ partId: '(reactor)', why: `${shortfall}, but the lock has no reactor in it` });
+        break;
+      }
       if (!withinBudget(build, pick, wish.budget)) {
         blocked.push({ partId: pick, why: `${shortfall}, but the budget is spent` });
         break;
@@ -192,6 +227,10 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
     for (let guard = 0; guard < 8; guard++) {
       const heat = computeHeatBalance(chassis, build);
       if (heat.marginKw >= 0) break;
+      if (!inPool('U-RAD')) {
+        blocked.push({ partId: 'U-RAD', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the lock has no radiator in it` });
+        break;
+      }
       if (!withinBudget(build, 'U-RAD', wish.budget)) {
         blocked.push({ partId: 'U-RAD', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the budget is spent` });
         break;
@@ -205,12 +244,16 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
       added.push({ partId: 'U-RAD', count: 1, why: `heat balance was ${heat.marginKw.toFixed(1)} kW` });
     }
 
-    if (wish.fillArmour !== false) {
+    const wantPlates = wish.armourPlates;
+    const armourAllowed = inPool('U-ARM') && wantPlates !== 0
+      && (wantPlates !== undefined || wish.fillArmour !== false);
+    if (armourAllowed) {
       // Strip routing before the fill so plates compete for cells with parts,
       // not with wires that are about to be redrawn anyway.
       build = { ...build, routes: [] };
       const plateIds: string[] = [];
-      while (withinBudget(build, 'U-ARM', wish.budget)) {
+      while ((wantPlates === undefined || plateIds.length < wantPlates)
+        && withinBudget(build, 'U-ARM', wish.budget)) {
         const result = placeParts(build, 'U-ARM', 1, { prefix: 'wb', frontFirst: true });
         if (result.placed === 0) break;
         build = result.build;

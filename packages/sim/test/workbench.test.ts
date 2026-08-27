@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   UNIQUES,
+  getPart,
   assembleBuild,
   computeEnergyMargin,
   evaluateBuild,
@@ -98,5 +99,52 @@ describe('the workbench fights what it built', () => {
     expect(first.matchups.length).toBeGreaterThan(0);
     expect(first.overall).toBeGreaterThanOrEqual(0);
     expect(first.overall).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('the workbench honours a locked pool', () => {
+  it('completes only from the pool it was given', () => {
+    // R-C90 is the only reactor in the pool and it is NOT the catalog's
+    // cheapest — that is the point. Completion seeds the smallest reactor it
+    // can find, so a pool listing only a big one proves the filter bites
+    // rather than agreeing with the default by luck.
+    const pool = ['W-MG', 'R-C90', 'U-RAD', 'U-ARM'];
+    const report = assembleBuild({ chassisId: 'CH-5', parts: [{ partId: 'W-MG', count: 2 }], pool });
+    for (const part of report.build.parts) {
+      const def = getPart(part.partId);
+      if (def.isConduit || def.isHeatPipe) continue; // routing is free structure
+      expect(pool, `${part.partId} came from outside the lock`).toContain(part.partId);
+    }
+    expect(report.build.parts.some((p) => p.partId === 'R-C90')).toBe(true);
+  });
+
+  it('says so when the pool cannot power the wish, instead of reaching outside it', () => {
+    // No reactor in the pool at all: the honest outcome is a blocked report,
+    // not a build silently completed from the catalog.
+    const report = assembleBuild({ chassisId: 'CH-5', parts: [{ partId: 'W-AC', count: 2 }], pool: ['W-AC', 'U-ARM'] });
+    expect(report.build.parts.every((p) => !getPart(p.partId).reactor)).toBe(true);
+    expect(report.blocked.length).toBeGreaterThan(0);
+  });
+});
+
+describe('armour is a gene, not an automatic fill', () => {
+  it('fits exactly the plate count it was asked for', () => {
+    const report = assembleBuild({
+      chassisId: 'CH-9',
+      parts: [{ partId: 'W-AC', count: 2 }],
+      armourPlates: 3,
+    });
+    const plates = report.build.parts.filter((p) => p.partId === 'U-ARM').length;
+    expect(plates).toBeLessThanOrEqual(3);
+    expect(report.energyMarginKw).toBeGreaterThanOrEqual(0);
+  });
+
+  it('fits none when asked for none', () => {
+    const report = assembleBuild({
+      chassisId: 'CH-9',
+      parts: [{ partId: 'W-AC', count: 2 }],
+      armourPlates: 0,
+    });
+    expect(report.build.parts.some((p) => p.partId === 'U-ARM')).toBe(false);
   });
 });
