@@ -42,6 +42,20 @@ export function buildTierBudget(build: Build): number {
   return buildPartTier(build);
 }
 
+/**
+ * Spawn separations the ladder draws from.
+ *
+ * Engagement range is the card fact that makes a range band a choice rather
+ * than a tax. Sampling only 60/100/160 meant a 75 m brawler fought at 160 m in
+ * a third of its battles, where it scores 0.00, so short range was never a
+ * tradeoff -- it was strictly worse. 40 m gives a close build a real opening.
+ *
+ * Sim-side because the invariant sweep measures across all of them and the sim
+ * may not import the game package. `packages/game` re-exports it, so no game or
+ * web call site changed when it moved.
+ */
+export const LADDER_SPAWN_DISTANCES_M = [40, 60, 100, 160];
+
 /** The intel headline: the build's highest-tier weapon, if any. */
 export function headlineWeapon(build: Build): { partId: string; name: string } | null {
   let best: { partId: string; name: string; tier: number } | null = null;

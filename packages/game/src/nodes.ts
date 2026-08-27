@@ -8,6 +8,7 @@ import {
   getPart,
   headlineWeapon,
   modifierIdsFor,
+  LADDER_SPAWN_DISTANCES_M,
   modDrawWeight,
   pickWeighted,
   uniquesForPart,
@@ -24,13 +25,10 @@ import type {
 export const ELITE_PURSE_MULT = GAME_CONTENT.economy.elitePurseMultiplier;
 
 const EPITHETS = ['Rusty', 'Feral', 'Grim', 'Vagrant', 'Ashen', 'Copper', 'Howling', 'Pale'];
-/**
- * Engagement range is the card fact that makes a range band a choice rather
- * than a tax. Sampling only 60/100/160 meant a 75 m brawler fought at 160 m in
- * a third of its battles, where it scores 0.00, so short range was never a
- * tradeoff — it was strictly worse. 40 m gives a close build a real opening.
- */
-export const LADDER_SPAWN_DISTANCES_M = [40, 60, 100, 160];
+// LADDER_SPAWN_DISTANCES_M lives in the sim now (the invariant sweep measures
+// across it and the sim may not import this package); re-exported so no call
+// site here or in the web app had to change.
+export { LADDER_SPAWN_DISTANCES_M };
 
 /**
  * Threat is the only strength signal on an opponent card, so it has to track the
