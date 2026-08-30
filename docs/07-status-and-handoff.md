@@ -43,6 +43,7 @@ pause and manual four-verb control over the autopilot.
 | `17-balance-findings.md` | Hand-written record of balance *causes*. Read F1 before touching a weapon curve. |
 | `18-lore-and-world.md` | Lore and world foundation. |
 | `19-watchlist.md` | Judgements we are deliberately keeping an eye on. Read before a balance pass or before touching placement. |
+| `superpowers/specs/2026-08-26-rank-and-breeding-design.md` | Why rank is Σ tiers, what the three invariants claim, and what the breeding search is and is not. Authoritative on **rank**; `packages/sim/src/rank.ts` is authoritative on the arithmetic. |
 | `archive/` | Finished plans and historical records. Numbering is never reused. |
 
 ## 3. Direction decisions that still stand
@@ -229,6 +230,8 @@ npm run verify             # tests, builds, audits, and the report-only balance 
 | `npm run sim:balance` / `sim:adapt` / `sim:diversity` / `sim:hitrate` | Roster round-robin, fitting-only adaptation search, build-diversity stress, hit-rate calibration. Report-only. |
 | `npm run balance:collect` then `balance:report` | Artifacts, then the diff against the baseline |
 | `npm run sim:try -- <chassis> <parts>` | Assemble a mech from a wish and fight it — the content-trial loop (see `CLAUDE.md`) |
+| `npm run sim:breed` | Breed the best mech at each rank on each chassis and check the three content invariants. Report-only. |
+| `npm run sim:compare -- <A> -- <B>` | Two builds side by side on four descriptors, with a distance number |
 | `npm run web:shot` / `web:audit` / `web:campaign` | Drive a screen, audit seven screens, drive a whole campaign node |
 
 Balance harnesses do not fail a build. `game:audit` does.

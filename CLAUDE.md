@@ -180,6 +180,47 @@ instruments that decide whether anything moved.
 scripted sweeps — one wish per variation, in a loop, is the fast way to answer
 "which chassis wants this part?".
 
+## Asking what the gear can do
+
+`npm run sim:breed` breeds the best mech at each rank on each chassis, from a
+random slice of the catalog, and checks three things: a higher-rank mech should
+beat a lower-rank one, chassis should be about equal at the same rank, and no
+gear should be dead. `npm run sim:compare` puts two builds side by side on
+range, weight, heat and kill method, with one distance number.
+
+```bash
+npm run sim:breed -- --locks 1 --budget 40 --ranks 8,12 --chassis CH-5   # smoke, ~30s
+npm run sim:breed -- --locks 4 --budget 200 --workers 6 --json artifacts/breed-report.json
+npm run sim:compare -- CH-5 W-AC:2 -- CH-9 W-BR:2 --fight
+```
+
+**Rank** is `Σ part tiers + Σ mod tiers`, excluding conduits and heat pipes
+(`computeRank`, `packages/sim/src/rank.ts`). `ModifierDef.tier` is the only
+number authored on a mod: draw weight is `2^(1−tier)` and the machinist charges
+`tier × machinistTierCost`. `buildPartTier` is the *other* one — metal only —
+and it is what the workshop's start-budget gate spends, deliberately, so that
+fitting a mod never starts refusing placements.
+
+Every ceiling it prints is the **best found**, not the best that exists. A
+failing invariant is evidence; a passing one is only an absence of it. Read the
+failures first.
+
+The reference panel is built from the catalog you are editing, which is circular
+and cannot be fixed, only stamped: every report records `simContentHash()`.
+Comparing two reports with different hashes is indicative, not a measurement.
+
+Both mechs are flown by the same autopilot, so it measures correct *building*,
+never correct *piloting*.
+
+`--seed`, `--budget` and `--workers` together identify an experiment. Each fixed
+set reproduces exactly; changing any of them searches differently — including
+`--workers`, because proposing a generation before scoring it explores wider
+than updating elites after every candidate. Scoring itself never moves.
+
+Workers run the compiled `dist`, because tsx's loader does not reach inside a
+worker thread. A sweep refuses to start if any source file is newer than the
+build; `npm run sim:build` or `--workers 1` fixes it.
+
 ## Balance is its own pass, and it does not gate feature work
 
 None of the balance harnesses fail a build. `sim:balance`, `sim:diversity`,

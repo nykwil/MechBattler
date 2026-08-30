@@ -88,6 +88,52 @@ take a second mod (the one-mod-per-part rule already refuses), so this is fine
 today. It is listed because the interaction was reasoned about rather than
 tested, and because a future mod-removal or reroll service would break it.
 
+## Rank and the breeding tool (added 27 Aug 2026)
+
+**Tier now does three jobs on a mod.** `ModifierDef.tier` replaced `rarity` and
+`scrapCost`: it sets draw weight (`2^(1−tier)`), the machinist's price
+(`tier × 15`), *and* how much rank the mod costs. The consequence is that "rare
+but weak" and "common but strong" stopped being expressible — making a mod
+scarcer necessarily makes it dearer in both scrap and rank. Parts already live
+with exactly this coupling and it was accepted knowingly. Watch for the first
+mod that genuinely wants to be common and strong; that is the signal to split
+them again.
+
+**A unique's variant roll and quirks are free rank.** `computeRank` prices a
+unique at its underlying mod's tier, because that is what the rank formula says.
+But a unique is *also* an extreme variant roll plus quirks, and none of that
+costs anything. If uniques start dominating archive elites at their nominal
+rank, this is why.
+
+**The elite mod trim cannot always succeed.** An elite's mod is stamped after
+the budget is spent, so generated fill is dropped to pay for it. When the
+template alone fills the budget there is no fill left, and the alternative would
+be deleting the opponent's own identity. Measured over 200 seeds: 95% of modded
+cards land inside budget, 5% overspend by at most one mod's tier. Fine for now;
+revisit if the ladder ever needs opponents to be exactly on budget.
+
+**Every threshold in `invariants.ts` is provisional.** I1 at 0.75/0.60, I2 at 8
+points, the k-measurement at 0.5, and the descriptor bucket edges (range 45/100
+m, weight 0.5/0.8 of rated mass). They were written down so the first sweep had
+something to disagree with, not because they were measured.
+
+**The bucket edges look mis-set already.** Across the whole canonical roster
+nothing is `heavy` (the largest load factor is 0.74 against a 0.8 threshold) and
+nothing is `long`-ranged, and six of seven are `redliner`s. So three of the
+archive's eighteen cells may be unreachable by construction rather than because
+no such build exists. Check this against a wide sweep before moving the edges —
+it may equally be a fact about the catalog, which would be the more interesting
+answer.
+
+**The screen saturates, and the tie-break is a patch over that.** A rank-6 build
+beats all three screen-panel opponents 3/3, and so does a rank-20 one. A
+decisiveness term (hull left, time taken, weighted 0.05) gives the search a
+gradient, but the underlying fact stands: the canonical roster is not a hard
+enough yardstick for a well-built mech at any rank above about 6. Related to
+F2's inverted budget/win-rate correlation — `bastion-tank` is rank 25 and loses
+to rank-6 builds. A harder panel would be a real improvement and is not one to
+make casually, because the panel is also what makes reports comparable.
+
 ## Ammo stays a placeholder — on purpose (25 Aug 2026)
 
 **No decision is being taken on ammunition for now.** `U-AMMO` remains in the

@@ -9,7 +9,8 @@
  * default budget is 600 screens per chassis and rank, so a full sweep is
  * minutes-to-an-hour. Start with `--budget 40` to prove the wiring, then spend.
  */
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { cpus } from 'node:os';
 import {
   ALL_CELL_KEYS, CHASSIS, checkChassisParity, checkCoverage, checkRankMonotonicity,
@@ -117,7 +118,20 @@ const report = {
   coverage: [...i3.usage].sort((a, b) => b[1] - a[1]),
 };
 
-if (value('--json')) writeFileSync(value('--json')!, JSON.stringify(report, null, 2));
+// Written FIRST, and to a path resolved against the repo root rather than the
+// npm workspace's own cwd. A sweep is minutes to hours of battles, and the
+// first real run of it did all of that work and then died on
+// ENOENT writing `artifacts/` -- which resolves inside packages/sim when npm
+// runs the script there. Losing an hour to a missing directory is not a thing
+// that should be able to happen twice.
+const jsonPath = value('--json');
+if (jsonPath) {
+  const target = resolve(process.env.INIT_CWD ?? process.cwd(), jsonPath);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, JSON.stringify(report, null, 2));
+  process.stderr.write(`wrote ${target}\n`);
+}
+
 
 const pct = (x: number) => `${(x * 100).toFixed(0)}%`;
 console.log(`\nsim:breed — ${locks} lock(s), ${chassisIds.join('/')}, ranks ${ranks.join(',')}, budget ${budget}, ${workers} worker(s)`);
