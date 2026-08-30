@@ -30,6 +30,12 @@ whether the flank exposure that buys is what is moving the numbers.
 on `mule-fever-cycle`, and `gyrostabilized` reading as a dead perk. Both predate
 the height work.
 
+**Rank peaks at 10 and declines after it** — measured 29 Aug 2026 by the first
+`sim:breed` sweep, on all three chassis, and recorded as **F6** in
+`docs/17-balance-findings.md`. It corroborates F2 by a completely different
+method. Do not tune `ladderBudgetPerNode` from the k = 4 figure until the curve
+stops declining: the number describes the peak as much as the player.
+
 **The ladder's difficulty curve is a cliff, not a ramp** (measured 25 Aug 2026,
 `game:balance -- 4`, post component height). Round 1 wins **0.897**, round 4
 **0.238**, round 7 **0.000**, and no run reached round 10 or 12. Nothing was tuned
