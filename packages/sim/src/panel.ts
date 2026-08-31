@@ -98,11 +98,24 @@ export function screenFitness(build: Build, seed: number): number {
  * is the sample every reported ceiling rests on, and `confirmNoiseBand` says
  * what that sample can and cannot resolve.
  *
- * 3 was the first value and it was chosen for speed. It swung a fixed build's
- * measured win rate by up to 24 points, which was wide enough to manufacture a
- * finding out of nothing (see docs/17 F6).
+ * Calibrated, not guessed. One fixed build, measured at six seeds, at each
+ * sample size:
+ *
+ *   seeds   spread   sd    battles/elite
+ *       3   24 pts   9.3             21     <- the value that produced F6
+ *       8   20 pts   6.4             56
+ *      16   13 pts   4.2            112
+ *      24    8 pts   3.0            168
+ *      40    6 pts   2.0            280
+ *
+ * 40 is the default: it is the first size whose band (6 points) is clear of the
+ * 8-point spread `I2_MAX_SPREAD` is asked to police, and it costs about a
+ * minute per elite. **A definitive I2 verdict wants more still** -- resolving 8
+ * points with room to spare needs a band near 4, which is ~90 seeds and ~2
+ * minutes an elite. Pass `--confirm-seeds 90` when the answer has to be
+ * defensible rather than indicative.
  */
-export const CONFIRM_SEEDS = 20;
+export const CONFIRM_SEEDS = 40;
 
 /**
  * Half-width of the 95% interval on a confirmed win rate, in win-rate units.
@@ -114,6 +127,10 @@ export const CONFIRM_SEEDS = 20;
  *
  * This exists so the report can print it. A table of percentages with no error
  * term is what let a 5-point difference be written up as a trend.
+ *
+ * Checked against measurement rather than trusted: predicted 22 / 13 / 9.5 /
+ * 7.7 / 6.0 points at 3 / 8 / 16 / 24 / 40 seeds, observed 24 / 20 / 13 / 8 / 6.
+ * Conservative at the small end, which is the right direction for a guard.
  */
 export function confirmNoiseBand(seeds = CONFIRM_SEEDS): number {
   return 2 * (0.5 / Math.sqrt(FULL_PANEL_IDS.length * Math.max(1, seeds)));

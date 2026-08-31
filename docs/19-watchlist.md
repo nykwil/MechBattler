@@ -118,6 +118,13 @@ be deleting the opponent's own identity. Measured over 200 seeds: 95% of modded
 cards land inside budget, 5% overspend by at most one mod's tier. Fine for now;
 revisit if the ladder ever needs opponents to be exactly on budget.
 
+**The noise band and `I2_MAX_SPREAD` are uncomfortably close.** At the default
+40 confirm seeds the band is 6 points and I2 polices an 8-point spread, so I2 can
+only just tell a real failure from sampling. A defensible I2 verdict needs
+`--confirm-seeds 90` (band 4 points, ~2 min an elite). Watch for anyone quoting
+a marginal I2 result from a default run — the report labels within-band
+comparisons, but a 9-point spread at a 6-point band is still thin.
+
 **Every threshold in `invariants.ts` is provisional.** I1 at 0.75/0.60, I2 at 8
 points, the k-measurement at 0.5, and the descriptor bucket edges (range 45/100
 m, weight 0.5/0.8 of rated mass). They were written down so the first sweep had
@@ -130,6 +137,12 @@ archive's eighteen cells may be unreachable by construction rather than because
 no such build exists. Check this against a wide sweep before moving the edges —
 it may equally be a fact about the catalog, which would be the more interesting
 answer.
+
+**A finding was once manufactured out of the confirm pass's own seeding**
+(docs/17 F6, retracted 31 Aug 2026). The lesson kept rather than the fact: the
+instrument's precision has to be measured before its readings are quoted, and
+"the same input twice" is the cheapest check there is. The report now prints its
+noise band above every table for exactly this reason.
 
 **The screen saturates, and the tie-break is a patch over that.** A rank-6 build
 beats all three screen-panel opponents 3/3, and so does a rank-20 one. A
