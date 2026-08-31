@@ -236,6 +236,59 @@ reference stated with a table and three decimal places of confidence. The
 instrument's own precision has to be measured before its readings are quoted —
 and "the same input twice" is the cheapest check that exists.
 
+## F7 — Rank works. Chassis parity does not, and the Mule is the outlier
+
+**Status:** open. Measured 31 Aug 2026 by `sim:breed`, 2 locks x 3 chassis x
+ranks 8/12/16/20, budget 120, 40 confirm seeds, **noise band +/-6 points**,
+content hash `ee3d4f83`. This is the run that replaces the retracted F6, on a
+fixed instrument.
+
+**Rank buys strength, then saturates. It does not invert.** Best win rate found:
+
+| Chassis | rank 8 | 12 | 16 | 20 |
+|---|---|---|---|---|
+| CH-2 | 55% | 83% | 83% | 83% |
+| CH-5 | 84% | 90% | 97% | 97% |
+| CH-9 | 19% | 64% | 64% | 70% |
+
+Every rise is far outside the band; every plateau is flat within it. **There is
+no declining curve** — that was F6's artefact. The question `docs/19` asked of
+Sigma-tiers is answered for now: rank means something.
+
+**I1: 17/21, with 9 pairs excluded as mirror matches.** All four real failures
+are on CH-5, which is also the chassis that saturates highest — a frame that is
+already at 97% has no room left to demonstrate monotonicity, so these are
+close to a ceiling effect.
+
+**I2: 0/8, and this is the finding.** CH-5 is **65-70 points** ahead of CH-2 at
+every rank, and 56-61 ahead of CH-9. That is ten times the noise band, and it
+held under every rank tested. The ordering is **CH-5 >> CH-2 > CH-9**: the Mule
+dominates, and the *largest* frame is the worst.
+
+Charging the frame for its capacity (`chassisTier` 1/2/4, 31 Aug) did not fix
+this and made CH-9 worse at low rank — a "rank 8 Bastion" is 4 tiers of parts in
+a 56-cell hull, and it measures 19%. Capacity is evidently not what the Mule is
+winning on.
+
+**The hypothesis worth testing first is that this measures the pilot, not the
+chassis.** The autopilot generates evasion by orbiting at `strafe` speed, and
+strafe is 6.0 / 4.0 / 1.5 m/s across CH-2 / CH-5 / CH-9. The Bastion physically
+cannot produce lead error, so it is hit by everything. That is `F3` — the
+narrow movement repertoire — showing up as a chassis-balance result. If it is
+the cause, I2 is currently unmeasurable rather than failing, because the sweep
+is explicitly a test of correct *building* and this would be a fact about
+*flying*.
+
+**I3:** of 19 offered ids, `W-RG` was never wanted by any elite — the tier-4
+railgun, the dearest weapon in the game — nor were `tidecooler`, `coil-sprung`
+or `gyro-flywheel`. **No long-ranged build appeared anywhere**, on any chassis
+at any rank, which is the same fact from the other side.
+
+**k = 4** on all three chassis: a best-built rank-8 mech falls to a coin flip
+against a best-built rank-12 one. Usable for `ladderBudgetPerNode` now that the
+curve it sits on is sound, with the standing caveat that both sides are flown by
+the same autopilot.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
