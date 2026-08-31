@@ -15,6 +15,7 @@ import type { BuildArchive } from './archive.js';
 import { PARTS } from './catalog.js';
 import { MODIFIERS } from './modifiers.js';
 import { LADDER_SPAWN_DISTANCES_M } from './ladder.js';
+import { buildIdentity } from './panel.js';
 import { runBattle } from './combat.js';
 
 /**
@@ -65,11 +66,24 @@ export interface I1Finding {
   winRate: number;
   threshold: number;
   pass: boolean;
+  /**
+   * The two ranks produced the SAME mech, so this was a mirror match and the
+   * 50% it returned says nothing about monotonicity. Not a failure -- it means
+   * the extra rank bought nothing the search could find, which is a statement
+   * about saturation and is reported as one.
+   */
+  mirror: boolean;
 }
 
 /**
  * I1: the best build at rank R+2 should beat the best at rank R at least 75% of
  * the time, and at R+1 at least 60%.
+ *
+ * A pair whose two elites are the SAME mech is a mirror match: it returns 50%
+ * whatever the content does, and it is reported as `mirror` rather than
+ * counted as a failure. That case is real information -- the higher rank bought
+ * nothing the search could find -- but it belongs to saturation, not to
+ * monotonicity.
  *
  * `gap` counts positions in the rank list, not rank points -- a sweep over
  * 6,8,10 has a "+1" of two rank points. The report prints both ranks so the
@@ -84,10 +98,16 @@ export function checkRankMonotonicity(results: RankResult[], seeds = 4): I1Findi
       const high = sorted[i + gap];
       if (!low?.best || !high?.best) continue;
       const threshold = gap === 2 ? I1_THRESHOLD_PLUS2 : I1_THRESHOLD_PLUS1;
-      const winRate = bestVsBest(high.best.build, low.best.build, seeds);
+      // A mirror match returns exactly 50% by construction, and both thresholds
+      // sit above 50%, so without this check every saturated rank pair counted
+      // as a monotonicity failure. In the first corrected sweep that was 10 of
+      // 30 pairs and 10 of 13 reported failures -- the invariant was mostly
+      // measuring its own inability to find a better build.
+      const mirror = buildIdentity(high.best.build) === buildIdentity(low.best.build);
+      const winRate = mirror ? 0.5 : bestVsBest(high.best.build, low.best.build, seeds);
       findings.push({
         chassisId: high.chassisId, lowRank: low.rank, highRank: high.rank,
-        gap, winRate, threshold, pass: winRate >= threshold,
+        gap, winRate, threshold, mirror, pass: mirror || winRate >= threshold,
       });
     }
   }

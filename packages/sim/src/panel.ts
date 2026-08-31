@@ -137,6 +137,18 @@ export function confirmNoiseBand(seeds = CONFIRM_SEEDS): number {
 }
 
 /**
+ * What a build IS, as a string: chassis, parts, mods and variant rolls, order
+ * independent. Two mechs with the same identity are the same mech, whatever
+ * instance ids or cells they happen to occupy.
+ */
+export function buildIdentity(build: Build): string {
+  return build.chassisId + '|' + build.parts
+    .map((p) => `${p.partId}:${[...(p.modifiers ?? [])].sort().join('+')}:${JSON.stringify(p.variant ?? null)}`)
+    .sort()
+    .join(',');
+}
+
+/**
  * A build's own identity, as a number. Two identical builds must measure
  * identically wherever they appear, and the ONLY way to guarantee that is to
  * derive their battle seeds from what they are rather than from where they were
@@ -149,10 +161,7 @@ export function confirmNoiseBand(seeds = CONFIRM_SEEDS): number {
  * seeds.
  */
 function buildSeed(build: Build): number {
-  const key = build.chassisId + '|' + build.parts
-    .map((p) => `${p.partId}:${[...(p.modifiers ?? [])].sort().join('+')}:${JSON.stringify(p.variant ?? null)}`)
-    .sort()
-    .join(',');
+  const key = buildIdentity(build);
   let hash = 2166136261;
   for (let i = 0; i < key.length; i++) {
     hash ^= key.charCodeAt(i);

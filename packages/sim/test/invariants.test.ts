@@ -28,11 +28,18 @@ describe('I1 — a higher rank should beat a lower one', () => {
 
   it('holds a +2 pair to the higher threshold than a +1 pair', () => {
     expect(I1_THRESHOLD_PLUS2).toBeGreaterThan(I1_THRESHOLD_PLUS1);
-    const findings = checkRankMonotonicity([fake('CH-5', 8, 0.4), fake('CH-5', 9, 0.5), fake('CH-5', 10, 0.6)], 1);
+    // Distinct builds at each rank, or every pair is a mirror match and the
+    // thresholds are never exercised.
+    const findings = checkRankMonotonicity([
+      fake('CH-5', 8, 0.4, buildOf('CH-2', 'W-MG', 1)),
+      fake('CH-5', 9, 0.5, buildOf('CH-5', 'W-MG', 2)),
+      fake('CH-5', 10, 0.6, buildOf('CH-9', 'W-AC', 2)),
+    ], 1);
     const plus2 = findings.find((f) => f.gap === 2);
     const plus1 = findings.find((f) => f.gap === 1);
     expect(plus2?.threshold).toBe(I1_THRESHOLD_PLUS2);
     expect(plus1?.threshold).toBe(I1_THRESHOLD_PLUS1);
+    expect(plus2?.mirror).toBe(false);
     expect(plus2?.pass).toBe(plus2!.winRate >= I1_THRESHOLD_PLUS2);
   }, 300_000);
 });
@@ -114,5 +121,34 @@ describe('the headline: how many ranks of enemy correct building is worth', () =
     const measured = ranksOfCorrectBuilding(results, 10, 1);
     expect(measured.ladder.length).toBeGreaterThan(0);
     expect(measured.k === null || measured.k >= 1).toBe(true);
+  }, 300_000);
+});
+
+describe('a rank pair that found the same mech twice is not a failure', () => {
+  it('marks it a mirror match instead of counting it against I1', () => {
+    // A mirror match returns exactly 50% by construction, and both I1
+    // thresholds sit above 50% — so without this every saturated rank pair
+    // counted as a monotonicity failure. In the first corrected sweep that was
+    // 10 of 30 pairs and 10 of the 13 reported failures: the invariant was
+    // mostly measuring the search's own inability to find anything better.
+    const same = buildOf('CH-5', 'W-AC', 2);
+    const findings = checkRankMonotonicity([
+      { ...fake('CH-5', 8, 0.8, same) },
+      { ...fake('CH-5', 12, 0.8, same) },
+    ], 1);
+    expect(findings).toHaveLength(1);
+    expect(findings[0]!.mirror).toBe(true);
+    expect(findings[0]!.pass).toBe(true);
+    expect(findings[0]!.winRate).toBe(0.5);
+  });
+
+  it('still judges two genuinely different builds', () => {
+    const weak = buildOf('CH-2', 'W-MG', 1);
+    const strong = buildOf('CH-5', 'W-AC', 2);
+    const findings = checkRankMonotonicity([
+      { ...fake('CH-5', 8, 0.3, weak) },
+      { ...fake('CH-5', 12, 0.9, strong) },
+    ], 1);
+    expect(findings[0]!.mirror).toBe(false);
   }, 300_000);
 });

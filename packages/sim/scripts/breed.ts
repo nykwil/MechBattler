@@ -152,7 +152,10 @@ console.log('>> (docs/17 F6). Raise --confirm-seeds to narrow the band.\n');
 
 console.log('1. INVARIANTS');
 const i1Fail = i1.filter((f) => !f.pass);
-console.log(`  I1 rank monotonicity   ${i1.length - i1Fail.length}/${i1.length} pass`);
+const i1Mirror = i1.filter((f) => f.mirror);
+const i1Real = i1.length - i1Mirror.length;
+console.log(`  I1 rank monotonicity   ${i1Real - i1Fail.length}/${i1Real} pass`
+  + (i1Mirror.length > 0 ? `  (${i1Mirror.length} pair(s) excluded: same mech at both ranks)` : ''));
 for (const f of i1Fail.slice(0, 12)) {
   console.log(`     FAIL ${f.chassisId} rank ${f.highRank} beats rank ${f.lowRank} only ${pct(f.winRate)} (wanted ${pct(f.threshold)})`);
 }
@@ -169,6 +172,13 @@ if (i3.deadMods.length) console.log(`     offered but never wanted — mods:  ${
 if (i3.neverOffered.length) {
   console.log(`     never offered by any lock (a gap in this sweep, not in the gear): ${i3.neverOffered.length} ids`);
   console.log('     widen it with more --locks before reading anything into their absence.');
+}
+
+if (i1Mirror.length > 0) {
+  console.log('     Saturated pairs — the higher rank found nothing better than the lower:');
+  for (const f of i1Mirror.slice(0, 8)) {
+    console.log(`       ${f.chassisId} rank ${f.lowRank} and ${f.highRank}: the same mech`);
+  }
 }
 
 console.log('\n2. SATURATION — where a chassis stops being able to spend');
