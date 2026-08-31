@@ -14,7 +14,8 @@ import { dirname, resolve } from 'node:path';
 import { cpus } from 'node:os';
 import {
   ALL_CELL_KEYS, CHASSIS, checkChassisParity, checkCoverage, checkRankMonotonicity,
-  confirmFitness, drawLock, panelStamp, ranksOfCorrectBuilding, saturationRank,
+  CONFIRM_SEEDS, confirmFitness, confirmNoiseBand, drawLock, panelStamp,
+  ranksOfCorrectBuilding, saturationRank,
   type RankResult,
 } from '../src/index.js';
 import { searchLadderParallel } from '../src/breedParallel.js';
@@ -33,7 +34,9 @@ Options:
   --ranks <a,b,c>      ranks to breed at (default 6,8,10,12,14,16,18,20)
   --chassis <ids>      comma-separated (default every chassis)
   --budget <n>         screens per chassis/rank (default 600)
-  --confirm-seeds <n>  seeds when re-fighting an elite on the full panel (default 6)
+  --confirm-seeds <n>  battles per opponent when confirming an elite (default 20).
+                       Fewer widens the noise band the report prints; 3 cannot
+                       resolve a 5-point difference at all.
   --workers <n>        worker threads for screening (default: cores - 1; 1 = serial)
   --json <path>        write the machine-readable report
 `);
@@ -45,10 +48,11 @@ const baseSeed = num('--seed', 1);
 const ranks = (value('--ranks') ?? '6,8,10,12,14,16,18,20').split(',').map(Number);
 const chassisIds = (value('--chassis') ?? Object.keys(CHASSIS).join(',')).split(',');
 const budget = num('--budget', 600);
-const confirmSeeds = num('--confirm-seeds', 6);
+const confirmSeeds = num('--confirm-seeds', CONFIRM_SEEDS);
 const workers = num('--workers', Math.max(1, cpus().length - 1));
 
 const stamp = panelStamp();
+const band = confirmNoiseBand(confirmSeeds);
 const started = Date.now();
 const perLock: { lock: ReturnType<typeof drawLock>; byChassis: Map<string, RankResult[]> }[] = [];
 
@@ -73,7 +77,7 @@ for (const { byChassis } of perLock) {
   for (const results of byChassis.values()) {
     for (const result of results) {
       if (!result.best) continue;
-      result.ceiling = confirmFitness(result.best.build, result.rank, confirmSeeds).overall;
+      result.ceiling = confirmFitness(result.best.build, confirmSeeds).overall;
       result.best.fitness = result.ceiling;
     }
   }
@@ -108,6 +112,7 @@ const gallery = perLock.flatMap((p, l) => [...p.byChassis].flatMap(([chassisId, 
 const report = {
   stamp,
   parameters: { locks, baseSeed, ranks, chassisIds, budget, confirmSeeds, workers },
+  noiseBand: band,
   elapsedS: (Date.now() - started) / 1000,
   invariants: { i1, i2, i3: { deadParts: i3.deadParts, deadMods: i3.deadMods, neverOffered: i3.neverOffered } },
   saturation,
@@ -139,7 +144,11 @@ console.log(`content hash ${stamp.contentHash} — results are comparable only w
 console.log('Every ceiling below is the BEST FOUND, not the best that exists. A failing invariant is');
 console.log('real evidence; a passing one is only an absence of counter-evidence. Read the failures first.');
 console.log(`Seed ${baseSeed}, budget ${budget} and ${workers} worker(s) together identify this experiment: any`);
-console.log('fixed set of the three reproduces exactly, and changing any of them searches differently.\n');
+console.log('fixed set of the three reproduces exactly, and changing any of them searches differently.');
+console.log(`\n>> NOISE BAND +/-${(band * 100).toFixed(0)} points, at ${confirmSeeds} seeds x ${stamp.fullPanel.length} opponents.`);
+console.log('>> Two ceilings closer together than that are the SAME NUMBER. Do not read a trend');
+console.log('>> across them -- a declining curve was once reported out of exactly that mistake');
+console.log('>> (docs/17 F6). Raise --confirm-seeds to narrow the band.\n');
 
 console.log('1. INVARIANTS');
 const i1Fail = i1.filter((f) => !f.pass);
@@ -150,7 +159,8 @@ for (const f of i1Fail.slice(0, 12)) {
 const i2Fail = i2.filter((f) => !f.pass);
 console.log(`  I2 chassis parity      ${i2.length - i2Fail.length}/${i2.length} pass`);
 for (const f of i2Fail.slice(0, 12)) {
-  console.log(`     FAIL rank ${f.rank}: ${f.best} is ${pct(f.spread)} ahead of ${f.worst}`);
+  const note = f.spread < band ? '  [WITHIN NOISE — not a finding]' : '';
+  console.log(`     FAIL rank ${f.rank}: ${f.best} is ${pct(f.spread)} ahead of ${f.worst}${note}`);
 }
 const dead = i3.deadParts.length + i3.deadMods.length;
 console.log(`  I3 no dead gear        ${dead === 0 ? 'pass' : 'FAIL'}  (of ${offered.size} offered)`);

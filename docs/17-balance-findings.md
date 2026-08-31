@@ -86,11 +86,10 @@ Worth re-measuring after any F1 fix before treating it as its own problem: the
 baseline before `bede033` was −0.286, so the relationship was mildly negative
 even when balance passed.
 
-**Corroborated independently, 29 Aug 2026.** `sim:breed` searches for the best
-build at each rank rather than reading a fixed roster, and finds the same thing
-from the other direction: the ceiling peaks at rank 10 on all three chassis and
-declines after it. See **F6**. Two instruments with no shared method now agree,
-so this is a property of the content and not of the template set.
+**A claimed corroboration was withdrawn.** On 29 Aug the first `sim:breed` sweep
+appeared to find the same effect independently; on 31 Aug that turned out to be
+its own measurement noise. See **F6**. F2 stands on its original evidence, and
+is *not* currently corroborated by a second method.
 
 ---
 
@@ -181,64 +180,61 @@ The re-cut moved nothing else: correlation is -0.637 either side of it, and the
 regenerated report reads "None. Every build is within noise of the reference"
 because the reference is now the same measurement.
 
-## F6 — Rank stops buying anything at 10, and then starts costing
+## F6 — RETRACTED. The declining ceiling curve was measurement noise
 
-**Status:** open. Measured 29 Aug 2026 by `sim:breed`, 2 locks x 3 chassis x
-ranks 6/10/14/18, budget 120, content hash `5e2b472e`. Report in
-`artifacts/breed-report.json`.
+**Status: withdrawn 31 Aug 2026, one day after it was filed.** The claim was
+wrong and the fault was in the instrument, not the content. It is kept here
+rather than deleted because the way it failed is the useful part.
 
-Best win rate found at each rank, against the canonical roster:
+**What it claimed.** That the best win rate found at each rank peaked at 10 and
+declined to 18 on all three chassis — CH-2 86→81, CH-5 100→95, CH-9 71→57 — and
+that this corroborated F2 by an independent method.
 
-| Chassis | rank 6 | rank 10 | rank 14 | rank 18 |
-|---|---|---|---|---|
-| CH-2 | 57% | **86%** | 81% | 81% |
-| CH-5 | 95% | **100%** | 95% | 95% |
-| CH-9 | 67% | **71%** | 62% | 57% |
+**Why it was wrong.** `sim:breed`'s confirm pass called
+`confirmFitness(build, result.rank, …)`, passing the **rank** as the battle
+seed. So the same build measured at two ranks was measured on two different
+sets of battles. In the sweep's own data, lock 0's CH-9 elite at rank 10 and at
+rank 18 are *the identical build* — `1xR-C40 5xW-MG` — and they were recorded at
+43% and 66%. Nothing about the mech changed. Only the seed did.
 
-**Every chassis peaks at rank 10 and is worse at 18 than at 10.** Not flat —
-declining. CH-9 loses 14 points between them. Since the ladder generates
-opponents as `budget = f(node)`, a run gets *easier* as it goes, which is the
-same fact `F2` measured from the template roster by a completely different
-method. Two independent instruments now say it.
+That breaks the project's own rule, the one `screenFitness` follows and has a
+test for: a seed must derive from the candidate, never from where it was found.
 
-The invariants, stated in `packages/sim/src/invariants.ts`:
+**How big the noise was.** The same build, measured at four seeds:
 
-- **I1 rank monotonicity: 16/30 pass.** The clean failures are all above rank
-  10 — e.g. CH-5 rank 18 beats CH-5 rank 14 only 50% of the time, where a
-  one-step gap is supposed to win 60%.
-- **I2 chassis parity: 0/4 pass.** At rank 6, CH-5 is **81 points** ahead of
-  CH-2. At rank 10, CH-9 is 43 ahead of CH-2. Cell count is not paid for; the
-  Mule's 32 cells simply carry more gun than the Vulture's 16.
-- **I3 dead gear:** of the 19 ids the two locks offered, **`W-RG` was never
-  wanted by any elite** — the tier-4 railgun, the dearest weapon in the game.
-  Three offered mods (`tidecooler`, `coil-sprung`, `gyro-flywheel`) also went
-  unused.
+| Build | confirm-seeds 3 | confirm-seeds 8 |
+|---|---|---|
+| CH-9, 5x W-MG | 29 / 48 / 33 / 33% — **19 pts** | 27 / 36 / 32 / 29% — 9 pts |
+| CH-5, 6x W-MG | 71 / 76 / 81 / 57% — **24 pts** | 71 / 77 / 79 / 68% — 11 pts |
+| CH-2, 3x W-MG | 86 / 86 / 81 / 81% — 5 pts | 77 / 86 / 75 / 79% — 11 pts |
 
-**Eleven of the archive's eighteen cells were never filled by anything.** No
-long-ranged build at any rank on any chassis, nothing in the heavy weight class,
-and nothing thermally cold outside one cell. Every elite is a close-to-mid
-redliner. Some of that is the bucket edges being provisional (`docs/19`), but
-"no long-range build is worth fielding" is not an artefact of a threshold — the
-long bucket starts at 100 m and `W-RG` reaches 220.
+Every decline F6 reported — 5, 5 and 14 points — is **smaller than the noise of
+the measurement that produced it.** Seven opponents at three seeds is 21
+battles, and 21 battles cannot resolve a 5-point difference.
 
-**What is correct building worth:** k = **4** on all three chassis. A best-built
-rank-6 mech falls to a coin flip against a best-built rank-10 one. That is the
-number `ladderBudgetPerNode` should be argued from — but not yet, because it is
-measured on a curve that peaks at 10, so it says as much about the peak as about
-the player.
+**What survives.** Nothing about the rank curve. The rest of the sweep's
+findings do not depend on cross-rank comparison and stand until re-measured:
+`W-RG` was offered and never wanted; eleven of eighteen archive cells were never
+filled, with no long-ranged build anywhere; I2's chassis spread at rank 6 was 81
+points, which is an order of magnitude clear of the noise band. **F2 is
+therefore not corroborated** — it stands on its original evidence alone, and the
+sentence added to it on 29 Aug has been withdrawn.
 
-**Caveats, which matter here more than usual.** A search finds *a* ceiling, not
-*the* ceiling, so each figure is a lower bound and the failures are the load-
-bearing half: I1 failing is evidence, I1 passing would not have been. Budget 120
-per (chassis, rank) is modest and two locks is a small sample. Both sides are
-flown by the same autopilot, so this measures correct *building* only. And the
-panel is built from the catalog being measured — `bastion-tank` is rank 25 and
-loses to rank-6 builds, which is F2 again, in the yardstick.
+**What changed as a result.**
 
-**Not acted on.** Balance is its own pass and does not gate feature work. This
-is the record, and the first thing the content pass should re-run.
+1. `confirmFitness` derives its seed by hashing the build, so an identical build
+   measures identically wherever it appears. Cross-rank comparison of the same
+   mech is now exact rather than noisy.
+2. Confirm seeds are no longer a number chosen for speed.
+3. **The report prints its own noise band**, because a table of percentages with
+   no error term is what made this mistake writable. A difference smaller than
+   the band is not a finding.
 
----
+**The lesson worth keeping.** The tool was built specifically to stop content
+being authored against a wrong reference, and its first output was a wrong
+reference stated with a table and three decimal places of confidence. The
+instrument's own precision has to be measured before its readings are quoted —
+and "the same input twice" is the cheapest check that exists.
 
 ## Non-findings, recorded so they are not re-investigated
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { FULL_PANEL_IDS, SCREEN_PANEL_IDS, confirmFitness, panelStamp, screenFitness } from '../src/panel.js';
+import {
+  CONFIRM_SEEDS, FULL_PANEL_IDS, SCREEN_PANEL_IDS, confirmFitness, confirmNoiseBand,
+  panelStamp, screenFitness,
+} from '../src/panel.js';
 import { LADDER_SPAWN_DISTANCES_M } from '../src/ladder.js';
 import { simContentHash } from '../src/version.js';
 import { assembleBuild } from '../src/workbench.js';
@@ -23,7 +26,7 @@ describe('the panel is frozen, and says which catalog it froze against', () => {
   it('scores the same build the same way twice', () => {
     const b = subject();
     expect(screenFitness(b, 7)).toBe(screenFitness(b, 7));
-    expect(confirmFitness(b, 7, 2).overall).toBe(confirmFitness(b, 7, 2).overall);
+    expect(confirmFitness(b, 2).overall).toBe(confirmFitness(b, 2).overall);
   });
 
   it('derives its seeds from the seed it is given, not from call order', () => {
@@ -57,6 +60,29 @@ describe('the panel is frozen, and says which catalog it froze against', () => {
     expect(score).toBeGreaterThanOrEqual(0);
     expect(score).toBeLessThanOrEqual(1);
     // confirmFitness IS a win rate; the screen score deliberately is not.
-    expect(confirmFitness(subject(), 3, 1).overall).toBeLessThanOrEqual(1);
+    expect(confirmFitness(subject(), 1).overall).toBeLessThanOrEqual(1);
+  });
+});
+
+describe('a build measures the same wherever it is found', () => {
+  it('scores an identical build identically, however it was reached', () => {
+    // The bug this exists for: the confirm pass took a seed from the CALLER,
+    // and the sweep passed the rank. So one build appearing at rank 10 and at
+    // rank 18 was measured on two different sets of battles, came back 43% and
+    // 66%, and the difference was written up as a declining ceiling curve
+    // (docs/17 F6, retracted). A confirmed score must depend on the mech and
+    // nothing else.
+    const one = assembleBuild({ chassisId: 'CH-5', parts: [{ partId: 'W-AC', count: 2 }] }).build;
+    const two = assembleBuild({ chassisId: 'CH-5', parts: [{ partId: 'W-AC', count: 2 }] }).build;
+    expect(confirmFitness(two, 2).overall).toBe(confirmFitness(one, 2).overall);
+  });
+
+  it('publishes a noise band that shrinks as seeds are added', () => {
+    // Reporting a percentage without saying what it can resolve is what made
+    // the retracted finding writable.
+    expect(confirmNoiseBand(3)).toBeGreaterThan(confirmNoiseBand(20));
+    expect(confirmNoiseBand(CONFIRM_SEEDS)).toBeLessThan(0.1);
+    // Three seeds cannot resolve the 8-point spread I2 is asked to police.
+    expect(confirmNoiseBand(3)).toBeGreaterThan(0.08);
   });
 });

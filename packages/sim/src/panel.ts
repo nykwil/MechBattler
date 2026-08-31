@@ -93,13 +93,72 @@ export function screenFitness(build: Build, seed: number): number {
   return winRate * (1 - DECISIVENESS_WEIGHT) + DECISIVENESS_WEIGHT * quality;
 }
 
-/** Confirm: the full panel at high seeds, for anything that claimed a cell. */
+/**
+ * Battles per opponent in the confirm pass. Seven opponents at this many seeds
+ * is the sample every reported ceiling rests on, and `confirmNoiseBand` says
+ * what that sample can and cannot resolve.
+ *
+ * 3 was the first value and it was chosen for speed. It swung a fixed build's
+ * measured win rate by up to 24 points, which was wide enough to manufacture a
+ * finding out of nothing (see docs/17 F6).
+ */
+export const CONFIRM_SEEDS = 20;
+
+/**
+ * Half-width of the 95% interval on a confirmed win rate, in win-rate units.
+ *
+ * A win rate is a mean over `opponents x seeds` Bernoulli battles, so its
+ * standard error is at most `0.5 / sqrt(n)` -- worst case at p = 0.5, which is
+ * the honest one to quote for a report that mostly cares about builds near even.
+ * Two standard errors is the band.
+ *
+ * This exists so the report can print it. A table of percentages with no error
+ * term is what let a 5-point difference be written up as a trend.
+ */
+export function confirmNoiseBand(seeds = CONFIRM_SEEDS): number {
+  return 2 * (0.5 / Math.sqrt(FULL_PANEL_IDS.length * Math.max(1, seeds)));
+}
+
+/**
+ * A build's own identity, as a number. Two identical builds must measure
+ * identically wherever they appear, and the ONLY way to guarantee that is to
+ * derive their battle seeds from what they are rather than from where they were
+ * found. `screenFitness` gets this via the genome key; a confirmed elite has no
+ * genome to hand, so it is hashed from the build itself.
+ *
+ * The first sweep passed the RANK here instead, and it produced a false
+ * finding: the same build measured 43% at rank 10 and 66% at rank 18, and that
+ * difference was written up as a declining ceiling curve. It was two different
+ * seeds.
+ */
+function buildSeed(build: Build): number {
+  const key = build.chassisId + '|' + build.parts
+    .map((p) => `${p.partId}:${[...(p.modifiers ?? [])].sort().join('+')}:${JSON.stringify(p.variant ?? null)}`)
+    .sort()
+    .join(',');
+  let hash = 2166136261;
+  for (let i = 0; i < key.length; i++) {
+    hash ^= key.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+/**
+ * Confirm: the full panel, for anything that claimed an archive cell.
+ *
+ * `seeds` is battles per opponent, and it buys precision that the report then
+ * has to respect -- see `confirmNoiseBand`. Seven opponents at 3 seeds is 21
+ * battles and swings a build's measured win rate by around 20 points, which is
+ * more than any difference worth reporting.
+ */
 export function confirmFitness(
-  build: Build, seed: number, seeds = 6,
+  build: Build, seeds = CONFIRM_SEEDS,
 ): { overall: number; perOpponent: { id: string; winRate: number }[] } {
+  const baseSeed = baseSeedFor(buildSeed(build));
   const perOpponent = panelBuilds(FULL_PANEL_IDS).map((o) => ({
     id: o.id,
-    winRate: evaluateMatchup(build, o.build, seeds, baseSeedFor(seed)),
+    winRate: evaluateMatchup(build, o.build, seeds, baseSeed),
   }));
   const overall = perOpponent.reduce((sum, o) => sum + o.winRate, 0) / Math.max(1, perOpponent.length);
   return { overall, perOpponent };
