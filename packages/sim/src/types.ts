@@ -294,6 +294,22 @@ export interface ChassisSpec {
   mask: boolean[][];
   coreCell: CellRef;
   ratedMassT: number;
+  /**
+   * What the frame itself costs toward a build's rank, on the same scale a
+   * part's tier uses.
+   *
+   * A chassis used to cost nothing, which was the same hole mods had: rank
+   * claimed to say how much mech a build is, while the single largest thing
+   * about it -- 16 cells against 56 -- was free. That is the mechanism behind
+   * the measured chassis disparity: at equal rank a Mule simply carried more
+   * gun than a Vulture, because the Vulture's smallness bought it nothing.
+   *
+   * Authored rather than derived from cell count. A frame is content, like a
+   * part, and its capacity is not the only thing it sells -- speed, hit pool
+   * and integrity differ too, and a formula over cells would silently price
+   * those at zero.
+   */
+  chassisTier: number;
   speedsMps: { fwd: number; strafe: number; rev: number };
   turnRateDegS: number;
   accelMps2: number;

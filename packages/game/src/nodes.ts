@@ -279,8 +279,10 @@ export function ladderOpponents(runSeed: number, nodeIndex: number): RunOpponent
         // It cannot always succeed: when the template alone fills the budget
         // there is no generated fill to drop, and the alternative would be
         // deleting the opponent's own identity to pay for a perk. Measured over
-        // 200 seeds, 95% of modded cards land inside budget and the remaining
-        // 5% overspend by at most one mod's tier.
+        // 200 seeds, 87.5% of modded cards land inside budget and the rest
+        // overspend by at most one mod's tier. (It was 95% before the chassis
+        // began costing rank: the frame now takes budget that generated fill
+        // used to occupy, so there is less of it to drop.)
         for (let guard = 0; guard < 12 && computeRank(generated.build) > budget; guard++) {
           const fill = generated.build.parts
             .filter((part) => part.instanceId.startsWith('gen-'))

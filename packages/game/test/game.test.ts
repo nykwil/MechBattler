@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   MODIFIERS,
-  buildPartTier,
   computeRank,
   TEMPLATES,
   UNIQUES,
@@ -671,11 +670,17 @@ describe('an elite pays rank for the mod it carries', () => {
           if (!carriesMod) continue;
           // Read the budget from the generator rather than retyping its dials.
           const budget = nodeBudget(node) + (choice.elite ? GAME_CONTENT.run.eliteBudgetBonus : 0);
-          // A card whose METAL alone already exceeds the budget was over before
-          // any mod existed: generateOpponent deliberately falls back to the
-          // cheapest base when nothing fits, and at node 0 the cheapest ladder
-          // frame costs more than the budget. The mod did not put it there.
-          if (buildPartTier(choice.build) > budget) continue;
+          // A card that was ALREADY over before its mod was stamped was put
+          // there by generateOpponent, which deliberately falls back to the
+          // cheapest base when nothing fits — at node 0 the cheapest ladder
+          // frame costs more than the whole budget. The mod did not do that,
+          // and the trim cannot undo it without deleting the opponent. So
+          // subtract the mods and ask whether what remains already overspent.
+          const modTiers = choice.build.parts.flatMap((part) =>
+            (part.modifiers ?? []).map((id) => MODIFIERS[id]?.tier ?? 0));
+          const rankBeforeMods = computeRank(choice.build)
+            - modTiers.reduce((sum, tier) => sum + tier, 0);
+          if (rankBeforeMods > budget) continue;
           modded++;
           const rank = computeRank(choice.build);
           if (rank <= budget) within++;
@@ -688,7 +693,10 @@ describe('an elite pays rank for the mod it carries', () => {
     }
     expect(modded, 'no card carried a mod, so nothing above was actually checked')
       .toBeGreaterThan(0);
-    // Measured at 95% over 200 seeds; the floor guards the mechanism, not the figure.
-    expect(within / modded).toBeGreaterThan(0.9);
+    // Measured at 87.5% over 200 seeds — down from 95% before the chassis
+    // started costing rank, because the frame now eats budget that generated
+    // fill used to occupy, so there is less to drop. The bounded assertion
+    // above is the real guarantee; this floor only guards the mechanism.
+    expect(within / modded).toBeGreaterThan(0.8);
   });
 });

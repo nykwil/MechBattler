@@ -140,7 +140,7 @@ export const CHASSIS: Record<string, ChassisSpec> = {
     // 0.67), so its whole speed advantage sat in closing — the one vector that
     // produces no evasion — and it measured 0.5 m/s lateral against a 9 m/s
     // top speed. It was the fastest chassis and the worst at using speed.
-    ratedMassT: 3.0, speedsMps: { fwd: 9.0, strafe: 6.0, rev: 4.5 },
+    ratedMassT: 3.0, chassisTier: 1, speedsMps: { fwd: 9.0, strafe: 6.0, rev: 4.5 },
     turnRateDegS: 150, accelMps2: 4.0,
     chassisHitTickets: 6, maxIntegrity: 240, moveJitterMult: 0.35,
     regions: [
@@ -186,7 +186,7 @@ export const CHASSIS: Record<string, ChassisSpec> = {
   'CH-5': {
     id: 'CH-5', name: 'Mule', type: 'Quad',
     width: 6, height: 6, mask: muleMask, coreCell: { regionId: 'body', x: 2, y: 2 },
-    ratedMassT: 6.0, speedsMps: { fwd: 6.0, strafe: 4.0, rev: 3.0 },
+    ratedMassT: 6.0, chassisTier: 2, speedsMps: { fwd: 6.0, strafe: 4.0, rev: 3.0 },
     turnRateDegS: 90, accelMps2: 3.0,
     chassisHitTickets: 10, maxIntegrity: 320, moveJitterMult: 1,
     regions: [
@@ -241,7 +241,7 @@ export const CHASSIS: Record<string, ChassisSpec> = {
   'CH-9': {
     id: 'CH-9', name: 'Bastion', type: 'Assault biped',
     width: 8, height: 9, mask: bastionMask, coreCell: { regionId: 'hull', x: 2, y: 4 },
-    ratedMassT: 12.0, speedsMps: { fwd: 4.0, strafe: 1.5, rev: 1.2 },
+    ratedMassT: 12.0, chassisTier: 4, speedsMps: { fwd: 4.0, strafe: 1.5, rev: 1.2 },
     turnRateDegS: 45, accelMps2: 1.5,
     chassisHitTickets: 18, maxIntegrity: 700, moveJitterMult: 1,
     regions: [
