@@ -153,6 +153,42 @@ F2's inverted budget/win-rate correlation — `bastion-tank` is rank 25 and lose
 to rank-6 builds. A harder panel would be a real improvement and is not one to
 make casually, because the panel is also what makes reports comparable.
 
+## What the corrected sweep left open (added 1 Sep 2026)
+
+Three diagnoses, none of them acted on. Each is a decision, not a nudge — the
+point of writing them here is that the evidence exists and the change does not.
+
+- **The Bastion is charged for the autopilot's missing evasion verb.** F8
+  measured +35 points on CH-9 at rank 16 from a strafe change alone. Do **not**
+  fix this by raising the Bastion's strafe — lateral speed is the thing an
+  assault biped trades for armour. The candidate fix is a second defensive verb
+  (break line of sight, use hard cover, back off behind a hill) so a slow chassis
+  has a play. Until then, read every I2 failure as part pilot.
+- **CH-9 at rank 8 is broke, not slow.** The frame is 4 of the 8 points, so a
+  rank-8 Bastion has almost nothing left to build with (19% ceiling, unmoved by
+  the strafe probe). This is the known cost of D3 putting chassis into rank, and
+  it is the argument for either a lower `chassisTier` spread or a rank floor
+  below which heavy chassis are not offered. Do not confuse it with I2.
+- **Long range cannot be occupied (F9).** No gun is authored to be best beyond
+  80 m, and eight of nine chassis matchups close the distance regardless of
+  build. Reviving W-RG needs one of: a reverse-speed pass, a kiting/LOS verb, or
+  a long gun light enough for a Vulture. All three are design calls.
+- **Cooling is inert below 115 °C (F10).** Temperature only reaches an outcome
+  through fire-hold (115) and shutdown (130), so a cooling mod on a build that
+  peaks at 80 °C is worth exactly zero — measured, bit-identical over 280
+  battles. Before authoring any new cooling content, decide whether heat should
+  have a gradient below the threshold. Today it does not, and that is why the
+  one deliberate redliner is the dominant build.
+- **`U-ACT` is a doorway nobody walks through.** Four mods — `coil-sprung`,
+  `gyro-flywheel`, `hull-down`, `weaving-gait` — require it, and no canonical
+  template fits one. Either U-ACT earns its 2 cells and 4 kW, or those four mods
+  should hang off something that gets fitted. Worth settling before the content
+  pass authors more mods behind the same door.
+- **Check `appliesTo` before believing a zero.** An A/B that attaches a mod its
+  `appliesTo` declines returns exactly +0.0, which reads identically to a mod
+  that does nothing. This cost a full measurement pass. Any future mod harness
+  should assert the attachment took.
+
 ## Ammo stays a placeholder — on purpose (25 Aug 2026)
 
 **No decision is being taken on ammunition for now.** `U-AMMO` remains in the

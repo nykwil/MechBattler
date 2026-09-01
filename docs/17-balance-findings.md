@@ -289,6 +289,98 @@ against a best-built rank-12 one. Usable for `ladderBudgetPerNode` now that the
 curve it sits on is sound, with the standing caveat that both sides are flown by
 the same autopilot.
 
+## F8 — I2 was partly measuring the pilot. Raising the Bastion's strafe moved it 35 points
+
+F7 flagged the hypothesis; this is the test. The Bastion's `strafe` was raised
+1.5 -> 4.0 m/s locally, nothing else touched, and the parity slice re-run.
+The unmodified slice was run first as the control, because the ladder seeds each
+rank from the previous one — dropping rank 12 makes rank 16 incomparable to the
+full sweep, so the baseline report is *not* the control. Rank 8 reproduced the
+baseline exactly, which is what makes the rank-16 comparison trustworthy.
+
+| cell | control | strafe 4.0 | delta (best of 2 locks) |
+|---|---|---|---|
+| CH-2 @ 8 | 55/14 | 53/14 | −3 |
+| CH-2 @ 16 | 83/16 | 80/14 | −2 |
+| CH-5 @ 8 | 26/84 | 7/86 | +2 |
+| CH-5 @ 16 | 76/88 | 59/99 | +10 |
+| CH-9 @ 8 | 19/19 | 18/14 | −1 |
+| **CH-9 @ 16** | **44/61** | **59/97** | **+35** |
+
+Noise band ±6. Lock-0 parity spread at rank 16 fell 0.393 -> 0.218 and CH-9
+stopped being the worst chassis. CH-2 — unchanged, and facing a *stronger*
+bastion-tank in the panel — moved −2, so the effect is specific to the chassis
+whose stat moved.
+
+Two things this does **not** say. It is not a licence to give the Bastion a
+Mule's legs: lateral speed is what the assault biped trades away for armour, and
+erasing that erases the chassis. And it does not clear rank 8, where CH-9 did not
+move at all (19 -> 18) — at rank 8 the frame is 4 of the 8 points, so the Bastion
+is broke before it is slow. That is D3's known cost, not this.
+
+The reading: the autopilot has exactly one evasion verb, orbiting at `strafe`
+(F3). A chassis that cannot orbit therefore has no defensive play at all, so I2
+charges the Bastion for a gap in the *pilot*. The same probe was already run on
+CH-2 in Aug 2026 for the same reason and is written into `chassis.ts` beside its
+speeds. The fix belongs in the movement repertoire, not the stat block.
+
+## F9 — The long-range playstyle is structurally impossible, and W-RG is its casualty
+
+The sweep found no long-ranged build in any archive cell. It is not a search
+failure — the band cannot be occupied. Three facts close the chain:
+
+1. **Only one gun reaches.** Effective dps (raw × falloff) at 120 m: W-RG 12.8,
+   every other weapon ≤ 6.7; at 160 m W-RG 8.5 against W-CB's 2.2. So the railgun
+   is not underpowered at long range, it *dominates* it. Note also that every
+   weapon's ideal band tops out at 80 m, while the archive's long bucket starts
+   at 100 m — no gun is authored to be *best* at long range.
+2. **Nobody can hold the range.** Every chassis's reverse speed is below every
+   chassis's forward speed except one pair. Eight of the nine matchups close, at
+   1.0 to 7.8 m/s. Kiting is not a weak tactic here; it is unavailable.
+3. **The one chassis that can hold range cannot carry the gun.** The single
+   holding matchup is a Vulture backing away from a Bastion (rev 4.5 vs fwd 4.0),
+   and `sim:try -- CH-2 W-RG:1` answers `asked for 1, fitted 0 — no legal cell`.
+
+So W-RG is dead by geometry, not by tuning, and buffing its numbers cannot revive
+it. Any fix is a design change — a rev-speed pass, a terrain/LOS verb for the
+autopilot, or a lighter long gun a scout can mount — and belongs in a decision,
+not a balance nudge.
+
+## F10 — Two of the three dead mods are gated behind a part nobody fits; the third is inert below 115 °C
+
+Diagnosed rather than buffed, per the standing rule that a part which never wins
+may be unreachable rather than weak.
+
+**`coil-sprung` and `gyro-flywheel` require a `U-ACT` Stride, and no canonical
+template fits one.** Nor do `hull-down` or `weaving-gait`, which share the
+requirement. Wanting one of these mods is therefore two decisions, not one: fit a
+2-cell, 4 kW part that buys a capped 15% translation-speed boost — which the
+overlap audit already calls a marginal deal on its own — and *then* mod it. The
+mods are not weak; the doorway is.
+
+**`tidecooler` fires often and is worth exactly nothing.** Measured, not assumed:
+across 280 panel battles its carrier stood in water for 23,895 radiator ticks
+(10.1% of the fight), and the win rate was bit-identical to the last digit. The
+cause is that temperature only reaches an outcome through a threshold — fire-hold
+at 115 °C, shutdown at 130 — and the carrier peaks at 80.4 °C. Below 115 °C,
+cooling is inert, so doubling a radiator on a build that never redlines is
+worthless by construction. This generalises: it is the same fact that makes
+`mule-fever-cycle`, a deliberate redliner, the dominant build. Cooling is only
+worth rank to a build that spends heat.
+
+**`gyrostabilized` is not dead, it is narrow.** Paired-seed A/B, 40 seeds ×
+7 opponents, same seed set both arms: vulture-sniper +4.3, mule-laser-boat +1.4,
+mule-skirmisher 0.0, bastion-tank −0.4, vulture-skirmisher −1.1, mule-gunline
+−2.1, railgun-mule −9.3. It buys down motion jitter, which is 40–60% of total
+dispersion for a precise gun and 4–18% for a brawler gun, and pays 15% weapon
+mass — which is why it is worst on the heaviest gun in the game. It costs +3 rank
+for at best +4 points, and that is the reason it is not chosen.
+
+A note on method: the first A/B run was wrong. It stapled actuator-only mods to
+weapons, and three mods returned exactly +0.0 because `appliesTo` silently
+declined them. "No effect" is what a mod that was never attached looks like, so
+check legality before reading a zero.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
