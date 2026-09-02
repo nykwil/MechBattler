@@ -68,42 +68,35 @@ Three softer signals, in descending order of value:
 
 ## 3. The backlog, measured
 
-From `artifacts/breed-wsr.json`, 2 Sep 2026, 6 locks × CH-2/CH-9 × ranks 8–20.
-**Re-measure before trusting these** — the reference panel is built from the
-catalog you are editing, so every report records `simContentHash()` and two
-reports with different hashes are indicative, not comparable.
+**Re-measure before trusting any of this** — and compare a report's
+`stamp.contentHash` only against *another report's* stamp, never against a hash
+you computed yourself (`17` **F20**).
 
-**Six of eighteen cells are empty:**
+As of `artifacts/armour-seeded.json`, 2 Sep 2026, **one of eighteen cells is
+empty**: `mid/heavy/redliner`, and `17` F24 explains why it is deliberately left
+that way. The six-cell backlog this document originally carried was closed by two
+parts and three search fixes, and the split is the lesson:
 
-```
-close/heavy/cold      close/heavy/redliner    mid/heavy/redliner
-long/light/redliner   long/medium/redliner    long/heavy/redliner
-```
+- **Two were real content gaps.** `close/heavy/*` wanted a dense part worth
+  carrying (`W-AV`, `17` F17/F22); `long/*/redliner` wanted a gun that pays in
+  heat rather than recoil (`W-KL`, `17` F23).
+- **The rest were the instrument.** `long/heavy/redliner` was reachable at rank
+  13 with parts that already shipped and simply never proposed (`17` F24).
 
-Two clusters, and each is a design statement:
+So **the default assumption should be inverted**: an empty cell is more often a
+search that cannot reach it than a part that does not exist. Run §7 — all eight
+checks — before authoring anything.
 
-- **Heavy barely exists — 7 builds of 189**, all of them Vultures; a Bastion is
-  never heavy at all. **The diagnosis in the first draft of this document was
-  wrong** and `docs/17` **F17** replaces it: heavy is not empty because mass is
-  punished, it is empty because *the catalog has no mass to spend*. The densest
-  part in the game is a 150 kg Plate that does nothing but soak, so the only way
-  to cross 0.8 load is to spend cells on armour — the same cells the guns want.
-  The lever is a part that is dense **and** useful. Read F17 before authoring
-  here; it also records that `W-BR`, the only close-range brute, cannot be fitted
-  to a Vulture at all, which is most of why `close/heavy` is empty.
-- **No long-range redliner.** Standoff builds are cold because reaching out does
-  not currently cost heat. A long gun that runs hot, or a cooling part that only
-  works while stationary, would put something there.
+**Dead mods:** the six named in the original draft were wrong in two different
+ways. `sacrificial-casing` has no enabled carrier at all (`17` F18), five more
+could never be proposed on a scoring build (`17` F19), and the honest dead list
+is three: `cold-bore`, `gyrostabilized`, `surge-gate`. Eleven of fourteen mods
+still reach no build in a full sweep even after the enumeration fix, and **that
+is the largest untouched area in the game** — bigger than anything left in the
+archive.
 
-**Dead mods (offered, never wanted):** `tidecooler`, `gyrostabilized`,
-`gyro-flywheel`, `weaving-gait`, `sacrificial-casing`, `thermocouple-skin`.
-Before "fixing" any of them, run §7 — three of these are movement mods that were
-gated behind an unfittable part until 1 Sep and have never been re-measured.
-
-**Kill methods:** damage 137, heat 35, power 17. Healthier than expected; the
-system-attacking guns (`W-SC`, `W-ION`) are doing real work.
-
----
+**Weapon spread** at the same report: 10 distinct weapons reach the archive,
+`W-KL` 26%, `W-AV` 16%, `W-CB` 16%, HHI 0.146 — the widest spread on file.
 
 ## 4. The levers — what this engine can actually express
 

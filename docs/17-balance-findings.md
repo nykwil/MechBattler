@@ -1533,7 +1533,19 @@ variant at rank 12 and `mid/heavy/cold` returning. The prediction, the fix and
 the confirmation all agree, which is the first time in this file that a search
 fix has been called in advance rather than diagnosed afterwards.
 
-One cell of eighteen is still empty: `mid/heavy/redliner`.
+One cell of eighteen is still empty: `mid/heavy/redliner`. It is reachable —
+`CH-2`, one Kiln plus a Stitcher, six plates, rank 12 — but it screens at
+**33.1%** against the 66.4% of the cell next door, and six plates is two
+mutation steps down from the nearest seed.
+
+**It is deliberately left empty.** Adding 6 to `ARMOUR_SEEDS` would fill it, and
+that is the reason not to: the seed list would then be fitted to a known answer,
+and each value multiplies an enumeration already bounded by the screen budget.
+The archive is a diagnostic, not a scoreboard. Driving it to zero by seeding the
+shapes we already know are missing makes it worse at its actual job, which is
+telling us about shapes we have *not* thought of. A cell that is reachable, worth
+a third, and two steps from the seed population is a fair thing for the search to
+miss.
 
 Both change search behaviour, so reports either side are not comparable even at
 an identical content hash — the same caveat `--workers` already carries.
