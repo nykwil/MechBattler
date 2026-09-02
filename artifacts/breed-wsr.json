@@ -40,7 +40,7 @@
     "workers": 6
   },
   "noiseBand": 0.05976143046671968,
-  "elapsedS": 1688.765,
+  "elapsedS": 1834.14,
   "invariants": {
     "i1": [
       {
@@ -528,17 +528,17 @@
         "lowRank": 12,
         "highRank": 20,
         "gap": 2,
-        "winRate": 1,
+        "winRate": 0.375,
         "threshold": 0.75,
         "mirror": false,
-        "pass": true
+        "pass": false
       },
       {
         "chassisId": "CH-9",
         "lowRank": 16,
         "highRank": 20,
         "gap": 1,
-        "winRate": 0.5625,
+        "winRate": 0.0625,
         "threshold": 0.6,
         "mirror": false,
         "pass": false
@@ -738,7 +738,6 @@
       "deadParts": [
         "R-E60",
         "P-CAP2",
-        "W-RG",
         "W-SR"
       ],
       "deadMods": [
@@ -1058,13 +1057,13 @@
       "chassisId": "CH-9",
       "rank": 16,
       "ceiling": 0.9035714285714286,
-      "legalFound": 144
+      "legalFound": 145
     },
     {
       "chassisId": "CH-9",
       "rank": 20,
-      "ceiling": 0.9142857142857143,
-      "legalFound": 158
+      "ceiling": 0.875,
+      "legalFound": 172
     },
     {
       "chassisId": "CH-2",
@@ -1292,7 +1291,7 @@
         },
         {
           "rank": 20,
-          "winRate": 0
+          "winRate": 0.125
         }
       ]
     },
@@ -5867,29 +5866,29 @@
       "chassisId": "CH-9",
       "rank": 16,
       "cell": "mid/medium/redliner",
-      "fitness": 0,
+      "fitness": 0.9856965537824282,
       "descriptors": {
-        "rangeM": 55,
+        "rangeM": 90,
         "range": "mid",
-        "loadFactor": 0.545,
+        "loadFactor": 0.5066666666666667,
         "weight": "medium",
-        "heatMarginKw": -7.092857142857143,
+        "heatMarginKw": -8.9,
         "heat": "redliner",
-        "kill": "power",
-        "rank": 16
+        "kill": "damage",
+        "rank": 15
       },
       "parts": [
         {
-          "partId": "R-C90"
+          "partId": "W-RG"
         },
         {
           "partId": "R-C90"
         },
         {
-          "partId": "R-C90"
+          "partId": "P-CAP"
         },
         {
-          "partId": "W-ION"
+          "partId": "P-CAP"
         }
       ]
     },
@@ -5932,7 +5931,7 @@
       "chassisId": "CH-9",
       "rank": 20,
       "cell": "mid/light/cold",
-      "fitness": 0.3301320262567673,
+      "fitness": 0.3265923681979944,
       "descriptors": {
         "rangeM": 55,
         "range": "mid",
@@ -5969,41 +5968,35 @@
       "chassisId": "CH-9",
       "rank": 20,
       "cell": "close/light/redliner",
-      "fitness": 0.9142857142857143,
+      "fitness": 0.991411558626458,
       "descriptors": {
-        "rangeM": 35.00000000000001,
+        "rangeM": 35,
         "range": "close",
-        "loadFactor": 0.4495833333333332,
+        "loadFactor": 0.43583333333333324,
         "weight": "light",
-        "heatMarginKw": -8.95,
+        "heatMarginKw": -9.150000000000002,
         "heat": "redliner",
         "kill": "damage",
-        "rank": 16
+        "rank": 14
       },
       "parts": [
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
         {
           "partId": "R-C90"
         },
         {
-          "partId": "U-RISE2"
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
         },
         {
           "partId": "U-RAD"
@@ -6015,66 +6008,35 @@
       "chassisId": "CH-9",
       "rank": 20,
       "cell": "mid/medium/redliner",
-      "fitness": 0.3232552053881042,
+      "fitness": 0.875,
       "descriptors": {
-        "rangeM": 55,
+        "rangeM": 83.9236111111111,
         "range": "mid",
-        "loadFactor": 0.51,
+        "loadFactor": 0.5354166666666667,
         "weight": "medium",
-        "heatMarginKw": -8.814285714285713,
+        "heatMarginKw": -8.042857142857141,
         "heat": "redliner",
         "kill": "power",
-        "rank": 19
+        "rank": 20
       },
       "parts": [
         {
-          "partId": "R-C90"
-        },
-        {
-          "partId": "R-C90"
-        },
-        {
-          "partId": "W-ION"
-        },
-        {
-          "partId": "W-ION"
-        },
-        {
-          "partId": "W-ION"
-        }
-      ]
-    },
-    {
-      "lock": 4,
-      "chassisId": "CH-9",
-      "rank": 20,
-      "cell": "mid/light/redliner",
-      "fitness": 0.6523714554716824,
-      "descriptors": {
-        "rangeM": 55,
-        "range": "mid",
-        "loadFactor": 0.455,
-        "weight": "light",
-        "heatMarginKw": -15.107142857142858,
-        "heat": "redliner",
-        "kill": "power",
-        "rank": 19
-      },
-      "parts": [
-        {
-          "partId": "W-ION"
-        },
-        {
-          "partId": "W-ION"
-        },
-        {
-          "partId": "W-ION"
+          "partId": "W-RG"
         },
         {
           "partId": "W-ION"
         },
         {
           "partId": "R-C90"
+        },
+        {
+          "partId": "P-CAP"
+        },
+        {
+          "partId": "P-CAP"
+        },
+        {
+          "partId": "P-CAP"
         }
       ]
     },
@@ -6083,44 +6045,127 @@
       "chassisId": "CH-9",
       "rank": 20,
       "cell": "close/medium/redliner",
-      "fitness": 0.9907580827592263,
+      "fitness": 0.9905321429079403,
       "descriptors": {
-        "rangeM": 35.00000000000001,
+        "rangeM": 43.73831775711138,
         "range": "close",
-        "loadFactor": 0.5195833333333333,
+        "loadFactor": 0.5604166666666667,
         "weight": "medium",
-        "heatMarginKw": -15.800000000000004,
+        "heatMarginKw": -22.699999999999996,
         "heat": "redliner",
         "kill": "damage",
-        "rank": 18
+        "rank": 19
       },
       "parts": [
         {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
-        },
-        {
-          "partId": "W-MG"
+          "partId": "W-RG"
         },
         {
           "partId": "R-C90"
         },
         {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "P-CAP"
+        }
+      ]
+    },
+    {
+      "lock": 4,
+      "chassisId": "CH-9",
+      "rank": 20,
+      "cell": "mid/light/redliner",
+      "fitness": 0.3241723892948903,
+      "descriptors": {
+        "rangeM": 55,
+        "range": "mid",
+        "loadFactor": 0.43625,
+        "weight": "light",
+        "heatMarginKw": -12.36428571428571,
+        "heat": "redliner",
+        "kill": "power",
+        "rank": 19
+      },
+      "parts": [
+        {
           "partId": "R-C90"
         },
         {
-          "partId": "U-RAD"
+          "partId": "W-ION",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        },
+        {
+          "partId": "W-ION",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        },
+        {
+          "partId": "W-ION",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        }
+      ]
+    },
+    {
+      "lock": 4,
+      "chassisId": "CH-9",
+      "rank": 20,
+      "cell": "mid/medium/cold",
+      "fitness": 0.9911991345560208,
+      "descriptors": {
+        "rangeM": 90,
+        "range": "mid",
+        "loadFactor": 0.5266666666666667,
+        "weight": "medium",
+        "heatMarginKw": 5.5,
+        "heat": "cold",
+        "kill": "damage",
+        "rank": 19
+      },
+      "parts": [
+        {
+          "partId": "W-RG"
+        },
+        {
+          "partId": "R-C90"
+        },
+        {
+          "partId": "U-RISE2"
+        },
+        {
+          "partId": "U-RISE2"
+        },
+        {
+          "partId": "U-RISE2"
+        },
+        {
+          "partId": "U-RISE2"
+        },
+        {
+          "partId": "P-CAP"
+        },
+        {
+          "partId": "P-CAP"
         }
       ]
     },
@@ -6767,11 +6812,11 @@
     ],
     [
       "W-MG",
-      65
+      64
     ],
     [
       "R-C90",
-      58
+      55
     ],
     [
       "W-AC",
@@ -6799,15 +6844,15 @@
     ],
     [
       "W-ION",
-      25
-    ],
-    [
-      "U-RAD",
-      13
+      21
     ],
     [
       "U-RISE2",
-      11
+      14
+    ],
+    [
+      "U-RAD",
+      12
     ],
     [
       "U-TUR",
@@ -6818,7 +6863,15 @@
       9
     ],
     [
+      "P-CAP",
+      9
+    ],
+    [
       "ram-bore",
+      6
+    ],
+    [
+      "insulated-mount",
       6
     ],
     [
@@ -6826,8 +6879,8 @@
       5
     ],
     [
-      "insulated-mount",
-      3
+      "W-RG",
+      4
     ],
     [
       "fever-cycle",
@@ -6835,10 +6888,6 @@
     ],
     [
       "U-RISE3",
-      1
-    ],
-    [
-      "P-CAP",
       1
     ]
   ]

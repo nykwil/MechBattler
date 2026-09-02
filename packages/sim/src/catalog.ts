@@ -280,19 +280,39 @@ export const PARTS: Record<string, PartDef> = {
     // Tier 4 is the catalog ceiling (`PartDef.tier` is 1-4), so this costs the
     // same rank as a Longshot. The arm it eats is the rest of the price.
     massKg: 1100, hp: 90, tier: 4,
-    // Sized to what is left of a Vulture after the arm is gone: 15 cells minus
-    // six is nine, which is an R-C40 (4 cells, 40 kW) and a P-CAP (2 cells)
-    // with three to spare. 260 kJ on a 10 s cycle is 26 kW sustained, so the
-    // gun leaves ~14 kW of that reactor for locomotion and fire control, and
-    // 30 kJ a shot is 3 kW of heat against the one radiator the frame can
-    // still find a perimeter for. Every one of those numbers is the frame's,
-    // not the gun's -- author a long gun to a budget nothing can meet and it
-    // is dead content again, just for a different reason.
-    draw: { capFedEnergyPerShotKj: 260 },
+    // 260 kJ -> 60 kJ, 1 Sep 2026, and the first number was wrong for an
+    // instructive reason. It was sized against *sustained* draw: 260 kJ on a
+    // 10 s cycle is 26 kW, comfortably inside an R-C40's 40 kW. But a
+    // capacitor-fed gun does not spend its energy over the cycle, it spends it
+    // all at once, so what matters is whether the BANK covers one shot. A
+    // Vulture has nine cells left once the arm is gone -- an R-C40 (4) and a
+    // P-CAP (2) with three to spare -- and a single Jolt stores exactly 60 kJ.
+    // At 260 the gun could not fire on the one chassis it was cut for, which
+    // is a complete measurement of the wrong quantity.
+    //
+    // The dial is a cliff rather than a slope, because the frame fits one bank
+    // and no more: on CH-2 the finished build measures 86% at 60 kJ, 32% at
+    // 120, 19% at 180 and 11% at 260. CH-9 is unmoved (79% -> 80%), so this
+    // buys the light frame its gun without touching the heavy one.
+    //
+    // The commitment therefore lives in cells and mass -- six cells is a whole
+    // hardpoint, 1100 kg is a third of the frame's rating -- and not in the
+    // power budget. That is the right place for it: the arm is the price.
+    draw: { capFedEnergyPerShotKj: 60 },
     heat: { heatPerShotKj: 30 },
     weapon: {
       weaponClass: 'ballistic',
-      damage: 145, cycleS: 10, projectileSpeed: 1400, dispersionMrad: 0.9,
+      // 145/10 s -> 110/13 s, 1 Sep 2026. Once the bank could actually feed it
+      // (see `draw` above) the finished Vulture measured 93% against the
+      // canonical roster and beat four of seven templates every single time,
+      // which is not a playstyle, it is the answer. Backing dps off 14.5 -> 8.5
+      // lands it at 61% on CH-2 and 59% on CH-9 -- a gun worth building around
+      // on either frame and the obvious pick on neither.
+      //
+      // The cut went into rate of fire rather than damage, so the identity
+      // survives: 110 is the largest single hit in the catalog (the Longshot's
+      // is 85), and a 13 s reload is what you pay for it. A miss hurts.
+      damage: 110, cycleS: 13, projectileSpeed: 1400, dispersionMrad: 0.9,
       falloff: { idealMin: 70, idealMax: 130, max: 280 }, mountArcDeg: 20,
       recoilKnS: 14,
     },
