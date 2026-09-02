@@ -2169,3 +2169,72 @@ gear. Put to the owner rather than taken.
   I should have read `exchangeAtPos` before making it.
 - The earlier note that water dwell is "incidental" is also wrong. 0.68 is not
   indifference; it is avoidance, and avoidance is a preference.
+
+### F31 continued — the water term is derived now, and what that actually bought
+
+Owner's call, taken 2 Sep: derive it. `combat.ts` now computes the bath's worth
+instead of typing it.
+
+```ts
+// gone
+let hottestC = 25; ... const runningHot = hottestC >= 100;
+if (t === 'water' && runningHot) u += 2;
+
+// now: two factors, both read from the sim
+waterCoolingFactor()  // radiator channel in a water context vs the current one,
+                      // x WATER_RADIATOR_MULT. Bare Gill 1.6x; Gill + Tidecooler
+                      // 3.2x. This is what lets a *mod* move the decision.
+waterGainDps          // (exchange with cones at ambient) - (exchange as they are),
+                      // capped by that factor. Continuous, and zero on a cold
+                      // mech -- which is the gate, derived, rather than 100 C.
+```
+
+**The canonical roster barely moves, which is the right outcome.** Terrain dwell
+across every template pairing: water ratio 0.68 → **0.67**, hill 1.96 → 1.97,
+forest 1.03 → 1.04. Those builds are cold, heat costs them nothing in dispersion,
+so the bath is worth nothing to them and they correctly ignore it. A pilot change
+that left every existing measurement alone is the cheapest possible version of
+this fix.
+
+**A hot mech now behaves completely differently.** `CH-5 W-KL:2 + Gill`, peak
+117 °C, over the canonical roster: **17.5% of its time in water against a 4.4%
+arena share** — a ratio of 4.0. The old constant produced 24.6% on the 6-seed
+probe and the new one 25.5%, so the *seeking* was largely there before; what was
+missing is below.
+
+**The mod can move the decision now, and the movement is small.**
+
+| | old (`u += 2`) | new (derived) |
+|---|---|---|
+| water dwell, no mod | 24.57% | 25.51% |
+| water dwell, Tidecooler | 24.65% | 26.13% |
+| **mod's influence** | **+0.08** | **+0.62** |
+
+Eight times the influence, and still under a point. Honest reading: the mech was
+already going to water whenever heat hurt, so there was little room for a mod to
+increase the *incentive*. The fix removes the wrongness — a constant that no
+content could reach — without by itself making the mod strong.
+
+**Where the mod does pay is the physical effect, and it is large.** 20 seeds
+against the whole roster, mean hottest-cell temperature *while wading*:
+
+```
+CH-5 W-KL:2   57.6 C  ->  45.4 C with a Tidecooler   (-12.2)
+CH-9 W-KL:2   49.6 C  ->  40.5 C                     ( -9.1)
+CH-2 W-KL:1   mod did not attach — the assembler placed no radiator it could ride
+```
+
+Win rate is unchanged on all three (95%, 91%, 47%) because these builds are
+already saturated, so the cooling does not convert. **The mod is live and
+measurable; whether it is worth a mod slot is a separate question this does not
+answer.**
+
+Note the CH-2 line. The probe reported `attached=n` and that is F18 working: a
+mod that never legally attached measures identically to one that does nothing,
+so the attachment is asserted rather than assumed. `coolantBath.test.ts` pins
+both properties, including that assertion.
+
+**Cost elsewhere.** `npm run verify` is green — 439 sim, 36 game, 209 web — and
+reports *no* dominant perk combination, where docs/19 has long recorded one on
+`mule-fever-cycle`. That may be this change or may be earlier work in this pass;
+it is recorded, not investigated, and nothing was tuned or re-baselined.

@@ -1131,10 +1131,6 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   const myTile = terrainAt(terrain, self.pos.x, self.pos.y);
   const enemyTile = terrainAt(terrain, enemy.pos.x, enemy.pos.y);
   const activeSpeeds = self.activeSpeeds(snapshot);
-  // Overheating makes a coolant bath worth real dps in the scoring below.
-  let hottestC = 25;
-  if (snapshot) for (const t of Object.values(snapshot.cellTempsC)) if (t > hottestC) hottestC = t;
-  const runningHot = hottestC >= 100;
 
   // Farthest range at which any functional gun still fires (despawn bound,
   // elevation-extended when standing on a hill).
@@ -1155,13 +1151,64 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
   const exchangeAt = (r: number, mySpeedMps: number, myLateralMps: number): number =>
     estimateExpectedDps(self, enemy, r, mySpeedMps, enemyLateralNow, snapshot, terrainDpsMods(myTile, enemyTile)) -
     estimateExpectedDps(enemy, self, r, enemySpeedNow, myLateralMps, null, terrainDpsMods(enemyTile, myTile), mySpeedMps);
+  /**
+   * How much more heat this mech would shed standing in water than it sheds
+   * where it is, as a fraction of what it sheds now. Zero without a working
+   * radiator, and zero when already wading.
+   *
+   * Read from the radiator channel rather than from `WATER_RADIATOR_MULT`
+   * alone, because that is what lets a *mod* move it: a bare Gill reads 1.6x,
+   * and a Gill carrying a Tidecooler reads 3.2x. The old code could not express
+   * that difference and so the mod could not affect the decision it exists to
+   * reward (docs/17 F31).
+   */
+  const waterCoolingFactor = (): number => {
+    const envMult = (tile: TerrainType): number => (tile === 'water' ? WATER_RADIATOR_MULT : 1);
+    let here = 0;
+    let wading = 0;
+    for (const p of self.build.parts) {
+      if (getPart(p.partId).id !== 'U-RAD' || !self.isPartFunctional(p.instanceId)) continue;
+      const tempC = self.sim.meanCellC(p.instanceId);
+      here += effectiveMults(p, { tempC, speedMps: 0, tile: myTile }).radiator * envMult(myTile);
+      wading += effectiveMults(p, { tempC, speedMps: 0, tile: 'water' }).radiator * envMult('water');
+    }
+    return here > 0 ? Math.max(0, wading / here - 1) : 0;
+  };
+
+  /**
+   * What a coolant bath is worth to this mech, in the exchange's own dps units.
+   *
+   * This used to be `u += 2` behind a `hottestC >= 100` gate — a typed constant
+   * standing where the sim has a derived quantity, which is the one thing
+   * CLAUDE.md says never to do, in the decision procedure rather than in an
+   * instrument. The gate was open on 1.155% of mech-ticks and on one of seven
+   * canonical templates, and the constant ignored the mech's radiators, the
+   * environmental multiplier and any mod on either, so no water-keyed content
+   * could ever change how often the pilot went there (docs/17 F31).
+   *
+   * Both halves are read from the sim now. What heat is costing is the exchange
+   * re-scored with the guns' cones at ambient instead of at their real
+   * temperature — `weaponSigmaMrad` widens through `heatDispersionMult`, so it
+   * is continuous and it is *zero on a cold mech*, which is the gate, derived,
+   * instead of a round 100 °C. What water buys back is capped at all of it:
+   * a bath cannot return more dps than heat is taking.
+   */
+  const waterGainDps = (() => {
+    const factor = waterCoolingFactor();
+    if (factor <= 0) return 0;
+    const mods = terrainDpsMods(myTile, enemyTile);
+    const hot = estimateExpectedDps(self, enemy, range, 0, enemyLateralNow, snapshot, mods);
+    const cool = estimateExpectedDps(self, enemy, range, 0, enemyLateralNow, null, mods);
+    return Math.max(0, cool - hot) * Math.min(1, factor);
+  })();
+
   /** Standing exchange if I were positioned at `pos` (its tile's cover/elevation/coolant). */
   const exchangeAtPos = (pos: Vec2): number => {
     const t = terrainAt(terrain, pos.x, pos.y);
     const r = len(sub(enemy.pos, pos));
     let u = estimateExpectedDps(self, enemy, r, 0, enemyLateralNow, snapshot, terrainDpsMods(t, enemyTile)) -
       estimateExpectedDps(enemy, self, r, enemySpeedNow, 0, null, terrainDpsMods(enemyTile, t), 0);
-    if (t === 'water' && runningHot) u += 2;
+    if (t === 'water') u += waterGainDps;
     return u;
   };
   /**
