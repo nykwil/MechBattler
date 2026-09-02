@@ -21,7 +21,8 @@ import { getChassis } from './chassis.js';
 import { placeParts } from './assembly.js';
 import { applyAutoWire } from './autowire.js';
 import {
-  computeBurstDps, computeEnergyMargin, computeHeatBalance, computeIdealRangeBand, computeSpeedProfile,
+  computeBurstDps, computeCapacitorBank, computeEnergyMargin, computeHeatBalance,
+  computeIdealRangeBand, computeSpeedProfile,
 } from './derivedStats.js';
 import { computeBudget } from './harness.js';
 import { validateBuild, type BuildIssue } from './validation.js';
@@ -115,6 +116,11 @@ const byOutput = (ids: string[], key: (id: string) => number) =>
 const REACTORS = () => byOutput(
   Object.keys(PARTS).filter((id) => PARTS[id]!.reactor),
   (id) => PARTS[id]!.reactor!.outputKw,
+);
+
+const CAPACITORS = () => byOutput(
+  Object.keys(PARTS).filter((id) => PARTS[id]!.capacitor),
+  (id) => PARTS[id]!.capacitor!.storedKj,
 );
 
 /**
@@ -221,6 +227,52 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
         count: 1,
         why: unpowered && margin.marginKw >= 0 ? 'something still had no power path' : `energy margin was ${margin.marginKw.toFixed(1)} kW`,
       });
+    }
+
+    // Capacitors: a capacitor-fed gun with no bank can never fire, and
+    // `validateBuild` says exactly that in `cap-starved-weapon`. This was the
+    // one measured fault completion ignored, and the cost was not small: a
+    // cap-fed gun scores 0% alone and 33-44% once its reactor and bank are
+    // there, so every single-part step toward one is a loss and a hill-climbing
+    // search can never reach the working build. Both capacitor-fed weapons in
+    // the catalog -- `W-RG` and `W-SR` -- were reported as dead gear by
+    // `sim:breed` for this reason and no other, while every mechanical and
+    // charged gun was fine. See docs/17 F16.
+    //
+    // The bank has to cover the largest single shot, not merely exist: a gun
+    // that spends 260 kJ at once is still starved by a 60 kJ Jolt.
+    for (let guard = 0; guard < 6; guard++) {
+      const needKj = Math.max(0, ...build.parts
+        .map((part) => getPart(part.partId).draw?.capFedEnergyPerShotKj ?? 0));
+      if (needKj <= 0) break;
+      if (computeCapacitorBank(build).storedKj >= needKj) break;
+      const why = `a capacitor-fed gun needs ${needKj.toFixed(0)} kJ a shot`;
+      const options = CAPACITORS().filter(inPool);
+      if (options.length === 0) {
+        blocked.push({ partId: '(capacitor)', why: `${why}, but the lock has no capacitor in it` });
+        break;
+      }
+      // Banks add up, so the question is never "which single capacitor covers
+      // the shot" — it is "what fits". Largest first because fewer, bigger
+      // banks waste fewer cells, then down to the smallest, and the loop runs
+      // again to accumulate. Picking only the largest and giving up when it
+      // did not fit left a Vulture with five free cells and no capacitor,
+      // because a 4-cell Reservoir will not fit beside a gun that eats an arm
+      // and a 2-cell Jolt would have.
+      let placedOne = false;
+      for (const pick of [...options].reverse()) {
+        if (!withinBudget(build, pick, wish.budget)) continue;
+        const result = placeParts(build, pick, 1, { prefix: 'wb', requireConnected: false });
+        if (result.placed === 0) continue;
+        build = rewire(result.build);
+        added.push({ partId: pick, count: 1, why });
+        placedOne = true;
+        break;
+      }
+      if (!placedOne) {
+        blocked.push({ partId: '(capacitor)', why: `${why}, but no capacitor fits in the cells and budget left` });
+        break;
+      }
     }
 
     // Heat: radiators until the measured balance is non-negative.
