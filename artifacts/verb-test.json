@@ -1,0 +1,1449 @@
+{
+  "stamp": {
+    "contentHash": "78713166",
+    "screenPanel": [
+      "vulture-skirmisher",
+      "mule-gunline",
+      "bastion-tank"
+    ],
+    "fullPanel": [
+      "vulture-skirmisher",
+      "mule-gunline",
+      "mule-skirmisher",
+      "mule-laser-boat",
+      "railgun-mule",
+      "vulture-sniper",
+      "bastion-tank"
+    ],
+    "spawnDistancesM": [
+      40,
+      60,
+      100,
+      160
+    ]
+  },
+  "parameters": {
+    "locks": 2,
+    "baseSeed": 1,
+    "ranks": [
+      8,
+      16
+    ],
+    "chassisIds": [
+      "CH-2",
+      "CH-5",
+      "CH-9"
+    ],
+    "budget": 120,
+    "confirmSeeds": 40,
+    "workers": 6
+  },
+  "noiseBand": 0.05976143046671968,
+  "elapsedS": 443.585,
+  "invariants": {
+    "i1": [
+      {
+        "chassisId": "CH-2",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 1,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": true
+      },
+      {
+        "chassisId": "CH-5",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 1,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": true
+      },
+      {
+        "chassisId": "CH-9",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 1,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": true
+      },
+      {
+        "chassisId": "CH-2",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 0.46875,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": false
+      },
+      {
+        "chassisId": "CH-5",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 0.875,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": true
+      },
+      {
+        "chassisId": "CH-9",
+        "lowRank": 8,
+        "highRank": 16,
+        "gap": 1,
+        "winRate": 1,
+        "threshold": 0.6,
+        "mirror": false,
+        "pass": true
+      }
+    ],
+    "i2": [
+      {
+        "rank": 8,
+        "spread": 0.35000000000000003,
+        "best": "CH-2",
+        "worst": "CH-5",
+        "pass": false,
+        "aboveSaturation": []
+      },
+      {
+        "rank": 16,
+        "spread": 0.2964285714285715,
+        "best": "CH-5",
+        "worst": "CH-9",
+        "pass": false,
+        "aboveSaturation": []
+      },
+      {
+        "rank": 8,
+        "spread": 0.5107142857142857,
+        "best": "CH-5",
+        "worst": "CH-2",
+        "pass": false,
+        "aboveSaturation": []
+      },
+      {
+        "rank": 16,
+        "spread": 0.7607142857142857,
+        "best": "CH-5",
+        "worst": "CH-2",
+        "pass": false,
+        "aboveSaturation": []
+      }
+    ],
+    "i3": {
+      "deadParts": [
+        "P-CAP",
+        "P-CAP2",
+        "W-RG"
+      ],
+      "deadMods": [
+        "tidecooler",
+        "coil-sprung",
+        "gyro-flywheel"
+      ],
+      "neverOffered": [
+        "U-CON",
+        "U-PIPE",
+        "U-ARM",
+        "U-TC1",
+        "U-ACT",
+        "U-TUR",
+        "U-RISE2",
+        "U-RISE3",
+        "U-RISEL",
+        "U-SHELL",
+        "R-E60",
+        "W-CB",
+        "W-ION",
+        "marsh-pistons",
+        "fever-cycle",
+        "cold-bore",
+        "gyrostabilized",
+        "hull-down",
+        "weaving-gait",
+        "sacrificial-casing",
+        "surge-gate",
+        "thermocouple-skin"
+      ]
+    }
+  },
+  "saturation": [
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": null
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-5",
+      "rank": null
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-9",
+      "rank": null
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-2",
+      "rank": null
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": null
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": null
+    }
+  ],
+  "ceilings": [
+    {
+      "chassisId": "CH-2",
+      "rank": 8,
+      "ceiling": 0.5928571428571429,
+      "legalFound": 56
+    },
+    {
+      "chassisId": "CH-2",
+      "rank": 16,
+      "ceiling": 0.7964285714285715,
+      "legalFound": 91
+    },
+    {
+      "chassisId": "CH-5",
+      "rank": 8,
+      "ceiling": 0.24285714285714283,
+      "legalFound": 60
+    },
+    {
+      "chassisId": "CH-5",
+      "rank": 16,
+      "ceiling": 0.9642857142857143,
+      "legalFound": 111
+    },
+    {
+      "chassisId": "CH-9",
+      "rank": 8,
+      "ceiling": 0.33571428571428574,
+      "legalFound": 30
+    },
+    {
+      "chassisId": "CH-9",
+      "rank": 16,
+      "ceiling": 0.6678571428571428,
+      "legalFound": 101
+    },
+    {
+      "chassisId": "CH-2",
+      "rank": 8,
+      "ceiling": 0.14999999999999997,
+      "legalFound": 48
+    },
+    {
+      "chassisId": "CH-2",
+      "rank": 16,
+      "ceiling": 0.1392857142857143,
+      "legalFound": 78
+    },
+    {
+      "chassisId": "CH-5",
+      "rank": 8,
+      "ceiling": 0.6607142857142857,
+      "legalFound": 57
+    },
+    {
+      "chassisId": "CH-5",
+      "rank": 16,
+      "ceiling": 0.9,
+      "legalFound": 104
+    },
+    {
+      "chassisId": "CH-9",
+      "rank": 8,
+      "ceiling": 0.17142857142857146,
+      "legalFound": 22
+    },
+    {
+      "chassisId": "CH-9",
+      "rank": 16,
+      "ceiling": 0.875,
+      "legalFound": 95
+    }
+  ],
+  "headline": [
+    {
+      "chassisId": "CH-2",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0
+        }
+      ]
+    },
+    {
+      "chassisId": "CH-5",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0
+        }
+      ]
+    },
+    {
+      "chassisId": "CH-9",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0
+        }
+      ]
+    },
+    {
+      "chassisId": "CH-2",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0.46875
+        }
+      ]
+    },
+    {
+      "chassisId": "CH-5",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0.125
+        }
+      ]
+    },
+    {
+      "chassisId": "CH-9",
+      "k": 8,
+      "ladder": [
+        {
+          "rank": 16,
+          "winRate": 0
+        }
+      ]
+    }
+  ],
+  "gallery": [
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 8,
+      "cell": "mid/medium/redliner",
+      "fitness": 0.015453254645604398,
+      "descriptors": {
+        "rangeM": 47.5,
+        "range": "mid",
+        "loadFactor": 0.5133333333333333,
+        "weight": "medium",
+        "heatMarginKw": -3.1333333333333333,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 4
+      },
+      "parts": [
+        {
+          "partId": "W-RKT"
+        },
+        {
+          "partId": "R-C40"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 8,
+      "cell": "close/light/redliner",
+      "fitness": 0.013394245942690142,
+      "descriptors": {
+        "rangeM": 42.5,
+        "range": "close",
+        "loadFactor": 0.4716666666666667,
+        "weight": "light",
+        "heatMarginKw": -7,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 3
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 8,
+      "cell": "close/medium/redliner",
+      "fitness": 0.5928571428571429,
+      "descriptors": {
+        "rangeM": 42.5,
+        "range": "close",
+        "loadFactor": 0.5116666666666666,
+        "weight": "medium",
+        "heatMarginKw": -11,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 6
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        },
+        {
+          "partId": "W-MG",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 16,
+      "cell": "mid/medium/redliner",
+      "fitness": 0.016411985914930663,
+      "descriptors": {
+        "rangeM": 47.5,
+        "range": "mid",
+        "loadFactor": 0.5133333333333333,
+        "weight": "medium",
+        "heatMarginKw": -3.1333333333333333,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 5
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-RKT",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 16,
+      "cell": "close/light/redliner",
+      "fitness": 0.013394245942690142,
+      "descriptors": {
+        "rangeM": 42.5,
+        "range": "close",
+        "loadFactor": 0.4716666666666667,
+        "weight": "light",
+        "heatMarginKw": -7,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 3
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-2",
+      "rank": 16,
+      "cell": "close/medium/redliner",
+      "fitness": 0.7964285714285715,
+      "descriptors": {
+        "rangeM": 39.99999990372733,
+        "range": "close",
+        "loadFactor": 0.5466666666666666,
+        "weight": "medium",
+        "heatMarginKw": -15,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 8
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        },
+        {
+          "partId": "W-MG",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        },
+        {
+          "partId": "W-MG",
+          "modifiers": [
+            "insulated-mount"
+          ]
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "close/light/redliner",
+      "fitness": 0.32812847220561125,
+      "descriptors": {
+        "rangeM": 35,
+        "range": "close",
+        "loadFactor": 0.4058333333333333,
+        "weight": "light",
+        "heatMarginKw": -11,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 5
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "close/medium/redliner",
+      "fitness": 0.24285714285714283,
+      "descriptors": {
+        "rangeM": 15,
+        "range": "close",
+        "loadFactor": 0.5583333333333335,
+        "weight": "medium",
+        "heatMarginKw": -10,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 8
+      },
+      "parts": [
+        {
+          "partId": "R-C90"
+        },
+        {
+          "partId": "W-BR"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "close/light/redliner",
+      "fitness": 0.9642857142857143,
+      "descriptors": {
+        "rangeM": 35.00000000000001,
+        "range": "close",
+        "loadFactor": 0.48333333333333334,
+        "weight": "light",
+        "heatMarginKw": -27,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 9
+      },
+      "parts": [
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "R-C40"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "close/medium/redliner",
+      "fitness": 0.9876476167439536,
+      "descriptors": {
+        "rangeM": 29.999999999947917,
+        "range": "close",
+        "loadFactor": 0.5491666666666668,
+        "weight": "medium",
+        "heatMarginKw": -22,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 10
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-BR"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-9",
+      "rank": 8,
+      "cell": "close/light/redliner",
+      "fitness": 0.33571428571428574,
+      "descriptors": {
+        "rangeM": 35,
+        "range": "close",
+        "loadFactor": 0.3516666666666666,
+        "weight": "light",
+        "heatMarginKw": -9.95,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "close/light/redliner",
+      "fitness": 0.6678571428571428,
+      "descriptors": {
+        "rangeM": 35,
+        "range": "close",
+        "loadFactor": 0.3841666666666667,
+        "weight": "light",
+        "heatMarginKw": -21.95,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 10
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        },
+        {
+          "partId": "W-MG"
+        }
+      ]
+    },
+    {
+      "lock": 0,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "close/medium/redliner",
+      "fitness": 0.6510664647875719,
+      "descriptors": {
+        "rangeM": 14.999999999999998,
+        "range": "close",
+        "loadFactor": 0.5004166666666663,
+        "weight": "medium",
+        "heatMarginKw": -13.649999999999999,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "R-C40"
+        },
+        {
+          "partId": "W-BR"
+        },
+        {
+          "partId": "W-BR"
+        },
+        {
+          "partId": "W-BR"
+        },
+        {
+          "partId": "U-HS"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-2",
+      "rank": 8,
+      "cell": "mid/light/redliner",
+      "fitness": 0.01143507395641542,
+      "descriptors": {
+        "rangeM": 60,
+        "range": "mid",
+        "loadFactor": 0.48333333333333334,
+        "weight": "light",
+        "heatMarginKw": -5.5,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 4
+      },
+      "parts": [
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-2",
+      "rank": 8,
+      "cell": "close/medium/redliner",
+      "fitness": 0.14999999999999997,
+      "descriptors": {
+        "rangeM": 20,
+        "range": "close",
+        "loadFactor": 0.5033333333333333,
+        "weight": "medium",
+        "heatMarginKw": -8.5,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 5
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-2",
+      "rank": 16,
+      "cell": "mid/light/redliner",
+      "fitness": 0.01143507395641542,
+      "descriptors": {
+        "rangeM": 60,
+        "range": "mid",
+        "loadFactor": 0.48333333333333334,
+        "weight": "light",
+        "heatMarginKw": -5.5,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 4
+      },
+      "parts": [
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-2",
+      "rank": 16,
+      "cell": "close/medium/redliner",
+      "fitness": 0.1392857142857143,
+      "descriptors": {
+        "rangeM": 20,
+        "range": "close",
+        "loadFactor": 0.5033333333333333,
+        "weight": "medium",
+        "heatMarginKw": -8.5,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC",
+          "modifiers": [
+            "ram-bore"
+          ]
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "mid/light/redliner",
+      "fitness": 0.6527619197287066,
+      "descriptors": {
+        "rangeM": 55,
+        "range": "mid",
+        "loadFactor": 0.4758333333333335,
+        "weight": "light",
+        "heatMarginKw": -11,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 8
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "mid/light/cold",
+      "fitness": 0.653898115956697,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.45000000000000023,
+        "weight": "light",
+        "heatMarginKw": 1,
+        "heat": "cold",
+        "kill": "damage",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "mid/medium/redliner",
+      "fitness": 0.6607142857142857,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.5166666666666669,
+        "weight": "medium",
+        "heatMarginKw": -9,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 8,
+      "cell": "close/light/redliner",
+      "fitness": 0.6465433425705595,
+      "descriptors": {
+        "rangeM": 41.003649634929275,
+        "range": "close",
+        "loadFactor": 0.48500000000000015,
+        "weight": "light",
+        "heatMarginKw": -12.5,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 8
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-SC"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "mid/medium/cold",
+      "fitness": 0.9829145846208094,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.5500000000000005,
+        "weight": "medium",
+        "heatMarginKw": 3,
+        "heat": "cold",
+        "kill": "damage",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC",
+          "modifiers": [
+            "ram-bore"
+          ]
+        },
+        {
+          "partId": "W-AC",
+          "modifiers": [
+            "ram-bore"
+          ]
+        },
+        {
+          "partId": "U-RAD"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "mid/light/cold",
+      "fitness": 0.9683726872791782,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.45000000000000023,
+        "weight": "light",
+        "heatMarginKw": 1,
+        "heat": "cold",
+        "kill": "damage",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "close/medium/redliner",
+      "fitness": 0.9751104809411089,
+      "descriptors": {
+        "rangeM": 38.45588235294118,
+        "range": "close",
+        "loadFactor": 0.5833333333333336,
+        "weight": "medium",
+        "heatMarginKw": -20,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 16
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "mid/medium/redliner",
+      "fitness": 0.9,
+      "descriptors": {
+        "rangeM": 47.36055776889815,
+        "range": "mid",
+        "loadFactor": 0.6200000000000003,
+        "weight": "medium",
+        "heatMarginKw": -16.5,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-5",
+      "rank": 16,
+      "cell": "close/light/cold",
+      "fitness": 0.013458365107133462,
+      "descriptors": {
+        "rangeM": 17.5,
+        "range": "close",
+        "loadFactor": 0.43750000000000017,
+        "weight": "light",
+        "heatMarginKw": 3.5,
+        "heat": "cold",
+        "kill": "heat",
+        "rank": 10
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "U-RAD"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 8,
+      "cell": "mid/light/redliner",
+      "fitness": 0.17142857142857146,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.3691666666666666,
+        "weight": "light",
+        "heatMarginKw": -4.25,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 7
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 8,
+      "cell": "close/light/redliner",
+      "fitness": 0.015226992903421763,
+      "descriptors": {
+        "rangeM": 17.5,
+        "range": "close",
+        "loadFactor": 0.35083333333333333,
+        "weight": "light",
+        "heatMarginKw": -7.225,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 8
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "mid/light/cold",
+      "fitness": 0.9861512249616883,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.4287499999999996,
+        "weight": "light",
+        "heatMarginKw": 3.75,
+        "heat": "cold",
+        "kill": "damage",
+        "rank": 13
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "U-RAD"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "close/light/cold",
+      "fitness": 0.3298941726810673,
+      "descriptors": {
+        "rangeM": 41.003649634929275,
+        "range": "close",
+        "loadFactor": 0.40916666666666646,
+        "weight": "light",
+        "heatMarginKw": 0.25,
+        "heat": "cold",
+        "kill": "heat",
+        "rank": 14
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "U-RAD"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "close/light/redliner",
+      "fitness": 0.6457783982750902,
+      "descriptors": {
+        "rangeM": 38.455882352941174,
+        "range": "close",
+        "loadFactor": 0.40833333333333316,
+        "weight": "light",
+        "heatMarginKw": -0.5749999999999993,
+        "heat": "redliner",
+        "kill": "heat",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "W-SC"
+        },
+        {
+          "partId": "W-LAS"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "U-RAD"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "mid/light/redliner",
+      "fitness": 0.875,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.49999999999999956,
+        "weight": "light",
+        "heatMarginKw": -9.65,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "U-RAD"
+        }
+      ]
+    },
+    {
+      "lock": 1,
+      "chassisId": "CH-9",
+      "rank": 16,
+      "cell": "mid/medium/redliner",
+      "fitness": 0.9898980344082411,
+      "descriptors": {
+        "rangeM": 52.5,
+        "range": "mid",
+        "loadFactor": 0.5416666666666663,
+        "weight": "medium",
+        "heatMarginKw": -17.35,
+        "heat": "redliner",
+        "kill": "damage",
+        "rank": 15
+      },
+      "parts": [
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "W-AC"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "R-E25"
+        },
+        {
+          "partId": "R-E25"
+        }
+      ]
+    }
+  ],
+  "emptyCells": [
+    "close/medium/cold",
+    "close/heavy/cold",
+    "close/heavy/redliner",
+    "mid/heavy/cold",
+    "mid/heavy/redliner",
+    "long/light/cold",
+    "long/light/redliner",
+    "long/medium/cold",
+    "long/medium/redliner",
+    "long/heavy/cold",
+    "long/heavy/redliner"
+  ],
+  "coverage": [
+    [
+      "W-MG",
+      26
+    ],
+    [
+      "R-E25",
+      26
+    ],
+    [
+      "W-AC",
+      20
+    ],
+    [
+      "U-RAD",
+      15
+    ],
+    [
+      "R-C40",
+      12
+    ],
+    [
+      "W-SC",
+      10
+    ],
+    [
+      "W-LAS",
+      9
+    ],
+    [
+      "insulated-mount",
+      6
+    ],
+    [
+      "W-BR",
+      5
+    ],
+    [
+      "ram-bore",
+      3
+    ],
+    [
+      "W-RKT",
+      2
+    ],
+    [
+      "R-C90",
+      1
+    ],
+    [
+      "U-HS",
+      1
+    ]
+  ]
+}

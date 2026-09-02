@@ -381,6 +381,96 @@ weapons, and three mods returned exactly +0.0 because `appliesTo` silently
 declined them. "No effect" is what a mod that was never attached looks like, so
 check legality before reading a zero.
 
+## F11 — The autopilot got a second defensive verb, and it moved I2 further than the strafe hack did
+
+F8 identified the cause; this is the fix, and it changes the pilot rather than
+any chassis stat. Three changes to `autopilotController`, each measured:
+
+1. **The ground search reaches 60 m instead of 20 m** (`GROUND_SEARCH_CELLS`,
+   eight compass bearings × three rings). At one tile it could only pick up cover
+   a mech was already standing beside — useful to a Vulture, useless to anything
+   slow.
+2. **The trip is priced instead of gated on a flat +0.5.** `gain × horizon`
+   against `what transit costs × how long transit takes`, so the same exchange
+   arithmetic that picks the range picks the walk. Facing is held throughout;
+   guns bear the whole way.
+3. **A mech that cannot finish a charge stops making it.** The gap closes at my
+   forward speed minus the enemy's reverse speed, both read from the sim. If that
+   will not cover the distance inside the horizon, take the best ground at the
+   range being imposed instead of crossing open ground forever.
+
+Change 3 is the one that mattered, and it was found by measurement, not design:
+the Bastion spent **99.4% of every fight with intent `close`**, mean range 43.6 m,
+median 35 m still to walk, and never arrived. Its ideal range is ~10 m and the
+faster mech simply would not allow it. Changes 1 and 2 alone were worth almost
+nothing to CH-9 because they live in a branch that only runs once a mech is
+*inside* its band — which the Bastion never was.
+
+Against the F8 control, same locks, budget, seed and workers:
+
+| cell | control | strafe 4.0 (F8) | second verb |
+|---|---|---|---|
+| CH-2 @ 8 | 55/14 | 53/14 | 59/15 (+4) |
+| CH-2 @ 16 | 83/16 | 80/14 | 80/14 (−3) |
+| CH-5 @ 8 | 26/84 | 7/86 | 24/66 (−17) |
+| CH-5 @ 16 | 76/88 | 59/99 | 96/90 (+8) |
+| **CH-9 @ 8** | **19/19** | 18/14 | **34/17 (+15)** |
+| **CH-9 @ 16** | **44/61** | 59/97 | **67/88 (+26)** |
+
+Note rank 8: the strafe hack could not move it at all (19 → 18) because a rank-8
+Bastion is broke, not slow. The verb moved it +15 anyway, because cover costs no
+rank. Lock-0 parity spread fell 0.393 → 0.296 at rank 16 and 0.700 → 0.511 at
+rank 8 on lock 1, and CH-9 stopped being the worst chassis. **I2 still fails** —
+spreads are 0.30–0.76 against a 0.08 threshold — which is what F8 predicted when
+it said I2 was *partly* the pilot.
+
+**Two long-standing report-only findings closed on their own.** `sim:diversity`
+now reports `Dead perks: none` and `dominant perk combinations: none`;
+`gyrostabilized` and `mule-fever-cycle` had both been standing findings since
+August. Neither was targeted. Gyro stops being dead once holding ground is a real
+option, and the fever redliner stops being dominant once its victims can take
+cover.
+
+**What it cost.** Across the template matrix, shots per side fell 147.2 → 133.6
+with **zero silent sides** on either side of the change — mechs in cover fire
+less, which is the trade being bought, not the silent-mech failure. The first cut
+of change 3 *did* produce 5 silent sides, by letting a mech give up a charge from
+outside its own weapon reach; it is now gated on `range <= maxReachM`, because
+standing off where you cannot shoot is declining the fight, which is exactly what
+the deleted `flee` branch used to do. `game:balance -- 4` reads 0.897 / 0.500 /
+0.444 at rounds 1 / 4 / 7 — all three inside D2's bands. A new finding replaces
+the two that closed: `vulture-skirmisher` is now over the 70% kill criterion,
+which is unsurprising, since a fast frame with the game's lowest `moveJitterMult`
+gains most from being able to choose its ground.
+
+**The balance report moved more than anything since the port.** Six swings of
+5+ points against the 26 Aug baseline, and they are the shape the verb predicts:
+
+| build | baseline | now | delta |
+|---|---|---|---|
+| bastion-tank | 16% | 41% | **+25** |
+| vulture-skirmisher | 71% | 78% | +7 |
+| mule-skirmisher | 47% | 54% | +7 |
+| vulture-sniper | 57% | 49% | −8 |
+| mule-laser-boat | 71% | 63% | −8 |
+| mule-gunline | 39% | 16% | **−23** |
+
+The Bastion goes from the worst template in the game to mid-pack without one
+number changing on the chassis. **F2 moves too**: budget-vs-win-rate correlation
+is −0.145, against −0.637 at the baseline — most of "budget is anti-correlated
+with win rate" was heavy builds being unable to fly themselves. The baseline was
+**not** re-cut; the swing is meant to be visible.
+
+`mule-gunline` at −23 is the bill and should not be waved through. It is a
+stand-and-shoot build whose victims can now leave, and it is the template the
+golden battle happens to use. Whether it wants a rework or the verb wants
+tuning is a balance question, and balance is its own pass.
+
+`SIM_VERSION` is 2.16.0 and the golden battle was re-pinned deliberately. The
+reposition dials are now inside `simContentHash()`, which they should always have
+been — a sweep run before and after a horizon change must not claim to be
+comparable.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

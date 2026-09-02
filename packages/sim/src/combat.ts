@@ -181,6 +181,25 @@ export const WEAPON_REACH_MULT = 1;
  */
 export const APPROACH_SLANT_RAD = [0.35, 0.7];
 
+/** Eight compass bearings the ground search walks outward along. */
+const GROUND_SEARCH_BEARINGS: readonly (readonly [number, number])[] = [
+  [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1], [0, -1], [1, -1],
+];
+/**
+ * How many terrain cells out the autopilot will shop for better ground. At the
+ * 20 m default cell size this is a 60 m reach — far enough that a Bastion can
+ * get to cover it can see, and short enough that nobody crosses the arena for
+ * a marginal tile.
+ */
+export const GROUND_SEARCH_CELLS = 3;
+/**
+ * How long better ground is assumed to pay off for, in seconds. A pilot's
+ * judgement about how much fight is left, not a quantity the sim derives —
+ * the same kind of heuristic as APPROACH_SLANT_RAD. Raising it makes every
+ * frame more willing to walk; lowering it pins slow frames in place.
+ */
+export const REPOSITION_HORIZON_S = 20;
+
 export interface Vec2 { x: number; y: number }
 
 const add = (a: Vec2, b: Vec2): Vec2 => ({ x: a.x + b.x, y: a.y + b.y });
@@ -1115,34 +1134,66 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     if (t === 'water' && runningHot) u += 2;
     return u;
   };
-  /** Refine an ideal standing point by shopping the 3×3 neighboring tiles for better ground. */
+  /**
+   * Shop for better ground out to `GROUND_SEARCH_CELLS` tiles on eight
+   * compass bearings (docs/17 F8). The search used to be the 3×3 neighbours
+   * only, which is 20 m: far enough for a Vulture to pick up a forest tile it
+   * was already standing beside, and useless to anything slow. A Bastion
+   * strafes at 1.5 m/s and has exactly one evasion verb — orbiting — so on
+   * open ground it had no defensive play at all, and I2 charged the chassis
+   * for what was really a gap in the pilot. Cover it *can* reach is that play.
+   */
   const halfL = (terrain.cols * terrain.cellSizeM) / 2;
   const halfW = (terrain.rows * terrain.cellSizeM) / 2;
+  const clampToArena = (p: Vec2): Vec2 => ({
+    x: Math.max(-halfL + 2, Math.min(halfL - 2, p.x)),
+    y: Math.max(-halfW + 2, Math.min(halfW - 2, p.y)),
+  });
   const pickGround = (ideal: Vec2): Vec2 => {
     let best = ideal;
     let bestU = exchangeAtPos(ideal);
-    for (let dx = -1; dx <= 1; dx++) {
-      for (let dy = -1; dy <= 1; dy++) {
-        if (dx === 0 && dy === 0) continue;
-        const p: Vec2 = {
-          x: Math.max(-halfL + 2, Math.min(halfL - 2, ideal.x + dx * terrain.cellSizeM)),
-          y: Math.max(-halfW + 2, Math.min(halfW - 2, ideal.y + dy * terrain.cellSizeM)),
-        };
+    for (const [dx, dy] of GROUND_SEARCH_BEARINGS) {
+      for (let ring = 1; ring <= GROUND_SEARCH_CELLS; ring++) {
+        const p = clampToArena({
+          x: ideal.x + dx * ring * terrain.cellSizeM,
+          y: ideal.y + dy * ring * terrain.cellSizeM,
+        });
         const u = exchangeAtPos(p);
         if (u > bestU + 1e-9) { bestU = u; best = p; }
       }
     }
     return best;
   };
-  /** True when repositioning one tile away beats standing on this ground by a real margin. */
-  const betterGroundNearby = (): boolean => {
+  /**
+   * Is the best ground in reach worth walking to? The old test was a flat
+   * +0.5 against the adjacent tile, which cannot express the only question
+   * that matters once the search is wider than one step: better ground pays
+   * for the rest of the fight, but you are shot at all the way there, and the
+   * trip is far longer for a slow frame than a fast one. So price it —
+   * `gain × horizon` against `what transit costs × how long transit takes` —
+   * and let the same exchange arithmetic that picks the range pick this too.
+   * Facing is held on the target throughout, so guns bear for the whole walk;
+   * a version that turns and runs is what `flee` was, and it is not coming back.
+   */
+  const worthRepositioning = (): Vec2 | null => {
     const spot = pickGround(self.pos);
-    return (spot.x !== self.pos.x || spot.y !== self.pos.y) && exchangeAtPos(spot) > exchangeAtPos(self.pos) + 0.5;
+    if (spot.x === self.pos.x && spot.y === self.pos.y) return null;
+    const gain = exchangeAtPos(spot) - exchangeAtPos(self.pos);
+    if (gain <= 0) return null;
+    const distM = len(sub(spot, self.pos));
+    // Repositioning holds facing, so it crosses at strafe speed like an orbit.
+    const travelSpeed = Math.max(activeSpeeds.strafe * SPEED_FRACTION.cruise, 0.01);
+    const travelS = distM / travelSpeed;
+    const costRate = Math.max(0, exchangeAt(range, 0, 0) - exchangeAt(range, travelSpeed, travelSpeed));
+    return gain * REPOSITION_HORIZON_S > costRate * travelS ? spot : null;
   };
 
   // --- Verb 2 + 3 ---
   let move: Extract<MechOrder, { verb: 'move' }>;
   let setting: SpeedSetting;
+  // Assigned inside the else-if below so the ground search — the most
+  // expensive thing this controller does — only runs when we are in the band.
+  let repositionSpot: Vec2 | null = null;
   if (maxReachM === 0) {
     // No functional guns: stop. The mission-kill surrender is already three
     // seconds out, and sprinting away during those three seconds bought
@@ -1185,7 +1236,35 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
       if (u > bestU + 1e-9) { bestU = u; bestR = s.r; }
     }
 
-    if (Math.abs(range - bestR) > 8) {
+    // Can this charge ever finish? A mech backing away while facing me moves
+    // at its reverse speed, so the gap closes at my forward speed minus that.
+    // For a Bastion chasing a Vulture the number is negative: measured, the
+    // chassis spent 99.4% of every fight with intent `close`, a median 35 m
+    // still to walk, and never arrived -- it crossed open ground for the whole
+    // battle generating no lead error, which is most of why I2 scored it as a
+    // bad chassis (docs/17 F8). The faster mech dictates range; the slower one
+    // gets to choose its ground instead, and pretending otherwise is what the
+    // pilot was doing.
+    const netCloseMps = activeSpeeds.fwd - enemy.activeSpeeds(null).rev;
+    // Only ever give up a charge from somewhere I can actually shoot. Standing
+    // off outside my own reach is not "holding a range", it is declining the
+    // fight: the first cut of this verb produced 5 silent sides across the
+    // template matrix, the same failure the removed `flee` branch used to have.
+    const chaseIsFutile = range > bestR
+      && range <= maxReachM
+      && (range - bestR) / Math.max(netCloseMps, 0.01) > REPOSITION_HORIZON_S;
+
+    if (chaseIsFutile) {
+      // Stand and fight from the best ground within reach at the range I am
+      // being held at. Facing stays on the target, so this trades a charge
+      // that never lands for cover that actually applies.
+      const spot = pickGround(self.pos);
+      const moving = spot.x !== self.pos.x || spot.y !== self.pos.y;
+      move = moving
+        ? { verb: 'move', intent: len(sub(enemy.pos, spot)) < range ? 'close' : 'retreat', dest: spot }
+        : { verb: 'move', intent: 'hold', dest: null };
+      setting = moving ? 'cruise' : 'stationary';
+    } else if (Math.abs(range - bestR) > 8) {
       const closing = range > bestR;
       // Transit throttle: speed costs my accuracy now — pay only what the
       // current range says it's worth. (Out of everyone's reach it's free.)
@@ -1218,7 +1297,21 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
         // waypoint off-axis (often down-screen) and, with travel-facing, turned
         // the nose with it — the enemy was already shooting before Auto faced
         // them. Terrain shopping waits until we are inside the band.
-        const station = sub(enemy.pos, scale(dir, bestR));
+        // Shop terrain around the station itself, not just around where we
+        // already stand. A Bastion spends 99% of a fight in transit -- it is
+        // too slow to arrive before the enemy moves again -- so ground shopping
+        // that only runs "once inside the band" never runs for it at all, which
+        // is half of why the chassis has no defensive play (docs/17 F8).
+        //
+        // This is the thing the note below warns about, allowed only in the
+        // case that note does not cover: it yanked the first waypoint off-axis
+        // and, *with travel-facing*, turned the nose away while the enemy shot.
+        // Travel-facing happens when the enemy is out of our reach. Inside
+        // reach the face order is `mode: 'target'` regardless of where we walk,
+        // so the nose stays on the enemy and the objection does not apply.
+        const station = range <= maxReachM
+          ? pickGround(sub(enemy.pos, scale(dir, bestR)))
+          : sub(enemy.pos, scale(dir, bestR));
         if (bestAngleRad === 0) {
           move = { verb: 'move', intent: 'close', dest: station };
         } else {
@@ -1249,12 +1342,15 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
         // shopping waits until we are inside the band.
         move = { verb: 'move', intent: 'retreat', dest: sub(enemy.pos, scale(dir, bestR)) };
       }
-    } else if (betterGroundNearby()) {
-      // At the chosen range: better ground one tile away — a hill for my
-      // guns' reach, forest cover, or a coolant bath when running hot are
-      // worth a short reposition inside the band.
-      const spot = pickGround(self.pos);
-      move = { verb: 'move', intent: len(sub(enemy.pos, spot)) < range ? 'close' : 'retreat', dest: spot };
+    } else if ((repositionSpot = worthRepositioning()) !== null) {
+      // At the chosen range: ground worth walking to — a hill for my guns'
+      // reach, forest cover, or a coolant bath when running hot. `worthRepositioning`
+      // has already priced the trip against being shot during it.
+      move = {
+        verb: 'move',
+        intent: len(sub(enemy.pos, repositionSpot)) < range ? 'close' : 'retreat',
+        dest: repositionSpot,
+      };
       setting = 'cruise';
     } else {
       // At the chosen range: stand for accuracy, or orbit to tax the enemy's

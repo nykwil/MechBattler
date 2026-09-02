@@ -380,6 +380,11 @@ describe('body collision (a floor no order can close past)', () => {
    * integration fixture reaches it (GOLDEN's pair never gets within 46 m).
    */
   it('splits the hull push by mass, so the light mech gives way', () => {
+    /** Both mechs press straight into each other at full throttle. */
+    const drive: Controller = ({ enemy }) => [
+      { verb: 'move', intent: 'close', dest: { ...enemy.pos } },
+      { verb: 'throttle', setting: 'flank' },
+    ];
     const at = (a: string, b: string) => {
       const battle = new Battle({
         builds: [
@@ -387,6 +392,13 @@ describe('body collision (a floor no order can close past)', () => {
           structuredClone(TEMPLATES.find((t) => t.id === b)!.build),
         ],
         seed: 5, spawnDistanceM: 1, timeoutS: 1,
+        // Hold both mechs still. This test is about the collision push, and
+        // the autopilot's locomotion is pure contamination in it -- once the
+        // ground search could reach past one tile (docs/17 F8), two identical
+        // Vultures a metre apart walked to *different* cover and the ratio
+        // fell to 0.65 with the push maths untouched. Ordering both to hold
+        // measures the thing the test names.
+        controllers: [drive, drive],
       });
       const [x, y] = battle.combatants;
       const from = [{ ...x.pos }, { ...y.pos }];

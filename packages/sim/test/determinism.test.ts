@@ -145,10 +145,16 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // couplers' lane for column 5. Different guns now face different armour from
 // different angles, so the outcome flips. Determinism is untouched -- the
 // paired-battle and seed-divergence tests above still pass.
+// Re-pinned 1 Sep 2026 with SIM_VERSION 2.16.0, for the autopilot's second
+// defensive verb (docs/17 F11). Deliberate: the other determinism tests still
+// pass, so lockstep is intact and this is a behaviour change, not a divergence.
+// The gunline now loses this matchup -- a single fixture flipping is not the
+// evidence to read, the template matrix is: shots/side 147.2 -> 133.6 with
+// zero silent sides on either side of the change.
 const GOLDEN = {
-  winner: 0 as const,
-  reason: 'chassis-failure',
-  durationS: 49,
-  shots: [64, 536],
-  finalHash: 3312721149,
+  winner: 1 as const,
+  reason: 'mission-kill',
+  durationS: 46.75,
+  shots: [56, 568],
+  finalHash: 735935333,
 };
