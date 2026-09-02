@@ -267,8 +267,38 @@ export function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
   for (const a of lock.parts) {
     for (const b of lock.parts) {
       if (a >= b) continue;
-      for (const armourPlates of [0, 2]) {
-        out.push({ chassisId, parts: [{ partId: a, count: 1 }, { partId: b, count: 1 }], armourPlates });
+      // The bare pair, then the same pair carrying one mod on one side.
+      //
+      // docs/17 F19: mods used to be enumerated on one-part genomes only, and a
+      // one-part genome scores above zero only when that part is a gun -- the
+      // completer adds reactors, radiators, banks and armour, but never a
+      // weapon, and a weaponless build surrenders by mission-kill about three
+      // seconds in. So the only viable modded shape the seed population could
+      // contain was one weapon plus one mod, every mod that cannot ride a
+      // weapon was absent from all 189 archive builds, and two of six locks in
+      // the last sweep drew three support-only mods and could not use one.
+      //
+      // One mod at a time rather than the cross product: this is a seed
+      // population, and combining them is what `mutate` and `crossover` are
+      // for. That holds the pair enumeration at 1 + |mods(a)| + |mods(b)|
+      // variants -- at most 7 with LOCK_MOD_COUNT 3 -- so the whole
+      // enumeration stays inside DEFAULT_SCREEN_BUDGET.
+      const placements: { modA?: string[]; modB?: string[] }[] = [
+        {},
+        ...legalModsFor(a, lock).map((id) => ({ modA: [id] })),
+        ...legalModsFor(b, lock).map((id) => ({ modB: [id] })),
+      ];
+      for (const { modA, modB } of placements) {
+        for (const armourPlates of [0, 2]) {
+          out.push({
+            chassisId,
+            parts: [
+              { partId: a, count: 1, modifiers: modA },
+              { partId: b, count: 1, modifiers: modB },
+            ],
+            armourPlates,
+          });
+        }
       }
     }
   }

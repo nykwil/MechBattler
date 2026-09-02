@@ -1075,6 +1075,34 @@ mutation, starting from a population where it never appears.
 That is F16's fitness valley in a different coordinate: not "each step toward
 the combination is downhill", but "the combination is never proposed".
 
+### Fixed, and measured
+
+`enumerateGenomes` now emits, for each two-part pair, the bare pair plus the same
+pair carrying one mod on one side — `1 + |mods(a)| + |mods(b)|` variants, at most
+seven with `LOCK_MOD_COUNT` 3, so the enumeration stays inside
+`DEFAULT_SCREEN_BUDGET`. One mod at a time rather than the cross product, because
+this is a seed population and combining them is what `mutate` and `crossover` are
+for.
+
+Measured with the change stashed and unstashed, same seed, ranks, chassis, budget
+and workers (`--locks 4 --seed 1 --ranks 8,12,16 --chassis CH-5 --budget 200`),
+both at content hash `7c4c70e8`:
+
+| | builds | mod attachments | distinct mods | which |
+|---|---|---|---|---|
+| before | 72 | 7 | 2 | `insulated-mount`, `ram-bore` |
+| after | 74 | 10 | **3** | `insulated-mount`, `cold-bore`, **`gyro-flywheel`** |
+
+`gyro-flywheel` is the result: it is one of the seven mods that could not ride a
+weapon, and it had never appeared on a build in any sweep. One attachment in 74
+builds is not a balance verdict and is not meant to be — it is the difference
+between a shape the search cannot make and one it can. `cold-bore` going from
+absent to six is the same effect on the weapon-attachable side, where the extra
+pair genomes gave it somewhere to sit.
+
+`emptyCells` did not move (9 either way, on a CH-5-only three-rank run that is
+not comparable to a full sweep's six).
+
 ### What this does and does not license
 
 The eleven are **not** measured as weak. Seven of them are unmeasured, and any
@@ -1085,6 +1113,50 @@ The four that *can* ride a weapon and still never appear (`cold-bore`,
 `gyrostabilized`, `surge-gate`, and `sacrificial-casing` for the separate reason
 in F18) are the only honest dead-mod candidates in the catalog, and only three
 of those are real.
+
+
+## F20 — `simContentHash()` is a content-*and-compiler* hash, so never compute it locally
+
+`simContentHash()` decides whether two reports are comparable, and its
+`modifierFingerprint` includes `apply: m.apply.toString()` — the *source text* of
+each modifier's effect. Function text is compiler output, and this repo runs two
+compilers:
+
+```
+dist   (tsc):  "(m, ctx) => {\n    m.scale('damage', 0.95);\n    ...
+                // The jitter half was added Aug 2026, when raising ...
+source (tsx):  "(m,ctx)=>{m.scale(\"damage\",.95);if(ctx.tempC<COLD_BORE_MAX_C){...
+```
+
+esbuild minifies and strips comments; tsc preserves both. So the **same catalog
+hashes to two different values** — `29023729` from `packages/sim/dist`,
+`7c4c70e8` from source under `tsx`. Reports are stamped by `scripts/breed.ts`,
+which always runs under tsx, so reports remain consistent *with each other*.
+Anything computed from `dist` does not agree with them.
+
+This cost a real misreading during this pass: `artifacts/breed-wsr.json` stamps
+`7c4c70e8`, a locally computed hash said `29023729`, and the conclusion drawn was
+that the catalog had moved and the report was no longer comparable. It had not
+and it was. The comparison that had already been made against it was valid.
+
+**The rule:** compare a report's `stamp.contentHash` only against *another
+report's* `stamp.contentHash`. Never compute `simContentHash()` yourself and
+compare it to a stamp — the answer depends on how the code was compiled, not on
+what the content is.
+
+Two consequences worth knowing before anyone leans on this hash further:
+
+- It is sensitive to **comments inside a modifier's `apply` body** under tsc, and
+  not under tsx. Editing a comment can change the recorded identity of the
+  content under one toolchain and not the other.
+- It is not sensitive to anything about a modifier *outside* `apply`, `blurb`,
+  `tradeoff`, `maxCopiesPerBuild` and `kind`. `tier` is absent, so re-tiering a
+  mod — which changes its draw weight, its price and its rank cost all at once —
+  does **not** change the hash, and two reports either side of that edit will
+  claim to be comparable.
+
+Redesigning the fingerprint would invalidate the stamp on every report already
+written, so it is recorded here rather than changed.
 
 
 ## Non-findings, recorded so they are not re-investigated
