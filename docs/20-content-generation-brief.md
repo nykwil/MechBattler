@@ -1,0 +1,278 @@
+# 20 — Content generation brief
+
+**This document is a prompt.** Point an agent at it and say *"follow docs/20"*, or
+paste the §2 goal and §5 loop into a fresh session. It exists so a content pass
+starts from what the game measurably lacks rather than from whatever part
+occurred to somebody.
+
+Its bias is stated up front and is the owner's call: **interesting beats
+balanced.** A part that creates a build nobody could make before is worth
+shipping at the wrong power level. A part that is perfectly costed and changes
+nobody's decisions is not worth shipping at all. Balance is a separate pass with
+its own instruments (`docs/17`, `balance:report`), and it does not gate this one.
+
+What is *not* negotiable is **reachability**. An interesting part that no player
+and no search can ever assemble is indistinguishable from no part at all — and
+this project has now shipped that mistake four separate ways in one afternoon
+(§7). Interesting-but-unbalanced is a good outcome. Interesting-but-invisible is
+not an outcome.
+
+---
+
+## 1. Read these first
+
+- `CLAUDE.md` — the working agreement. Especially "never copy sim constants into
+  UI code" and the `sim:try` section.
+- `docs/17-balance-findings.md` **F16** — the four ways the instrument reported
+  working gear as dead. Read it before believing any measurement in §5.
+- `docs/19-watchlist.md` — open decisions. Two of them shape what you may author:
+  the thermal model is settled (radiators work now), and "a part priced by the
+  space it costs a small frame is underpriced on a large one" is open.
+- `docs/01 §7` and `docs/04 §4c–4d` — the authoring contract: which fields a part
+  and a mod must declare. `game:audit` warns on violations.
+
+---
+
+## 2. What "interesting" means here, operationally
+
+Not a matter of taste. The archive already defines the design space, and empty
+regions of it are the backlog.
+
+`describeBuild` (`packages/sim/src/archive.ts`) labels every build on four axes:
+
+| axis | buckets | rule |
+|---|---|---|
+| **range** | close / mid / long | midpoint of the ideal band; `<45 m`, `>100 m` |
+| **weight** | light / medium / heavy | mass ÷ rated mass; `≤0.5`, `≤0.8`, above |
+| **heat** | cold / redliner | sign of the heat margin |
+| **kill** | damage / heat / power | which of the three the guns mostly do |
+
+range × weight × heat is 18 archive cells. **A part is interesting if it fills a
+cell that was empty, or lets a filled cell be won a different way.** That is the
+goal function, it is measurable, and `sim:breed --json` reports it directly as
+`emptyCells` and `coverage`.
+
+Three softer signals, in descending order of value:
+
+1. **It changes what the autopilot does.** The pilot picks a range by scanning the
+   standing-exchange curve and has four verbs (weapons / move / throttle / face).
+   A part that moves the peak of that curve, or makes repositioning pay, creates a
+   different *fight*. A part that adds 8% damage does not.
+2. **It makes a chassis want something it did not want.** Per-chassis identity is
+   the point of three chassis. `W-SR` is the worked example: cut to the shape of a
+   Vulture hardpoint, it made the scout the long-range frame.
+3. **It creates a decision with a wrong answer.** Cost that binds — cells, mass,
+   heat, a region, an arm — beats cost that is just a number.
+
+---
+
+## 3. The backlog, measured
+
+From `artifacts/breed-wsr.json`, 2 Sep 2026, 6 locks × CH-2/CH-9 × ranks 8–20.
+**Re-measure before trusting these** — the reference panel is built from the
+catalog you are editing, so every report records `simContentHash()` and two
+reports with different hashes are indicative, not comparable.
+
+**Six of eighteen cells are empty:**
+
+```
+close/heavy/cold      close/heavy/redliner    mid/heavy/redliner
+long/light/redliner   long/medium/redliner    long/heavy/redliner
+```
+
+Two clusters, and each is a design statement:
+
+- **Heavy barely exists — 7 builds of 189.** Nothing wants to sit above 0.8 of
+  its rated mass. Mass today is pure cost: it slows you (`computeLoadScaledSpeeds`)
+  and buys nothing. *There is no reason to be heavy.* This is the single biggest
+  hole in the design space and the most interesting brief in this document.
+- **No long-range redliner.** Standoff builds are cold because reaching out does
+  not currently cost heat. A long gun that runs hot, or a cooling part that only
+  works while stationary, would put something there.
+
+**Dead mods (offered, never wanted):** `tidecooler`, `gyrostabilized`,
+`gyro-flywheel`, `weaving-gait`, `sacrificial-casing`, `thermocouple-skin`.
+Before "fixing" any of them, run §7 — three of these are movement mods that were
+gated behind an unfittable part until 1 Sep and have never been re-measured.
+
+**Kill methods:** damage 137, heat 35, power 17. Healthier than expected; the
+system-attacking guns (`W-SC`, `W-ION`) are doing real work.
+
+---
+
+## 4. The levers — what this engine can actually express
+
+Author against these. Anything else is a new mechanic, which is a design decision
+and needs asking about first.
+
+**Geometry.** `shape` is a cell list, not a rectangle — `rows()` in `catalog.ts`
+authors it as ASCII, the same way chassis masks are written. Rotation is
+0/90/180/270 with no mirroring. A shape cut to a region mask is the strongest
+identity tool available: it makes a part *belong* to a chassis without a single
+special case. Regions, ports and location zones live in `chassis.ts`.
+
+**Space.** `spatial`: `layer`, `stacksOn`, `height`, `clearsForward`,
+`transfersHeat`, `thermalConductance`, `blocksPassiveCooling`,
+`coveredHeatMultiplier`. Height and forward clearance mean a gun can be blocked
+by its own hull — that is where risers and gimbals earn their place.
+
+**Power.** Four ways a weapon can be fed, and they play differently:
+mechanical (no draw at all), continuous, charged, capacitor-fed. Cap-fed is the
+most interesting and the most dangerous: it is a *combination dependency*, worth
+nothing without a reactor and a bank, and the search and the player both have to
+be able to find that combination (§7).
+
+**Heat, which now works.** As of 1 Sep a radiator sheds from every cell in its
+conduction component (docs/17 F15), so cooling is finally a real system: thermal
+mass, conduction, ports, the skin, and radiators are all live and all spatial.
+The `radiator` modifier channel is no longer inert. Heat is the least-explored
+working system in the game.
+
+**Weapons.** `falloff` bands, `mountArcDeg`, `dispersionMrad`, `projectileSpeed`,
+`salvoCount`, `recoilKnS`, plus `enemyHeatKj` and `capDrainKj` for guns that
+attack a system rather than hit points.
+
+**Mods and perks.** `ModifierDef` reads live physical context — `tempC`,
+`speedMps`, `tile` — so a perk can be conditional on the fight rather than on the
+build. Declare the condition in `isActive` beside `apply`, never re-typed in a
+harness. `tier` is the only authored number: it sets draw weight `2^(1−tier)`,
+the machinist's price, and rank cost, all three at once.
+
+**Uniques.** Named bundles of part + mod + variant + quirks in `uniques.ts`. No
+new rules, so this is the cheapest way to add identity — legendary metal, not
+rules text.
+
+---
+
+## 5. The loop
+
+Work one idea at a time, all the way through. Do not batch ten parts and measure
+at the end; the measurements interact.
+
+1. **Measure the gap.**
+   `npm run sim:breed -- --locks 6 --budget 200 --workers 6 --json artifacts/gap.json`
+   Read `emptyCells`, `coverage`, `invariants.i3`. Note the content hash.
+2. **Write the hypothesis in one sentence** before authoring anything. *"A heavy
+   build has no reason to exist, so: a part that converts mass into something —
+   recoil absorption, armour that only works above 0.8 load, a reactor that scales
+   with hull mass."* If you cannot state it in a sentence, the part is a stat bump.
+3. **Author the smallest thing that could test it.** One part, or one mod. Numbers
+   go in `catalog.ts` / `modifiers.ts` with a comment saying what they were sized
+   against — the catalog's comments are the design record and reviewers read them.
+4. **Register it** — §6, six places, non-negotiable.
+5. **Play with it fast.** `npm run sim:try -- <chassis> <part>:<n>` is seconds.
+   Twenty variations around one part is the right amount of exploration. **Read
+   the `!` lines** — "wanted another Gill, but no perimeter cell is left" is the
+   finding, and a stall is information.
+6. **Prove it is reachable** — §7. Do this *before* believing any verdict.
+7. **Ask the instrument.** `npm run sim:breed -- --locks 6 --budget 200 --json ...`
+   Did the empty cell fill? Did the part appear in `coverage`? Compare only
+   against a run at the same content hash.
+8. **Write down what happened**, including failures, in `docs/17`. A part that did
+   not work is worth a paragraph — it stops the next pass re-authoring it.
+
+Between steps 5 and 7, `assembleBuild()` and `evaluateBuild()` are exported from
+`@mechbattler/sim` for scripted sweeps: one wish per variation in a loop is the
+fast way to answer "which chassis wants this part?".
+
+---
+
+## 6. Registry checklist
+
+A new part is not one file. Every one of these has failed on a real part; the
+first four fail loudly on `npm run sim:test`, the fifth on `game:audit`, and the
+sixth **fails silently and cost a 35-minute sweep**.
+
+- [ ] `packages/sim/src/catalog.ts` — the part itself
+- [ ] `packages/sim/test/weaponClass.test.ts` — the `EXPECTED` class map (weapons)
+- [ ] `packages/sim/test/powerBudget.test.ts` — the power-predicate list
+- [ ] `packages/sim/src/diversity.ts` — a verdict in `auditPartDifferentiation()`,
+      saying what it competes with and why it is distinct
+- [ ] `packages/game/src/content.ts` — an unlock route, and the enabled-part count
+      in `packages/game/test/game.test.ts`
+- [ ] `packages/sim/src/breeding.ts` — `MIDGAME_POOL`, or the breeder can never
+      draw it. Guarded by `breedingPool.test.ts` for weapons, reactors and
+      capacitors; **nothing guards a utility part.**
+
+Then `npm run verify` and `npm run game:audit` — the audit's `warnings` channel
+names anything outside the authoring contract.
+
+---
+
+## 7. The reachability gate
+
+**A single "dead gear" reading is not evidence about a part.** On 1–2 Sep four
+independent breaks each produced output identical to dead gear, and each was
+reported as a verdict before the next was found (docs/17 F16). Before concluding
+anything about a part, check all four:
+
+1. **Was it offered?** `invariants.i3.neverOffered` in the JSON. Never-offered and
+   never-wanted look identical in the gallery and the coverage table.
+2. **Can it be completed?** `assembleBuild({ parts:[{partId, count:1}] })` and read
+   `issues`. A part that needs a companion — a capacitor, a riser, a port — scores
+   zero alone, and every step toward it is downhill for a greedy search.
+3. **Can it be placed in any order?** Assemble it listed first, middle and last.
+   A part with few legal placements vanishes if something else lands there first.
+4. **Did the lock contain what it depends on?** `assembleBuild` will not reach past
+   the lock, correctly. A missing dependency does not restrict the part, it
+   deletes it.
+
+If a part fails any of these, you are measuring the instrument. Fix the
+instrument, then re-measure.
+
+**The general form, which will recur:** any part whose value depends on another
+part is invisible to a greedy search and hard for a player to discover. If you
+author one, give it a legible failure path — a `validateBuild` fault or a
+`computeHeatAdvice` hint that names the missing companion, the way
+`cap-starved-weapon` and `radiator-orphaned` do.
+
+---
+
+## 8. Traps, all of them paid for
+
+- **Never author a number the sim derives.** Read it from the sim or derive it
+  from frames and events. The battle diagnostics substituted constants for five
+  different derived values and each was found only while fixing the last.
+- **A modifier channel can be inert.** The `radiator` channel did nothing for a
+  year and every mod authored on it was dead on arrival. Before authoring against
+  a channel, swing its constant to zero and to ten times its value and confirm
+  something moves.
+- **`appliesTo` declining reads as `+0.0`.** A mod that was never legally attached
+  measures identically to a mod with no effect. Assert the attachment took.
+- **A part priced by the space it costs a small frame is underpriced on a large
+  one.** `W-SR` costs a Vulture an entire arm and a Bastion nothing much; a
+  two-Pinion Bastion hits 100%. Open on the watchlist — read it before authoring
+  another region-shaped part.
+- **`tier` is capped at 4** and does three jobs at once (draw weight, price, rank).
+  "Rare but weak" is not currently expressible.
+- **Edits are not live until vite rebuilds**, and `dist` must be rebuilt before a
+  parallel sweep — the sweep refuses to start if source is newer, which is correct
+  and will kill a running experiment if you edit mid-sweep.
+
+---
+
+## 9. What not to do
+
+- **Do not balance.** Do not tune a number to move a win rate, do not re-cut
+  `artifacts/balance-baseline.json`, and do not block on a balance harness — they
+  are all report-only. Record swings in `docs/17`; leave fixing them to a
+  deliberate balance pass.
+- **Do not invent mechanics without asking.** New fields on `PartDef`, new
+  modifier channels, new chassis rules, and anything touching screens with no
+  prototype (front door, run panel, salvage, scrapyard) are design decisions.
+  Geometry, numbers and combinations of existing levers are not — author freely.
+- **Do not delete a finding to make a report green.** A stall, a dead part and a
+  failed hypothesis are all results.
+
+---
+
+## 10. Report like this
+
+Per idea, short:
+
+> **Hypothesis.** Heavy builds have no reason to exist (7 of 189 archive entries).
+> **Authored.** `U-BAL`, 4 cells, 400 kg, absorbs recoil in proportion to hull mass.
+> **Reachability.** Offered ✓ · completes alone ✓ · any order ✓ · no dependency.
+> **Measured.** `close/heavy/cold` filled at 61%, CH-9 only. Coverage 14.
+> **Verdict.** Keep. It is the first reason to be heavy.
+> **Cost.** `bastion-tank` −7 since baseline, not tuned, recorded in docs/17.

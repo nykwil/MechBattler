@@ -132,6 +132,12 @@ only ever offered from free cells (this shape's bounding-box origin is a hole in
 itself) and only rotations 0/90 were tried. Both are fixed, append-only, and
 pinned by `concaveParts.test.ts`.
 
+**`20-content-generation-brief.md` is the prompt for the content pass** (added
+2 Sep 2026). It carries the measured backlog — six of eighteen archive cells are
+empty and heavy builds are 7 of 189 — the levers the engine can express, the
+six-place registry checklist a new part must join, and the reachability gate from
+`17` F16. Point an agent at it rather than re-deriving what the game lacks.
+
 **The thermal model changed on 1 Sep 2026 and `02` §3 is the authority.** A
 radiator now sheds from its whole conduction component instead of from its own
 cells, which it never warmed; before that change the part was inert and the
