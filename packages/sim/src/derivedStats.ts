@@ -17,8 +17,9 @@ import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { dexp } from './dmath.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
-import { Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
-import { RADIATOR_CAP_KW } from './thermal.js';
+import { HEAT_FIRE_HOLD_C, Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
+import { AMBIENT_C, RADIATOR_CAP_KW, buildThermalModel } from './thermal.js';
+import { EXTERIOR_PASSIVE_K } from './spatial.js';
 import { resolvePlacementEffects } from './placementEffects.js';
 import { INSTANCE_KNOBS, resolveBuildEffects, resolveSpeedMultiplier } from './buildEffects.js';
 import { connectedInstanceIds, resolveSpatialPower } from './spatialPower.js';
@@ -116,17 +117,41 @@ export function computeEnergyMargin(chassis: ChassisSpec, build: Build): EnergyM
 export interface HeatBalance {
   /** Heat generated with all weapons at max cadence + reactor waste at that load, kW. */
   heatInKw: number;
-  /** Maximum radiator dissipation (RADIATOR_CAP_KW per radiator), kW. */
+  /** Total heat this build can shed at the fire-hold threshold, kW. */
   coolingKw: number;
+  /** The skin's share of `coolingKw` — free, and usually most of it. */
+  passiveKw: number;
+  /** Radiators' share of `coolingKw`. Zero for a radiator plumbed to nothing. */
+  radiatorKw: number;
+  /** Radiators whose conduction component contains no heat source: dead weight. */
+  orphanedRadiatorIds: string[];
   marginKw: number;
   perSource: { partId: string; kw: number }[];
 }
 
 /**
  * docs/01 §9 heat balance bar: heat into the build vs. cooling capacity, at
- * "all weapons max cadence". Cooling uses the radiator hard cap (actual
- * dissipation scales with cell temperature, so this is the ceiling the build
- * approaches as it heats up — an honest capacity number for a gauge).
+ * "all weapons max cadence".
+ *
+ * Cooling is measured **at the fire-hold threshold**, which makes the gauge a
+ * statement the player can act on: if `heatInKw < coolingKw`, this build can
+ * never reach 115 °C and be forced to stop firing. Every cooling term scales
+ * with temperature, so a single kW figure needs a stated reference, and this is
+ * the only reference the warning is about.
+ *
+ * It used to credit `RADIATOR_CAP_KW` per radiator and nothing else, and called
+ * that "an honest capacity number". Measured against the sim, radiators
+ * delivered 0.00–0.36 kW while the skin delivered 1.70–2.52 kW (docs/17 F14) —
+ * so the gauge was not merely imprecise, it was anti-correlated: it credited
+ * everything to the part that did nothing and nothing to the exposure that did
+ * everything. A player optimising the number they were shown fitted radiators
+ * and buried their hot parts, which is backwards on both counts.
+ *
+ * Now that a radiator sheds from its whole conduction component, its cap is
+ * reachable and worth quoting — but only if it is plumbed to something. One
+ * connected to nothing contributes zero here exactly as it does in the sim, and
+ * is named in `orphanedRadiatorIds` so the workshop can say so rather than
+ * leaving the player to wonder why the bar did not move.
  */
 export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBalance {
   const perSource: { partId: string; kw: number }[] = [];
@@ -134,7 +159,6 @@ export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBala
   const utilization = margin.supplyKw > 0 ? clamp(margin.demandKw / margin.supplyKw, 0, 1) : 0;
 
   let heatInKw = 0;
-  let coolingKw = 0;
   for (const p of build.parts) {
     const def = getPart(p.partId);
     const placementHeatMult = resolvePlacementEffects(chassis, build, p.instanceId)?.effectiveHeatMultiplier ?? 1;
@@ -147,9 +171,47 @@ export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBala
       kw *= placementHeatMult;
     }
     if (kw > 0) { heatInKw += kw; perSource.push({ partId: def.id, kw }); }
-    if (def.id === 'U-RAD') coolingKw += RADIATOR_CAP_KW;
   }
-  return { heatInKw, coolingKw, marginKw: coolingKw - heatInKw, perSource };
+
+  // Reference temperature for every temperature-proportional term below.
+  const refAboveAmbient = HEAT_FIRE_HOLD_C - AMBIENT_C;
+
+  // The skin. Free, needs no part, and is most of what actually cools a mech —
+  // which is why omitting it was the larger half of the old gauge's error.
+  const model = buildThermalModel(chassis, build.parts, build.routes ?? []);
+  let passiveCells = 0;
+  for (const cell of model.cells.values()) {
+    if (cell.isPerimeter && !cell.passiveCoolingBlocked) passiveCells++;
+  }
+  const passiveKw = passiveCells * EXTERIOR_PASSIVE_K * refAboveAmbient;
+
+  // A radiator is worth its cap only where it has something to draw from. Ask
+  // the same question the sim asks: is there a heat source in my component?
+  const heatSourceComponents = new Set<number>();
+  for (const p of build.parts) {
+    const def = getPart(p.partId);
+    const makesHeat = (def.weapon && def.heat?.heatPerShotKj) || def.reactor;
+    if (!makesHeat) continue;
+    for (const cellKey of model.cellKeysByInstance.get(p.instanceId) ?? []) {
+      const component = model.componentByCell.get(cellKey);
+      if (component !== undefined) heatSourceComponents.add(component);
+    }
+  }
+  let radiatorKw = 0;
+  const orphanedRadiatorIds: string[] = [];
+  for (const p of build.parts) {
+    if (getPart(p.partId).id !== 'U-RAD') continue;
+    const ownKey = model.cellKeysByInstance.get(p.instanceId)?.[0];
+    const component = ownKey === undefined ? undefined : model.componentByCell.get(ownKey);
+    if (component !== undefined && heatSourceComponents.has(component)) radiatorKw += RADIATOR_CAP_KW;
+    else orphanedRadiatorIds.push(p.instanceId);
+  }
+
+  const coolingKw = passiveKw + radiatorKw;
+  return {
+    heatInKw, coolingKw, passiveKw, radiatorKw, orphanedRadiatorIds,
+    marginKw: coolingKw - heatInKw, perSource,
+  };
 }
 
 export interface CapacitorBank {

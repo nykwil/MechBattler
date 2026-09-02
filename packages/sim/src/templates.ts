@@ -104,7 +104,12 @@ function muleGunline(): Build {
     // ceiling of 1 the gun now imposes on its lane.
     regionalPart('ac', 'W-AC', 'body', 0, 3, 90),
     regionalPart('con1', 'U-CON', 'body', 1, 2),
-    regionalPart('rad', 'U-RAD', 'left-shoulder', 0, 1),
+    // Moved: a radiator sheds heat only from the parts it shares a conduction
+    // component with, and this one shared its component with nothing that makes
+    // heat. It was dead weight -- 100 kg and three perimeter cells for no
+    // cooling at all -- and nothing said so until docs/17 F14 made radiators
+    // work and `computeHeatBalance` started naming orphans.
+    regionalPart('rad', 'U-RAD', 'body', 1, 5),
   ];
   return wired({ chassisId: 'CH-5', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'ac'] });
 }
@@ -250,7 +255,12 @@ function bastionTank(): Build {
     // is the frame that carries it. Power is untouched at +53 kW.
     regionalPart('tc', 'U-TC1', 'hull', 4, 2),
     regionalPart('br', 'W-BR', 'left-sponson', 0, 2),
-    regionalPart('radRight', 'U-RAD', 'right-sponson', 7, 2, 90),
+    // Moved: a radiator sheds heat only from the parts it shares a conduction
+    // component with, and this one shared its component with nothing that makes
+    // heat. It was dead weight -- 100 kg and three perimeter cells for no
+    // cooling at all -- and nothing said so until docs/17 F14 made radiators
+    // work and `computeHeatBalance` started naming orphans.
+    regionalPart('radRight', 'U-RAD', 'hull', 5, 6, 90),
     regionalPart('radBottom', 'U-RAD', 'hull', 2, 8),
     regionalPart('hs1', 'U-HS', 'hull', 2, 6),
     regionalPart('hs2', 'U-HS', 'hull', 3, 6),
@@ -288,7 +298,12 @@ function bastionAutocannonCasemate(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-C40', 'hull', 3, 3),
     regionalPart('ac', 'W-AC', 'left-sponson', 0, 2),
-    regionalPart('rad', 'U-RAD', 'right-sponson', 7, 2, 90),
+    // Moved: a radiator sheds heat only from the parts it shares a conduction
+    // component with, and this one shared its component with nothing that makes
+    // heat. It was dead weight -- 100 kg and three perimeter cells for no
+    // cooling at all -- and nothing said so until docs/17 F14 made radiators
+    // work and `computeHeatBalance` started naming orphans.
+    regionalPart('rad', 'U-RAD', 'hull', 2, 1, 90),
     regionalPart('tc', 'U-TC1', 'hull', 5, 3),
     regionalPart('arm0', 'U-ARM', 'hull', 2, 0),
     regionalPart('arm1', 'U-ARM', 'hull', 3, 0),
@@ -313,8 +328,13 @@ function bastionLaserBunker(): Build {
     // with it.
     regionalPart('laserFront', 'W-LAS', 'hull', 2, 0),
     regionalPart('laserRear', 'W-LAS', 'hull', 5, 6, 90),
-    regionalPart('radLeft', 'U-RAD', 'left-sponson', 0, 2, 90),
-    regionalPart('radRight', 'U-RAD', 'right-sponson', 7, 2, 90),
+    // Moved: a radiator sheds heat only from the parts it shares a conduction
+    // component with, and this one shared its component with nothing that makes
+    // heat. It was dead weight -- 100 kg and three perimeter cells for no
+    // cooling at all -- and nothing said so until docs/17 F14 made radiators
+    // work and `computeHeatBalance` started naming orphans.
+    regionalPart('radLeft', 'U-RAD', 'hull', 2, 8),
+    regionalPart('radRight', 'U-RAD', 'hull', 5, 1, 90),
     regionalPart('sink', 'U-HS', 'hull', 5, 5),
     regionalPart('arm0', 'U-ARM', 'hull', 2, 1),
     regionalPart('arm1', 'U-ARM', 'hull', 3, 1),

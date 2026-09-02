@@ -43,6 +43,13 @@ export interface ThermalModel {
   cells: Map<string, ThermalCell>;
   edges: ThermalEdge[];
   cellKeysByInstance: Map<string, string[]>;
+  /**
+   * Which conduction component each cell belongs to. A radiator sheds heat from
+   * its whole component (docs/02 §3, docs/17 F14), so this is read every tick
+   * and must be recomputed whenever `edges` changes — `refreshThermalComponents`
+   * is the only supported way to do that.
+   */
+  componentByCell: Map<string, number>;
 }
 
 export interface ThermalPathResolution {
@@ -216,7 +223,41 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
     }
   }
 
-  return { cells, edges, cellKeysByInstance };
+  const model: ThermalModel = { cells, edges, cellKeysByInstance, componentByCell: new Map() };
+  refreshThermalComponents(model);
+  return model;
+}
+
+/**
+ * Recompute `componentByCell` from `edges`. Call after anything mutates the
+ * edge list — a destroyed heat pipe severs a path, and a radiator that was
+ * cooling a gun through it must stop doing so on the same tick.
+ *
+ * Iteration follows `cells` insertion order, which is build order, so component
+ * numbering is deterministic and safe to hash.
+ */
+export function refreshThermalComponents(model: ThermalModel): void {
+  const adjacency = new Map<string, string[]>();
+  for (const edge of model.edges) {
+    adjacency.set(edge.aKey, [...(adjacency.get(edge.aKey) ?? []), edge.bKey]);
+    adjacency.set(edge.bKey, [...(adjacency.get(edge.bKey) ?? []), edge.aKey]);
+  }
+  model.componentByCell.clear();
+  let next = 0;
+  for (const start of model.cells.keys()) {
+    if (model.componentByCell.has(start)) continue;
+    const queue = [start];
+    model.componentByCell.set(start, next);
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const neighbor of adjacency.get(current) ?? []) {
+        if (model.componentByCell.has(neighbor)) continue;
+        model.componentByCell.set(neighbor, next);
+        queue.push(neighbor);
+      }
+    }
+    next++;
+  }
 }
 
 /** Static thermal topology for workshop diagnostics; no temperatures guessed. */

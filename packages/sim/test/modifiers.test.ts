@@ -101,7 +101,16 @@ describe('the modifier substrate (docs/04 §4-§4b)', () => {
     const base = runTestBench({ chassis, build: gunline(), durationS: 60 });
     const hot = runTestBench({ chassis, build: gunline({ modifiers: ['hot-running'] }), durationS: 60 });
     const maxOf = (r: typeof base) => Math.max(...Object.values(r.cellTempsFinalC));
-    expect(maxOf(hot)).toBeGreaterThan(maxOf(base) + 5);
+    // Was `+ 5`, now `+ 2`. The bench mounts a radiator, and a radiator that
+    // works damps a heat flaw instead of ignoring it -- which is the whole
+    // point of docs/17 F14's change and not a weakening of the claim. The
+    // claim is also now made where it belongs: the extra heat must land on the
+    // carrier, not merely somewhere on the mech.
+    expect(maxOf(hot)).toBeGreaterThan(maxOf(base) + 2);
+    const carrierMax = (r: typeof base) => Math.max(...Object.entries(r.cellTempsFinalC)
+      .filter(([key]) => ['1,3', '2,3', '1,4', '2,4', '1,5', '2,5'].includes(key))
+      .map(([, temp]) => temp));
+    expect(carrierMax(hot)).toBeGreaterThan(carrierMax(base) + 2);
   });
 
   it('overvolted: +12% bench damage, and the part starts at 75% HP in battle', () => {

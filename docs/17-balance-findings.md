@@ -670,6 +670,83 @@ Making the radiator work, and making the gauge honest, are different changes
 and the second depends on the first. Both are on the watchlist. Nothing in the
 thermal model was changed by this investigation.
 
+## F15 — Radiators now radiate, and the first thing that taught us is that an orphaned one was a decoy
+
+F14 measured the model and left the decision open. The decision taken was **make
+cooling real**, and this is what shipped and what it cost.
+
+### The change
+
+A radiator sheds heat from **every cell in its own conduction component**,
+weighted by how far above ambient each is, still capped at `RADIATOR_CAP_KW`. It
+used to price only its own cells, which conduction never warmed. Two defects
+went with it: `command.radiatorMult` was applied twice (water was 1.6² = 2.56×)
+and `ramAir` multiplied again after the cap, so the cap could be exceeded by up
+to 1.5×. Both now fold into one `gain`, applied once.
+
+The spatial game is sharpened rather than removed. A radiator with no path to
+anything hot still does exactly nothing — but that is now a *legible* build
+error: `computeHeatBalance` returns `orphanedRadiatorIds`, the workshop bar says
+"1 Gill cooling nothing", and `computeHeatAdvice` raises `radiator-orphaned`
+with the fix in it.
+
+Measured on `mule-laser-boat`: **0.10 → 3.73 kW**, peak 72.4 → 62.0 °C, and
+removing the radiator now costs **+11.4 °C** where it used to cost nothing.
+`tidecooler` went from provably inert — bit-identical results under *any*
+radiator strength — to a measurable −0.29 °C mean. It is still a small mod,
+because it only fires in water and mechs stand in water 8.1% of the time, but
+its channel is no longer dead on arrival.
+
+### The gauge, which was the larger error
+
+`computeHeatBalance` credited 6 kW per radiator and 0 kW for skin exposure, while
+delivering 0.00–0.36 and 1.70–2.52 respectively. It now quotes **cooling at the
+fire-hold threshold**, split into skin and radiators, which makes it a claim the
+player can act on: if `heatInKw < coolingKw`, this build can never be forced to
+stop firing. The reference is not decoration — `mule-skirmisher` reads 9.0 kW in
+against 9.0 kW out and measures a peak of **115.5 °C**, which is the fire-hold
+it is referenced to. The gauge now predicts the sim instead of contradicting it.
+
+### Six shipped templates had a radiator plumbed to nothing
+
+`mule-gunline`, `bastion-tank` (both), `probe-bastion-casemate`,
+`probe-bastion-thermal` (both) and `bastion-hull-down`. The pattern is the
+Bastion: sponsons are separate conduction regions with plenty of perimeter and
+no heat sources, so that is where radiators went. All six were relocated rather
+than plumbed, because relocation keeps mass and rank identical and so keeps the
+balance move attributable.
+
+### And relocating one made the build worse, for a reason worth keeping
+
+`mule-gunline`'s radiator, moved from the left shoulder into the body:
+
+| | peak | win rate | fight length | shots fired | integrity left | radiator destroyed |
+|---|---|---|---|---|---|---|
+| shoulder (orphaned) | 75.7 °C | 22.9% | 73.2 s | 75 | 21.6% | **90%** |
+| body (connected) | 33.4 °C | 15.4% | 61.9 s | 66 | 39.0% | **3%** |
+
+Cooling worked exactly as intended — 42 °C of it — and the build got *worse*.
+The orphaned radiator was never cooling anything; it was **a decoy**. A cheap
+25 HP part in an outlying region draws fire that cannot threaten the core, and
+it bought the gunline eleven seconds and nine extra shots, which is worth more
+to it than any amount of cooling because a mechanically-fired autocannon does
+not care about heat until the 115 °C fire-hold it never reached.
+
+Two things follow, and neither is a reason to undo the change:
+
+- **Region-outlying cheap parts are armour.** Nobody designed that; it falls out
+  of regions plus per-part hit allocation. It is worth knowing before the
+  content pass authors more cheap utility parts, and it may be why several
+  templates look the way they do.
+- **`mule-gunline` needs a rework, not a nudge.** It is now the worst build in
+  the roster at 8%, and the slide is cumulative and explained: the second
+  defensive verb let its victims leave (F11), and the radiator fix took its
+  decoy. Both changes were right; the build was standing on two accidents.
+
+Balance is its own pass and does not gate this, so nothing was tuned to make the
+number go back up. The baseline was **not** re-cut. Correlation of budget against
+win rate improved −0.637 → **−0.043**.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

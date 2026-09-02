@@ -58,6 +58,18 @@ describe('placement effects, frozen against the shipped templates', () => {
     // lost its fourth capacitor (no legal two-level cell remains for it) and
     // its reactor, radiator and capacitor bank swapped regions, which moves
     // four `locationArcBonusDeg` readings. No other build's numbers moved.
+    //
+    // Re-recorded again 1 Sep 2026, deliberately, for the radiator relocations
+    // that came with docs/17 F14 -- radiators now shed heat from the parts they
+    // share a conduction component with, and six shipped templates had one
+    // sharing its component with nothing that makes heat. Exactly two instances
+    // moved and both are radiators that were moved on purpose:
+    // `mule-gunline/rad` left the Mule's articulated shoulder, so its
+    // `locationArcBonusDeg` drops 25 -> 0; `bastion-tank/radRight` entered the
+    // hull's heat-spreader casemate, so its heat multiplier drops 1 -> 0.85.
+    // Both fields are inert on a radiator: it mounts no weapon and generates no
+    // heat. Nothing else in any build moved, which is the check that this was a
+    // relocation and not a rule change.
     expect(builds().reduce((n, b) => n + b.build.parts.length, 0)).toBe(68);
   });
 

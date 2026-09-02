@@ -172,7 +172,7 @@
     "rad": {
       "partId": "U-RAD",
       "weaponRangeMultiplier": 1,
-      "locationArcBonusDeg": 25,
+      "locationArcBonusDeg": 0,
       "locationHeatMultiplier": 1,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,
@@ -601,10 +601,10 @@
       "partId": "U-RAD",
       "weaponRangeMultiplier": 1,
       "locationArcBonusDeg": 0,
-      "locationHeatMultiplier": 1,
+      "locationHeatMultiplier": 0.85,
       "supportArcBonusDeg": 0,
       "armourHeatMultiplier": 1,
-      "effectiveHeatMultiplier": 1,
+      "effectiveHeatMultiplier": 0.85,
       "baseWeaponArcDeg": null,
       "effectiveWeaponArcDeg": null
     },

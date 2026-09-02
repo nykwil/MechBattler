@@ -151,10 +151,17 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // The gunline now loses this matchup -- a single fixture flipping is not the
 // evidence to read, the template matrix is: shots/side 147.2 -> 133.6 with
 // zero silent sides on either side of the change.
+// Re-pinned 1 Sep 2026 for docs/17 F14: radiators now shed from the parts they
+// share a conduction component with, and `mule-gunline`'s radiator moved out of
+// the left shoulder into the body so that it cools something. The gunline
+// therefore runs cooler, its cone is tighter (heat widens dispersion) and it
+// survives longer, which turns a chassis-failure at 40.8 s into a mission-kill
+// at 36.65 s. Values taken from what this test reported, not from a
+// hand-rolled harness -- the options here are not the defaults.
 const GOLDEN = {
   winner: 1 as const,
-  reason: 'chassis-failure',
-  durationS: 40.8,
-  shots: [46, 608],
-  finalHash: 2447785100,
+  reason: 'mission-kill',
+  durationS: 36.65,
+  shots: [43, 524],
+  finalHash: 1408351516,
 };

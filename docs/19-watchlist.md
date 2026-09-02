@@ -189,50 +189,36 @@ point of writing them here is that the evidence exists and the change does not.
   that does nothing. This cost a full measurement pass. Any future mod harness
   should assert the attachment took.
 
-## There is no cooling model, only thermal mass (added 1 Sep 2026, supersedes "the radiator does not radiate")
+## ~~There is no cooling model~~ — settled 1 Sep 2026: radiators now radiate
 
-**This is a decision, not a bug to quietly patch.** The deep dive is docs/17
-F14; the short version is that the problem is bigger than `U-RAD`.
+Closed. The decision taken was **make cooling real**: a radiator sheds from its
+whole conduction component rather than from its own cells, the two radiator-loop
+defects are fixed, and `computeHeatBalance` now quotes cooling at the fire-hold
+threshold split into skin and radiators instead of crediting radiators
+everything and the skin nothing. docs/17 F15 is the record. `tidecooler` is no
+longer inert, so the `radiator` modifier channel is safe to author against.
 
-- Swinging `RADIATOR_K` from **zero to ten times** its value moves peak
-  temperature by at most **0.0003 °C**. Zeroing `EXTERIOR_PASSIVE_K` moves it
-  **+14 to +24 °C**. The free per-cell fallback is the entire cooling model;
-  the radiator part contributes 0–3% of shed heat and on two of four templates
-  exactly 0%, because none of their heat can reach it through the conduction
-  graph at all.
-- **Only 14–21% of generated heat is ever shed.** The rest is stored, so
-  temperature is set by thermal mass — which is why the only dial that has ever
-  moved the thermal band was `thermalMassPerCell`, and why a heat sink works
-  and a radiator does not.
-- The `radiator` modifier channel is therefore inert; anything authored on it
-  is dead on arrival, which is what `tidecooler` has always been.
-- `computeHeatBalance` credits 6 kW per radiator and 0 kW for skin exposure.
-  Measured: radiators deliver 0.00–0.36 kW, skin delivers 1.70–2.52 kW. The
-  gauge is **anti-correlated with the truth**, and a player optimising it fits
-  radiators and buries hot parts, which is backwards.
-- Two defects sit in the radiator loop and are invisible only because it
-  delivers nothing: `command.radiatorMult` is applied twice (water is 2.56×,
-  not 1.6×), and `ramAir` multiplies again after the cap, so the cap can be
-  exceeded by up to 1.5×. Fix these with whatever else lands.
+What it leaves behind, and what to watch:
 
-The answers, none taken:
-- **make cooling real** — price radiation on the cells a radiator is
-  *connected* to, and/or raise conduction so heat reaches the skin. Largest
-  change; moves every thermal build at once and would make the 115 °C band mean
-  something a player can engineer against rather than merely survive.
-- **make mass the model, honestly** — accept that heat is a capacity game,
-  delete `RADIATOR_K`/`RADIATOR_CAP_KW`/the `radiator` channel, rename `U-RAD`
-  to the heat pipe it is, and rewrite the gauge in terms of thermal mass and
-  time-to-threshold instead of kW.
-- **fix only the gauge** — leave the model, stop the readout lying. Cheapest,
-  and leaves a dead part and a dead mod channel in the catalog.
-
-Whichever is chosen, `computeHeatBalance` and the `U-HS vs U-RAD` verdict in
-`auditPartDifferentiation()` both currently assert something false and must
-move with it.
-
-Settle this **before** the content pass authors more cooling gear. Every cooling
-part and every cooling mod depends on which answer is chosen.
+- **Cheap parts in an outlying region are armour, and nobody designed that.**
+  Removing `mule-gunline`'s orphaned radiator cooled it by 42 °C and cost it
+  7 points, because the part was a decoy soaking fire in a region that cannot
+  threaten the core — it died in 90% of fights there against 3% in the body.
+  Know this before the content pass authors more cheap utility parts; a 1-cell
+  part on a sponson may be priced as cooling and bought as armour.
+- **`mule-gunline` wants a rework, not a nudge.** At 8% it is the worst build in
+  the roster, and the slide is explained rather than mysterious: F11 let its
+  victims walk away and F15 took its decoy. Both changes were right. The build
+  was standing on two accidents and now stands on neither.
+- **Radiators are still region-locked.** A Bastion sponson radiator cools
+  nothing unless the player plumbs a port with heat-transferring parts at both
+  endpoints. That is the designed mechanic and it now has teeth, but no shipped
+  template demonstrates it — all six orphans were relocated rather than plumbed,
+  to keep mass and rank constant so the balance move stayed attributable. A
+  template that teaches port plumbing is content work worth doing.
+- **`RADIATOR_K` and `RADIATOR_CAP_KW` have never been tuned against a working
+  channel.** Every value they hold was chosen while the channel delivered ~0, so
+  6 kW per radiator is an inherited guess that now actually binds.
 
 ## Still open after the 1 Sep decisions (added 1 Sep 2026)
 

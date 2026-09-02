@@ -30,6 +30,8 @@ import {
   RADIATOR_CAP_KW,
   RADIATOR_K,
   buildThermalModel,
+  refreshThermalComponents,
+  type ThermalCell,
   type ThermalModel,
 } from './thermal.js';
 import { EXTERIOR_PASSIVE_K, spatialCellKey } from './spatial.js';
@@ -326,6 +328,12 @@ export class Simulation {
       const destroyedCells = new Set(this.thermal.cellKeysByInstance.get(instanceId) ?? []);
       this.thermal.edges = this.thermal.edges.filter((edge) =>
         !destroyedCells.has(edge.aKey) && !destroyedCells.has(edge.bKey));
+      // Severing a heat path splits a component, and a radiator on the far side
+      // of the break must stop cooling what it can no longer reach on the same
+      // tick. This is docs/19's "a destroyed riser severs its gun's heat path"
+      // rule, which now has teeth: it costs the gun a radiator, not just a
+      // conduction edge.
+      refreshThermalComponents(this.thermal);
     }
     this.refreshSpatialProtection();
 
@@ -706,22 +714,57 @@ export class Simulation {
       cell.tempC += kj / cell.thermalMassKjPerC;
     }
 
-    // --- 10. Radiators (with ram-air speed bonus and environmental multiplier) ---
+    // --- 10. Radiators: shed from the cells they are plumbed to ---
+    //
+    // A radiator used to price its own cell temperature, which meant it cooled
+    // itself and nothing else. Conduction from a gun to a perimeter part is
+    // 0.03-0.06 kW/C, so the radiator's cells never left ambient -- measured at
+    // 25.6-26.5 C against a 25 C ambient -- and the term was ~0. Swinging
+    // RADIATOR_K from zero to ten times its value then moved peak temperature
+    // by at most 0.0003 C, and on most templates not at all: the part was
+    // inert, the 6 kW cap was ~100x the achievable flux and could never bind,
+    // and the `radiator` modifier channel was dead on arrival. docs/17 F14.
+    //
+    // It now draws from every cell in its own conduction component, weighted by
+    // how far above ambient each one is, still capped at RADIATOR_CAP_KW. The
+    // spatial game is preserved and sharpened rather than removed: a radiator
+    // with no path to anything hot still does exactly nothing, which is a build
+    // error the thermal overlay can show and a pipe or a port can fix. What
+    // changes is that a radiator the player DID plumb correctly now works --
+    // measured on `mule-laser-boat` at 0.10 -> 3.73 kW, and removing it costs
+    // 11.4 C of peak instead of nothing at all.
+    //
+    // Two defects went with it, both invisible while the channel delivered ~0:
+    // `command.radiatorMult` was applied twice (water was 1.6^2 = 2.56x), and
+    // `ramAir` multiplied again after the cap, so the cap could be exceeded by
+    // up to 1.5x. Both are folded into `gain`, which is applied exactly once.
     const ramAir = (1 + RAM_AIR_MAX_BONUS * SPEED_SETTING_FRACTIONS[command.speedSetting]) * (command.radiatorMult ?? 1);
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
-      const radMult = M(p.instanceId).radiator;
-      const keys = this.thermal.cellKeysByInstance.get(p.instanceId)!;
-      const raws = keys.map((k) => {
-        const cell = this.thermal.cells.get(k)!;
-        return { key: k, raw: Math.max(0, RADIATOR_K * radMult * (command.radiatorMult ?? 1) * (cell.tempC - AMBIENT_C)) };
-      });
-      const rawTotal = raws.reduce((s, r) => s + r.raw, 0);
-      const factor = rawTotal > 0 ? Math.min(1, (RADIATOR_CAP_KW * radMult * ramAir) / rawTotal) : 0;
-      for (const { key, raw } of raws) {
-        const cell = this.thermal.cells.get(key)!;
-        cell.tempC -= (raw * factor * ramAir * dtSec) / cell.thermalMassKjPerC;
+      const gain = M(p.instanceId).radiator * ramAir;
+      if (gain <= 0) continue;
+      const ownKey = this.thermal.cellKeysByInstance.get(p.instanceId)?.[0];
+      if (ownKey === undefined) continue;
+      const component = this.thermal.componentByCell.get(ownKey);
+      const targets: { cell: ThermalCell; raw: number }[] = [];
+      let rawTotal = 0;
+      for (const cell of this.thermal.cells.values()) {
+        if (this.thermal.componentByCell.get(cell.key) !== component) continue;
+        const above = cell.tempC - AMBIENT_C;
+        if (above <= 0) continue;
+        const raw = RADIATOR_K * gain * above;
+        targets.push({ cell, raw });
+        rawTotal += raw;
+      }
+      if (rawTotal <= 0) continue;
+      const capKw = RADIATOR_CAP_KW * gain;
+      const factor = rawTotal > capKw ? capKw / rawTotal : 1;
+      for (const { cell, raw } of targets) {
+        // Never pull a cell below ambient: a radiator sheds heat, it is not a
+        // refrigerator, and without this a large cap could invert a cold cell.
+        const kj = Math.min(raw * factor * dtSec, (cell.tempC - AMBIENT_C) * cell.thermalMassKjPerC);
+        cell.tempC -= kj / cell.thermalMassKjPerC;
       }
     }
 

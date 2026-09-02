@@ -110,9 +110,18 @@ export function StatsPanel({
     return `${base} · full caps buy ~${secs.toFixed(0)}s`;
   })();
 
+  // Cooling is quoted at the fire-hold threshold, and split, because the split
+  // is the lesson: the skin is usually the bigger half and needs no part at
+  // all, while a radiator is worth 6 kW only where it is plumbed to something.
+  // The bar used to credit radiators everything and the skin nothing, which was
+  // backwards in both directions (docs/17 F14).
   const heatSub = heat.heatInKw <= 0
     ? 'no heat sources'
-    : `${heat.heatInKw.toFixed(1)} kW generated of ${heat.coolingKw.toFixed(0)} kW cooling capacity`;
+    : `${heat.heatInKw.toFixed(1)} kW in · ${heat.coolingKw.toFixed(1)} kW out at 115°C`
+      + ` (${heat.passiveKw.toFixed(1)} skin${heat.radiatorKw > 0 ? ` + ${heat.radiatorKw.toFixed(0)} Gill` : ''})`
+      + (heat.orphanedRadiatorIds.length > 0
+        ? ` · ${heat.orphanedRadiatorIds.length} Gill cooling nothing`
+        : '');
 
   return (
     <div>

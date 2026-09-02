@@ -27,6 +27,7 @@ export interface BuildIssue {
     | 'network-starved'
     | 'part-overheats'
     | 'part-runs-hot'
+    | 'radiator-orphaned'
     | 'radiator-far'
     | 'ammo-cookoff-risk'
     | 'electrical-bottleneck'
@@ -208,9 +209,32 @@ export function computeHeatAdvice(
   build: Build,
   cellTempsC: Record<string, number>,
 ): BuildIssue[] {
-  void chassis;
   const issues: BuildIssue[] = [];
   if (build.parts.length === 0) return issues;
+
+  // A radiator sheds heat from its own conduction component and nothing else,
+  // so one with no heat source in that component is dead weight — mass and
+  // three perimeter cells for no cooling at all. This used to be invisible and
+  // two shipped templates were doing it (docs/17 F14). It is checked before
+  // temperature because it is wrong even on a build that never gets hot: the
+  // player has paid for a part that cannot ever do anything.
+  //
+  // The `radiator-far` hint below is the soft version of the same lesson and
+  // stays: it measures distance inside a component, where heat does flow but
+  // slowly. This one is the hard version — no path at any distance.
+  {
+    const balance = computeHeatBalance(chassis, build);
+    for (const instanceId of balance.orphanedRadiatorIds) {
+      const placed = build.parts.find((part) => part.instanceId === instanceId);
+      const name = placed ? getPart(placed.partId).name.split(' (')[0]! : 'Gill';
+      issues.push({
+        severity: 'warn',
+        code: 'radiator-orphaned',
+        message: `${name} has no heat path to anything that makes heat, so it cools nothing — it only sheds from parts it is connected to. Move it beside your reactor or guns, or run a heat-pipe route (or a port) to reach them`,
+        instanceIds: [instanceId],
+      });
+    }
+  }
 
   const { cellsByInstance } = buildOccupancyMap(build.parts);
   const shortName = (partId: string) => getPart(partId).name.split(' (')[0]!;
