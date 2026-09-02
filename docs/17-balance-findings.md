@@ -1028,7 +1028,7 @@ unreachable until F16 was fixed. None of those five should be touched before
 they are re-measured at the current content hash.
 
 
-## F19 — Eleven of fourteen mods have never been tried, and the seed enumeration is why
+## F19 — The seed enumeration could not propose a mod on a support part (headline corrected, see F25)
 
 `docs/20 §3` listed six mods as *offered, never wanted*. Counting attachments in
 `artifacts/breed-wsr.json` instead of reading the dead list says the problem is
@@ -1037,6 +1037,14 @@ twice that size:
 **23 mod attachments across 189 builds, and only three distinct mods appear at
 all** — `insulated-mount` (15), `fever-cycle` (4), `ram-bore` (4). The other
 eleven of fourteen have zero.
+
+> **Corrected by F25.** Counting gallery attachments conflates *never offered*
+> with *never wanted*, which is the precise error F16 exists to prevent. A
+> four-lock sweep draws three mods per lock and offers about half the catalog, so
+> most of those eleven were never in a lock at all. The report's own
+> `invariants.i3` had it right the whole time: **four dead mods, not eleven.**
+> What survives below is the mechanism, which is proven by unit test and does not
+> depend on the count.
 
 ### The split is exact, and it is not about strength
 
@@ -1549,6 +1557,51 @@ miss.
 
 Both change search behaviour, so reports either side are not comparable even at
 an identical content hash — the same caveat `--workers` already carries.
+
+
+## F25 — There are four dead mods, not eleven, and the report always said so
+
+`docs/20 §3` and F19's headline both claimed eleven of fourteen mods reach no
+build. That number came from counting mod attachments in the gallery, and it is
+wrong in exactly the way F16 was written to prevent: **it conflates a mod nobody
+took with a mod nobody was offered.**
+
+`invariants.i3` in every report already separates them, and has since before this
+pass began:
+
+```
+deadMods    : marsh-pistons, tidecooler, surge-gate, thermocouple-skin
+neverOffered: ... cold-bore, gyrostabilized, hull-down, coil-sprung,
+                  gyro-flywheel, weaving-gait, sacrificial-casing
+```
+
+Three taken, four offered and refused, seven never drawn. Three plus four plus
+seven is fourteen.
+
+### Why half the catalog is missing from any given sweep
+
+`LOCK_MOD_COUNT` is 3 and a four-lock sweep therefore has twelve mod slots for a
+fourteen-mod catalog, drawn with tier weighting and with repeats — `fever-cycle`
+took three of the twelve in `armour-seeded`. **A four-lock sweep structurally
+cannot measure the mod catalog**, and no amount of reading it harder will fix
+that. A mod verdict needs enough locks that every mod is offered several times;
+that is a parameter choice, not a finding about gear.
+
+### What this changes
+
+- The "largest untouched area in the game" claim in `docs/20 §3` is withdrawn.
+  The honest dead list is **four**, and it is tractable rather than systemic.
+- `U-ACT` is the one dead *part*, and it has been dead across every sweep in this
+  pass. That is a better-supported finding than anything about the mods, because
+  it was offered every time.
+- F19's mechanism stands on its own: `genomeMods.test.ts` proves the seed
+  population could not express a support-part mod on a scoring build, which is a
+  fact about the code and needs no sample. Only its headline count was wrong.
+
+The general lesson, which is now three for three in this file: **read
+`invariants.i3`, never a count derived from the gallery.** The gallery cannot
+distinguish absent from unavailable, and every time someone has recomputed
+coverage by hand they have rediscovered that the hard way.
 
 
 ## Non-findings, recorded so they are not re-investigated

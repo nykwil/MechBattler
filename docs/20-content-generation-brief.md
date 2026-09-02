@@ -87,13 +87,17 @@ So **the default assumption should be inverted**: an empty cell is more often a
 search that cannot reach it than a part that does not exist. Run §7 — all eight
 checks — before authoring anything.
 
-**Dead mods:** the six named in the original draft were wrong in two different
-ways. `sacrificial-casing` has no enabled carrier at all (`17` F18), five more
-could never be proposed on a scoring build (`17` F19), and the honest dead list
-is three: `cold-bore`, `gyrostabilized`, `surge-gate`. Eleven of fourteen mods
-still reach no build in a full sweep even after the enumeration fix, and **that
-is the largest untouched area in the game** — bigger than anything left in the
-archive.
+**Dead mods — read `invariants.i3`, never a count you derived from the gallery.**
+The gallery cannot tell *never offered* from *never wanted*, and every hand-rolled
+coverage count in this project has rediscovered that (`17` **F25**). The report's
+own numbers: **four** dead mods (`marsh-pistons`, `tidecooler`, `surge-gate`,
+`thermocouple-skin`), three taken, and seven never drawn at all — because
+`LOCK_MOD_COUNT` is 3, so a four-lock sweep has twelve slots for a fourteen-mod
+catalog and **structurally cannot measure it**. Raise the lock count before
+forming any view about a mod.
+
+**`U-ACT` is the one dead part**, offered in every sweep of this pass and taken in
+none. That is better evidence than anything currently available about the mods.
 
 **Weapon spread** at the same report: 10 distinct weapons reach the archive,
 `W-KL` 26%, `W-AV` 16%, `W-CB` 16%, HHI 0.146 — the widest spread on file.
