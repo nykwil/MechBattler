@@ -120,9 +120,10 @@ describe('game content', () => {
   it('has one route for every enabled part and no dead ammo placeholder', () => {
     const audit = auditGameContent();
     expect(audit.errors).toEqual([]);
-    // 27 since the component-height work added the three risers (U-RISE2,
-    // U-RISE3, U-RISEL), each of which carries its own unlock route.
-    expect(audit.counts.enabledParts).toBe(27);
+    // 28 since the component-height work added the three risers (U-RISE2,
+    // U-RISE3, U-RISEL) and the siege rail (W-SR) added a seventh gun, each of
+    // which carries its own unlock route.
+    expect(audit.counts.enabledParts).toBe(28);
     expect(GAME_CONTENT.enabledPartIds).not.toContain('U-AMMO');
   });
 
@@ -136,6 +137,7 @@ describe('game content', () => {
       'brownout-survivor': summary({ playerShedCount: 3 }),
       'heavy-hitter': summary({ playerDamage: 150 }),
       counterbattery: summary({ enemyHasCapacitor: true, enemyCapacitorDestroyed: true }),
+      standoff: summary({ playerDamage: 200, playerPartsLost: 0 }),
     };
     for (const challenge of CHALLENGES) {
       expect(challengeCompleted(challenge, cases[challenge.id]!)).toBe(true);

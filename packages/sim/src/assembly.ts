@@ -49,6 +49,23 @@ export function freeCells(build: Build, frontFirst: boolean): { x: number; y: nu
   return frontFirst ? cells.sort((a, b) => a.y - b.y) : cells;
 }
 
+/**
+ * Every origin `placeParts` will try, `freeCells` first. See `placeParts` for
+ * why the tail exists and why it must stay a tail.
+ */
+function placementOrigins(build: Build, frontFirst: boolean): { x: number; y: number }[] {
+  const primary = freeCells(build, frontFirst);
+  const seen = new Set(primary.map((c) => `${c.x},${c.y}`));
+  const chassis = getChassis(build.chassisId);
+  const rest: { x: number; y: number }[] = [];
+  for (let y = 0; y < chassis.height; y++) {
+    for (let x = 0; x < chassis.width; x++) {
+      if (!seen.has(`${x},${y}`)) rest.push({ x, y });
+    }
+  }
+  return [...primary, ...(frontFirst ? rest.sort((a, b) => a.y - b.y) : rest)];
+}
+
 export interface PlaceOptions {
   /** Prefer front rows — armour wants the lane it is protecting. */
   frontFirst?: boolean;
@@ -62,9 +79,32 @@ export interface PlaceOptions {
 }
 
 /**
- * Adds `count` copies of a part at the first legal positions, trying both
- * rotations. Returns the build with however many fitted, and how many did —
+ * Adds `count` copies of a part at the first legal positions, trying every
+ * rotation. Returns the build with however many fitted, and how many did —
  * a caller that asked for four plates and got two needs to know which.
+ *
+ * The candidate list is deliberately in two halves, and the order is the
+ * contract. The first half is `freeCells`, which is what this search has always
+ * offered; the second half is everything else in the chassis box, and all four
+ * rotations rather than two. Both extensions are append-only, so a part that
+ * fits today is placed in exactly the cell it was placed in before -- the
+ * search breaks out on its first success and never reaches the additions.
+ *
+ * They exist because both assumptions behind the old list are false for a part
+ * whose footprint is not a rectangle, and `W-SR` is the first one:
+ *
+ *  - **The origin need not be a cell the part occupies.** An origin is the
+ *    corner of the shape's bounding box, and a concave shape has a hole there.
+ *    `W-SR` fits a Vulture's left hardpoint at (0,0) and (0,0) is outside the
+ *    chassis mask, so the only legal placement was never offered as a
+ *    candidate. `checkPlacement` was answering correctly; it was never asked.
+ *  - **180 and 270 are not duplicates.** They are for a rect and for a line,
+ *    which is every other part in the catalog, and that is why two rotations
+ *    were enough for a year. A Vulture's arms are 180-rotations of each other,
+ *    so the right hardpoint fit is at 180 and was unreachable.
+ *
+ * The symptom was `sim:try` reporting "no legal cell" for a gun that has
+ * exactly two legal cells.
  */
 export function placeParts(
   build: Build,
@@ -80,8 +120,8 @@ export function placeParts(
 
   for (let n = 0; n < count; n++) {
     let placed: PlacedPart | null = null;
-    outer: for (const cell of freeCells({ ...build, parts }, opts.frontFirst ?? false)) {
-      for (const rotation of [0, 90] as const) {
+    outer: for (const cell of placementOrigins({ ...build, parts }, opts.frontFirst ?? false)) {
+      for (const rotation of [0, 90, 180, 270] as const) {
         const candidate: PlacedPart = {
           instanceId: freshId(parts, partId, opts.prefix), partId, origin: cell, rotation, integrity: 1,
           ...(opts.modifiers ? { modifiers: [...opts.modifiers] } : {}),

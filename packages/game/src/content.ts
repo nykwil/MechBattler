@@ -51,6 +51,22 @@ export const CHALLENGES: ChallengeDefinition[] = [
     unlockPartIds: ['P-CAP2', 'W-RG'],
   },
   {
+    // The long-range gun is earned by playing long range: you did the damage
+    // and they never reached you. `standoff` reuses the two criteria that
+    // already exist rather than adding a range criterion, which would need new
+    // plumbing on the battle report for one unlock.
+    id: 'standoff', name: 'Standoff',
+    description: 'Deal at least 200 damage and win without losing an installed part.',
+    criterion: {
+      all: [
+        { kind: 'battle-won' },
+        { kind: 'min-player-damage', value: 200 },
+        { kind: 'max-player-parts-lost', value: 0 },
+      ],
+    },
+    unlockPartIds: ['W-SR'],
+  },
+  {
     id: 'counterbattery', name: 'Counterbattery',
     description: 'Defeat a capacitor-equipped enemy and destroy one of its capacitors.',
     criterion: {

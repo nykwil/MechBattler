@@ -16,6 +16,15 @@ function rect(w: number, h: number): CellOffset[] {
   return cells;
 }
 
+/**
+ * A shape authored as ASCII rows, for parts whose footprint is not a rectangle.
+ * Written the same way chassis masks are (`chassis.ts`), so a part cut to fit a
+ * region can be eyeballed against the region it was cut for.
+ */
+function rows(...lines: string[]): CellOffset[] {
+  return lines.flatMap((row, dy) => [...row].flatMap((c, dx) => (c === '#' ? [{ dx, dy }] : [])));
+}
+
 export const PARTS: Record<string, PartDef> = {
   // --- Structural / utility (docs/01 §7) ---
   'U-CON': {
@@ -225,18 +234,16 @@ export const PARTS: Record<string, PartDef> = {
   },
   'W-RG': {
     id: 'W-RG', name: 'Longshot (railgun)', category: 'weapon',
-    // 2x5/1400 kg -> 1x4/950 kg, Sep 2026. The railgun is the only gun in the
-    // game with effective damage past 120 m, and it was unmountable on the only
-    // chassis that can hold a range at all: a Vulture's regions are a 1-wide
-    // spine of four cells, so a 2-wide part is not a tight fit there, it is an
-    // impossible one, and the long-range playstyle could not be occupied by
-    // anybody (docs/17 F9). A 1x4 column fits that spine exactly.
-    //
-    // The commitment stays, it just moved off the cell budget: 950 kg is still
-    // a third of a Vulture's 3.0 t rating, and 220 kJ a shot means a reactor
-    // and capacitors the frame must also find room for. That is the "built only
-    // to fire this one gun" build -- the cells were never the interesting cost.
-    shape: rect(1, 4), massKg: 950, hp: 70, tier: 4,
+    // Reshaped to 1x4/950 kg on 1 Sep 2026 so it would fit a Vulture, then put
+    // straight back. A 2x5 gun and a 1x4 gun are not the same part with a
+    // different footprint -- the footprint IS the part. Five cells across two
+    // columns is what makes the Longshot a thing you build a hull around, and
+    // shrinking it to fit the one chassis that could not take it deleted the
+    // gun to solve the chassis. The right answer to "no light frame can hold a
+    // long-range gun" was a gun cut for a light frame (see `W-SR`), not a
+    // smaller Longshot. That only one chassis family can carry this is fine;
+    // more chassis is a content answer, and content is the next pass.
+    shape: rect(2, 5), massKg: 1400, hp: 70, tier: 4,
     draw: { capFedEnergyPerShotKj: 220 },
     heat: { heatPerShotKj: 25 },
     weapon: {
@@ -244,6 +251,50 @@ export const PARTS: Record<string, PartDef> = {
       damage: 85, cycleS: 5, projectileSpeed: 1000, dispersionMrad: 1.2,
       falloff: { idealMin: 50, idealMax: 80, max: 240 }, mountArcDeg: 30,
       recoilKnS: 8,
+    },
+    spatial: { layer: 'payload', height: 3, clearsForward: 1 },
+  },
+  'W-SR': {
+    id: 'W-SR', name: 'Pinion (siege rail)', category: 'weapon',
+    // Cut to the shape of a Vulture hardpoint, deliberately. The scout is the
+    // only chassis that can hold a range, and every long gun in the catalog was
+    // two columns wide against a frame whose regions are a 1-wide spine and two
+    // six-cell arms -- so the long-range playstyle had no occupant (docs/17
+    // F9). The fix is a gun a light frame can carry, not a lighter Longshot.
+    //
+    // `rows` here is the left hardpoint's own mask. Rotating it 180 gives the
+    // right hardpoint exactly (the arms are 180-rotations of each other, not
+    // mirrors), so one shape fits either arm and no mirroring is needed.
+    //
+    // The price is the whole arm: six cells is an entire Vulture hardpoint, so
+    // this gun and a second weapon cannot both exist on a scout. It is worth
+    // paying because a weapon fitted wholly inside a hardpoint takes the
+    // long-sight bonus (`CH-2.locationZones`), which is the one place in the
+    // game where geometry buys range.
+    shape: rows(
+      '.#',
+      '##',
+      '##',
+      '.#',
+    ),
+    // Tier 4 is the catalog ceiling (`PartDef.tier` is 1-4), so this costs the
+    // same rank as a Longshot. The arm it eats is the rest of the price.
+    massKg: 1100, hp: 90, tier: 4,
+    // Sized to what is left of a Vulture after the arm is gone: 15 cells minus
+    // six is nine, which is an R-C40 (4 cells, 40 kW) and a P-CAP (2 cells)
+    // with three to spare. 260 kJ on a 10 s cycle is 26 kW sustained, so the
+    // gun leaves ~14 kW of that reactor for locomotion and fire control, and
+    // 30 kJ a shot is 3 kW of heat against the one radiator the frame can
+    // still find a perimeter for. Every one of those numbers is the frame's,
+    // not the gun's -- author a long gun to a budget nothing can meet and it
+    // is dead content again, just for a different reason.
+    draw: { capFedEnergyPerShotKj: 260 },
+    heat: { heatPerShotKj: 30 },
+    weapon: {
+      weaponClass: 'ballistic',
+      damage: 145, cycleS: 10, projectileSpeed: 1400, dispersionMrad: 0.9,
+      falloff: { idealMin: 70, idealMax: 130, max: 280 }, mountArcDeg: 20,
+      recoilKnS: 14,
     },
     spatial: { layer: 'payload', height: 3, clearsForward: 1 },
   },
