@@ -178,12 +178,24 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
   // parts in arbitrary order, so most genomes containing the gun silently lost
   // it, and every long-range cell in the archive sat empty as a result (docs/17
   // F16). Sorting is stable, so parts of equal size keep the caller's order.
+  //
+  // Armour inverts the rule and so overrides it. An armour part is not
+  // free-standing: `checkSpatialPartPlacement` refuses it unless it covers one
+  // payload part *exactly*, so it cannot be placed before the thing it protects
+  // exists. Sorted by size alone, a Mantle went down first and had nothing to
+  // sit on -- measured: placed when listed last, refused when listed first or
+  // in the middle, on all three chassis (docs/17 F29). It is the same failure
+  // as `W-SR`'s and the opposite cause, which is why the fix has to be a
+  // separate key rather than a different size.
   const wishOrder = [...wish.parts].sort((a, b) => {
-    const size = (part: WishPart) => {
+    const defOf = (part: WishPart) => {
       const id = (part.unique ? UNIQUES[part.unique]?.partId : undefined) ?? part.partId;
-      return PARTS[id]?.shape.length ?? 0;
+      return PARTS[id];
     };
-    return size(b) - size(a);
+    const isArmour = (part: WishPart) => ((defOf(part)?.spatial?.layer ?? 'payload') === 'armour' ? 1 : 0);
+    const armourDelta = isArmour(a) - isArmour(b);
+    if (armourDelta !== 0) return armourDelta;
+    return (defOf(b)?.shape.length ?? 0) - (defOf(a)?.shape.length ?? 0);
   });
 
   for (const want of wishOrder) {

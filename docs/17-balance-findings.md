@@ -1824,3 +1824,182 @@ because both are the owner's call.
 
 **Cost elsewhere.** None. No catalog number changed, so the content hash is
 unmoved and every balance figure on file still compares.
+
+## F29 — Armour was unreachable by every search that has ever run, and its shape is what decides whether it is usable at all
+
+`deadParts` at twelve locks was `U-TUR, U-SHELL` (F27). F28 disposed of the
+Gimbal. This is the Carapace, and the answer turned out to be two instrument
+breaks and one content fact, in that order of importance.
+
+**Hypothesis.** `U-SHELL` is dead because armour must cover one payload part
+*exactly* — `checkSpatialPartPlacement` refuses a partial cover as
+`footprint-mismatch` — so an armour part is only ever as useful as the number of
+footprints it matches, and a 2-cell line matches almost nothing worth armouring.
+
+### The content half, measured first
+
+Over the 30 enabled parts, and over all four rotations:
+
+```
+U-SHELL (2-cell line): 4 coverable parts — U-ACT P-CAP W-MG W-CB
+U-MANTLE (2x2)       : 6 coverable parts — R-C40 R-E25 P-CAP2 W-RKT W-AV W-SC
+```
+
+Legal placements over each canonical build's own parts:
+
+| build | carapace | mantle |
+|---|---|---|
+| vulture-skirmisher | 0 | 1 |
+| mule-gunline | 0 | 1 |
+| mule-skirmisher | 1 | 1 |
+| mule-laser-boat | 0 | 2 |
+| railgun-mule | 3 | 1 |
+| vulture-sniper | 0 | 1 |
+| bastion-tank | 0 | 0 |
+
+**Five of seven canonical builds have nowhere to put a Carapace at all.** The
+payload-footprint histogram says why, and says what to author instead: 2x2 is the
+commonest payload shape in the game at six parts — both small reactors, the
+Reservoir, the pod, the Anvil and the flamer — and had no armour cut for it.
+
+### Authored: `U-MANTLE`, and shape is the only variable
+
+2x2, 360 kg, 120 HP, tier 2, `coveredHeatMultiplier` 1.25,
+`blocksPassiveCooling`. Those are the **Carapace's own per-cell rates** — 90 kg
+and 30 HP a cell, the same sealing penalty, the same tier — so the experiment is
+the footprint and nothing else. It costs no free cell, which is the point: it is
+the only way to buy HP on a full plate, and its whole price is mass and the heat
+it traps. Over a reactor that price is real, and the completer shows the chain:
+sealing an R-E25 on a Mule gunline flips heat balance to −0.3 kW and the assembler
+answers with a Gill.
+
+### The instrument half, which is the actual finding
+
+Both `docs/20` §7 gates 2 and 3 failed, and they failed **for every armour part
+that has ever existed** — the Carapace could not be assembled on any chassis in
+any order, in any sweep on record. Two independent causes:
+
+1. **`placeParts` refused `overlap`.** It called `checkPlacement` — the grid's
+   flat occupancy check — and treated any error as a refusal. A cell that is
+   already occupied is *exactly* where armour and risers go, and it is
+   `checkSpatialPartPlacement` (layer, `stacksOn`, exact footprint) that decides
+   whether a stack is legal. The workshop's own `PLACE` reducer has always
+   tolerated `overlap` for this reason and deferred to the spatial check; the
+   completer never did. So no armour was auto-placeable, anywhere, ever.
+2. **The wish sort put armour first.** `assembleBuild` sorts biggest-footprint
+   first, for `W-SR`'s reason: the part with least freedom must choose while it
+   still has choices. Armour inverts that — it is a *dependent* placement and
+   cannot go down before the thing it covers exists. Measured before the fix:
+   placed when listed last, refused when listed first or middle, on all three
+   chassis. Genomes carry parts in arbitrary order, so most genomes containing an
+   armour part silently lost it.
+
+After both fixes, gates 2 and 3 pass in all three orders on all three chassis,
+and 372 assembled builds come back with zero `illegal-placement`. Tolerating
+`overlap` is only safe because the spatial check is authoritative, and that is
+asserted rather than assumed.
+
+**This is F16's shape a third time.** Never-offered, never-completable and
+never-placeable all read identically to dead gear, and this pass added a fourth
+member of that family: *never-orderable*. `armourAssembly.test.ts` fences it for
+every armour part in the catalog, so the next one cannot ship into the same hole.
+
+### Two fences I got wrong first, which are worth keeping
+
+The first version asserted armour "assembles alone". It does not, and should
+not: assembling alone requires the seeded reactor to share the armour's own
+footprint — true of the Mantle at 2x2, false of the Carapace's line. The second
+asserted it assembles "on every chassis". Also false: the Vulture's hardpoint
+ceiling refuses a Carapace over a Stitcher with `ceiling-exceeded`, which is the
+height rule working correctly. Both were my assertions being wrong rather than
+the code, and both would have been "fixed" by weakening the part. The fence now
+asserts **order-independence**, which is precisely what the sort fix guarantees
+and what the bug violated: before it, the three orders read `[0, 0, 1]`.
+
+### The instrument fix alone rescues the Carapace
+
+Same wish, six seeds against the canonical roster, one part different — build-level
+attribution, which is the only kind F22 permits:
+
+```
+CH-5 W-MG:2                45%        CH-5 W-MG:2 U-SHELL:1     62%
+CH-5 W-AC:2                71%        CH-5 W-AC:2 U-MANTLE:1    81%
+CH-2 W-CB:2                98%        CH-2 W-CB:2 U-MANTLE:1    98%
+CH-9 W-AV:1                31%        CH-9 W-AV:1 U-MANTLE:1    43%
+```
+
+A `W-CB:2 U-SHELL:2` Mule reaches 88% — a build that could not previously be
+assembled by any tool in the repo. Six seeds is a smell test, not a verdict.
+
+### The stall worth reading
+
+```
+! U-MANTLE: asked for 2, fitted 1 — no legal cell
+```
+
+A build has one reactor, so it has one 2x2 payload, so it has room for one
+Mantle. A second needs a second 2x2 part — a Reservoir, a pod, an Anvil, a
+flamer. That is the decision the part creates rather than a limitation: those six
+parts are now also armour mounts, and choosing one buys a second place to put
+120 HP.
+
+### Cost elsewhere
+
+`U-MANTLE` is `structural`, so it is a thirteenth carrier for the four
+frame-fitting mods. They had twelve already, so it is not why they are dead —
+worth recording because I had guessed carrier scarcity was the cause and the
+measurement said otherwise.
+
+The sweep verdict is below; everything above holds regardless of it, because it
+is measured on the assembler rather than on the search.
+
+### The sweep, and what may and may not be read from it
+
+`artifacts/mantle-12lock.json`, same parameters as the F27 reference (12 locks,
+seed 21, ranks 8 and 16, budget 200, 40 confirm seeds, 6 workers), 2418 s.
+
+**The content hash moved — `60d47bd0` against the reference's `9dbea8e0` — so
+per F22 these are two different experiments, not an A/B.** Adding one id to
+`MIDGAME_POOL` re-rolls every lock at the same seed. Only build-level
+attribution is quotable, so:
+
+- **`U-MANTLE` is in 2 of 247 gallery builds.** Reachable and occasionally
+  chosen. Small, and honestly small: at this sweep size that is presence, not
+  strength.
+- **`U-SHELL` is in 1.** It had appeared in **zero** builds in every sweep on
+  record. The Carapace never changed; the completer did.
+- **`deadParts` is empty**, for the first time in this file. The reference had
+  `U-TUR, U-SHELL`. `U-TUR` reads 9 uses — the `overlap` fix frees supports and
+  risers to be placed on occupied cells too, not just armour — but the hash moved,
+  so that number is indicative and not a measurement of F28's verdict. **F28
+  still stands on its own terms**: arc is inert whether or not the Gimbal gets
+  picked as a riser.
+
+### The swing, recorded and not tuned
+
+**`emptyCells` went from 0 to 4, and all four are heavy:** `mid/heavy/cold`,
+`mid/heavy/redliner`, `long/heavy/cold`, `long/heavy/redliner`. Gallery 247
+against 263.
+
+This is **not attributable to the Mantle** and I am not claiming it is. But it is
+also not obviously a re-roll: four empty cells sharing one axis is a pattern, and
+the `overlap` fix changed how *every* stackable part is placed, not only armour.
+That is a broader change to the search than adding a part, and F24's warning cuts
+both ways — heavy is exactly the axis the armour gene already struggles to reach.
+
+**The experiment that settles it is now possible, and is worth running.**
+`simContentHash()` covers `PARTS`, `CHASSIS`, `TEMPLATES`, the modifier registry
+and the dials — it does **not** cover `assembly.ts` or `workbench.ts`. So a sweep
+with the instrument fixes in place and `U-MANTLE` removed from the catalog and
+the pool reproduces hash `9dbea8e0` exactly, at the same draw domain and the same
+seed, and is a true A/B **of the instrument fix alone**. That is the one A/B this
+harness can do, and it exists only because the fix is not content.
+
+Not tuned, not baselined, and no balance harness was re-cut.
+
+**Verdict.** Keep. The part is reachable, legal on six of seven canonical builds
+against the Carapace's two, and creates a real decision — the only way to buy HP
+on a full plate, paid for in mass and in the covered part's cooling. But the
+honest headline is that **the instrument fix is worth more than the part**: it
+un-deadened an existing part and a whole layer, and it had been broken for as
+long as the armour layer has existed.

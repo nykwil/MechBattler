@@ -396,3 +396,27 @@ across every shape tested (docs/17 **F26**).
 The consequence worth carrying: **I3's dead-gear verdicts cannot speak to
 marginal parts at all.** Widening the screen costs candidates per budget, so it
 is a real trade and has not been made.
+
+## Armour is priced only in mass, which makes it a heavy-frame part by default (2 Sep 2026)
+
+`U-MANTLE` (docs/17 F29) costs **no free cell at all** — armour covers a part
+that is already there — so its entire price is 360 kg plus the heat its sealing
+traps. That is the exact mirror of the Pinion entry above: a part priced in space
+is underpriced on a large frame, and a part priced in mass is underpriced on a
+*heavy* one. 360 kg against a Vulture's 1.5 t rating is a load-factor event;
+against a Bastion's 7 t it is close to free, and load factor scales every speed
+the mech has.
+
+**Watch whether armour becomes automatic on CH-9.** The Mantle is the first part
+in the catalog that a full plate cannot refuse, and "the plate is full" is the
+condition heavy builds are always in. If heavy builds start carrying armour
+unconditionally, the lever to look at is mass — not HP, and not the sealing
+penalty, which is what makes it a *decision* on a hot build and nothing at all on
+a cold one.
+
+**And the sealing penalty is asymmetric by chassis for a second reason.**
+`blocksPassiveCooling` removes the exterior bonus beneath the shell, so sealing
+costs most on the frame with the most skin per cell. That is the Vulture, which
+is also the frame least able to carry the mass. Both halves of the price point
+the same way, which is either good design or a part that only one chassis will
+ever fit — and one sweep cannot tell those apart.

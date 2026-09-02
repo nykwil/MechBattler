@@ -9,7 +9,14 @@ import { useBuild } from './useBuild.js';
  */
 describe('useBuild ghost placement', () => {
   it('arms every standalone catalog part at a placeable origin and orientation on an empty Mule', () => {
-    for (const partId of Object.keys(PARTS).filter((id) => id !== 'U-SHELL')) {
+    // Armour is excluded by layer rather than by id. It is not standalone: it
+    // covers one payload part exactly, so it has no legal placement on an empty
+    // plate by construction, and the next armour part to ship should not have to
+    // remember to add itself here. The Carapace used to be named directly.
+    const standalone = Object.values(PARTS)
+      .filter((def) => def.spatial?.layer !== 'armour')
+      .map((def) => def.id);
+    for (const partId of standalone) {
       const { result, unmount } = renderHook(() => useBuild('CH-5'));
       act(() => result.current.selectPart(partId));
       const ghost = result.current.state.ghost!;
@@ -32,6 +39,19 @@ describe('useBuild ghost placement', () => {
     act(() => result.current.place());
 
     expect(result.current.state.parts.map((part) => part.partId)).toEqual(['W-MG', 'U-SHELL']);
+  });
+
+  it('places a Mantle over a reactor, which is the 2x2 footprint it is cut for', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('R-E25'));
+    act(() => result.current.place());
+    const reactor = result.current.state.parts[0]!;
+
+    act(() => result.current.selectPart('U-MANTLE'));
+    expect(result.current.state.ghost).toEqual(reactor.origin);
+    act(() => result.current.place());
+
+    expect(result.current.state.parts.map((part) => part.partId)).toEqual(['R-E25', 'U-MANTLE']);
   });
 
   it('automatically rotates a part when its authored orientation cannot fit', () => {

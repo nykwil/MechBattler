@@ -117,6 +117,32 @@ export const PARTS: Record<string, PartDef> = {
       height: 0,
     },
   },
+  // The Carapace's shape, and only its shape, is the experiment (docs/17 F29).
+  // Armour must cover one part *exactly* -- `checkSpatialPartPlacement` refuses a
+  // partial cover as `footprint-mismatch` -- so an armour part is only ever as
+  // useful as the number of footprints it matches. The Carapace is a 2-cell line,
+  // which matches 4 of the 30 enabled parts (U-ACT, P-CAP, W-MG, W-CB) and has no
+  // legal placement at all on five of the seven canonical builds. 2x2 is the most
+  // common payload footprint in the game -- six parts, including both small
+  // reactors, the Reservoir, the pod, the Anvil and the flamer -- and had no
+  // armour cut for it.
+  //
+  // Priced at the Carapace's own rates so that shape is the only variable:
+  // 90 kg and 30 HP per cell, tier 2, the same sealing penalty. It costs no free
+  // cell at all, which is the point -- it is the only way to buy HP on a full
+  // plate -- so mass and the heat it traps are the whole price, and over a
+  // reactor that price is real: a sealed reactor keeps its waste heat.
+  'U-MANTLE': {
+    id: 'U-MANTLE', name: 'Mantle (sealed shield)', category: 'structural',
+    shape: rect(2, 2), massKg: 360, hp: 120, tier: 2,
+    spatial: {
+      layer: 'armour',
+      stacksOn: ['payload'],
+      coveredHeatMultiplier: 1.25,
+      blocksPassiveCooling: true,
+      height: 0,
+    },
+  },
 
   // --- Power (docs/02 §2) ---
   'R-C40': {

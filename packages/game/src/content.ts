@@ -6,7 +6,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'first-blood', name: 'First Blood',
     description: 'Win one battle.',
     criterion: { all: [{ kind: 'battle-won' }] },
-    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-RISE2', 'U-RISE3', 'U-RISEL'],
+    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE', 'U-RISE2', 'U-RISE3', 'U-RISEL'],
   },
   {
     id: 'clean-machine', name: 'Clean Machine',
@@ -117,7 +117,7 @@ export const ENABLED_PART_IDS = Object.keys(PARTS).filter((id) => id !== 'U-AMMO
 export const ENABLED_CHASSIS_IDS = ['CH-2', 'CH-5', 'CH-9'];
 export const ONE_HOUR_PART_IDS = [
   ...INITIAL_PART_IDS,
-  'R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL',
+  'R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE',
   'U-TC1', 'W-LAS', 'U-ACT',
 ];
 export const GAMEPLAY_TEMPLATES = [...TEMPLATES, ...BRANCH_PROBE_TEMPLATES, ...STARTER_TEMPLATES];

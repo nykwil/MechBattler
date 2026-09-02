@@ -127,7 +127,17 @@ export function placeParts(
           ...(opts.modifiers ? { modifiers: [...opts.modifiers] } : {}),
           ...(opts.variant ? { variant: { ...opts.variant } } : {}),
         };
-        if (checkPlacement(chassis, parts, candidate, def) !== null) continue;
+        // `overlap` is not a refusal here, for the same reason the workshop's
+        // PLACE reducer does not treat it as one: a cell already occupied is
+        // exactly where armour and risers are *supposed* to go, and it is
+        // `checkSpatialPartPlacement` below -- layer, stacksOn, exact-footprint
+        // -- that decides whether this particular stack is legal. Refusing on
+        // the grid's flat overlap check made every armour part unplaceable by
+        // every search that has ever run: `U-SHELL` could not be assembled on
+        // any chassis in any order, which is docs/20 §7 gates 2 and 3 failing
+        // together and reads exactly like dead gear (docs/17 F29).
+        const baseError = checkPlacement(chassis, parts, candidate, def);
+        if (baseError !== null && baseError.reason !== 'overlap') continue;
         // The workshop's rules, not just the grid's: stacking, regions and the
         // ceiling. Without this the auto-placer can hand back a fitting the
         // player could never have built by hand.
