@@ -17,7 +17,7 @@ import { OPPONENTS, type OpponentDef } from './lib/opponents.js';
 import { resolveView } from './lib/views.js';
 import { settleRunFight } from './lib/settleRunFight.js';
 import { placementPermission } from './lib/placementPermission.js';
-import { stowPayloadFromDetached } from './lib/stowDetached.js';
+import { planDetach } from './lib/planDetach.js';
 import { canLaunch } from './lib/launchGate.js';
 import { planRepairAll } from './lib/repairPlan.js';
 import { describePlacement } from './lib/describePlacement.js';
@@ -155,95 +155,61 @@ export default function App() {
   }, [loadBuild, startCustom]);
 
   /**
-   * Clear the armed/detached cursor. Mid-run a detached part is owned salvage:
-   * park it on the bench unless the caller asks to discard (bench full) or we
-   * are outside a run. Esc used to call selectPart(null) alone and vaporize it.
+   * Clear the armed cursor. Mid-run nothing is at risk here any more: a detached
+   * part is already in the run's part list (see `detachPart`), so putting the
+   * cursor down only puts the cursor down. This callback used to be the last
+   * line of defence against detach vaporising an owned part, and it could only
+   * cover the paths that remembered to call it.
    */
-  const releaseArmed = useCallback((opts?: { discard?: boolean }) => {
-    const detached = state.detached;
-    const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
-    const payload = opts?.discard ? null : stowPayloadFromDetached({
-      detached,
-      selectedPartId: state.selectedPartId,
-      placeExtras: state.placeExtras,
-      provenance: detached && run.phase === 'active'
-        ? run.data.partProvenance[detached.instanceId]
-        : undefined,
-      runActive,
-      benchUsed,
-      benchCap: BENCH_CAP,
-    });
-    if (payload) addBench(payload);
+  const releaseArmed = useCallback(() => {
     setPendingBench(null);
     selectPart(null);
-    if (payload) setToast(`${name} to inventory`);
-    else if (detached) setToast(`${name} discarded`);
-  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectPart]);
+  }, [selectPart]);
 
-  /** Stow any held detached part before arming something else from the catalog. */
+  /** Arming something from the catalog. */
   const selectPalettePart = useCallback((id: string | null) => {
-    if (state.detached) {
-      const payload = stowPayloadFromDetached({
-        detached: state.detached,
-        selectedPartId: state.selectedPartId,
-        placeExtras: state.placeExtras,
-        provenance: run.phase === 'active'
-          ? run.data.partProvenance[state.detached.instanceId]
-          : undefined,
-        runActive,
-        benchUsed,
-        benchCap: BENCH_CAP,
-      });
-      if (payload) addBench(payload);
-    }
     setPendingBench(null);
     selectPart(id);
-  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectPart]);
+  }, [selectPart]);
 
-  /** Stow any held detached part before changing the installed selection. */
+  /** Changing the installed selection. */
   const pickInstance = useCallback((id: string | null) => {
-    if (state.detached) {
-      const payload = stowPayloadFromDetached({
-        detached: state.detached,
-        selectedPartId: state.selectedPartId,
-        placeExtras: state.placeExtras,
-        provenance: run.phase === 'active'
-          ? run.data.partProvenance[state.detached.instanceId]
-          : undefined,
-        runActive,
-        benchUsed,
-        benchCap: BENCH_CAP,
-      });
-      if (payload) {
-        addBench(payload);
-        const name = state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : '';
-        setToast(`${name} to inventory`);
-      } else if (state.selectedPartId) {
-        setToast(`${getPart(state.selectedPartId).name.split(' ')[0]} discarded`);
-      }
-    }
     selectInstance(id);
-  }, [state.detached, state.selectedPartId, state.placeExtras, run, runActive, benchUsed, addBench, selectInstance]);
+  }, [selectInstance]);
+
+  /**
+   * Detach (docs/14 §7). Mid-run the instance *moves into the run's part list*
+   * and is armed from there, so putting it back is the ordinary "fit a spare"
+   * path and there is no window in which the part is owned by nothing. Outside a
+   * run the list is the garage — unlocked types, infinite copies — so there is
+   * nothing to preserve and this is the editor's plain move-in-hand.
+   */
+  const detachPart = useCallback((instanceId: string) => {
+    const placed = state.parts.find((p) => p.instanceId === instanceId);
+    if (!placed) return;
+    const plan = planDetach({
+      placed,
+      provenance: run.phase === 'active' ? run.data.partProvenance[instanceId] : undefined,
+      runActive,
+      listUsed: benchUsed,
+      listCap: BENCH_CAP,
+    });
+    if (plan.kind === 'refused') {
+      setToast('Part list is full — sell or fit something first');
+      return;
+    }
+    if (plan.kind === 'move') {
+      addBench(plan.entry);
+      setPendingBench({ index: plan.index, partId: plan.entry.partId });
+    }
+    detach(instanceId);
+  }, [state.parts, run, runActive, benchUsed, addBench, detach]);
 
   /** Arm a bench part: it places with its full salvage state, once. */
   const fitBench = useCallback((index: number) => {
     if (run.phase !== 'active') return;
     const b = run.data.benchPool[index];
     if (!b) return;
-    // A part already lifted off the plate must land on the bench before we arm
-    // a different spare — otherwise selectPart clears detached and deletes it.
-    if (state.detached) {
-      const payload = stowPayloadFromDetached({
-        detached: state.detached,
-        selectedPartId: state.selectedPartId,
-        placeExtras: state.placeExtras,
-        provenance: run.data.partProvenance[state.detached.instanceId],
-        runActive: true,
-        benchUsed,
-        benchCap: BENCH_CAP,
-      });
-      if (payload) addBench(payload);
-    }
     setPendingBench({ index, partId: b.partId });
     // Arming anything closes the sheet it was armed from, exactly as picking a
     // catalog part closes the parts sheet. The bench lives in the readout sheet,
@@ -257,7 +223,7 @@ export default function App() {
       modifiers: b.modifiers,
       variant: b.variant,
     });
-  }, [run, selectPart, state.detached, state.selectedPartId, state.placeExtras, benchUsed, addBench]);
+  }, [run, selectPart]);
 
   // Placement with the run economy in the loop (docs/10 M3): a bench part
   // consumes its bench slot; a fresh catalog part is bought at tier ×
@@ -432,34 +398,14 @@ export default function App() {
 
   const palettePartIds = useMemo(() => {
     if (run.phase === 'prep') return new Set(profile.unlockedPartIds);
-    if (run.phase === 'active') {
-      return new Set([
-        ...state.parts.map((part) => part.partId),
-        ...run.data.benchPool.map((part) => part.partId),
-      ]);
-    }
+    // An active run does not use a type set at all: the sheet lists the run's
+    // part list, which is objects (see PartPalette's `instances`).
+    if (run.phase === 'active') return undefined;
     // A finished run is a memorial, not a sandbox with leftover gear.
     if (run.phase === 'over') return new Set(state.parts.map((part) => part.partId));
     return undefined;
     // `runPrep`/`runActive` are derived from `run`, so listing them too said nothing.
   }, [profile.unlockedPartIds, state.parts, run]);
-  const ownedPartCounts = useMemo(() => {
-    if (run.phase !== 'active' && run.phase !== 'over') return undefined;
-    const counts = new Map<string, number>();
-    const pool = run.phase === 'active'
-      ? [...state.parts, ...run.data.benchPool]
-      : state.parts;
-    for (const part of pool) {
-      counts.set(part.partId, (counts.get(part.partId) ?? 0) + 1);
-    }
-    return counts;
-  }, [state.parts, run]);
-  /** Part ids with at least one benched spare — those rows are fittable from Parts. */
-  const fittablePartIds = useMemo(() => {
-    if (run.phase !== 'active') return undefined;
-    return new Set(run.data.benchPool.map((part) => part.partId));
-  }, [run]);
-
   // ?view=battle opens a seeded free-play fight, ?view=report resolves one and
   // opens its report. Both match the existing ?view= affordances and exist so the
   // battle interfaces can be screenshotted without clicking through the workshop.
@@ -586,14 +532,14 @@ export default function App() {
         }
       }
       if ((e.key === 'Delete' || e.key === 'Backspace') && state.selectedInstanceId) {
-        // docs/14 §7: remove-in-place does not exist. Delete detaches; Stow / Esc
-        // (releaseArmed) parks it on the bench mid-run.
-        detach(state.selectedInstanceId);
+        // docs/14 §7: remove-in-place does not exist. Delete detaches, which
+        // mid-run moves the instance into the run's part list.
+        detachPart(state.selectedInstanceId);
       }
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [rotate, selectPart, selectInstance, detach, nudge, placeWithEconomy, state.selectedPartId,
+  }, [rotate, selectPart, selectInstance, detachPart, nudge, placeWithEconomy, state.selectedPartId,
       state.selectedInstanceId, state.detached, releaseArmed, battle, live, salvageOpen, screen, workspace]);
 
 
@@ -606,7 +552,7 @@ export default function App() {
         chassis={chassis}
         build={build}
         selectedInstanceId={state.selectedInstanceId}
-        onDetach={detach}
+        onDetach={detachPart}
         onDeselect={() => pickInstance(null)}
         runOps={runOps}
       />
@@ -826,14 +772,14 @@ export default function App() {
             <button
               type="button"
               aria-pressed={state.routeTool === 'wire'}
-              onClick={() => setRouteTool('wire')}
+              onClick={() => { setPendingBench(null); setRouteTool('wire'); }}
             >
               Bus
             </button>
             <button
               type="button"
               aria-pressed={state.routeTool === 'coolant'}
-              onClick={() => setRouteTool('coolant')}
+              onClick={() => { setPendingBench(null); setRouteTool('coolant'); }}
             >
               Heat pipe
             </button>
@@ -899,7 +845,7 @@ export default function App() {
           <ActionBar
             armedName={state.selectedPartId ? getPart(state.selectedPartId).name.split(' ')[0] : null}
             moving={state.detached !== null}
-            stows={runActive && benchUsed < BENCH_CAP}
+            stows={runActive}
             reason={ghostReason}
             preview={ghostPlacementSummary}
             onCancel={() => releaseArmed()}
@@ -987,22 +933,25 @@ export default function App() {
         docked={false}
         selectedPartId={state.selectedPartId}
         onSelect={(id) => {
-          // Active runs: Parts is the run inventory. A tap arms a benched spare
-          // (salvage / scrapyard), not a fresh catalog copy.
-          if (run.phase === 'active' && id) {
-            const benchIndex = run.data.benchPool.findIndex((part) => part.partId === id);
-            if (benchIndex >= 0) fitBench(benchIndex);
-            return;
-          }
           selectPalettePart(id);
           if (id) closeSheet();
         }}
         onHover={() => {}}
         visiblePartIds={palettePartIds}
-        ownedCounts={ownedPartCounts}
-        fittablePartIds={fittablePartIds}
-        readOnly={run.phase === 'over' || (runActive && (fittablePartIds?.size ?? 0) === 0)}
-        label={runActive ? 'Run inventory' : runPrep ? 'Starting equipment' : run.phase === 'over' ? 'Final loadout' : 'Sandbox catalog'}
+        // Mid-run this is the run's part list: the exact objects you own, with
+        // their damage and their mods. Everything else you have is on the mech.
+        instances={runActive ? run.data.benchPool : undefined}
+        selectedInstanceId={
+          pendingBench !== null ? run.phase === 'active'
+            ? run.data.benchPool[pendingBench.index]?.id ?? null : null : null
+        }
+        onSelectInstance={(id) => {
+          if (run.phase !== 'active') return;
+          const index = run.data.benchPool.findIndex((part) => part.id === id);
+          if (index >= 0) fitBench(index);
+        }}
+        readOnly={run.phase === 'over'}
+        label={runActive ? 'Your parts' : runPrep ? 'Starting equipment' : run.phase === 'over' ? 'Final loadout' : 'Sandbox catalog'}
       />
 
       <ReadoutSheet

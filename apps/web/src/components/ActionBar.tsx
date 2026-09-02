@@ -15,9 +15,13 @@ export function ActionBar({
 }: {
   /** Null when nothing is armed. */
   armedName: string | null;
-  /** True when the armed part came off the plate, so backing out discards it. */
+  /** True when the armed part came off the plate. */
   moving: boolean;
-  /** Backing out returns the part to the bench rather than destroying it. */
+  /**
+   * The part is owned salvage sitting in the run's part list, so backing out
+   * only puts the cursor down. False in the garage, where a part lifted off the
+   * plate is a free copy of a type and backing out discards it.
+   */
   stows: boolean;
   /** Why the ghost cannot be placed; null when it can. */
   reason: string | null;

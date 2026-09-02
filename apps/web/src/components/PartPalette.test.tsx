@@ -37,35 +37,52 @@ describe('game-facing equipment inventory', () => {
     expect(screen.getByText(/no equipment of this kind yet/i)).toBeTruthy();
   });
 
-  it('names the bench as the source when a run is under way', () => {
-    palette({
-      visiblePartIds: new Set(),
-      category: 'reactor',
-      ownedCounts: new Map(),
-      fittablePartIds: new Set(),
-      readOnly: true,
-    });
+  it('says an empty run part list is empty, and where parts come from', () => {
+    // A run starts with everything on the mech and nothing in the list, so this
+    // empty state is the *normal* one for the first fight -- it has to read as
+    // "not yet" rather than as a screen that failed to load.
+    palette({ instances: [], category: 'reactor', label: 'Run parts' });
 
-    expect(screen.getByText(/on the mech or the bench/i)).toBeTruthy();
+    expect(screen.getByText(/nothing of this kind in your parts/i)).toBeTruthy();
+    expect(screen.getByText(/salvage.*detach/i)).toBeTruthy();
   });
 
-  it('lets a benched spare be armed while installed-only rows stay locked', () => {
-    const onSelect = vi.fn();
+  it('lists one row per owned instance, not one per part type', () => {
+    // Two Judges off two wrecks are two different objects: different damage,
+    // different mods. Collapsing them to "Judge x2" loses the only information
+    // that makes salvage worth looking at.
     palette({
-      visiblePartIds: new Set(['W-MG', 'W-AC']),
-      ownedCounts: new Map([['W-MG', 1], ['W-AC', 1]]),
-      fittablePartIds: new Set(['W-MG']),
-      onSelect,
       category: 'weapon',
-      label: 'Run inventory',
+      instances: [
+        { id: 'a', partId: 'W-AC', integrity: 0.62, modifiers: ['cold-bore'] },
+        { id: 'b', partId: 'W-AC', integrity: 1 },
+      ],
     });
 
-    const stitcher = screen.getByRole('button', { name: /Stitcher/ });
-    const judge = screen.getByRole('button', { name: /Judge/ });
-    expect(stitcher.hasAttribute('disabled')).toBe(false);
-    expect(judge.hasAttribute('disabled')).toBe(true);
-    fireEvent.click(stitcher);
-    expect(onSelect).toHaveBeenCalledWith('W-MG');
-    expect(screen.getByText(/Tap a spare marked bench/i)).toBeTruthy();
+    expect(screen.getAllByRole('button', { name: /Judge/ })).toHaveLength(2);
+    expect(screen.getByText('62%')).toBeTruthy();
+    expect(screen.getByText(/Cold bore/)).toBeTruthy();
+  });
+
+  it('arms the exact instance that was tapped', () => {
+    const onSelectInstance = vi.fn();
+    palette({
+      category: 'weapon',
+      onSelectInstance,
+      instances: [
+        { id: 'a', partId: 'W-AC', integrity: 0.62 },
+        { id: 'b', partId: 'W-AC', integrity: 1 },
+      ],
+    });
+
+    fireEvent.click(screen.getAllByRole('button', { name: /Judge/ })[1]!);
+    expect(onSelectInstance).toHaveBeenCalledWith('b');
+  });
+
+  it('does not list installed parts — the mech is where those are', () => {
+    palette({ category: 'weapon', instances: [{ id: 'a', partId: 'W-MG', integrity: 1 }] });
+
+    expect(screen.getByText(/Stitcher/)).toBeTruthy();
+    expect(screen.queryByText(/Judge/)).toBeNull();
   });
 });
