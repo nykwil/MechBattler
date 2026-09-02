@@ -619,11 +619,22 @@ describe('a unique survives being looted (docs/04 §4c)', () => {
 });
 
 describe('the authoring contract warns rather than gates', () => {
-  it('passes today\'s catalog with no warnings at all', () => {
+  it('passes today\'s catalog with exactly one known, deliberate warning', () => {
     const audit = auditGameContent();
     expect(audit.errors).toEqual([]);
-    expect(audit.warnings).toEqual([]);
     expect(audit.ok).toBe(true);
+    // `sacrificial-casing` applies only to `U-AMMO`, and `ENABLED_PART_IDS`
+    // excludes `U-AMMO` while ammo is deferred (owner call, 25 Aug 2026). The
+    // mod is therefore unattachable rather than weak, which is why
+    // `sim:diversity` has been reporting it among dead mods -- an `appliesTo`
+    // that never matches scores +0.0, exactly like an effect that does nothing
+    // (docs/17 F18). The pair is deliberate, so it is pinned here rather than
+    // silenced: if ammo lands, this warning goes away on its own, and if any
+    // OTHER mod loses its last carrier the assertion fails loudly.
+    expect(audit.warnings).toEqual([
+      'Mod sacrificial-casing has no enabled part it can attach to — '
+      + 'it can never be fitted, so it reads as dead gear when it is unreachable gear',
+    ]);
   });
 
   it('declares a declining difficulty curve covering every checkpoint', () => {

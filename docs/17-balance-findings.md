@@ -985,6 +985,49 @@ hovering below the line, and it was found by reading the two formulas, not by
 measuring. It has not been measured and no part uses it yet.
 
 
+## F18 — One of the six "dead mods" has no legal carrier at all
+
+`docs/20 §3` listed six mods as offered-but-never-wanted. Checking `appliesTo`
+against the enabled catalog before believing any of them — §7's gate applied to
+mods rather than parts — separates one out immediately:
+
+| mod | attaches to | enabled carrier? |
+|---|---|---|
+| `tidecooler` | `isRadiator` | `U-RAD` ✓ |
+| `gyrostabilized` | `isWeapon` | ✓ |
+| `gyro-flywheel` | `isFrameFitting` | ✓ |
+| `weaving-gait` | `isFrameFitting` | ✓ |
+| `thermocouple-skin` | `category === 'capacitor'` | `P-CAP`, `P-CAP2` ✓ |
+| **`sacrificial-casing`** | **`id === 'U-AMMO'`** | **none** |
+
+`ENABLED_PART_IDS` is `Object.keys(PARTS).filter((id) => id !== 'U-AMMO')`, and
+`MIDGAME_POOL` excludes it by declaration, so `sacrificial-casing` can never be
+legally attached to anything. It is not a mod nobody wants; it is a mod nobody
+*can take*. Per docs/20 §8 the two are indistinguishable downstream — an
+`appliesTo` that declines scores `+0.0`, exactly like an effect that does
+nothing — so `sim:diversity` has been correctly reporting a number that means
+something else entirely.
+
+This is F16's shape again, one layer up: **the instrument could not tell
+"unwanted" from "unreachable", and the reader could not tell either.**
+
+`game:audit` now warns when a modifier has no enabled part it can attach to. It
+fires on exactly one mod today and nothing else, so the fence is around exactly
+the hole. The `U-AMMO` / `sacrificial-casing` pair is deliberate — ammo is
+deferred by owner call — so `game.test.ts` pins that one warning by name with
+the reason instead of asserting the warnings list is empty. If ammo ever lands
+the warning disappears on its own; if any other mod loses its last carrier the
+assertion fails loudly.
+
+**The remaining five are still unexplained**, and three of them (`gyro-flywheel`,
+`weaving-gait`, and `gyrostabilized`) are movement mods that have not been
+re-measured since the parts they ride on became fittable. `thermocouple-skin` is
+live — `simulation.ts` §10b really does bleed cell heat back into charge — but it
+pays off only on a capacitor-fed build, and the whole cap-fed class was itself
+unreachable until F16 was fixed. None of those five should be touched before
+they are re-measured at the current content hash.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

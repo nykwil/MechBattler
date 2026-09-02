@@ -285,6 +285,18 @@ export function auditGameContent(): GameAudit {
     if (modifier.kind === 'mod' && modifier.tier === undefined) {
       warnings.push(`Mod ${modifier.id} declares no tier — it draws at the commonest weight, costs no rank and is priced as a tier 1`);
     }
+    // An `appliesTo` that no enabled part satisfies is not a weak mod, it is an
+    // unattachable one, and the two measure identically: a mod that was never
+    // legally attached scores +0.0, exactly like a mod with no effect (docs/20
+    // §8). `sacrificial-casing` is the standing case -- it applies only to
+    // `U-AMMO`, which `ENABLED_PART_IDS` excludes while ammo is deferred -- and
+    // `sim:diversity` has been listing it among dead mods on that basis.
+    if (![...enabled].some((id: string) => PARTS[id] !== undefined && modifier.appliesTo(PARTS[id]!))) {
+      warnings.push(
+        `Mod ${modifier.id} has no enabled part it can attach to — it can never be fitted, `
+        + 'so it reads as dead gear when it is unreachable gear',
+      );
+    }
   }
   for (const issue of auditUniques()) errors.push(`Unique ${issue.uniqueId} ${issue.message}`);
 
