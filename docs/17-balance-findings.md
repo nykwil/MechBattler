@@ -1749,3 +1749,78 @@ authoring anything.
   declaring `ModifierDef.isActive` beside `apply`. Do not cite diversity output
   from before 2026-08-18 as evidence of a balance problem.
 - **Body collision (`fe265c3`) is innocent.** Measured, not assumed.
+
+## F28 — Mount arc is an inert lever, so `U-TUR` is dead by construction
+
+`deadParts` at twelve locks is `U-TUR, U-SHELL` (F27). Following docs/20's own
+advice — an empty cell is usually the search, not the content — I went looking
+for the search failure behind the Gimbal and did not find one. It is dead for a
+reason no sweep size can change.
+
+**Hypothesis.** `U-TUR` is dead because mount arc never binds: the autopilot's
+`face` verb keeps the target on the nose, so +25° of arc is a payment for
+something that is never scarce, and the Gimbal is therefore a `U-RISE2` that
+costs 2 kW and 30 kg more.
+
+### Measured, and it is not close
+
+Two gates in `combat.ts` read arc: a weapon fires only while the bearing offset
+is inside half its mount arc (`inArc`, ~1415), and dispersion takes a ×1.25
+penalty past 75% of that half-arc (~2130). Both are live code.
+
+Sampling every template pairing at three seeds — **195,746 frames**, offset
+derived from frame positions and facing through the sim's own `datan2`:
+
+```
+bearing offset deg   p50 0.1   p90 0.2   p99 1.1   max 11.6
+arc  20 deg (W-SR, the narrowest in the catalog): out of arc 0.00%
+arc  30 deg: out of arc 0.00%   in the edge-dispersion band 0.01%
+arc  90 deg: out of arc 0.00%   in the edge-dispersion band 0.00%
+```
+
+Per template, against the turn rate each build actually has:
+
+| template | turn deg/s | mass t | offset p50 | p99 | max |
+|---|---|---|---|---|---|
+| vulture-skirmisher | 167.1 | 1.88 | 0.11 | 1.32 | 7.7 |
+| mule-gunline | 99.6 | 2.77 | 0.06 | 2.38 | 11.6 |
+| railgun-mule | 100.6 | 4.42 | 0.03 | 0.52 | 3.4 |
+| bastion-tank | 48.7 | 7.09 | 0.05 | 0.84 | 8.9 |
+
+**The mechanism is a rate race and it is not near.** Turn rate is 45–150 °/s by
+chassis, scaled by load and CoG offset (`computeLoadScaledSpeeds`). The bearing
+to a mech moving a few m/s at 40–160 m sweeps at a few °/s. The pilot wins by
+an order of magnitude, so facing error is tracking noise — a tenth of a degree —
+rather than a lag the geometry could ever open up.
+
+**No authored number closes it.** Turn rate is chassis × load × CoG, so the
+slowest build reachable in the game is the Bastion at 48.7 °/s, and it holds a
+p99 of 0.84°. To make even a 20° gun clip its arc you need offsets above 10°,
+which happen in 0.00% of frames. There is no part, mod or shape I can author
+that makes arc matter; it needs a pilot that chooses to fight off-axis, or a
+chassis an order of magnitude slower in the turn. Both are design decisions.
+
+### What this changes
+
+- `diversity.ts` rated `U-TUR vs U-RISE2` **distinct** on exactly this bonus.
+  That verdict was reading a number that measures zero — F18's "`appliesTo`
+  declining reads as `+0.0`" one level up, where the thing that never fires is a
+  *part's* only differentiator rather than a mod's effect. Now `overlap-watch`,
+  with the measurement in the evidence line.
+- The chassis location zones that grant `weaponArcBonusDeg: 25`
+  (`chassis.ts:230`) are advertised in the workshop — the action bar says
+  "+25° location arc" while you place — and buy nothing. Left alone here: that
+  is a UI honesty question, not a balance one, and it is worth deciding
+  deliberately rather than as a side effect of this pass.
+- `packages/sim/test/mountArc.test.ts` pins it. **Before authoring anything
+  against arc — a narrow-arc gun, an arc mod, a new zone — make that test fail
+  first.** If it still passes, the thing you authored cannot be felt.
+
+**Verdict.** Not a content gap and not a search artefact: a dead lever. `U-TUR`
+cannot be revived by anything docs/20 §4 licenses, and the honest options are to
+give it a second job that is not arc, or to leave it as the catalog's worked
+example of a part whose distinction does not exist. Recorded rather than fixed,
+because both are the owner's call.
+
+**Cost elsewhere.** None. No catalog number changed, so the content hash is
+unmoved and every balance figure on file still compares.

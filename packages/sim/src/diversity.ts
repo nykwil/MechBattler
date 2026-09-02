@@ -187,7 +187,13 @@ export function auditPartDifferentiation(): PartDifferentiationFinding[] {
     // competed with. Every line below is read off the catalog, not estimated.
     { parts: 'U-CON vs U-PIPE', verdict: 'distinct', evidence: '1-cell damageable equipment either way, but one carries 60 kW of power and the other 4 conductance of heat; a port needs whichever layer it is short of.' },
     { parts: 'U-RISE2 vs U-RISE3 vs U-RISEL', verdict: 'overlap-watch', evidence: 'Three risers doing one job — a level of support at 60 kW that also conducts heat. They separate only on footprint and mass (2x2/60 kg, 2x3/90 kg, 1x3/70 kg), so the choice is geometric rather than functional.' },
-    { parts: 'U-TUR vs U-RISE2', verdict: 'distinct', evidence: 'Both lift a gun a level; the gimbal pays 2 kW and 30 kg more for +25 degrees of arc, which a riser never buys.' },
+    // Was 'distinct' on the arc bonus until docs/17 F28 measured the arc: over
+    // 195,746 frames of template-vs-template the bearing to the enemy has a
+    // median offset of 0.1 deg and a maximum of 11.6, against a narrowest
+    // half-arc of 10 deg in the whole catalog. The differentiator is real code
+    // that never executes, which is F18's '+0.0 reads like an effect that does
+    // nothing' one level up: a *part* whose only distinction measures zero.
+    { parts: 'U-TUR vs U-RISE2', verdict: 'overlap-watch', evidence: 'Both lift a gun a level at 60 kW while conducting heat. The gimbal pays 2 kW and 30 kg more for +25 degrees of arc, and arc is inert (docs/17 F28, pinned by mountArc.test.ts) -- the pilot faces its target to within 0.1 degrees, so no gun in the catalog is ever out of arc and the bonus is never collected. Until something can make a mech fight off-axis, this is a strictly more expensive Block.' },
     { parts: 'U-SHELL vs U-ARM', verdict: 'distinct', evidence: '60 HP over 2 cells that seals what it covers (heat x1.25, no passive cooling) vs 60 HP in one cell that only blocks a lane.' },
     { parts: 'R-C90 vs R-E60', verdict: 'distinct', evidence: 'The tier-3 repeat of the same choice as R-C40 vs R-E25: 90 kW lagged and hot against 60 kW instant and cool, at 900 kg against 750 kg.' },
     { parts: 'P-CAP vs P-CAP2', verdict: 'distinct', evidence: 'A small snappy reserve against a large slow one — the alpha-strike cap only pays off for a gun that spends it all at once.' },
