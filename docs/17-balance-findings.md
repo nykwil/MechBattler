@@ -2094,3 +2094,78 @@ use to decide what to screen separates at about 10 — but only if you ask it fo
 **Use 20+ seeds for any comparison you intend to quote.** Six is fine for "does
 this assemble, and what do the `!` lines say", which is what the brief actually
 recommends it for.
+
+## F31 — `tidecooler` cannot change the probability of the state it needs, because the pilot's water term is a typed constant
+
+Third dead lever of this pass, and the third distinct mechanism. F28's arc is a
+gate that never opens. F29's armour was a gate that opened but nothing could
+reach. This one is a lever the *decision procedure* cannot see.
+
+**Hypothesis, and it was wrong in an instructive way.** I started from "the pilot
+has no terrain term, so a terrain-gated mod is a lottery". Measured, comparing
+time-on-tile against the arena's own composition over 195k mech-ticks:
+
+| tile | arena % | dwell % | ratio |
+|---|---|---|---|
+| hill | 5.79 | 11.35 | **1.96** |
+| forest | 10.88 | 11.19 | 1.03 |
+| open | 78.94 | 74.48 | 0.94 |
+| water | 4.40 | 2.98 | **0.68** |
+
+The pilot has a strong terrain preference: it takes hills at nearly twice their
+share and **avoids water**. So the hypothesis was wrong, and the real question is
+better — why does it avoid the tile the Tidecooler is about?
+
+### The chain, and it breaks in two places
+
+`exchangeAtPos` scores candidate ground by the standing exchange there, with
+`terrainDpsMods` supplying hill range and forest cover. Water's cooling is not a
+DPS term, so it enters as one line:
+
+```ts
+if (t === 'water' && runningHot) u += 2;          // combat.ts:1164
+const runningHot = hottestC >= 100;               // combat.ts:1137
+```
+
+**Break 1 — the gate barely opens.** `runningHot` is true for **1.155%** of
+mech-ticks, and on **one of seven** canonical templates. Six never reach 100 °C
+at any point: peaks are 34, 58, 62, 62, 88 and 90 °C. Only `mule-skirmisher`
+crosses it, 9.95% of its ticks, peaking at 116.
+
+**Break 2 — and this is the real one — the incentive is a typed `2`.** It does
+not scale with the mech's radiator count, with `WATER_RADIATOR_MULT` (1.6), or
+with `tidecooler` itself. A mech carrying a Tidecooler values a water tile
+*exactly as much* as one without it. The mod doubles the payoff of a choice whose
+probability it has no way to influence.
+
+That is CLAUDE.md's own rule broken where it matters most: "if you are drawing a
+number the sim also derives, read it from the sim or derive it from frames and
+events — never type it." The rule is written for instruments. Here it is the
+autopilot — the decision procedure — standing a constant where the sim has a
+derived quantity, and the constant is what makes a whole content lever inert.
+
+### What this does and does not license
+
+**Not authorable around.** Any water-keyed content — this mod, a wading radiator,
+a bilge part — is dead on arrival by the same chain, because none of it can move
+`u += 2`. There is no geometry, number or combination in docs/20 §4 that reaches
+this. So `tidecooler` is not a content gap; it is waiting on a decision.
+
+**The build it wants already exists in pieces.** Stand still, in water, redlining:
+`hull-down` pays below 1.5 m/s (active 15.9% of ticks), water pays 1.6x radiator,
+`tidecooler` would pay 3.2x. Three dead levers that all want the same behaviour
+and one pilot that will not choose it. That is the interesting build this finding
+is pointing at, and it is one constant away from being testable.
+
+**Recorded, not fixed.** Making the water term derived changes pilot behaviour and
+therefore every balance number on file, which is a bigger call than authoring
+gear. Put to the owner rather than taken.
+
+### Corrections to my own earlier reports in this pass
+
+- I twice said "the pilot's move verb has no terrain term at all". **False** — it
+  has `pickGround`/`worthRepositioning`, and the hill ratio of 1.96 is that
+  machinery working well. The dwell numbers alone did not justify the claim, and
+  I should have read `exchangeAtPos` before making it.
+- The earlier note that water dwell is "incidental" is also wrong. 0.68 is not
+  indifference; it is avoidance, and avoidance is a preference.
