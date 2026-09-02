@@ -82,10 +82,15 @@ long/light/redliner   long/medium/redliner    long/heavy/redliner
 
 Two clusters, and each is a design statement:
 
-- **Heavy barely exists — 7 builds of 189.** Nothing wants to sit above 0.8 of
-  its rated mass. Mass today is pure cost: it slows you (`computeLoadScaledSpeeds`)
-  and buys nothing. *There is no reason to be heavy.* This is the single biggest
-  hole in the design space and the most interesting brief in this document.
+- **Heavy barely exists — 7 builds of 189**, all of them Vultures; a Bastion is
+  never heavy at all. **The diagnosis in the first draft of this document was
+  wrong** and `docs/17` **F17** replaces it: heavy is not empty because mass is
+  punished, it is empty because *the catalog has no mass to spend*. The densest
+  part in the game is a 150 kg Plate that does nothing but soak, so the only way
+  to cross 0.8 load is to spend cells on armour — the same cells the guns want.
+  The lever is a part that is dense **and** useful. Read F17 before authoring
+  here; it also records that `W-BR`, the only close-range brute, cannot be fitted
+  to a Vulture at all, which is most of why `close/heavy` is empty.
 - **No long-range redliner.** Standoff builds are cold because reaching out does
   not currently cost heat. A long gun that runs hot, or a cooling part that only
   works while stationary, would put something there.

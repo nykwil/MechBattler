@@ -898,6 +898,93 @@ and it is not taken here.
 
 
 
+## F17 — "Heavy" is empty because the catalog has no mass to spend, not because mass is punished
+
+The content brief (docs/20 §3) recorded heavy builds as 7 of 189 archive entries
+and read that as *mass is pure cost and buys nothing*. Half of that is right and
+the diagnosis is wrong, which matters because it points at a different part.
+
+### Where the heavy builds actually are
+
+Splitting `artifacts/breed-wsr.json`'s gallery by chassis:
+
+| chassis | light | medium | heavy |
+|---|---|---|---|
+| CH-2 Vulture | 28 | 40 | **7** |
+| CH-9 Bastion | 88 | 26 | **0** |
+
+Every heavy build in the game is a Vulture, and the highest `loadFactor` reached
+by any of the 189 is **0.84** against a 0.8 threshold. Nothing is heavy by much,
+and the assault chassis is never heavy at all.
+
+### It is a density problem
+
+`weight` is `massT / ratedMassT`, so being heavy means filling cells with
+kilograms. Ranked by mass per cell, the catalog is thin at the top:
+
+| part | kg/cell | cells | what it is |
+|---|---|---|---|
+| `W-SR` Pinion | 183 | 6 | a whole Vulture arm |
+| `U-ARM` Plate | **150** | 1 | pure soak |
+| `W-RG` Longshot | 140 | 10 | fits nothing small |
+| `W-BR` Maul | 108 | 6 | the close-range brute |
+| *catalog mean* | *~90* | | |
+
+A CH-9 needs 6.0 t of parts on top of 3.6 t of structure to reach 0.8. At the
+catalog's mean density its 56 cells supply about 5.0 t, which lands at 0.72 —
+short. It only crosses by spending cells on Plates, and **every heavy build in
+the gallery carries three to seven of them**. So the price of being heavy is paid
+in the same currency as being armed, and the search correctly refuses it.
+
+The lever is therefore *a part that is dense **and** useful*, not a part that
+rewards load fraction. Nothing in the sim reads load fraction except the speed
+derate; there is no channel to reward it through without a new rule.
+
+### The close/heavy cell has a second, sharper cause
+
+`npm run sim:try -- CH-2 W-BR:2` stalls:
+
+```
+! W-BR: asked for 2, fitted 0 — no legal cell
+```
+
+`W-BR` is `rect(2,3)` and a Vulture hardpoint is two wide with tapered ends —
+only two solid 2-wide rows. **The one close-range brute in the game cannot be
+fitted to the one chassis that ever gets heavy.** `close/heavy` was not a
+preference the search expressed; it was a shape that does not exist.
+
+### The Vulture is a one-gun frame by geometry
+
+Every 4-cell part in the catalog is a `2x2` — both small reactors, `P-CAP2` and
+`W-RKT` alike — and the Vulture's body region is **one cell wide**, so no 2-wide
+part can ever sit in it. That leaves exactly two 2x2 slots, one per arm, and the
+reactor takes one. `sim:try -- CH-2 W-RKT:2 --no-armour` fits one pod and stalls
+on the second with the frame otherwise empty. This is not a bug and it is worth
+knowing before authoring anything 2-wide for a scout.
+
+### Mass costs power and heat, not only speed
+
+`derivedStats.ts:86` is `locomotionKw = 1.2 * massT * cruiseSpeed` and
+`simulation.ts:610` adds `0.15 * massT` of locomotion heat, so mass has three
+cost channels and the brief named one. `sim:try -- CH-9 W-BR:4` reports it
+directly: *"26 more came back off — their mass browned the build out."*
+
+There is a shape in this nobody has used. Cruise speed is
+`base * loadFactor` and `loadFactor` is `rated/actual` clamped to `[0.4, 1.15]`,
+so above load `1/1.15 = 0.87` the mass cancels:
+
+```
+locomotionKw = 1.2 * m * base * (rated/m) = 1.2 * base * rated
+```
+
+**Past 0.87 load, additional mass costs no additional locomotion power at all** —
+the marginal power price of tonnage falls to zero almost exactly where the
+archive's "heavy" bucket begins. Heat keeps climbing linearly; power does not.
+That is an existing, unexploited reason to commit to being heavy rather than
+hovering below the line, and it was found by reading the two formulas, not by
+measuring. It has not been measured and no part uses it yet.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
