@@ -143,6 +143,23 @@ self-correcting: `combat.ts` kicks by `recoilKnS / massT`, so the gun's own mass
 is what tames the gun. It is mechanical on purpose — a cap-fed close gun would be
 `17` F16's fitness valley again.
 
+**Kiln (W-KL)**, the long gun that cooks you, shipped 2 Sep 2026, unlocked by the
+`slow-burn` challenge. `17` **F23** found every `long/*/redliner` cell empty for a
+reason visible in one column of the catalog: the two longest-reaching guns were
+also the two coldest, so a long build was cold by construction. Filling the cell
+needed one part to be long, light and hot at once, and heat comes from energy
+while energy needs a dense reactor — so the gun takes the flamer's route instead
+and draws nothing at all. It carries **no `recoilKnS`**, alone among guns with
+real reach, because a recoilless rifle vents its propellant backwards: the
+backblast is the 15 kW it pays instead of a kick. One part reaches `long/light`,
+`long/medium` and `long/heavy` redliner on the `armourPlates` gene alone.
+
+**Both new guns are dominant and are recorded rather than tuned** (`19`): `W-AV`
+holds 77 of 193 archive entries and the three-Kiln Mule beats all seven canonical
+templates on every seed. The reason to look at them is the instrument rather than
+fairness — a part that wins everywhere fills archive cells with itself, and the
+archive is what the next content pass measures against.
+
 **`20-content-generation-brief.md` is the prompt for the content pass** (added
 2 Sep 2026). It carries the measured backlog, the levers the engine can express,
 the registry checklist a new part must join, and the reachability gate from
