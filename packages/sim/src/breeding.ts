@@ -26,15 +26,13 @@ import { computeRank } from './rank.js';
  * Routing (U-CON, U-PIPE) is deliberately absent: auto-wire lays it free, and a
  * lock that happened to omit a conduit would forbid wiring rather than restrict
  * gear. U-AMMO is absent by declaration -- it is a deliberate placeholder.
- */
-/**
- * What a lock may offer. Hand-written, and therefore a registry new content has
- * to be added to — `W-SR` shipped without it and the next sweep reported the gun
- * as absent from every archive cell, which reads exactly like dead gear and is
- * not: it was never offered. `breeding.test.ts` now fails if an enabled weapon
- * or reactor is missing from this list, because "never offered" and "never
- * wanted" are opposite findings and the report cannot tell them apart on its
- * own.
+ *
+ * Hand-written, and therefore a registry new content has to be added to: `W-SR`
+ * shipped without it, so no lock could draw it and the next sweep reported the
+ * gun in zero archive cells -- which reads exactly like dead gear and means the
+ * opposite. `breedingPool.test.ts` now fails if an enabled weapon, reactor or
+ * capacitor is missing from this list, because "never offered" and "never
+ * wanted" are opposite findings that the report cannot tell apart on its own.
  */
 export const MIDGAME_POOL = {
   parts: [
@@ -98,6 +96,24 @@ export function drawLock(seed: number, opts: { partCount?: number; modCount?: nu
   ];
   const rest = MIDGAME_POOL.parts.filter((id) => !seeded.includes(id));
   const parts = [...seeded, ...drawSome(rest, Math.max(0, count - seeded.length), () => 1, rng)];
+
+  // A capacitor-fed gun cannot fire without a bank, and `assembleBuild` will not
+  // reach past the lock to find one -- correctly, on the same principle that
+  // makes "the lock has no reactor in it" a finding about the lock rather than
+  // an excuse. But that quietly turns a legal weapon into an unbuildable one
+  // whenever the draw misses the bank, and the draw missed every single time:
+  // all three locks offering `W-SR` had no capacitor while both offering `W-RG`
+  // had one, which is the whole reason one read as live gear and the other as
+  // dead (docs/17 F16). The lock already seeds a reactor and a weapon so that
+  // it is buildable at all; this is the same guarantee for the same reason.
+  if (parts.length > seeded.length
+    && parts.some((id) => getPart(id).draw?.capFedEnergyPerShotKj)
+    && !parts.some((id) => getPart(id).capacitor)) {
+    const banks = MIDGAME_POOL.parts.filter((id) => getPart(id).capacitor);
+    const bank = drawSome(banks, 1, () => 1, rng)[0];
+    // Never the seeded reactor or weapon, which occupy the first slots.
+    if (bank) parts[parts.length - 1] = bank;
+  }
   const mods = drawSome(MIDGAME_POOL.mods, opts.modCount ?? LOCK_MOD_COUNT,
     (id) => modDrawWeight(MODIFIERS[id]?.tier), rng);
   return { seed, parts, mods };

@@ -7,7 +7,7 @@
  * failure for content that ought to be in the pool at all.
  */
 import { describe, expect, it } from 'vitest';
-import { MIDGAME_POOL } from '../src/breeding.js';
+import { MIDGAME_POOL, drawLock } from '../src/breeding.js';
 import { PARTS, getPart } from '../src/catalog.js';
 
 const inPool = new Set(MIDGAME_POOL.parts);
@@ -31,5 +31,29 @@ describe('the breeding pool keeps up with the catalog', () => {
 
   it('names only parts that exist', () => {
     for (const id of MIDGAME_POOL.parts) expect(() => getPart(id), id).not.toThrow();
+  });
+});
+
+describe('a lock is always buildable', () => {
+  it('never offers a capacitor-fed gun without a bank to feed it', () => {
+    // Measured before the fix: all three locks that offered W-SR had no
+    // capacitor and both that offered W-RG had one, so the sweep's verdict on
+    // the two guns was a property of the draw and nothing else.
+    const offenders: string[] = [];
+    for (let seed = 1; seed <= 400; seed++) {
+      const lock = drawLock(seed);
+      const capFed = lock.parts.filter((id) => getPart(id).draw?.capFedEnergyPerShotKj);
+      const banks = lock.parts.filter((id) => getPart(id).capacitor);
+      if (capFed.length > 0 && banks.length === 0) offenders.push(`seed ${seed}: ${capFed.join(',')}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('still seeds a reactor and a weapon in every lock', () => {
+    for (let seed = 1; seed <= 200; seed++) {
+      const lock = drawLock(seed);
+      expect(lock.parts.some((id) => getPart(id).reactor), `seed ${seed}`).toBe(true);
+      expect(lock.parts.some((id) => getPart(id).category === 'weapon'), `seed ${seed}`).toBe(true);
+    }
   });
 });
