@@ -132,11 +132,25 @@ only ever offered from free cells (this shape's bounding-box origin is a hole in
 itself) and only rotations 0/90 were tried. Both are fixed, append-only, and
 pinned by `concaveParts.test.ts`.
 
+**Anvil (W-AV)**, the reason to be heavy, shipped 2 Sep 2026, unlocked by the
+`breach` challenge. `17` **F17** found that heavy builds were 7 of 189 not
+because mass was punished but because the catalog had no mass to spend: weight is
+mass over rated mass, the densest part was a 150 kg Plate that only soaks, and
+every heavy build in the archive carried three to seven of them — so being heavy
+cost the same cells as being armed. The Anvil is 250 kg/cell, the densest part in
+the game by a third, in a 2x2 that claims no region on any chassis. Its recoil is
+self-correcting: `combat.ts` kicks by `recoilKnS / massT`, so the gun's own mass
+is what tames the gun. It is mechanical on purpose — a cap-fed close gun would be
+`17` F16's fitness valley again.
+
 **`20-content-generation-brief.md` is the prompt for the content pass** (added
-2 Sep 2026). It carries the measured backlog — six of eighteen archive cells are
-empty and heavy builds are 7 of 189 — the levers the engine can express, the
-six-place registry checklist a new part must join, and the reachability gate from
-`17` F16. Point an agent at it rather than re-deriving what the game lacks.
+2 Sep 2026). It carries the measured backlog, the levers the engine can express,
+the registry checklist a new part must join, and the reachability gate from
+`17` F16. Point an agent at it rather than re-deriving what the game lacks. Its
+§3 backlog numbers are already one pass out of date and say so — `17` F17 to F21
+are the current record, and F20 is the one to read first: `simContentHash()`
+depends on the compiler as well as the content, so a locally computed hash must
+never be compared against a report's stamp.
 
 **The thermal model changed on 1 Sep 2026 and `02` §3 is the authority.** A
 radiator now sheds from its whole conduction component instead of from its own

@@ -333,3 +333,29 @@ Two sharper edges if anyone leans on it further: under tsc it is sensitive to
 price and its rank cost while two reports either side of the edit still claim to
 be comparable. Redesigning the fingerprint invalidates every stamp already
 written, so it is recorded rather than changed.
+
+## A content A/B on `sim:breed` is not currently possible (2 Sep 2026)
+
+`MIDGAME_POOL.parts` is the draw domain, and `drawLock` consumes one `nextFloat`
+per pick from a shrinking copy of it — so adding or removing a single id re-rolls
+every lock at the same seed. Two runs either side of a new part are therefore two
+different experiments, however carefully the seed, ranks, budget and workers are
+matched, and the content hash will agree because `MIDGAME_POOL` is not in the
+fingerprint.
+
+This bit during the Anvil pass (docs/17 **F22**): `W-CB` read as 70 uses to 0,
+which looks like a dominant new part deleting the carbine and was actually the
+carbine never being offered. The part-usage half of that report was withdrawn.
+
+The fix, when someone wants a real content A/B: keep the id in the pool for both
+runs and gate it *after* the draw — filter it at genome construction — so the
+locks are byte-identical and the only difference is whether the search may use
+it. Until then, only **build-level** attribution is safe to quote: does the build
+that fills the cell actually contain the part?
+
+## `W-AV` is in 77 of 193 archive entries (2 Sep 2026)
+
+The three-Anvil Mule reaches 98-99% at ranks 16 and 20, and the part appears in
+40% of the archive. Recorded, not tuned — balance is its own track. It is the
+same shape that made `W-SR` need a second pass, so it is the first thing to look
+at when a balance pass next runs.

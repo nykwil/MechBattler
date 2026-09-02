@@ -1233,6 +1233,77 @@ is correct — `clearsForward` means only the front rank has a clear lane, so a
 reaches heavy on armour rather than on guns.
 
 
+## F22 — The Anvil fills the heavy cells, and the A/B that measured it was not an A/B
+
+`W-AV` shipped to test F17's claim that heavy builds were missing for want of a
+dense part worth carrying. It was measured against a control run with `W-AV`
+removed from `MIDGAME_POOL`, same seed, ranks, budget, workers and instrument,
+and the two reports carry the same `stamp.contentHash` (`dfc3e8a3`) because
+`MIDGAME_POOL` is not in the fingerprint.
+
+| | builds | empty cells | heavy builds | max load |
+|---|---|---|---|---|
+| control, `W-AV` not offered | 173 | 7 | **0** | **0.68** |
+| with `W-AV` offered | 193 | 4 | **15** | **1.04** |
+
+Three cells filled — `close/heavy/cold`, `close/heavy/redliner`,
+`long/heavy/cold` — and none emptied. Builds now deliberately overload past 100%
+of rated mass and win there, against a previous archive-wide ceiling of 0.84.
+
+### The control was contaminated, and `W-CB` going to exactly zero is what showed it
+
+`W-CB` fell 70 uses to **0**. A number that round is not a balance effect, and it
+is not one here:
+
+```
+control lock 0: R-E25 U-RAD U-TC1 W-BR W-CB W-ION W-SC
+after   lock 0: P-CAP R-E25 U-TC1 W-AV W-BR W-ION W-SC W-SR
+```
+
+**`MIDGAME_POOL.parts` is the draw domain.** `drawLock` consumes one `nextFloat`
+per pick from a shrinking copy of that array, so adding one id to it re-rolls
+every lock at the same seed. The carbine was never offered in the after run. The
+same goes for `U-ARM` (0 to 16 uses), which appears in an after lock and in no
+control lock.
+
+So this half of the report is **withdrawn**: the part-usage deltas measure lock
+composition, not displacement, and the `CH-2 mid/*` ceilings falling 66% to 1%
+and 96% to 1% are the carbine leaving the locks, not the Anvil arriving. Nothing
+was measured about what `W-AV` costs.
+
+### What survives, and why
+
+The heavy result is build-level rather than lock-level, which is what saves it:
+
+- **11 of the 15 heavy builds contain `W-AV`.** The other four do not, and
+  `U-ARM` — the previous densest part — is drawn in an after lock and no control
+  lock, which plausibly accounts for them.
+- The control was **not** starved of density. `W-SR` at 183 kg/cell, the second
+  densest part in the game, was offered in two of its four locks, and it still
+  produced zero heavy builds and never passed 0.68 load. 183 kg/cell was not
+  enough; 250 was.
+
+Directionally consistent with F17 and strong enough to keep the part. Not a
+controlled measurement, and it should not be quoted as one.
+
+### How to A/B a part properly, since this will recur
+
+Any change to `MIDGAME_POOL.parts` re-rolls every lock. A real control has to
+hold the pool identical and gate the part *after* the draw — leave the id in the
+pool for both runs and filter it out at genome construction, so the locks are
+byte-identical and the only difference is whether the search may use it. Until
+that exists, a content A/B on this harness compares two different experiments,
+and only build-level attribution (does the build that fills the cell actually
+contain the part?) is safe to quote.
+
+### The swing, recorded and not tuned
+
+`W-AV` is in **77 of 193** archive entries, and the three-Anvil Mule reaches
+98-99% at ranks 16 and 20. That is a large presence for one part, and it is the
+shape that made `W-SR` need a second pass. Recorded per the standing instruction
+that balance is a separate track; no number was moved to soften it.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
