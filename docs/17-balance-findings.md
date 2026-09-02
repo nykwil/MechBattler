@@ -2407,3 +2407,72 @@ the prediction it sets up is now two mods wide: **if it moves builds into the
 band, `tidecooler` and `thermocouple-skin` should improve without being touched.**
 If it does not, the root is deeper than a missing reward and the next thing to
 question is whether a build can reach the band at all while staying alive.
+
+### The sweep: `annealed-bore` is taken 13 times, and the prediction it was carrying is wrong
+
+`artifacts/annealed-12lock.json`, hash `f98aeecd`, same parameters. The hash moved,
+so per F22 only build-level attribution is quotable.
+
+```
+                  annealed  coolant-derived
+annealed-bore        13            0     <- build-level, quotable
+tidecooler            0            0
+thermocouple-skin     0            0
+hull-down             0            0
+emptyCells        4, heavy     4, heavy   (identical)
+gallery             247          247
+deadMods          4 mods       6 mods
+```
+
+**The mod is live and well taken.** 13 of 247 gallery builds carry it, which puts
+it immediately among the most-drafted mods in the catalog — `insulated-mount`
+sits at 19-20 and `ram-bore` at 16-21, and everything else is single digits. For
+the mod itself the hypothesis holds: a reason to be hot was all that was missing.
+
+**And the prediction recorded two commits ago is falsified.** I wrote that if
+`annealed-bore` moved builds into the band, `tidecooler` and `thermocouple-skin`
+should improve without being touched. They did not: both are still at zero, and
+`hull-down` with them. `deadMods` did shrink from six to four, but the two that
+left are `coil-sprung` and `gyro-flywheel`, neither of which is heat-keyed, and
+`gyro-flywheel` left only by moving into `neverOffered` — draw luck at a new hash,
+not a verdict.
+
+**The reason is the onset, and it is a design error I can name precisely.** I
+authored the bonus to start at 40 °C so it would be continuous. That makes it pay
+*from warm*: a build sitting at 60-90 °C — which is most of them — collects
++10% to +25% damage without ever going near fire-hold. So the search takes it as
+a mild damage buff on builds it was already going to make, and never has to
+commit to the band. Measured directly on the probe builds: `CH-5 W-KL:2` spends
+**0.1%** of its ticks above fire-hold and still takes the mod happily.
+
+The thing it was supposed to create — a build that *chooses* 115 °C — exists on
+exactly one frame, and only because that frame cannot cool: `sim:try` on
+`CH-2 W-KL:1` reports "heat balance −9.7 kW, but no perimeter cell is left for a
+radiator". There the trade runs the right way and is worth measuring:
+
+```
+                   >115 C ticks   shots/s   win%
+CH-2 W-KL:1 plain      31.0%       0.23      46
+CH-2 W-KL:1 anneal     32.9%       0.22      60
+```
+
+Its own +1 kW pushes it over the fire-hold threshold *more*, so it holds fire more
+and fires less — and wins +14 anyway, because each shot lands harder. Fire less,
+hit harder is exactly the decision this was for. It just happens on one build by
+accident of geometry rather than by choice on many.
+
+**Shutdown is still never reached.** 0.0% of ticks above 130 °C on every build
+tested. So 115-130 is now inhabited, by one frame, and 130-150 remains dead.
+
+**Verdict.** Keep — it is the most-taken thing this pass produced and the only
+lever in the catalog that pays above 100 °C. But it does not do the job it was
+authored for, and the reason is one authored number: **a heat mod's onset decides
+whether it creates redliners or merely rewards warmth.** At 40 °C it is a stat
+bump with a heat flavour. The experiment worth running next is the same mod with
+its onset up near 90 °C, so that nothing collects it without committing — and
+that is a re-author, not a tune, so it is recorded here rather than done
+silently.
+
+**Cost elsewhere.** Nothing measurable: `emptyCells` identical, gallery identical,
+noise band identical, `verify` green, `game:audit` clean. Nothing tuned, nothing
+re-baselined.
