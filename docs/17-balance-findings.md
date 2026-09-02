@@ -1348,6 +1348,30 @@ the backblast is what it pays instead.
 One part reaches all three of `long/light`, `long/medium` and `long/heavy`
 redliner depending only on `armourPlates`, which is a gene the breeder mutates.
 
+### Measured: the cell filled, and every build in it carries the gun
+
+`artifacts/kiln-after.json`, 211 builds. Empty cells **4 to 2** —
+`long/light/redliner` filled as designed, and `mid/heavy/cold` came with it.
+What remains empty is `mid/heavy/redliner` and `long/heavy/redliner`.
+
+Attribution is build-level, which is the only kind F22 leaves safe after
+establishing that adding an id to `MIDGAME_POOL` re-rolls every lock:
+**all 39 builds sitting in a `long/*/redliner` cell carry `W-KL`.** Not most —
+all of them. The cheapest is `CH-2 r8: R-E25, W-KL` at 67%, which is the whole
+brief in two parts.
+
+Concentration was re-checked because `W-KL` reaches 108 of 211 entries, twice
+`W-AV`'s share, and the answer is the opposite of the worry:
+
+| report | builds | distinct weapons | top weapon | HHI |
+|---|---|---|---|---|
+| `anvil-after` | 193 | 8 | `W-AV` 23% | 0.146 |
+| `kiln-after` | 211 | **10** | `W-KL` 26% | **0.146** |
+
+The Herfindahl index did not move and the number of distinct weapons reaching the
+archive went **up**, from 8 to 10 — the widest spread of any report on file. A
+part that opens a new region of the space brings other parts with it.
+
 ### The heat cost is real — and it is not enough
 
 This needed checking rather than asserting, because `computeHeatBalance` is a
