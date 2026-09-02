@@ -379,3 +379,20 @@ cell temperature reaches 125 °C against the 115 °C fire-hold, and its guns are
 heat-gated up to 13.8% of ticks (docs/17 **F23**). The dial that matters is
 therefore damage or cycle, not heat — raising the heat further just moves it
 toward shutdown without changing who wins.
+
+## The screen's noise band is 40 points, and selection runs on it (2 Sep 2026)
+
+`screenFitness` is three opponents, one battle each, at one seed. Measured over
+24 seeds on fixed builds its standard deviation is **19.8 points**, and
+`CH-9 W-BR:2` covers 0.0 to 97.3 depending only on the seed. So a single screen
+separates two candidates only when they differ by about 40 points.
+
+The gallery's numbers are fine — those are `confirmFitness` at 40 seeds. What is
+affected is **which** candidate became the elite in each cell, because selection
+runs on the screen. A part worth less than 40 points cannot reliably influence
+that choice, which is why `U-ACT` reads as dead gear while measuring +15 points
+across every shape tested (docs/17 **F26**).
+
+The consequence worth carrying: **I3's dead-gear verdicts cannot speak to
+marginal parts at all.** Widening the screen costs candidates per budget, so it
+is a real trade and has not been made.
