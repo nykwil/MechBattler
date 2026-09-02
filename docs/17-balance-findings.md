@@ -2238,3 +2238,68 @@ both properties, including that assertion.
 reports *no* dominant perk combination, where docs/19 has long recorded one on
 `mule-fever-cycle`. That may be this change or may be earlier work in this pass;
 it is recorded, not investigated, and nothing was tuned or re-baselined.
+
+### The sweep says the pilot fix changed nothing the breeder can see
+
+`artifacts/coolant-derived.json` against `artifacts/mantle-12lock.json`, both at
+hash **`60d47bd0`** — a true A/B of the pilot change, since `combat.ts`'s
+controller body is not in the hash.
+
+```
+                 mantle-12lock      coolant-derived
+emptyCells       4, all heavy       4, all heavy   (identical)
+gallery          247                247
+noiseBand        0.060              0.060
+deadMods         ... tidecooler ... ... tidecooler ...   (identical)
+coverage         U-RAD 11           U-RAD 13
+                 tidecooler 0       tidecooler 0
+```
+
+**`tidecooler` is still dead.** The fix is real and measured — the mod's influence
+on the decision went from +0.08 to +0.62 points of dwell, and it cools a wading
+mech 9–12 °C — and none of that is enough to get it drafted.
+
+**And the reason is one level up.** The breeder's builds are cold. Heat costs
+them no dps, so a coolant bath is worth nothing to them, so a mod that improves a
+coolant bath is worth nothing either. `tidecooler` is dead *downstream* of a
+bigger fact: **nothing in this game wants to be hot.**
+
+That is not a defeat for the fix — a constant no content could reach was worth
+removing on its own terms, and it is what makes the next test meaningful. It is a
+correction to the expectation. The prediction it sets up is explicit and testable:
+**if heat ever becomes worth seeking, `tidecooler` should come alive without
+being touched again.** F32 is that test.
+
+**Also settled:** the four empty heavy cells are stable at this hash across two
+independent runs, so they are a property of hash `60d47bd0` rather than run
+jitter. With the earlier A/B ruling out the assembler fix, they belong to
+`U-MANTLE`'s presence in the draw domain — the part or the re-roll it forces, which
+F22 says cannot be separated. Recorded, not tuned.
+
+## F32 — Nothing in the catalog pays above 100 °C, so the whole upper heat band is dead content
+
+The hot band is 90–150 °C: dispersion climbing to ×1.5, fire-hold at 115,
+shutdown at 130, HP damage at 150. Six of seven canonical templates never exceed
+90 °C (peaks 34, 58, 62, 62, 88, 90); one reaches 116.
+
+**Hypothesis.** The band is dead because every effect in it is a penalty, so
+entering it is always a mistake, and "redliner" in the archive means "slightly
+negative heat margin" rather than a build anyone chose.
+
+**Measured, before authoring anything.** Evaluating every mod's `effectiveMults`
+across 25–150 °C, exactly two vary with temperature at all:
+
+```
+fever-cycle   varies: cycleS            still varying above 100 C: NOTHING
+cold-bore     varies: damage,dispersion still varying above 100 C: NOTHING
+```
+
+`fever-cycle` caps at 100 °C by construction (`Math.max(0.85, ...)`). `cold-bore`
+switches off at 40. Every other mod, and every part, is temperature-blind. So
+above 100 °C the catalog offers **nothing but costs**, and above 115 there is not
+even a gradient — dispersion saturates and the guns are simply off. It is a cliff,
+not a slope.
+
+That is why `redliner` builds are accidents, why `tidecooler` has no customer, and
+why the `redline` challenge's two unlock parts sit behind a condition almost
+nothing meets.
