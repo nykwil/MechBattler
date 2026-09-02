@@ -220,31 +220,49 @@ What it leaves behind, and what to watch:
   channel.** Every value they hold was chosen while the channel delivered ~0, so
   6 kW per radiator is an inherited guess that now actually binds.
 
-## `sim:breed` measures the search as well as the gear (added 1 Sep 2026)
+## `sim:breed` measures the search as well as the gear (added 1 Sep 2026, closed 2 Sep)
 
-Two ways the breeder said "dead gear" this session and meant something else,
-both recorded in docs/17 F16 and both now fenced:
+Four independent breaks each produced output indistinguishable from "dead gear",
+and each was reported as a verdict before the next was found: the part was not in
+the draw pool; completion could not finish it; placement order silently dropped
+it; and the lock offered it without the capacitor it cannot fire without. docs/17
+F16 is the record. All four now have tests.
 
-- **Never offered looks identical to never wanted.** `W-SR` shipped without being
-  added to `MIDGAME_POOL`, so no lock could draw it and it appeared in 0 of 494
-  gallery entries. `breedingPool.test.ts` now fails if an enabled weapon, reactor
-  or capacitor cannot be drawn.
-- **A part that only pays off in combination is invisible to a greedy search.**
-  Both capacitor-fed weapons scored zero uses while every mechanical and charged
-  gun was fine — a perfect split that is not about tier. A cap-fed gun measures
-  0% alone and 33–44% once its reactor and bank are present, so every step toward
-  one is downhill. The proximate cause was the completer ignoring
-  `cap-starved-weapon` and is fixed, but the shape of the trap is general.
+**A single "dead gear" reading is not evidence about a part.** Before believing
+one, check that a single copy of it — completed, from a lock containing what it
+depends on, placed in any order — can score at all. The specific chain cannot
+recur; the shape will, for the next part that depends on another part.
 
-**Before treating an I3 verdict as evidence about a part, check that one copy of
-it, completed, can score at all.** If it cannot, I3 is reporting reachability.
+Once all four were fixed, dead gear collapsed from four parts to one (`U-RISE3`),
+`W-SR` went 0 → 27 archive uses, `W-RG` 0 → 7, and the **long-range band filled
+for the first time**. None of that was targeted; it is what happens when the
+search can build what it draws.
 
-This also puts an asterisk on F9. "W-RG is dead gear" was the finding that
-motivated cutting a new gun for light frames, and it was measured with a
-completer that could not give the railgun a capacitor. The geometric half of F9
-stands — a 2-wide gun genuinely cannot fit a Vulture — but the "nobody wants it"
-half was partly the instrument. Worth re-measuring before drawing further
-conclusions about long guns.
+This puts an asterisk on **F9**, which is what motivated cutting `W-SR` at all.
+Its geometric half stands and is now demonstrated — every occupant of every long
+cell carries `W-SR`, the gun cut to fit a light frame. Its "nobody wants the
+railgun" half was the instrument.
+
+## The Pinion scales on a frame it was not designed for (added 2 Sep 2026)
+
+`W-SR` costs a Vulture an entire hardpoint, which is the whole of its design: one
+arm, one gun, no second weapon. A Bastion has room for two or three and pays no
+such price. Measured: `CH-9 rank 20 long/medium/cold` is a **two-Pinion Bastion
+at 100%**, with a three-Pinion variant at 95%. I2 at rank 20 now reads CH-9 **72%
+ahead of CH-2**, and CH-9's rank monotonicity got worse with it (rank 20 beats
+rank 12 only 13%).
+
+The constraint that gives the part its identity does not bind on the chassis it
+was not designed for. Three answers, none taken:
+- a per-build copy limit on the part (no such field exists for parts today —
+  `maxCopiesPerBuild` is a modifier field);
+- a placement restriction that only a hardpoint-shaped region satisfies, so big
+  hulls cannot stack them;
+- accept it, and let the Bastion be the frame that can field a battery.
+
+Decide before the content pass authors more region-shaped parts, because the
+question is general: **a part priced by the space it costs a small frame is
+underpriced on a large one.**
 
 ## Still open after the 1 Sep decisions (added 1 Sep 2026)
 

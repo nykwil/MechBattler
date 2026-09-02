@@ -817,6 +817,44 @@ Both guns now assemble legally on every chassis: CH-9 79–82%, CH-5 13%, CH-2 1
 The Vulture stays low because it has room for exactly one small bank and cannot
 sustain fire — a real property of the frame, not a search artefact.
 
+### Then two more links, found the same way
+
+The completer fix rescued `W-RG` (0 → 4 archive uses) and left `W-SR` at zero,
+which looked like a verdict on the gun. It was not. Two more independent breaks
+sat behind it, each producing output identical to "dead gear":
+
+- **Placement order.** `W-SR` has exactly two legal placements on a Vulture, so
+  one capacitor dropped in the arm first makes it unplaceable — it fits when
+  listed first or second in a wish and vanishes when listed last. Genomes carry
+  parts in arbitrary order, so most genomes containing the gun silently lost it.
+  `assembleBuild` now places the biggest footprint first, which is the principle
+  its own reactor seeding already stated and had never applied generally.
+- **The lock draw.** All three locks that offered `W-SR` contained **no
+  capacitor**; both that offered `W-RG` contained one. That single fact is the
+  entire reason one read as live gear and the other as dead. `assembleBuild`
+  correctly refuses to reach past the lock, so a missing bank does not restrict a
+  cap-fed gun, it deletes it. `drawLock` already seeds a reactor and a weapon so
+  a lock is buildable at all; it now guarantees a bank alongside a cap-fed gun,
+  for the same reason.
+
+### The result, once all four were fixed
+
+| | before | after |
+|---|---|---|
+| `W-SR` archive uses | 0 | **27** |
+| `W-RG` archive uses | 0 | 7 |
+| dead parts | `R-E60, P-CAP2, W-RG, W-SR` | **`U-RISE3`** |
+| range buckets filled | `close`, `mid` | `close`, `mid`, **`long`** |
+
+**The long-range band is occupied for the first time, and every build in it
+carries `W-SR`.** The Vulture standoff build the gun was cut for exists in the
+archive at `CH-2 long/heavy/cold`, 59%. Three of the six long cells are filled;
+the three still empty are all `redliner`, which is coherent — a standoff build
+that also runs hot is a combination nothing has yet wanted.
+
+Dead gear collapsing from four parts to one was not targeted. It is what happens
+when the search can finally build what it draws.
+
 ### What this does and does not settle
 
 It does **not** say the long guns are balanced. It says the instrument can now
@@ -825,10 +863,40 @@ which is what motivated cutting `W-SR` in the first place — was measuring the
 search and the completer as much as the gun.
 
 The general lesson is the one in the heading. I3 reports "offered but never
-wanted", and that phrase quietly assumes the search could have wanted it. When a
-part only pays off in combination, a greedy search reports it as dead and is
-wrong. Before treating any I3 verdict as evidence about a *part*, check whether a
-single copy of it, completed, can score at all.
+wanted", and that phrase quietly assumes the search could have wanted it. Four
+independent breaks produced output indistinguishable from dead gear, and each was
+reported as a verdict before the next was found:
+
+1. the part was never in the draw pool;
+2. completion could not finish it;
+3. placement order silently dropped it;
+4. the lock offered it without the part it depends on.
+
+**A single "dead gear" reading is not evidence about a part.** Before believing
+one, check that a single copy of it, completed from a lock that contains what it
+needs, placed in any order, can score at all. All four checks now have tests, so
+this specific chain cannot recur — but the shape will, for the next part that
+depends on another part.
+
+It also puts an asterisk on **F9**. "W-RG is dead gear" was the finding that
+motivated cutting a new gun for light frames, and it was measured through all
+four of these breaks. The geometric half of F9 stands — a 2-wide gun cannot fit a
+Vulture at any budget, which is why `W-SR` exists and why it is the only thing in
+the long cells. The "nobody wants the railgun" half was the instrument.
+
+### Left open: the Pinion scales too well on a big frame
+
+`CH-9 rank 20 long/medium/cold` is a **two-Pinion Bastion at 100%**, and a
+three-Pinion variant at 95%. I2 at rank 20 now reads CH-9 **72% ahead of CH-2**,
+and CH-9's rank-monotonicity failures got worse (rank 20 beats rank 12 only 13%).
+
+The gun was cut to cost a Vulture an entire arm. A Bastion has room for two or
+three of them and pays no such price, so the constraint that gives the part its
+identity does not bind on the chassis it was not designed for. That is a content
+decision — a per-build copy limit, a hardpoint-only restriction, or accepting it —
+and it is not taken here.
+
+
 
 ## Non-findings, recorded so they are not re-investigated
 
