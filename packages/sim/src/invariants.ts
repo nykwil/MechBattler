@@ -212,9 +212,29 @@ export function checkCoverage(archives: BuildArchive[], offered?: Iterable<strin
   const allParts = Object.keys(PARTS).filter((id) => !COVERAGE_EXEMPT_PARTS.has(id));
   const allMods = Object.values(MODIFIERS).filter((def) => def.kind === 'mod').map((def) => def.id);
 
+  // A mod is only genuinely on offer if something it can ride is on offer too.
+  //
+  // docs/17 F27: `sacrificial-casing` applies only to `U-AMMO`, which the game
+  // excludes while ammo is deferred, so it sat in `deadMods` in every sweep of
+  // the content pass while being unattachable by construction. That is the same
+  // conflation this function's header says it exists to prevent -- "gear that
+  // was never offered is reported separately as a gap in the SWEEP" -- one level
+  // down, and it applies to any lock that happens to draw a mod without drawing
+  // a carrier for it, exactly as F16's cap-fed gun needed a bank in the lock
+  // before it counted as offered.
+  const carrierOffered = (modId: string) => {
+    const def = MODIFIERS[modId];
+    if (!def) return false;
+    return allParts.some((partId) => wasOffered(partId) && def.appliesTo(PARTS[partId]!));
+  };
+  const modOffered = (id: string) => wasOffered(id) && carrierOffered(id);
+
   const deadParts = allParts.filter((id) => wasOffered(id) && !usage.has(id));
-  const deadMods = allMods.filter((id) => wasOffered(id) && !usage.has(id));
-  const neverOffered = [...allParts, ...allMods].filter((id) => !wasOffered(id));
+  const deadMods = allMods.filter((id) => modOffered(id) && !usage.has(id));
+  const neverOffered = [
+    ...allParts.filter((id) => !wasOffered(id)),
+    ...allMods.filter((id) => !modOffered(id)),
+  ];
   return { deadParts, deadMods, neverOffered, usage };
 }
 

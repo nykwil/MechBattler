@@ -1712,13 +1712,23 @@ them only from a sweep with enough locks that every id is offered several times,
 and treat any dead-gear verdict from a small sweep as unmeasured rather than
 negative.
 
-### `sacrificial-casing` is in `deadMods` and should not be
+### `sacrificial-casing` was in `deadMods` and should not have been — fixed
 
 It has no enabled carrier at all (F18), so it cannot be taken by construction.
-`checkCoverage` knows what was *offered* but not what is *attachable*, so an
-unattachable mod is reported identically to a refused one — the same conflation
-F16 fixed for parts, still open one level down. `game:audit` warns about it, the
-breed report does not.
+`checkCoverage` knew what was *offered* but not what was *attachable*, so an
+unattachable mod read identically to a refused one — the same conflation F16
+fixed for parts, one level down.
+
+`checkCoverage` now counts a mod as offered only when the offered set also
+contains a part it can ride, which is the same rule F16's lock guarantee applies
+to a capacitor-fed gun and its bank: a lock that draws a mod and no carrier has
+not offered it in any useful sense. `coverageCarrier.test.ts` pins it, including
+that the dead list does not quietly empty itself.
+
+One thing this surfaced: `U-AMMO` is in `COVERAGE_EXEMPT_PARTS`, so
+`sacrificial-casing` has no carrier even against the whole catalog. The honest
+report is therefore "never offered" in every sweep, narrow or wide, rather than
+only in narrow ones.
 
 ### And the archive filled itself
 
