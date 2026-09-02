@@ -359,3 +359,18 @@ The three-Anvil Mule reaches 98-99% at ranks 16 and 20, and the part appears in
 40% of the archive. Recorded, not tuned — balance is its own track. It is the
 same shape that made `W-SR` need a second pass, so it is the first thing to look
 at when a balance pass next runs.
+
+## Two dominant parts now crowd the archive (2 Sep 2026)
+
+`W-AV` is in 77 of 193 archive entries, and the CH-5 three-`W-KL` build beats all
+seven canonical templates on every seed (28/28). Both are recorded rather than
+tuned, per the standing instruction — but the reason to look at them soon is not
+fairness. A part that wins everywhere fills archive cells with itself, and the
+archive is the instrument the next content pass measures against. Two of them is
+a measurement problem before it is a balance problem.
+
+For `W-KL` specifically the tradeoff is working and merely insufficient: peak
+cell temperature reaches 125 °C against the 115 °C fire-hold, and its guns are
+heat-gated up to 13.8% of ticks (docs/17 **F23**). The dial that matters is
+therefore damage or cycle, not heat — raising the heat further just moves it
+toward shutdown without changing who wins.

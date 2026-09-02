@@ -83,6 +83,22 @@ export const CHALLENGES: ChallengeDefinition[] = [
     unlockPartIds: ['W-AV'],
   },
   {
+    // The long gun that cooks you is earned by cooking: you ran hot and you
+    // stayed out of reach. `redline` already unlocks on peak temperature, so
+    // this pairs that with the untouched-parts criterion `standoff` uses --
+    // hot AND never closed with, which is the Kiln's whole fight.
+    id: 'slow-burn', name: 'Slow Burn',
+    description: 'Win at 115 °C or hotter without losing an installed part.',
+    criterion: {
+      all: [
+        { kind: 'battle-won' },
+        { kind: 'player-peak-temp-at-least', celsius: 115 },
+        { kind: 'max-player-parts-lost', value: 0 },
+      ],
+    },
+    unlockPartIds: ['W-KL'],
+  },
+  {
     id: 'counterbattery', name: 'Counterbattery',
     description: 'Defeat a capacitor-equipped enemy and destroy one of its capacitors.',
     criterion: {

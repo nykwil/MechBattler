@@ -1304,6 +1304,84 @@ shape that made `W-SR` need a second pass. Recorded per the standing instruction
 that balance is a separate track; no number was moved to soften it.
 
 
+## F23 — Reaching out cost no heat, and the Kiln is dominant with the cost working
+
+Every `long/*/redliner` cell was empty. The cause is one line of the catalog read
+sideways — **the two longest-reaching guns are also the two coldest:**
+
+| weapon | ideal midpoint | sustained heat |
+|---|---|---|
+| `W-SC` Scald | 10 m | 7.50 kW |
+| `W-RG` Longshot | 65 m | 5.00 kW |
+| `W-AV` Anvil | 15 m | 3.00 kW |
+| **`W-SR` Pinion** | **100 m** | **2.31 kW** |
+| **`W-CB` Needle** | **47.5 m** | **1.33 kW** |
+
+A long build was cold *by construction*, so the whole redliner column at range
+had no occupant.
+
+### The brief was a three-way corner nothing was even two of
+
+Filling it needs one part to be long (ideal midpoint over 100 m), light (under
+0.5 of rated mass) and hot — over about **10.8 kW**, which is what a bare Vulture
+sheds through its skin with no radiator at all (measured, not assumed).
+
+Light and hot pull against each other through the power system: heat comes from
+energy, energy needs a reactor, and reactors are among the densest parts in the
+catalog, so a *charged* long gun makes its own build heavy and cold. The way out
+is the one the flamer already uses — a chemical gun that draws nothing and still
+runs hot. `W-KL` is that at range: `line(3)`, 200 kg, no `draw`, 45 kJ a shot on
+a 3 s cycle for 15 kW sustained, and **no `recoilKnS` at all**, because a
+recoilless rifle vents its propellant backwards. The fiction and the numbers are
+the same fact: it is the only gun in the catalog with real reach and no kick, and
+the backblast is what it pays instead.
+
+### The cell fills on every chassis, and the plate gene is what selects which
+
+| build | plates | cell | load | margin |
+|---|---|---|---|---|
+| CH-2 `W-KL`:1 | 0 | **`long/light/redliner`** | 0.48 | −9.7 kW |
+| CH-2 `W-KL`:1 | 2 | `long/medium/redliner` | 0.57 | −7.9 |
+| CH-2 `W-KL`:1 | completer default | `long/heavy/redliner` | 0.87 | −2.5 |
+| CH-9 `W-KL`:4 | 0 | `long/light/redliner` | 0.42 | −24.6 |
+
+One part reaches all three of `long/light`, `long/medium` and `long/heavy`
+redliner depending only on `armourPlates`, which is a gene the breeder mutates.
+
+### The heat cost is real — and it is not enough
+
+This needed checking rather than asserting, because `computeHeatBalance` is a
+static estimate at 115 °C and F14/F15 is the standing lesson that the gauge and
+the sim can disagree. Running the CH-5 three-Kiln build against all seven
+templates, four seeds each, and reading `hottestCellC` off the frames:
+
+| opponent | peak °C | ticks a gun was heat-gated |
+|---|---|---|
+| `bastion-tank` | 125 | **13.8%** |
+| `railgun-mule` | 125 | 6.9% |
+| `mule-skirmisher` | 125 | 6.2% |
+| `mule-gunline` | 118 | 1.1% |
+| `vulture-skirmisher` | 120 | 0.2% |
+| `mule-laser-boat` | 116 | 0.1% |
+| `vulture-sniper` | 103 | 0.0% |
+
+It crosses the 115 °C fire-hold in six of seven matchups and stops short of the
+130 °C shutdown. **The tradeoff is live: the build really does have to stop
+shooting.** And it wins **28 of 28** anyway.
+
+So the mechanic bites and the numbers do not. Recorded, not tuned, per the
+standing instruction that balance is a separate track — but flagged harder than a
+normal swing for a reason that is not about balance: `W-AV` already took 77 of
+193 archive entries, and a second part at 100% will crowd the archive further and
+degrade the instrument for the next content pass. Two dominant parts is a
+measurement problem before it is a fairness problem.
+
+(An intermediate reading of `peakC 0` across every matchup was wrong — the frame
+field is `mechs[i].hottestCellC`, not a `cellTempsC` map, and a zero there meant
+"read the wrong field", not "never got hot". Recorded because it is the same
+class as every other instrument miss in this file.)
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

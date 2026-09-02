@@ -400,6 +400,53 @@ export const PARTS: Record<string, PartDef> = {
     },
     spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
+  // The long gun that cooks you. docs/17 F23: every `long/*/redliner` cell was
+  // empty because reaching out cost cells and power but never heat -- and the
+  // two longest-reaching guns in the catalog were also its two coldest
+  // (`W-SR` at 2.31 kW sustained, `W-CB` at 1.33). A long build was cold by
+  // construction, so the whole redliner column at range had no occupant.
+  //
+  // Filling it needs one part to be three things at once, and nothing was even
+  // two of them: LONG (ideal midpoint over 100 m), LIGHT (so the build stays
+  // under 0.5 of rated mass) and HOT (over about 11 kW, because a bare Vulture
+  // sheds 10.8 kW through its skin alone with no radiator at all).
+  //
+  // Light and hot pull against each other through the power system: heat comes
+  // from energy, energy needs a reactor, and reactors are the densest things in
+  // the catalog, so a charged long gun makes its own build heavy and cold. The
+  // way out is the one the flamer already uses -- a chemical gun that draws
+  // nothing and still runs hot (`W-SC` is 7.5 kW on no draw at all). The Kiln
+  // is that, at range.
+  //
+  // A recoilless rifle vents its propellant backwards, so the fiction and the
+  // numbers are the same fact: `recoilKnS` is deliberately absent -- the only
+  // gun in the catalog with real reach and no kick -- and the backblast is
+  // the 15 kW it dumps into the hull instead. It pays in heat exactly where
+  // every other long gun pays in recoil or in charge.
+  'W-KL': {
+    id: 'W-KL', name: 'Kiln (recoilless rifle)', category: 'weapon',
+    // 1x3 so it fits a Vulture arm's single solid column -- F17 recorded that
+    // every 4-cell part in the catalog is a 2x2 and the scout has only two such
+    // slots, one of which the reactor takes. A 1-wide gun does not compete for
+    // them. 200 kg keeps a finished Vulture near 0.47 load, which is the whole
+    // point: this is the light half of the brief.
+    shape: line(3), massKg: 200, hp: 30, tier: 3,
+    // No `draw` at all. Mechanical on purpose: a charged long gun forces a
+    // bigger reactor, and a bigger reactor is what makes the build heavy and
+    // cold -- the exact combination that left this cell empty.
+    heat: { heatPerShotKj: 45 },
+    weapon: {
+      weaponClass: 'ballistic',
+      // 45 kJ on a 3 s cycle is 15 kW sustained, against 10.8 kW of Vulture
+      // skin: negative by about 4 kW before the reactor's own idle heat, which
+      // is what puts the build in the redliner column rather than merely near
+      // it. 32 damage at 3 s is 10.7 dps -- above the Pinion's 8.5 and below
+      // the Needle's 13.3, priced for a gun that cannot fire forever.
+      damage: 32, cycleS: 3.0, projectileSpeed: 700, dispersionMrad: 2.0,
+      falloff: { idealMin: 90, idealMax: 160, max: 300 }, mountArcDeg: 25,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
+  },
   // System-attacking weapons (docs/07 Track C §4): higher-tier tech that hits a
   // simulated system, not just HP. Legible on existing gauges (enemy heat on the
   // thermal overlay, enemy charge on the CAP gauge), so R4 holds with no new UI.

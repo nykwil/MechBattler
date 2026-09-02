@@ -123,7 +123,7 @@ describe('game content', () => {
     // 28 since the component-height work added the three risers (U-RISE2,
     // U-RISE3, U-RISEL) and the siege rail (W-SR) added a seventh gun, each of
     // which carries its own unlock route.
-    expect(audit.counts.enabledParts).toBe(29);
+    expect(audit.counts.enabledParts).toBe(30);
     expect(GAME_CONTENT.enabledPartIds).not.toContain('U-AMMO');
   });
 
@@ -139,6 +139,7 @@ describe('game content', () => {
       counterbattery: summary({ enemyHasCapacitor: true, enemyCapacitorDestroyed: true }),
       standoff: summary({ playerDamage: 200, playerPartsLost: 0 }),
       breach: summary({ durationS: 45, enemyPartsDestroyed: 3 }),
+      'slow-burn': summary({ playerPeakTempC: 115, playerPartsLost: 0 }),
     };
     for (const challenge of CHALLENGES) {
       expect(challengeCompleted(challenge, cases[challenge.id]!)).toBe(true);
