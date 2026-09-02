@@ -67,6 +67,22 @@ export const CHALLENGES: ChallengeDefinition[] = [
     unlockPartIds: ['W-SR'],
   },
   {
+    // The close-range hammer is earned the way it is used: you crossed the gap
+    // and took the thing apart before it could matter. Like `standoff` this
+    // reuses criteria that already exist rather than adding a range one --
+    // a short duration plus real dismantling only happens up close.
+    id: 'breach', name: 'Breach',
+    description: 'Win within 45 seconds having destroyed at least three enemy parts.',
+    criterion: {
+      all: [
+        { kind: 'battle-won' },
+        { kind: 'duration-at-most', seconds: 45 },
+        { kind: 'min-enemy-parts-destroyed', value: 3 },
+      ],
+    },
+    unlockPartIds: ['W-AV'],
+  },
+  {
     id: 'counterbattery', name: 'Counterbattery',
     description: 'Defeat a capacitor-equipped enemy and destroy one of its capacitors.',
     criterion: {

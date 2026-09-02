@@ -359,6 +359,47 @@ export const PARTS: Record<string, PartDef> = {
     },
     spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
+  // The reason to be heavy. docs/17 F17: `weight` is mass over rated mass, so
+  // being heavy is bought in kilograms per cell, and the densest thing in the
+  // catalog was a 150 kg Plate that only soaks -- every heavy build in the
+  // archive carried three to seven of them, which means the price of being
+  // heavy was paid in the same cells as the guns. The Anvil is the first part
+  // where tonnage arrives attached to something worth having.
+  //
+  // 250 kg/cell is the densest part in the game by a third (the Pinion is 183,
+  // a Plate 150, the catalog mean about 90). Four cells is deliberately small:
+  // it is the price in SPACE that stays low so the price in MASS is the one you
+  // feel, and it dodges the open watchlist trap that a region-shaped part is
+  // underpriced on a large frame -- a 2x2 claims no region on any chassis.
+  //
+  // Mechanical, with no draw at all. A capacitor-fed close-range gun would be
+  // the same fitness valley F16 measured: every single-part step toward it
+  // scores zero, so a greedy search never arrives.
+  //
+  // Recoil is the identity, and it is self-correcting. `combat.ts` kicks the
+  // shooter by `recoilKnS / massT`, so at 25 kN.s the same gun shoves a 1.5 t
+  // scout 16.7 m/s backwards -- more than its own top speed, out of its own
+  // ideal band, every shot -- and a 5.7 t Mule 4.4 m/s. Fitting two of them
+  // adds two tonnes, which is what makes the third one bearable: the gun's own
+  // mass is what tames the gun. That is the whole design, and it needs no new
+  // rule to say it.
+  'W-AV': {
+    id: 'W-AV', name: 'Anvil (breaching mortar)', category: 'weapon',
+    shape: rect(2, 2), massKg: 1000, hp: 60, tier: 3,
+    heat: { heatPerShotKj: 12 },
+    weapon: {
+      weaponClass: 'ballistic',
+      // 18.75 dps against the Maul's 20, for two fewer cells and 350 kg more.
+      // The Maul wins on paper and is the better gun on a frame with cells to
+      // spare; the Anvil is what you fit when the cells are gone and the
+      // tonnage is free, which is exactly the corner of the design space that
+      // was empty.
+      damage: 75, cycleS: 4.0, projectileSpeed: 180, dispersionMrad: 7,
+      falloff: { idealMin: 0, idealMax: 30, max: 60 }, mountArcDeg: 40,
+      recoilKnS: 25,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
+  },
   // System-attacking weapons (docs/07 Track C §4): higher-tier tech that hits a
   // simulated system, not just HP. Legible on existing gauges (enemy heat on the
   // thermal overlay, enemy charge on the CAP gauge), so R4 holds with no new UI.
