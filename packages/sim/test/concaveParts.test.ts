@@ -11,6 +11,7 @@ import { getPart } from '../src/catalog.js';
 import { checkPlacement, getOccupiedCells, rotateShape } from '../src/grid.js';
 import { checkSpatialPartPlacement } from '../src/spatial.js';
 import { placeParts } from '../src/assembly.js';
+import { assembleBuild } from '../src/workbench.js';
 import type { Build, PlacedPart } from '../src/types.js';
 
 const vulture = CHASSIS['CH-2']!;
@@ -75,6 +76,30 @@ describe('a part cut to the shape of a region', () => {
       return r.map((c) => `${c.dx - minDx},${c.dy - minDy}`).sort().join(' ');
     };
     expect(normOf(plate.shape, 180)).toEqual(normOf(plate.shape, 0));
+  });
+
+  it('fits regardless of where it appears in the wish', () => {
+    // The gun has exactly two legal placements on a Vulture, so a single part
+    // dropped in the arm first makes it unplaceable. `assembleBuild` therefore
+    // places the biggest footprint first -- the principle its reactor seeding
+    // already stated and did not apply generally. Before that, this gun fitted
+    // when listed first and vanished when listed last, and because the
+    // breeder's genomes carry parts in arbitrary order, every long-range cell
+    // in the archive sat empty (docs/17 F16).
+    const orders = [
+      ['W-SR', 'R-C40', 'P-CAP'],
+      ['R-C40', 'W-SR', 'P-CAP'],
+      ['R-C40', 'P-CAP', 'W-SR'],
+    ];
+    for (const order of orders) {
+      const report = assembleBuild({
+        chassisId: 'CH-2',
+        parts: order.map((partId) => ({ partId, count: 1 })),
+        rankBudget: 20,
+      });
+      const fitted = report.build.parts.filter((part) => part.partId === 'W-SR').length;
+      expect(fitted, `wish order ${order.join(' ')}`).toBe(1);
+    }
   });
 
   it('is actually found by the auto-placer', () => {

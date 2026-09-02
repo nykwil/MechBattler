@@ -1,6 +1,6 @@
 {
   "stamp": {
-    "contentHash": "e52640cb",
+    "contentHash": "7c4c70e8",
     "screenPanel": [
       "vulture-skirmisher",
       "mule-gunline",
@@ -40,7 +40,7 @@
     "workers": 6
   },
   "noiseBand": 0.05976143046671968,
-  "elapsedS": 1834.14,
+  "elapsedS": 1909.58,
   "invariants": {
     "i1": [
       {

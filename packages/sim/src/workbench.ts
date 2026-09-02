@@ -165,7 +165,28 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
     }
   }
 
-  for (const want of wish.parts) {
+  // Biggest footprint first, for the reason the reactor seeding above already
+  // gives: parts placed first fragment the grid around them, so the part with
+  // the least freedom has to choose while it still has choices. That principle
+  // was stated for the reactor and then not applied to anything else, which was
+  // fine while every part was a rectangle that fits almost anywhere.
+  //
+  // `W-SR` is not. It is the shape of a whole Vulture hardpoint and has exactly
+  // two legal placements on that chassis, so a single capacitor dropped in the
+  // arm first makes it unplaceable -- measured: it fits when listed first or
+  // second in a wish and fails when listed last. The breeder's genomes carry
+  // parts in arbitrary order, so most genomes containing the gun silently lost
+  // it, and every long-range cell in the archive sat empty as a result (docs/17
+  // F16). Sorting is stable, so parts of equal size keep the caller's order.
+  const wishOrder = [...wish.parts].sort((a, b) => {
+    const size = (part: WishPart) => {
+      const id = (part.unique ? UNIQUES[part.unique]?.partId : undefined) ?? part.partId;
+      return PARTS[id]?.shape.length ?? 0;
+    };
+    return size(b) - size(a);
+  });
+
+  for (const want of wishOrder) {
     const count = want.count ?? 1;
     const unique = want.unique ? UNIQUES[want.unique] : undefined;
     if (want.unique && !unique) {
