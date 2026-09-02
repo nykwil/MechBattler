@@ -1515,6 +1515,26 @@ The widened mutation is kept rather than reverted. A reflecting walk that
 measures 0 of 400 arrivals is a defect on its own terms, and it is annotated in
 place with the measurement above so nobody reads it as the thing that worked.
 
+**It worked, and it produced the predicted build exactly.**
+
+| | builds | empty | heavy | max plates |
+|---|---|---|---|---|
+| `kiln-after` | 211 | 2 | 13 | 3 |
+| `armour-after` (wider gene) | 220 | 3 | 12 | 5 |
+| `armour-seeded` (`[0, 2, 8]`) | 221 | **1** | **16** | **8** |
+
+```
+long/heavy/redliner  CH-2 r16  99%  plates 8 | R-E25, W-KL, 8x U-ARM
+```
+
+That is the build the offline sweep named before the fix was written — `CH-2`,
+one Kiln, eight plates, rank 13 — found by the breeder at 99%, plus a seven-plate
+variant at rank 12 and `mid/heavy/cold` returning. The prediction, the fix and
+the confirmation all agree, which is the first time in this file that a search
+fix has been called in advance rather than diagnosed afterwards.
+
+One cell of eighteen is still empty: `mid/heavy/redliner`.
+
 Both change search behaviour, so reports either side are not comparable even at
 an identical content hash — the same caveat `--workers` already carries.
 
