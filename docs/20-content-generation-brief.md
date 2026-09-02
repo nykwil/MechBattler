@@ -230,6 +230,36 @@ anything about a part, check all four:
 If a part fails any of these, you are measuring the instrument. Fix the
 instrument, then re-measure.
 
+**Four more, added 2 Sep 2026, because the gate above only asks about parts.**
+An empty cell and a dead lever are claims about the *search*, and it failed three
+more ways in one session:
+
+5. **Can the search propose the shape at all?** Mods were enumerated onto
+   one-part genomes only, and a one-part genome scores above zero only if that
+   part is a gun — so no mod that rides a radiator, riser or plate was ever
+   proposed on a build that could win, and eleven of fourteen mods had never
+   appeared in any sweep (`17` **F19**).
+6. **Can the gene travel to where the cell is?** Armour mutated by ±1 with a
+   floor at 0, a reflecting random walk: 0 of 400 walks reached the eight plates
+   `long/heavy/redliner` needs. The cell was reachable at rank 13 with parts that
+   already existed (`17` **F24**). **Before authoring for an empty cell, sweep
+   existing parts across the axis that cell sits on and check nothing already
+   fills it.** That check costs a minute and would have saved a part.
+7. **Is the completer choosing well?** It closes an energy gap with the smallest
+   reactor that helps and cannot upgrade when cells run out — worth 25 points on
+   one build, and it bites hardest on exactly the heavy builds the archive lacks,
+   because the demand is `1.2 * massT * cruiseSpeed` and mass is the load
+   (`17` **F21**).
+8. **Does a mod have any enabled carrier?** An `appliesTo` that matches nothing
+   scores `+0.0`, identically to an effect that does nothing (`17` **F18**).
+   `game:audit` warns on this now.
+
+**And you cannot A/B a part on this harness.** `MIDGAME_POOL.parts` is the draw
+domain, so adding one id re-rolls every lock at the same seed and the two runs
+are different experiments — `W-CB` once read 70 uses to 0 and had simply never
+been offered (`17` **F22**). Only **build-level** attribution is safe to quote:
+does the build that fills the cell actually contain the part?
+
 **The general form, which will recur:** any part whose value depends on another
 part is invisible to a greedy search and hard for a player to discover. If you
 author one, give it a legible failure path — a `validateBuild` fault or a
