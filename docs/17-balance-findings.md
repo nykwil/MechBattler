@@ -1159,6 +1159,53 @@ Redesigning the fingerprint would invalidate the stamp on every report already
 written, so it is recorded here rather than changed.
 
 
+## F21 — The completer under-sizes the reactor, and mass is what browns the build out
+
+Found while exploring `W-AV`, and it is not about that part. `assembleBuild`
+closes a measured energy gap by adding the *smallest* reactor that helps, one at
+a time, and then has nowhere to put the next one:
+
+```
+$ npm run sim:try -- CH-5 W-AV:3
+  1 x R-E25    Whisper (electric S)
+  3 x W-AV     Anvil (breaching mortar)
+  ! wanted another R-E25 — energy margin -2.4 kW, but no legal cell is left
+  WARN  CANNOT SUSTAIN FIRE — demand exceeds supply by 2.4 kW
+  vs the canonical roster — 25% overall
+
+$ npm run sim:try -- CH-5 W-AV:3 R-C90
+  1 x R-C90    Furnace (combustion M)
+  ...
+  power   +61.9 kW margin
+  vs the canonical roster — 50% overall
+```
+
+Twenty cells were free. A 9-cell `R-C90` fits and delivers 90 kW; the completer
+took a 4-cell 25 kW `R-E25`, came up 2.4 kW short, and could not upgrade because
+its only move is to add another of the same. Naming the Furnace by hand doubles
+the build's score, so the completer's reactor choice is worth **25 points** on
+this build alone.
+
+The reason the gap exists at all matters more than the gap. **The Anvil is
+mechanical — it draws nothing.** The demand is locomotion:
+`derivedStats.ts:86` is `1.2 * massT * cruiseSpeed`, so a 5.1 t build wants
+about 42 kW to walk. Mass is the load. That is F17's third cost channel, and it
+means *any* heavy build hits a power wall the completer cannot climb — the same
+build shape the archive has always been missing.
+
+So a dense part and a greedy smallest-first reactor rule interact badly, and the
+interaction looks exactly like "the dense part is bad". It is not fixed here:
+`sim:try` and the breeder share `assembleBuild`, so changing the reactor rule
+changes every score in every report, and that wants to be its own measured
+change rather than a side effect of authoring a gun. Recorded, and on the
+watchlist.
+
+Related, and also not acted on: `sim:try -- CH-9 W-AV:8` fits **two**. That one
+is correct — `clearsForward` means only the front rank has a clear lane, so a
+56-cell frame cannot simply stack guns — and it is the reason the Bastion
+reaches heavy on armour rather than on guns.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

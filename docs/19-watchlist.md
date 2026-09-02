@@ -300,3 +300,36 @@ warning, and the `sacrificial-casing` modifier. What to watch: the dead-placehol
 finding will keep appearing in every diversity report, so read it as expected
 output rather than a regression, and do not let a harness warning drive the design
 call. The specced system is `01 §7`; the backlog entry is `07` Track C §1.
+
+## The completer's reactor rule is worth 25 points on a heavy build (2 Sep 2026)
+
+`assembleBuild` closes an energy gap with the smallest reactor that helps, one at
+a time, and cannot upgrade to a bigger one when it runs out of cells. On
+`CH-5 W-AV:3` that is the difference between 25% and 50% against the roster
+(docs/17 **F21**) — it takes a 4-cell 25 kW `R-E25` with twenty cells free and a
+9-cell 90 kW `R-C90` available.
+
+Why it bites now rather than before: the demand is **locomotion**, not the guns.
+`1.2 * massT * cruiseSpeed` means mass is the load, so the heavier the build the
+harder the wall — and heavy builds are exactly the shape the archive has always
+been missing. A dense part plus a greedy smallest-first reactor rule reads
+identically to "the dense part is bad".
+
+Not fixed deliberately: `sim:try` and the breeder share `assembleBuild`, so
+changing the rule moves every score in every report. It wants to be its own
+measured change with its own before/after, not a side effect of authoring a gun.
+
+## `simContentHash()` depends on the compiler, not just the content (2 Sep 2026)
+
+It hashes `m.apply.toString()`, and esbuild minifies and strips comments where
+tsc does not — so the same catalog hashes `7c4c70e8` from source under tsx and
+`29023729` from `dist`. Reports are all stamped under tsx and so agree with each
+other; anything computed locally does not. Compare a report's stamp only against
+another report's stamp (docs/17 **F20**).
+
+Two sharper edges if anyone leans on it further: under tsc it is sensitive to
+**comments inside a modifier's `apply` body**, and it does not include
+`ModifierDef.tier` at all — so re-tiering a mod changes its draw weight, its
+price and its rank cost while two reports either side of the edit still claim to
+be comparable. Redesigning the fingerprint invalidates every stamp already
+written, so it is recorded rather than changed.

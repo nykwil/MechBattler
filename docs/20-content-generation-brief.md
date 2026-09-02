@@ -193,8 +193,13 @@ sixth **fails silently and cost a 35-minute sweep**.
 - [ ] `packages/sim/test/powerBudget.test.ts` — the power-predicate list
 - [ ] `packages/sim/src/diversity.ts` — a verdict in `auditPartDifferentiation()`,
       saying what it competes with and why it is distinct
-- [ ] `packages/game/src/content.ts` — an unlock route, and the enabled-part count
-      in `packages/game/test/game.test.ts`
+- [ ] `packages/game/src/content.ts` — an unlock route, and in
+      `packages/game/test/game.test.ts` **both** the enabled-part count *and* a
+      boundary case for the new challenge in `evaluates every authored challenge
+      at its boundary`. That second one is easy to miss: the test indexes its
+      fixture map by challenge id, so a new challenge fails with
+      `Cannot read properties of undefined (reading 'won')` rather than
+      anything that names the challenge.
 - [ ] `packages/sim/src/breeding.ts` — `MIDGAME_POOL`, or the breeder can never
       draw it. Guarded by `breedingPool.test.ts` for weapons, reactors and
       capacitors; **nothing guards a utility part.**
