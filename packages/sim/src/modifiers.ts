@@ -372,6 +372,22 @@ export interface ModifierDef {
 export const COLD_BORE_MAX_C = 40;
 export const FEVER_CYCLE_MIN_C = 50;
 export const HULL_DOWN_MAX_MPS = 1.5;
+/**
+ * Annealed bore's onset, and its damage gain per degree above it.
+ *
+ * Sized against the two things it has to beat. The gun's own cone widens with
+ * heat -- `heatDispersionMult` reaches x1.36 at 90 C and x1.47 at 110 -- so at
+ * range the accuracy loss swamps this bonus and the mod is a mistake. Up close,
+ * where the target subtends a wide angle and the cone is nearly free, x1.35
+ * damage at 110 C is most of a third gun. That asymmetry is the design: this is
+ * a brawler's mod, and it should read as a trap to a sniper.
+ *
+ * Magnitude is `fever-cycle`'s, the only other mod that pays for heat: tier 3,
+ * about +18% dps at 100 C. This is +35% damage at 110 C, in heat rather than
+ * power, and it manufactures the heat it feeds on.
+ */
+export const ANNEALED_BORE_MIN_C = 40;
+export const ANNEALED_BORE_PER_C = 0.005;
 
 const isWeapon = (d: PartDef) => d.category === 'weapon';
 const isRadiator = (d: PartDef) => d.id === 'U-RAD';
@@ -476,6 +492,26 @@ export const MODIFIERS: Record<string, ModifierDef> = {
       m.scale('cycleS', Math.max(0.85, 1 - Math.max(0, ctx.tempC - FEVER_CYCLE_MIN_C) * 0.003));
     },
     isActive: (ctx) => ctx.tempC > FEVER_CYCLE_MIN_C,
+  },
+  'annealed-bore': {
+    id: 'annealed-bore', name: 'Annealed bore', kind: 'mod',
+    tier: 3,
+    blurb: 'damage +0.5% per °C above 40 °C · the mount adds 1 kW of its own waste heat',
+    tradeoff: 'It cooks the gun it is bolted to, and a mount over 115 °C holds fire entirely — '
+      + 'the bonus is largest exactly where the weapon is about to stop working, and the heat '
+      + 'it adds is what carries you there.',
+    maxCopiesPerBuild: 1,
+    appliesTo: isWeapon,
+    // docs/17 F32: nothing in the catalog paid above 100 °C, so the whole upper
+    // band was cost with no reason to enter it. This is the smallest thing that
+    // tests whether a reason is all it was missing. No cap is authored: the
+    // fire-hold threshold is the cap, which is what makes it a decision rather
+    // than a curve.
+    apply: (m, ctx) => {
+      m.add('extraHeatKw', 1);
+      m.scale('damage', 1 + ANNEALED_BORE_PER_C * Math.max(0, ctx.tempC - ANNEALED_BORE_MIN_C));
+    },
+    isActive: (ctx) => ctx.tempC > ANNEALED_BORE_MIN_C,
   },
   'cold-bore': {
     id: 'cold-bore', name: 'Cold bore', kind: 'mod',

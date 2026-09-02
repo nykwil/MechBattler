@@ -2303,3 +2303,55 @@ not a slope.
 That is why `redliner` builds are accidents, why `tidecooler` has no customer, and
 why the `redline` challenge's two unlock parts sit behind a condition almost
 nothing meets.
+
+### `annealed-bore`, and the prediction it got wrong
+
+**Authored.** Tier 3, rides any weapon. Damage `+0.5%` per °C above 40 °C, and
+the mount adds **1 kW of its own waste heat**. No cap is written: the fire-hold
+threshold at 115 °C is the cap, which is what makes it a decision rather than a
+curve — the bonus is largest exactly where the gun is about to stop firing, and
+the heat it adds is what carries you there. Both channels (`damage`,
+`extraHeatKw`) already existed and are consumed at shot resolution, so this is
+numbers and combinations, not a new mechanic.
+
+Sized against `fever-cycle`, the only other mod that pays for heat: same tier,
+about +18% dps at 100 °C there against +35% damage at 110 °C here, in heat rather
+than power. Deliberately smaller than the cone it widens — `heatDispersionMult`
+reaches ×1.5 by fire-hold and the damage bonus reaches ×1.375, so it is a trade
+and never a free upgrade. `annealedBore.test.ts` pins that inequality.
+
+**Reachability.** Carrier: every weapon (`game:audit` clean). `MIDGAME_POOL.mods`
+is derived from the registry, so it is drawable without an edit — the silent
+sixth registration does not apply to mods. Attachment asserted on all twelve
+probe builds rather than assumed (F18).
+
+**Measured, 30 seeds, paired, attachment confirmed:**
+
+```
+build          peak C      mean C        win%
+CH-2 W-KL:1   127 -> 128  102.9 -> 103.1   46 -> 58   (+12)
+CH-5 W-AC:2    85 -> 101   42.8 ->  47.5   69 -> 71   ( +2)
+CH-9 W-AV:1    57 ->  66   35.0 ->  38.4   21 -> 23   ( +2)
+CH-5 W-KL:2   120 -> 121   66.1 ->  66.6   96 -> 97   ( +1)
+CH-9 W-BR:2    58 ->  69   34.2 ->  37.6   29 -> 29   (  0)
+CH-2 W-CB:2    58 ->  81   39.4 ->  49.5   95 -> 95   (  0)
+```
+
+**The prediction was wrong, and the way it was wrong is the finding.** I expected
+a brawler's mod and a sniper's trap, on the reasoning that a wide cone is cheap
+up close. What the data says is that **range barely matters and heat availability
+is everything**: the only build it clearly pays on is `CH-2 W-KL:1`, a *long*-range
+gun, and it pays because that build already lives at 103 °C mean and 127 peak. The
+brawlers sit at 34–39 °C mean, where the bonus is a few percent.
+
+And the carrier is a *frame* property as much as a gun one. Two Kilns on a Mule
+run at 66 °C mean and gain +1; one Kiln on a Vulture runs at 103 °C and gains +12.
+Same gun, opposite verdict, because the Mule has room to cool and the Vulture does
+not. That is docs/20 §2's second signal — a part that makes a chassis want
+something it did not want — arrived at from the wrong direction.
+
+**What it does not do.** It rewards a build that was already hot; it does not by
+itself make cold builds want to be hot. Every probe gained temperature (+1 kW
+works) but none crossed from cold into the band. If the sweep leaves the archive
+unchanged, that is the reason, and the honest next question is whether anything
+short of a cooling *cost* can move a build across.
