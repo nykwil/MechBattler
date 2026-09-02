@@ -1462,17 +1462,61 @@ coordinate**: not "each step toward the combination is downhill" (cap-fed guns),
 not "the combination is never proposed" (F19's support mods), but "the far end is
 reachable only by a walk that cannot get there".
 
-### The fix, and what it costs
+### The first fix did not work, and its failure is the useful half
 
 A quarter of the time the gene now resamples anywhere in 0-12 instead of
-stepping. The step keeps its majority so local search still finds the two- and
-three-plate builds where most of the archive sits, and `assembleBuild` fits what
-it can of whatever is asked, so a large request is never illegal.
-`armourGene.test.ts` pins travel, the step's majority, and the floor.
+stepping, and `armourGene.test.ts` pins travel, the step's majority and the
+floor — it failed at exactly 0 of 400 before. **In a real sweep it changed
+almost nothing:**
 
-This changes search behaviour, so reports either side of it are not comparable
-even at an identical content hash — the same caveat `--workers` already carries.
-Every report in this file from `armour-after.json` onward is on the new gene.
+| | builds | empty cells | heavy | max load | max plates |
+|---|---|---|---|---|---|
+| `kiln-after` | 211 | 2 | 13 | 0.85 | 3 |
+| `armour-after` (wider gene) | 220 | **3** | 12 | 0.88 | **5** |
+
+Empty cells went *up* — `mid/heavy/cold` emptied — and the archive's heaviest
+build carried five plates against the eight the cell needs. The unit test
+measured travel of one gene in isolation; it did not measure travel at the real
+mutation rate under selection, and those are different quantities. The armour
+branch is one of five mutation kinds and the resample a quarter of it, so a heavy
+plate count arrives on roughly **2% of mutations** and then still has to meet the
+right lock and chassis.
+
+### It is not the fitness function either — the cell is worth 66%
+
+Before trying a second lever, the obvious alternative hypothesis: perhaps the
+search avoids the cell because builds there are bad. Walking plate count on the
+build that reaches it, at rank cap 20 (screen fitness, not the confirmed number
+the gallery reports):
+
+| plates | fitted | rank | cell | screen |
+|---|---|---|---|---|
+| 0 | 0 | 5 | `long/light/redliner` | 0.8% |
+| 2 | 2 | 7 | `long/medium/redliner` | 0.9% |
+| 4 | 4 | 9 | `long/medium/redliner` | 33.8% |
+| 6 | 6 | 11 | `long/medium/redliner` | **97.7%** |
+| 8 | 8 | 13 | **`long/heavy/redliner`** | **66.4%** |
+
+66% is a perfectly good build, so the cell is not disfavoured. It is reachable,
+admissible, worth having, and never proposed. The curve is also worth keeping for
+its own sake: fitness runs 0.8% to 97.7% to 66.4% across seven plate values on
+otherwise identical builds, which is a steeper response to armour than anything
+else in this file, and the flat 0.8% to 0.9% step from zero to two plates is
+exactly where a walk starting at 0 or 2 has nothing to climb.
+
+### The second fix: propose the shape
+
+`ARMOUR_SEEDS` is `[0, 2, 8]` — the seed population now contains the eight-plate
+build directly, for every wish and every pair. This is F19's lesson applied to a
+number rather than a mod: when the search cannot climb to a shape, propose the
+shape.
+
+The widened mutation is kept rather than reverted. A reflecting walk that
+measures 0 of 400 arrivals is a defect on its own terms, and it is annotated in
+place with the measurement above so nobody reads it as the thing that worked.
+
+Both change search behaviour, so reports either side are not comparable even at
+an identical content hash — the same caveat `--workers` already carries.
 
 
 ## Non-findings, recorded so they are not re-investigated

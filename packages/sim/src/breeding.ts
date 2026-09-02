@@ -218,6 +218,13 @@ export function mutate(genome: Genome, lock: Lock, rng: Pcg32): Genome {
     // The step keeps its majority so local search still finds the 2 and 3 plate
     // builds where most of the archive actually sits; `assembleBuild` fits what
     // it can of whatever is asked, so a large request is never illegal.
+    //
+    // On its own this was NOT enough, and the seed values in `enumerateGenomes`
+    // are the half that does the work -- see F24's second half. The armour
+    // branch is one of five mutation kinds and the resample is a quarter of it,
+    // so a heavy plate count arrives on about 2% of mutations and then has to
+    // meet the right lock and chassis: measured, it moved the archive's heaviest
+    // build from 3 plates to 5, against the 8 the cell needs.
     next.armourPlates = rng.nextFloat() < 0.25
       ? Math.floor(rng.nextFloat() * 13)
       : Math.max(0, next.armourPlates + (rng.nextFloat() < 0.5 ? -1 : 1));
@@ -271,13 +278,31 @@ export interface RankResult {
   legalFound: number;
 }
 
-/** Every one- and two-part wish the lock allows, at a couple of armour weights. */
+/**
+ * Armour weights the seed population proposes directly.
+ *
+ * `0` and `2` were the whole list, and 8 is the addition. docs/17 F24:
+ * `long/heavy/redliner` is reachable at rank 13 with parts that already ship --
+ * `CH-2`, one Kiln, eight plates -- and `develop` and `admit` both accept that
+ * genome at rank caps 12, 16 and 20. The breeder still never built it, because
+ * the only route to eight plates was a +/-1 random walk that measured 0 of 400
+ * arrivals in forty mutations, and widening the walk alone only carried the
+ * archive's heaviest build from 3 plates to 5.
+ *
+ * So this is F19's lesson applied to a number instead of a mod: when the search
+ * cannot climb to a shape, propose the shape. Every intermediate plate count is
+ * mass with no benefit until the build crosses 0.8 load, and crossing it does
+ * not itself pay, so there is no gradient to climb and there never was.
+ */
+const ARMOUR_SEEDS = [0, 2, 8] as const;
+
+/** Every one- and two-part wish the lock allows, at a few armour weights. */
 export function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
   const out: Genome[] = [];
   for (const a of lock.parts) {
     for (const count of [1, 2]) {
       for (const modifiers of [undefined, ...legalModsFor(a, lock).map((id) => [id])]) {
-        for (const armourPlates of [0, 2]) {
+        for (const armourPlates of ARMOUR_SEEDS) {
           out.push({ chassisId, parts: [{ partId: a, count, modifiers }], armourPlates });
         }
       }
@@ -308,7 +333,7 @@ export function enumerateGenomes(lock: Lock, chassisId: string): Genome[] {
         ...legalModsFor(b, lock).map((id) => ({ modB: [id] })),
       ];
       for (const { modA, modB } of placements) {
-        for (const armourPlates of [0, 2]) {
+        for (const armourPlates of ARMOUR_SEEDS) {
           out.push({
             chassisId,
             parts: [
