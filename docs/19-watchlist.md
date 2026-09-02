@@ -364,10 +364,15 @@ at when a balance pass next runs.
 
 `W-AV` is in 77 of 193 archive entries, and the CH-5 three-`W-KL` build beats all
 seven canonical templates on every seed (28/28). Both are recorded rather than
-tuned, per the standing instruction — but the reason to look at them soon is not
-fairness. A part that wins everywhere fills archive cells with itself, and the
-archive is the instrument the next content pass measures against. Two of them is
-a measurement problem before it is a balance problem.
+tuned, per the standing instruction.
+
+This entry originally argued the pair was degrading the archive as an
+instrument. Measured, it is not: `W-AV` holds 23% of weapon slots where the
+previous top weapon held 23% and 19%, distinct weapons went 9 to 8, and the
+Herfindahl index moved 0.142 to 0.146 (docs/17 **F23**). The 77-of-193 figure was
+share of entries, and most entries carry more than one weapon. Claim withdrawn —
+what is left is an ordinary balance swing measured against the roster, not
+against the archive.
 
 For `W-KL` specifically the tradeoff is working and merely insufficient: peak
 cell temperature reaches 125 °C against the 115 °C fire-hold, and its guns are

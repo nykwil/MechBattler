@@ -1370,11 +1370,29 @@ It crosses the 115 °C fire-hold in six of seven matchups and stops short of the
 shooting.** And it wins **28 of 28** anyway.
 
 So the mechanic bites and the numbers do not. Recorded, not tuned, per the
-standing instruction that balance is a separate track — but flagged harder than a
-normal swing for a reason that is not about balance: `W-AV` already took 77 of
-193 archive entries, and a second part at 100% will crowd the archive further and
-degrade the instrument for the next content pass. Two dominant parts is a
-measurement problem before it is a fairness problem.
+standing instruction that balance is a separate track.
+
+### The "it crowds the archive" worry does not survive being measured
+
+The first draft of this finding argued that two dominant parts degrade the
+archive as an instrument, on the strength of `W-AV` appearing in 77 of 193
+entries. That figure is share of *entries*, and most entries carry more than one
+weapon, so it is not a concentration measure. The concentration measures say
+almost nothing happened:
+
+| report | builds | distinct weapons | top weapon's share of weapon slots | HHI |
+|---|---|---|---|---|
+| `breed-wsr` (before both) | 189 | 9 | `W-LAS` 19% | 0.137 |
+| `anvil-control` | 173 | 8 | `W-SC` 23% | 0.142 |
+| `anvil-after` | 193 | 8 | `W-AV` 23% | **0.146** |
+
+`W-AV` at 23% is exactly where the previous top weapon sat, and the Herfindahl
+index moved 0.142 to 0.146. **The archive is not measurably more concentrated,
+and the instrument is not degrading.** The claim is withdrawn.
+
+What remains is an ordinary balance swing, on a different measurement entirely —
+fitness against the canonical roster, not share of the archive. It belongs to the
+balance track and nothing here should be tuned for it.
 
 (An intermediate reading of `peakC 0` across every matchup was wrong — the frame
 field is `mechs[i].hottestCellC`, not a `cellTempsC` map, and a zero there meant
