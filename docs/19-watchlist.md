@@ -189,23 +189,47 @@ point of writing them here is that the evidence exists and the change does not.
   that does nothing. This cost a full measurement pass. Any future mod harness
   should assert the attachment took.
 
-## The radiator does not radiate (added 1 Sep 2026)
+## There is no cooling model, only thermal mass (added 1 Sep 2026, supersedes "the radiator does not radiate")
 
-**This is a decision, not a bug to quietly patch.** `U-RAD`'s radiative term is
-priced on its own cell temperature, and conduction from the guns never lifts it
-above ambient — measured at 25.87 °C over 7,613 ticks against a 25 °C ambient,
-throughput ~0.08 and exactly zero half the time (docs/17 F13). The part works
-purely as a heat pipe. A consequence worth stating plainly: **the `radiator`
-modifier channel is inert**, so any mod authored on it is dead on arrival, which
-is what `tidecooler` has been all along.
+**This is a decision, not a bug to quietly patch.** The deep dive is docs/17
+F14; the short version is that the problem is bigger than `U-RAD`.
 
-The three answers, none taken:
-- price radiation on the cells the radiator is *connected to* rather than on
-  itself — closest to what the part's name promises, and the largest change;
-- raise conduction so heat can actually reach the perimeter — smaller, but it
-  moves every thermal build at once;
-- accept it, rename the part to what it is, and delete the `radiator` channel so
-  nothing else is authored against it.
+- Swinging `RADIATOR_K` from **zero to ten times** its value moves peak
+  temperature by at most **0.0003 °C**. Zeroing `EXTERIOR_PASSIVE_K` moves it
+  **+14 to +24 °C**. The free per-cell fallback is the entire cooling model;
+  the radiator part contributes 0–3% of shed heat and on two of four templates
+  exactly 0%, because none of their heat can reach it through the conduction
+  graph at all.
+- **Only 14–21% of generated heat is ever shed.** The rest is stored, so
+  temperature is set by thermal mass — which is why the only dial that has ever
+  moved the thermal band was `thermalMassPerCell`, and why a heat sink works
+  and a radiator does not.
+- The `radiator` modifier channel is therefore inert; anything authored on it
+  is dead on arrival, which is what `tidecooler` has always been.
+- `computeHeatBalance` credits 6 kW per radiator and 0 kW for skin exposure.
+  Measured: radiators deliver 0.00–0.36 kW, skin delivers 1.70–2.52 kW. The
+  gauge is **anti-correlated with the truth**, and a player optimising it fits
+  radiators and buries hot parts, which is backwards.
+- Two defects sit in the radiator loop and are invisible only because it
+  delivers nothing: `command.radiatorMult` is applied twice (water is 2.56×,
+  not 1.6×), and `ramAir` multiplies again after the cap, so the cap can be
+  exceeded by up to 1.5×. Fix these with whatever else lands.
+
+The answers, none taken:
+- **make cooling real** — price radiation on the cells a radiator is
+  *connected* to, and/or raise conduction so heat reaches the skin. Largest
+  change; moves every thermal build at once and would make the 115 °C band mean
+  something a player can engineer against rather than merely survive.
+- **make mass the model, honestly** — accept that heat is a capacity game,
+  delete `RADIATOR_K`/`RADIATOR_CAP_KW`/the `radiator` channel, rename `U-RAD`
+  to the heat pipe it is, and rewrite the gauge in terms of thermal mass and
+  time-to-threshold instead of kW.
+- **fix only the gauge** — leave the model, stop the readout lying. Cheapest,
+  and leaves a dead part and a dead mod channel in the catalog.
+
+Whichever is chosen, `computeHeatBalance` and the `U-HS vs U-RAD` verdict in
+`auditPartDifferentiation()` both currently assert something false and must
+move with it.
 
 Settle this **before** the content pass authors more cooling gear. Every cooling
 part and every cooling mod depends on which answer is chosen.

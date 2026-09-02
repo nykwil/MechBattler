@@ -535,6 +535,11 @@ all of this and it is getting worse, not better; it is on the watchlist.
 
 ## F13 — The radiator does not radiate, and no radiator mod can ever matter
 
+> **Superseded in scope by F14.** F13 is correct about `U-RAD` and about the
+> `radiator` channel being inert. F14 measured the rest of the model and found
+> the radiator is not the problem — there is no cooling model to speak of at
+> all. Read F14 before acting on this.
+
 Found by the heat gradient failing to do what it should have. With heat finally
 carrying a continuous cost, `tidecooler` was still worth **exactly +0.0** on all
 four of its carriers. So the water condition was never the problem.
@@ -565,6 +570,105 @@ reach it — is a change to the thermal model, and the thermal model was not one
 of the decisions on the table. It is on the watchlist as a decision, not a bug
 to quietly patch, because every cooling part and every cooling mod in the
 content pass depends on which answer is chosen.
+
+## F14 — The heat model has no cooling. It has thermal mass, and a readout that names the wrong part
+
+F13 said the radiator does not radiate. It is worse than that, and the shape of
+the problem is not the radiator.
+
+**Method.** Every number below is from the sim, not from reading it. The
+constants were swung in the build artifact so the builds, seeds and fights stay
+bit-identical and only the thermal channel moves; then the integrator was
+instrumented to count kJ per channel, and the energy books were closed to prove
+nothing was being lost off-ledger. They close to **-0 kJ** on every template, so
+this is an accounting of a conservative model, not a hunt for a leak.
+
+### 1. The radiator channel is not weak. It is inert.
+
+Swinging `RADIATOR_K` across **zero to ten times** its authored value moves peak
+temperature by at most **0.0003 °C**, and on three of five templates the fights
+come out bit-identical. Zeroing `EXTERIOR_PASSIVE_K` — the one-line fallback
+that gives every exposed cell 0.01 kW/°C for free — moves the same peaks by
+**+14 to +24 °C**.
+
+| | peak with the channel | peak without it |
+|---|---|---|
+| radiators (`RADIATOR_K` 0.06 → 0) | 72.44 °C | 72.44 °C |
+| passive skin (`EXTERIOR_PASSIVE_K` 0.01 → 0) | 72.44 °C | 90.78 °C |
+
+Two independent causes, both real:
+
+- **Topology.** Conduction edges require the same region and Manhattan distance
+  ≤ 1. Of the four canonical templates carrying a radiator, `mule-gunline` and
+  `bastion-tank` have **0% of their heat able to reach it at all** — the
+  radiator is in a different connected component from every heat source.
+  `railgun-mule` reaches 45%, `mule-laser-boat` 100%.
+- **Magnitude.** Even at 100% reachability the channel delivers ~0.1 kW,
+  because radiation is priced on the radiator's *own* temperature and the only
+  thing that warms it is a 0.06 kW/°C conduction edge. `RADIATOR_CAP_KW = 6`
+  needs a 100 °C drop across a single cell boundary to bind. It never binds, so
+  the cap is roughly 100× the achievable flux and the authored value is
+  decorative.
+
+### 2. Only a fifth of all heat is ever shed. The rest is stored.
+
+Over 8 fights per template, kJ:
+
+| template | deposited | shed passively | shed by radiators | stored |
+|---|---|---|---|---|
+| `mule-gunline` | 5383 | 855 (16%) | 0.00 | 4738 |
+| `mule-laser-boat` | 5458 | 944 (17%) | 37.42 (0.7%) | 4692 |
+| `railgun-mule` | 5433 | 1168 (21%) | 173.96 (3.2%) | 3735 |
+| `bastion-tank` | 6194 | 882 (14%) | 0.00 | 5513 |
+
+**Temperature in this game is governed by thermal mass, not by cooling.** That
+is why the only dial that ever moved the thermal band was `thermalMassPerCell`
+(1.0 → 0.7, Aug 2026, recorded in `thermal.ts`), why a heat sink works and a
+radiator does not, and why `tidecooler` is inert. Nobody chose this; it is what
+the numbers add up to.
+
+### 3. The readout tells the player the opposite of the truth
+
+`computeHeatBalance` credits `RADIATOR_CAP_KW` per `U-RAD` and nothing else. Its
+own comment calls this "an honest capacity number for a gauge". Measured against
+what the sim delivers:
+
+| template | readout says | radiators deliver | skin delivers |
+|---|---|---|---|
+| `mule-gunline` | 6.0 kW | 0.000 kW | 2.03 kW |
+| `mule-laser-boat` | 6.0 kW | 0.100 kW | 2.52 kW |
+| `railgun-mule` | 6.0 kW | 0.357 kW | 2.40 kW |
+| `bastion-tank` | 12.0 kW | 0.000 kW | 2.22 kW |
+| `vulture-skirmisher` | 0.0 kW | — | 1.70 kW |
+
+The gauge is not imprecise, it is **anti-correlated**: it credits 6 kW to the
+part that does nothing and 0 kW to the exposure that does everything. A player
+optimising the number they are shown fits radiators and buries hot parts inside
+the hull, which is exactly backwards. It also explains why builds the workshop
+condemns at "-9.0 kW heat margin" run all fight at 47 °C without trouble.
+
+`auditPartDifferentiation()` carries the same claim — *"U-HS vs U-RAD: 1-cell
+burst thermal mass vs 3-cell perimeter-only sustained dissipation"* — and the
+second half of it is false.
+
+### 4. Two defects in the radiator loop, currently invisible
+
+Found by reading, and stated here so they are fixed with whatever fix lands
+rather than rediscovered. Neither is measurable today because the channel
+delivers ~0.
+
+- `command.radiatorMult` is applied **twice** — once inside `raw` and again
+  inside `ramAir` — so standing in water is 1.6² = 2.56×, not 1.6×.
+- `ramAir` multiplies again **after** the cap is applied, so when the cap binds
+  the delivered total is `RADIATOR_CAP_KW × ramAir`, which exceeds the cap by
+  up to 1.5×. A cap that can be exceeded is not a cap.
+
+### What is not decided here
+
+Whether cooling *should* matter is a design question and it is the owner's.
+Making the radiator work, and making the gauge honest, are different changes
+and the second depends on the first. Both are on the watchlist. Nothing in the
+thermal model was changed by this investigation.
 
 ## Non-findings, recorded so they are not re-investigated
 
