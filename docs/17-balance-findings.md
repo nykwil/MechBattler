@@ -2476,3 +2476,75 @@ silently.
 **Cost elsewhere.** Nothing measurable: `emptyCells` identical, gallery identical,
 noise band identical, `verify` green, `game:audit` clean. Nothing tuned, nothing
 re-baselined.
+
+## F34 — The heavy cells at range are reachable and unwanted, so the gap is a reason and not a part
+
+`mid/heavy/*` and `long/heavy/*` are the only cells that stay empty across
+sweeps. They appear empty in all three runs carrying `U-MANTLE` and full in both
+runs without it — but the hash differs between those groups, and F22 forbids
+reading that as attribution. It is one draw domain against another, n = 1 each.
+
+**Gate 6 first, as docs/20 §7 insists, and it settles the question.** Sweeping
+every enabled gun × three counts × four ballast options across all three chassis:
+**113 of 396 assembled builds land in mid/long + heavy.** The cells are trivially
+reachable with parts that already shipped. So this was never a content gap in the
+sense of "nothing can be built there".
+
+**And the sweep shows why nothing wants to be.** Almost every reachable
+mid/long-heavy build is a *Vulture* — the lightest frame — because the weight
+bucket is `mass ÷ ratedMass`, so the cheapest way to be "heavy" is to overload a
+scout. An overloaded scout is slow, and at range slow is fatal. Meanwhile every
+heavy cell that *is* filled is close range, and for one reason: the only part
+that makes a frame heavy by being worth carrying is the Anvil, and the Anvil is a
+brawler's gun (F17/F22). **At range, mass has never bought anything.**
+
+### `W-CV`, the Culverin — the Anvil's argument moved out to range
+
+2×3, 900 kg, tier 4, 70 damage on a 6 s cycle, 3 mrad, ideal 70–140 m, and
+**30 kN·s of recoil**. No draw, no companion part — deliberately not a
+combination dependency (§7).
+
+Recoil is the whole design and the sim already derives it: `combat.ts` kicks the
+shooter by `recoilKnS / massT`, and that velocity feeds `weaponSigmaMrad`'s motion
+term, so the kick widens the *next* shot's cone. **Mass buys accuracy without a
+new rule to say so.** Measured, and it is self-correcting exactly as the Anvil's
+comment predicts:
+
+```
+CH-9 W-CV:1 bare        load 0.58   kick 4.3 m/s
+CH-9 W-CV:2 + 12 plate  load 0.94   kick 2.7 m/s
+CH-5 W-CV:2 bare        load 0.75   kick 6.7 m/s
+CH-5 W-CV:2 +  8 plate  load 0.85   kick 5.9 m/s
+```
+
+Adding armour makes the gun *more* accurate. That is the first time mass has paid
+at range.
+
+**Reachability.** Completes alone on CH-5 and CH-9, in all three wish orders.
+**Refused entirely on CH-2** — a 2×3 does not fit a Vulture region — which is
+deliberate and the same geometry gate `W-RG` uses. All six registrations done;
+`weaponClass`, `powerBudget` and the enabled-part count all failed loudly first,
+exactly as docs/20 §6 says they would.
+
+**What moved.** `long/heavy/cold` is reached on both frames it fits: CH-5 at load
+0.85, CH-9 at 0.94. `mid/heavy/*` and `long/heavy/redliner` are not — the
+Culverin is cold (8 kJ/shot), so a redliner needs it paired with something hot.
+
+### The swing, recorded and not tuned
+
+`CH-9 W-CV:2 U-ARM:12` measures **99%** against the canonical roster at 20 seeds.
+That is a dominant build and it is recorded here rather than nerfed.
+
+**But the control matters and it is most of the story.** Same chassis, same
+ballast, different gun:
+
+```
+W-CV:2  99%      W-KL:2  96%      W-RG:1  83%      W-AC:2  65%
+```
+
+A fortress Bastion is *already* a 96% archetype. The Culverin adds **+3** over the
+best existing option, not 99 points of its own. The honest reading is that this
+pass has surfaced a strong archetype rather than created one, and the thing worth
+the owner's attention is the armoured Bastion, not only the new gun.
+
+`verify` green (446 / 36 / 209), `game:audit` clean, nothing re-baselined.

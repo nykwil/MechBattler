@@ -108,7 +108,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
         { kind: 'enemy-capacitor-destroyed' },
       ],
     },
-    unlockPartIds: ['W-ION'],
+    unlockPartIds: ['W-ION', 'W-CV'],
   },
 ];
 

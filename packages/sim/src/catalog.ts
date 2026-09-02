@@ -426,6 +426,38 @@ export const PARTS: Record<string, PartDef> = {
     },
     spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
   },
+  // The Anvil's argument, moved out to range. docs/17 F34: `mid/heavy/*` and
+  // `long/heavy/*` are the only cells that stay empty across sweeps, and gate 6
+  // says they are trivially *reachable* -- 113 of 396 assembled builds land
+  // there -- so the gap is not that heavy-at-range cannot be built. It is that
+  // nothing makes it worth building. Every heavy cell that IS filled is close
+  // range, because the one part that makes a frame heavy by being worth
+  // carrying is the Anvil, and the Anvil is a brawler's gun. At range, mass has
+  // done nothing but slow you down.
+  //
+  // Recoil is the lever that already prices mass, and the sim derives it:
+  // `combat.ts` kicks the shooter by `recoilKnS / massT`, and that velocity goes
+  // straight into `weaponSigmaMrad`'s motion term, so the kick widens the *next*
+  // shot's cone. Mass buys accuracy, without a new rule to say so.
+  //
+  // At 30 kN.s the Culverin shoves a 1.88 t Vulture 16 m/s -- past its own top
+  // speed, out of its band, every shot -- and a 7.09 t Bastion 4.2. The Bastion
+  // is the slowest, least-loved frame in the game and this is the first gun that
+  // wants it. 11.7 dps sits between the Kiln's 10.7 and the Pinion's 8.5, and
+  // well under the Longshot's 17: it is not the best long gun, it is the one a
+  // heavy frame can actually hold still.
+  'W-CV': {
+    id: 'W-CV', name: 'Culverin (siege rifle)', category: 'weapon',
+    shape: rect(2, 3), massKg: 900, hp: 70, tier: 4,
+    heat: { heatPerShotKj: 8 },
+    weapon: {
+      weaponClass: 'ballistic',
+      damage: 70, cycleS: 6.0, projectileSpeed: 260, dispersionMrad: 3,
+      falloff: { idealMin: 70, idealMax: 140, max: 240 }, mountArcDeg: 40,
+      recoilKnS: 30,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
+  },
   // The long gun that cooks you. docs/17 F23: every `long/*/redliner` cell was
   // empty because reaching out cost cells and power but never heat -- and the
   // two longest-reaching guns in the catalog were also its two coldest
