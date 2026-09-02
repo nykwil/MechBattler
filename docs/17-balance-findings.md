@@ -1669,6 +1669,68 @@ is recorded here rather than made. `U-ACT` is not tuned in response either: it
 does not need a buff, it needs an instrument that can see it.
 
 
+## F27 — Dead-gear verdicts are a function of sweep size, and twelve locks change all of them
+
+Every dead-gear claim in this pass came from a four-lock sweep. Re-running at
+**twelve** locks (`artifacts/mods-12lock.json`, seed 21, ranks 8 and 16, 263
+builds) changes essentially every one of them.
+
+### Mods: all fourteen offered, seven taken, seven dead
+
+```
+never offered : (none — all 14 were drawn)
+taken (7)     : insulated-mount 19, ram-bore 16, gyrostabilized 6,
+                cold-bore 3, fever-cycle 3, surge-gate 3, gyro-flywheel 1
+dead  (7)     : marsh-pistons, tidecooler, hull-down, coil-sprung,
+                weaving-gait, sacrificial-casing, thermocouple-skin
+```
+
+Twelve locks give 36 mod slots for a 14-mod catalog and every mod gets drawn, so
+this is the first sweep in this pass that can speak about mods at all.
+
+**Both earlier lists in this file were wrong.** F19 said eleven of fourteen were
+untried; F25 corrected that to four dead and named `cold-bore`, `gyrostabilized`
+and `surge-gate` among them. All three are taken here — `gyrostabilized` six
+times. The true dead list is a different seven.
+
+One genuine positive: **`gyro-flywheel` appears.** It is a support-only mod, it
+had never reached a build in any sweep on record, and F19's enumeration fix is
+what lets it. One use in 263 builds is small, but it is the shape working at
+scale rather than in a unit test.
+
+### Parts: `U-ACT` is not dead here either
+
+`deadParts` is `U-TUR, U-SHELL` — and **`U-ACT`, the part F26 was written about,
+is taken.** F26's measurement stands (it is worth about +15 points across every
+shape tested), and this is the independent confirmation: with enough locks the
+search does find it. Two parts that were never flagged at four locks are flagged
+now.
+
+So `deadParts` and `deadMods` are not properties of the gear. **They are
+properties of the experiment**, and at four locks they are close to noise. Read
+them only from a sweep with enough locks that every id is offered several times,
+and treat any dead-gear verdict from a small sweep as unmeasured rather than
+negative.
+
+### `sacrificial-casing` is in `deadMods` and should not be
+
+It has no enabled carrier at all (F18), so it cannot be taken by construction.
+`checkCoverage` knows what was *offered* but not what is *attachable*, so an
+unattachable mod is reported identically to a refused one — the same conflation
+F16 fixed for parts, still open one level down. `game:audit` warns about it, the
+breed report does not.
+
+### And the archive filled itself
+
+`emptyCells` is **0** at twelve locks, including `mid/heavy/redliner`, which F24
+deliberately left empty rather than seed a value for. More locks explore more.
+This does not tell us the new parts were unnecessary — `W-KL` is in every
+`long/*/redliner` build by build-level attribution, and that is unaffected — but
+it does mean **an empty cell in a four-lock sweep is weak evidence of a content
+gap**, and the honest first response to one is to raise the lock count before
+authoring anything.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
