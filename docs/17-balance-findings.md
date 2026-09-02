@@ -747,6 +747,89 @@ Balance is its own pass and does not gate this, so nothing was tuned to make the
 number go back up. The baseline was **not** re-cut. Correlation of budget against
 win rate improved −0.637 → **−0.043**.
 
+## F16 — "Dead gear" and "gear the search cannot reach" are opposite findings, and I3 could not tell them apart
+
+Two separate versions of this bit in one sitting, both while trying to answer a
+simple question: is the new `W-SR` dead or dominant?
+
+### First: never offered reads exactly like never wanted
+
+The first full sweep reported `W-SR` in **0 of 494** gallery entries. That is what
+dead gear looks like. It was the opposite: `MIDGAME_POOL` is a hand-written list
+and the gun was not on it, so no lock could draw it. The report did say so — I3
+prints "never offered by any lock" separately — but a part that was never offered
+is invisible in the gallery and absent from the coverage table, so the two states
+look identical everywhere a reader actually looks.
+
+`breedingPool.test.ts` now fails if any enabled weapon, reactor or capacitor
+cannot be drawn. Every other part in the catalog already passed, so the fence is
+around exactly the hole this fell through.
+
+### Then: the whole capacitor-fed weapon class was unreachable
+
+With the gun properly offered, the sweep called it dead gear — along with `W-RG`.
+Cross-referencing the archive against how each weapon is fed separates perfectly,
+and not by tier:
+
+| weapon | fed by | tier | archive uses |
+|---|---|---|---|
+| `W-CB` | mechanical | 3 | 86 |
+| `W-LAS` | charged | 2 | 78 |
+| `W-MG` | mechanical | 1 | 65 |
+| `W-AC` | mechanical | 2 | 48 |
+| `W-SC` | mechanical | 3 | 39 |
+| `W-BR` | mechanical | 3 | 38 |
+| `W-ION` | charged | 3 | 25 |
+| **`W-RG`** | **capacitor-fed** | 4 | **0** |
+| **`W-SR`** | **capacitor-fed** | 4 | **0** |
+
+A tier-3 mechanical gun is the most-used weapon in the archive, so this is not
+"expensive gear is bad". It is a **fitness valley**, and it measures exactly:
+
+| build | fitness |
+|---|---|
+| `W-SR` alone | **0%** |
+| `W-SR` + reactor | **0%** |
+| `W-SR` + capacitor | 11% |
+| `W-SR` + reactor + capacitor | **33%** |
+| `W-RG` alone | **0%** |
+| `W-RG` + reactor + big bank | **44%** |
+
+Every single-part step toward a capacitor-fed gun is a loss. A hill-climbing
+search starts at zero, sees no gradient, and never arrives — so the archive's
+verdict was about **reachability**, not about the guns.
+
+### The cause was a gap in the completer, not a property of the guns
+
+`assembleBuild` closes gaps that `computeEnergyMargin` and `computeHeatBalance`
+measure, and its header claims `validateBuild` too. It only ever added reactors
+and radiators. `cap-starved-weapon` — *"capacitor-fed but its network has no
+capacitors — it can never fire"* — was the one measured fault it ignored, so it
+handed back a gun that could not shoot, and 0% was an honest score for it.
+
+Completion now adds capacitors until the bank covers the largest single shot.
+Banks accumulate, so it takes the largest that **fits** and loops, rather than
+demanding one part cover the whole shot: the first cut asked for 260 kJ, found
+only a 200 kJ Reservoir, could not fit its four cells beside a gun that eats a
+whole arm, and gave up with five free cells and a two-cell Jolt available.
+
+Both guns now assemble legally on every chassis: CH-9 79–82%, CH-5 13%, CH-2 11%.
+The Vulture stays low because it has room for exactly one small bank and cannot
+sustain fire — a real property of the frame, not a search artefact.
+
+### What this does and does not settle
+
+It does **not** say the long guns are balanced. It says the instrument can now
+see them, and that every previous "W-RG is dead gear" verdict — including F9's,
+which is what motivated cutting `W-SR` in the first place — was measuring the
+search and the completer as much as the gun.
+
+The general lesson is the one in the heading. I3 reports "offered but never
+wanted", and that phrase quietly assumes the search could have wanted it. When a
+part only pays off in combination, a greedy search reports it as dead and is
+wrong. Before treating any I3 verdict as evidence about a *part*, check whether a
+single copy of it, completed, can score at all.
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

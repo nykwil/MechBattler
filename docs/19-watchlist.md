@@ -220,6 +220,32 @@ What it leaves behind, and what to watch:
   channel.** Every value they hold was chosen while the channel delivered ~0, so
   6 kW per radiator is an inherited guess that now actually binds.
 
+## `sim:breed` measures the search as well as the gear (added 1 Sep 2026)
+
+Two ways the breeder said "dead gear" this session and meant something else,
+both recorded in docs/17 F16 and both now fenced:
+
+- **Never offered looks identical to never wanted.** `W-SR` shipped without being
+  added to `MIDGAME_POOL`, so no lock could draw it and it appeared in 0 of 494
+  gallery entries. `breedingPool.test.ts` now fails if an enabled weapon, reactor
+  or capacitor cannot be drawn.
+- **A part that only pays off in combination is invisible to a greedy search.**
+  Both capacitor-fed weapons scored zero uses while every mechanical and charged
+  gun was fine — a perfect split that is not about tier. A cap-fed gun measures
+  0% alone and 33–44% once its reactor and bank are present, so every step toward
+  one is downhill. The proximate cause was the completer ignoring
+  `cap-starved-weapon` and is fixed, but the shape of the trap is general.
+
+**Before treating an I3 verdict as evidence about a part, check that one copy of
+it, completed, can score at all.** If it cannot, I3 is reporting reachability.
+
+This also puts an asterisk on F9. "W-RG is dead gear" was the finding that
+motivated cutting a new gun for light frames, and it was measured with a
+completer that could not give the railgun a capacitor. The geometric half of F9
+stands — a 2-wide gun genuinely cannot fit a Vulture — but the "nobody wants it"
+half was partly the instrument. Worth re-measuring before drawing further
+conclusions about long guns.
+
 ## Still open after the 1 Sep decisions (added 1 Sep 2026)
 
 - **I2 still fails.** The second defensive verb moved CH-9 a long way (F11) but
