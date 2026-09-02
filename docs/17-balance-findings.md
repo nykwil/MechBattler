@@ -1424,6 +1424,57 @@ field is `mechs[i].hottestCellC`, not a `cellTempsC` map, and a zero there meant
 class as every other instrument miss in this file.)
 
 
+## F24 — The last two empty cells were not a content gap; the armour gene is a reflecting random walk
+
+Before authoring anything for `mid/heavy/redliner` and `long/heavy/redliner`, the
+§7 question: are they empty because nothing can fill them, or because the search
+cannot reach them? Sweeping every one- and two-gun wish on every chassis across
+plate counts 0 to 20 answers it immediately — **both are reachable with parts
+that already exist**, at ranks well inside the breeder's own 8-20 range:
+
+```
+mid/heavy/redliner    CH-2  W-KL:1 + W-MG,  6 plates, load 0.81, rank 12
+long/heavy/redliner   CH-2  W-KL:1,         8 plates, load 0.87, rank 13
+```
+
+So no part was missing. What was missing is a search that can propose eight
+plates.
+
+### The gene could not travel
+
+`mutate` moved armour by exactly `+/-1` with a floor at 0. That is a reflecting
+random walk, and over 400 walks from zero:
+
+| mutations | walks reaching 8+ plates | best seen |
+|---|---|---|
+| 10 | 0.0% | 4 |
+| 20 | 0.0% | 5 |
+| 40 | **0.0%** | 7 |
+| 80 | 4.8% | 13 |
+
+Forty mutations is a generous budget for one gene and it never once arrived.
+
+Selection makes it worse rather than better, which is the part worth keeping.
+Every intermediate plate count is mass with no benefit until the build crosses
+the 0.8 weight boundary, and crossing it does not itself pay — so every step
+toward a heavy build is downhill. **That is F16's fitness valley in a third
+coordinate**: not "each step toward the combination is downhill" (cap-fed guns),
+not "the combination is never proposed" (F19's support mods), but "the far end is
+reachable only by a walk that cannot get there".
+
+### The fix, and what it costs
+
+A quarter of the time the gene now resamples anywhere in 0-12 instead of
+stepping. The step keeps its majority so local search still finds the two- and
+three-plate builds where most of the archive sits, and `assembleBuild` fits what
+it can of whatever is asked, so a large request is never illegal.
+`armourGene.test.ts` pins travel, the step's majority, and the floor.
+
+This changes search behaviour, so reports either side of it are not comparable
+even at an identical content hash — the same caveat `--workers` already carries.
+Every report in this file from `armour-after.json` onward is on the new gene.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the

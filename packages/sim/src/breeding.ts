@@ -201,7 +201,26 @@ export function mutate(genome: Genome, lock: Lock, rng: Pcg32): Genome {
       target.modifiers = [legal[Math.floor(rng.nextFloat() * legal.length)]!];
     }
   } else {
-    next.armourPlates = Math.max(0, next.armourPlates + (rng.nextFloat() < 0.5 ? -1 : 1));
+    // Armour used to move by exactly +/-1 with a floor at 0, which is a
+    // reflecting random walk, and a walk of that shape does not travel: over 400
+    // walks, none reached eight plates in forty mutations and the best seen was
+    // seven (docs/17 F24). Eight is what `long/heavy/redliner` needs -- the cell
+    // is reachable at rank 13 with parts that already exist, and the breeder
+    // never proposed it.
+    //
+    // Selection cannot rescue the walk either, because every intermediate plate
+    // count is mass with no benefit until the build crosses the 0.8 weight
+    // boundary and crossing it does not itself pay. That is F16's fitness valley
+    // in a third coordinate, and the answer is the same one: let the search
+    // propose the far end directly instead of requiring it to climb there.
+    //
+    // A quarter of the time, resample anywhere in 0-12 rather than stepping.
+    // The step keeps its majority so local search still finds the 2 and 3 plate
+    // builds where most of the archive actually sits; `assembleBuild` fits what
+    // it can of whatever is asked, so a large request is never illegal.
+    next.armourPlates = rng.nextFloat() < 0.25
+      ? Math.floor(rng.nextFloat() * 13)
+      : Math.max(0, next.armourPlates + (rng.nextFloat() < 0.5 ? -1 : 1));
   }
   return next;
 }
