@@ -1103,6 +1103,33 @@ pair genomes gave it somewhere to sit.
 `emptyCells` did not move (9 either way, on a CH-5-only three-rank run that is
 not comparable to a full sweep's six).
 
+### It did not replicate at full scale, and that is the honest result
+
+The table above is a CH-5-only, three-rank run. Repeating the count on a full
+three-chassis, four-rank sweep (`artifacts/anvil-after.json`, 193 builds) says
+something different:
+
+```
+mod attachments: 71 over 193 builds | distinct: 3 of 14
+by mod: { insulated-mount: 57, ram-bore: 12, surge-gate: 2 }
+still absent: all seven support-only mods, gyro-flywheel included
+```
+
+`gyro-flywheel`'s single appearance did not survive a larger sample, and
+`insulated-mount` takes 57 of 71 attachments on its own. **Removing the
+structural barrier did not make support mods competitive.** The fix is still
+correct — `genomeMods.test.ts` proves the seed population could not previously
+express the shape at all, and that is a fact about the code rather than about a
+sample — but the claim it licenses is only *"now reachable"*, never *"now
+reaching"*. Anyone quoting the 2 -> 3 result should quote this paragraph beside
+it.
+
+Two candidate reasons, neither measured: the enumeration change adds pair
+genomes with a mod but screening still ranks them against unmodded pairs that
+cost less rank, and `LOCK_MOD_COUNT` is 3 of 14, so most locks simply never draw
+the mod in question. Do not author against a support-only mod until one of those
+is tested.
+
 ### What this does and does not license
 
 The eleven are **not** measured as weak. Seven of them are unmeasured, and any
