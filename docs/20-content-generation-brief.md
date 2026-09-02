@@ -172,6 +172,13 @@ at the end; the measurements interact.
    Twenty variations around one part is the right amount of exploration. **Read
    the `!` lines** — "wanted another Gill, but no perimeter cell is left" is the
    finding, and a stall is information.
+
+   **Do not quote its score from a low seed count.** One identical build reads
+   75/71/70/76/79/78% at 4/6/8/12/20/30 seeds — a 9-point spread with nothing
+   changed (`17` **F30**). Six seeds is right for "does this assemble and what
+   stalled"; **use `--seeds 20` or more for any number you intend to repeat.**
+   A `hull-down` measurement of +7 at 8 seeds read 0 at 20, and a part was very
+   nearly authored against it.
 6. **Prove it is reachable** — §7. Do this *before* believing any verdict.
 7. **Ask the instrument.** `npm run sim:breed -- --locks 6 --budget 200 --json ...`
    Did the empty cell fill? Did the part appear in `coverage`? Compare only

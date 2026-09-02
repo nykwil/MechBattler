@@ -2003,3 +2003,94 @@ on a full plate, paid for in mass and in the covered part's cooling. But the
 honest headline is that **the instrument fix is worth more than the part**: it
 un-deadened an existing part and a whole layer, and it had been broken for as
 long as the armour layer has existed.
+
+### The A/B, run — and it corrects two things I said above
+
+`artifacts/assembly-fix-ab.json`: the instrument fixes in place, `U-MANTLE`
+removed from the catalog and the pool, everything else identical. Content hash
+**`9dbea8e0`, exactly the reference's**, so this is a true A/B and the only
+difference between the two runs is `assembly.ts` and `workbench.ts`.
+
+| | reference `9dbea8e0` | A/B `9dbea8e0` | Mantle run `60d47bd0` |
+|---|---|---|---|
+| `emptyCells` | `[]` | `[]` | 4, all heavy |
+| gallery | 263 | 262 | 247 |
+| `deadParts` | `U-TUR, U-SHELL` | `U-TUR, U-SHELL` | `[]` |
+| noise band | 0.060 | 0.060 | 0.060 |
+
+**Correction 1 — the instrument fix did not empty the heavy cells.** That was the
+worry worth chasing, and it is answered: with the fix and no new part, `emptyCells`
+is `[]`, exactly as before. The four empty heavy cells belong to the Mantle run,
+and since its hash moved they are the re-roll or the part, which F22 says this
+harness cannot separate. What matters is that they are **not** the fix.
+
+**Correction 2 — the fix does not rescue `U-SHELL`, and I said it did.** The
+commit and the paragraphs above claim the instrument fix "un-deadened an existing
+part". At sweep level that is false: `deadParts` is still `U-TUR, U-SHELL` in the
+A/B. The Carapace's single appearance in the Mantle run was at a different hash
+and is not evidence of anything.
+
+The two claims that survive are narrower and they are different claims:
+
+- **Armour is now assemblable.** That is measured on the assembler directly — gates
+  2 and 3 pass in all three orders on all three chassis, 372 builds with zero
+  illegal placements — and it does not depend on any sweep.
+- **The breeder still does not choose it.** Being placeable is necessary and not
+  sufficient. `U-SHELL` remains dead for the reason the shape measurement gives:
+  4 coverable parts, and no legal placement at all on five of seven canonical
+  builds. The assembler was never its only problem, only its hidden one.
+
+Two runs at the same hash and seed differ slightly (263 against 262 builds, and
+`sacrificial-casing` classified as never-offered rather than dead). That is the
+fix changing the search's path without changing its conclusions, and it is
+exactly why the A/B was necessary rather than optional.
+
+### The attributions, re-measured at 30 seeds
+
+The figures quoted earlier came from 6-seed `sim:try` runs, which F30 below shows
+are inside the tool's own noise. Re-run at 30 seeds, where it has converged:
+
+```
+CH-5 W-AC:2      78%  ->  86% with a Mantle   (+8)
+CH-9 W-AV:1      25%  ->  36% with a Mantle   (+11)
+CH-5 W-MG:2      42%  ->  58% with a Carapace (+16)
+```
+
+They hold. They were not defensible when I first quoted them, and they are now.
+
+**Revised verdict on `U-MANTLE`.** Keep. Reachable, chosen twice in 247 builds,
+legal on six of seven canonical builds against the Carapace's two, and worth
++8 to +11 by build-level attribution at 30 seeds. The instrument fix is a
+genuine find and belongs to this pass, but it is a fix to reachability, not a
+rescue: it is what makes an armour part *possible* for a search to hold, and the
+shape is still what decides whether one is worth holding.
+
+## F30 — `sim:try` has a 9-point noise band at low seed counts, and docs/20 sends you there by default
+
+docs/20 §5 says to explore with `npm run sim:try` and read the `!` lines, and it
+is right that this is the fast loop. But the score it prints moves on seed count
+alone. One **identical** build, `CH-5 W-AC:2 U-ARM:1`, nothing changed but
+`--seeds`:
+
+```
+seeds    4     6     8    12    20    30
+        75%   71%   70%   76%   79%   78%
+```
+
+A 9-point spread with no content difference, converging around 78-79% by 20.
+So **any attribution below about 10 points from a 6-seed run is unresolvable**,
+and the default exploration loop is exactly where a small effect gets invented.
+
+It caught a live hypothesis in this pass. `hull-down` measured **+7** at 8 seeds
+on `CH-5 W-AC:2 U-ARM:1` — a plausible story about a good mod the breeder cannot
+see, since F26 puts the screen's own band at 40 points. At 20 seeds the same
+comparison reads **0**. The mod is not demonstrably worth anything on that build,
+and a part would have been authored against a number that was noise.
+
+This is F26 one level down: the screen separates at 40 points, and the tool you
+use to decide what to screen separates at about 10 — but only if you ask it for
+20 seeds, and the examples in docs/20 ask for 6 and 10.
+
+**Use 20+ seeds for any comparison you intend to quote.** Six is fine for "does
+this assemble, and what do the `!` lines say", which is what the brief actually
+recommends it for.
