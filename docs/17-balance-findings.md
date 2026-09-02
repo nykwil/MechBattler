@@ -1028,6 +1028,65 @@ unreachable until F16 was fixed. None of those five should be touched before
 they are re-measured at the current content hash.
 
 
+## F19 — Eleven of fourteen mods have never been tried, and the seed enumeration is why
+
+`docs/20 §3` listed six mods as *offered, never wanted*. Counting attachments in
+`artifacts/breed-wsr.json` instead of reading the dead list says the problem is
+twice that size:
+
+**23 mod attachments across 189 builds, and only three distinct mods appear at
+all** — `insulated-mount` (15), `fever-cycle` (4), `ram-bore` (4). The other
+eleven of fourteen have zero.
+
+### The split is exact, and it is not about strength
+
+Partitioning every mod by whether its `appliesTo` accepts any weapon:
+
+| attaches to a weapon | appears in archive | absent |
+|---|---|---|
+| **yes** (7) | `insulated-mount`, `fever-cycle`, `ram-bore` | `cold-bore`, `gyrostabilized`, `surge-gate` |
+| **no** (7) | *none* | **all seven** |
+
+Not one mod that cannot ride a weapon has ever been placed on a build. That is
+not a preference the search expressed; it is a shape the search cannot make.
+
+### The cause is in `enumerateGenomes`, not in the mods
+
+`enumerateGenomes` (`packages/sim/src/breeding.ts`) builds the seed population
+two ways, and only one of them carries mods:
+
+```ts
+// single-part genomes: mods enumerated
+for (const modifiers of [undefined, ...legalModsFor(a, lock).map((id) => [id])])
+  out.push({ chassisId, parts: [{ partId: a, count, modifiers }], armourPlates });
+
+// two-part genomes: no modifiers at all
+out.push({ chassisId, parts: [{ partId: a, count: 1 }, { partId: b, count: 1 }], armourPlates });
+```
+
+A single-part genome is only *viable* if the wish part is a weapon — the
+completer adds reactors, radiators, banks and armour, but it never adds a gun,
+and a build with no weapon surrenders by mission-kill about three seconds in.
+So the only modded builds the seed population ever contains that can score above
+zero are **one weapon, one mod**. Every mod that needs a radiator, a riser, a
+plate, a capacitor or a servo to ride on can only reach a viable build through
+mutation, starting from a population where it never appears.
+
+That is F16's fitness valley in a different coordinate: not "each step toward
+the combination is downhill", but "the combination is never proposed".
+
+### What this does and does not license
+
+The eleven are **not** measured as weak. Seven of them are unmeasured, and any
+verdict about them — including the "dead mods" line in `docs/20 §3` and
+`sim:diversity`'s output — is a statement about the enumeration.
+
+The four that *can* ride a weapon and still never appear (`cold-bore`,
+`gyrostabilized`, `surge-gate`, and `sacrificial-casing` for the separate reason
+in F18) are the only honest dead-mod candidates in the catalog, and only three
+of those are real.
+
+
 ## Non-findings, recorded so they are not re-investigated
 
 - **`sim:diversity` is green.** Its only failure was a mismeasurement: the
