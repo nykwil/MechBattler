@@ -27,10 +27,19 @@ import { computeRank } from './rank.js';
  * lock that happened to omit a conduit would forbid wiring rather than restrict
  * gear. U-AMMO is absent by declaration -- it is a deliberate placeholder.
  */
+/**
+ * What a lock may offer. Hand-written, and therefore a registry new content has
+ * to be added to — `W-SR` shipped without it and the next sweep reported the gun
+ * as absent from every archive cell, which reads exactly like dead gear and is
+ * not: it was never offered. `breeding.test.ts` now fails if an enabled weapon
+ * or reactor is missing from this list, because "never offered" and "never
+ * wanted" are opposite findings and the report cannot tell them apart on its
+ * own.
+ */
 export const MIDGAME_POOL = {
   parts: [
     'R-C40', 'R-C90', 'R-E25', 'R-E60',
-    'W-MG', 'W-AC', 'W-LAS', 'W-RKT', 'W-CB', 'W-BR', 'W-SC', 'W-ION', 'W-RG',
+    'W-MG', 'W-AC', 'W-LAS', 'W-RKT', 'W-CB', 'W-BR', 'W-SC', 'W-ION', 'W-RG', 'W-SR',
     'U-RAD', 'U-HS', 'U-ARM', 'U-TC1', 'U-ACT', 'U-TUR', 'U-SHELL',
     'U-RISE2', 'U-RISE3', 'U-RISEL',
     'P-CAP', 'P-CAP2',
