@@ -121,6 +121,25 @@ cell and **Static (W-ION)** drains stored charge — the two system-attacking gu
 plus **Reservoir (P-CAP2)**, the big-alpha capacitor. Shipped Jul 22 2026; not yet
 folded into templates, elites or the balance cohort.
 
+**Pinion (W-SR)**, the long gun for a light frame, shipped 1 Sep 2026, unlocked by
+the `standoff` challenge. It is cut to the exact shape of a Vulture hardpoint —
+six cells, a whole arm — because every other long gun is two columns wide and the
+scout's regions are a 1-wide spine and two arms, so the long-range playstyle had
+no occupant (`17` F9). The arms are 180-rotations of each other rather than
+mirrors, so one authored shape fits either side. It is the catalog's **first
+non-rectangular part**, which found a latent bug in the auto-placer: origins were
+only ever offered from free cells (this shape's bounding-box origin is a hole in
+itself) and only rotations 0/90 were tried. Both are fixed, append-only, and
+pinned by `concaveParts.test.ts`.
+
+**The thermal model changed on 1 Sep 2026 and `02` §3 is the authority.** A
+radiator now sheds from its whole conduction component instead of from its own
+cells, which it never warmed; before that change the part was inert and the
+workshop's heat gauge was anti-correlated with the sim, crediting 6 kW to
+radiators that delivered ~0 and nothing to the skin that delivered everything.
+`17` F14 is the measurement and F15 the change. Anything written about heat
+before that date — including the equilibria in `02` §5 — is suspect by default.
+
 ## 5. What is open
 
 ### Balance and progression

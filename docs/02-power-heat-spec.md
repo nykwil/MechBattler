@@ -94,9 +94,27 @@ Heat lives **per cell** on the chassis grid.
 - Conduction per shared edge per tick: q = k × ΔT, with k = **0.03 kW/°C** between ordinary
   cells and **0.12 kW/°C** for any edge touching a U-PIPE cell. Empty masked cells don't
   conduct — a deliberate air gap is a valid insulation strategy.
-- U-RAD Gill radiator (perimeter only): dissipates q = **0.06 kW/°C above ambient** from its
-  own cells, capped at 6 kW. (Backlog hook: terrain multiplies this — water ×3.)
-- **Ram-air cooling** (implemented): radiator output × (1 + 0.5 × speed fraction), so a
+- U-RAD Gill radiator (perimeter only): dissipates q = **0.06 kW/°C above ambient**, drawn
+  from **every cell in its own conduction component**, weighted by how far each is above
+  ambient, and capped at **6 kW** per radiator. Terrain multiplies it — water ×1.6.
+
+  It used to draw from its *own* cells only, and that made it inert: conduction from a gun
+  to a perimeter part is 0.03–0.06 kW/°C, so a radiator's cells never rose above ~26 °C
+  against a 25 °C ambient, the term was ~0, and swinging the constant from zero to ten
+  times its value changed peak temperature by at most 0.0003 °C. The 6 kW cap needed a
+  100 °C drop across a single cell boundary to bind and so never bound. Measured and fixed
+  1 Sep 2026; docs/17 F14 has the evidence and F15 the change.
+
+  **A radiator with no conduction path to a heat source still cools nothing**, and that is
+  the point rather than a residual bug — plumbing is the spatial decision the part exists to
+  pose. What changed is that it is now legible: `computeHeatBalance` returns
+  `orphanedRadiatorIds`, and the workshop says so instead of leaving the bar mysteriously
+  flat. Regions conduct only through authored ports, so a Bastion sponson radiator needs
+  heat-transferring parts at both port endpoints to reach the hull.
+- **Ram-air cooling** (implemented): radiator output × (1 + 0.5 × speed fraction), applied
+  **once**, to both the dissipation and the cap. It used to multiply again after the cap,
+  which let the cap be exceeded by up to 1.5×, and the water multiplier was applied twice
+  (1.6² = 2.56×). Both were invisible while the channel delivered ~0. So a
   flanking mech cools 50% harder than a stationary one. Airflow, not a tag. This makes
   *speed a cooling stat* — a fast, hot-running build survives by never stopping, a synergy a
   slow tank cannot use. Applies on the bench too, so the flank-speed thermal prediction
@@ -143,7 +161,13 @@ structure + 2.69 t parts ≈ **4.5 t**.
 
 W-LAS fires every 2.0 s (1.0 s charge + 1 s cycle): 4.5 kW average heat into 3 kJ/°C of
 part thermal mass = +3°C per shot locally, bleeding into neighbors at 0.03 kW/°C.
-(Equilibrium figures below predate the Jul 2026 retune; qualitative claims hold.)
+> **The three equilibria below are not measurements and never were.** They predate the
+> Jul 2026 retune, and they were then written against a radiator that could not radiate at
+> all (docs/17 F14), so the "one radiator" and "two radiators" rows described a part with no
+> effect. They are kept because the *shape* of the choice is the design intent and still
+> holds — no cooling is a legal risky build, cooling costs cells and mass — but do not quote
+> the numbers. Re-deriving them against the working channel is a good first job for whoever
+> next tunes `RADIATOR_K`, which has never been tuned against a radiator that worked.
 
 - No radiator: laser cells pass 130°C shutdown after ~40 s of continuous fire. A brawler can
   skip cooling if fights end fast — a legal, risky build.
