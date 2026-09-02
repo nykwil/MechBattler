@@ -380,6 +380,10 @@ function ShotSpread({ view, frame, tSec, mech, build }: {
       chassisMoveJitterMult: chassisMoveJitterMultAt(view, build, tSec, mech, {
         speedMps: mySpeed, tile: me.tile,
       }),
+      // This gun's own heat widens its cone below the hold line as well as at
+      // it (docs/17 F10), so the aim mark has to carry the same temperature the
+      // shot is scored with.
+      tempC: gun.tempC,
     }),
     lateralSpeedMps: lateral,
     lagS: TRACKING_LAG_S,

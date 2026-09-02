@@ -358,7 +358,9 @@ requirement. Wanting one of these mods is therefore two decisions, not one: fit 
 overlap audit already calls a marginal deal on its own — and *then* mod it. The
 mods are not weak; the doorway is.
 
-**`tidecooler` fires often and is worth exactly nothing.** Measured, not assumed:
+**`tidecooler` fires often and is worth exactly nothing.** The explanation
+below is *incomplete* — see **F13**, which found the real cause after the heat
+gradient failed to revive it. Measured, not assumed:
 across 280 panel battles its carrier stood in water for 23,895 radiator ticks
 (10.1% of the fight), and the win rate was bit-identical to the last digit. The
 cause is that temperature only reaches an outcome through a threshold — fire-hold
@@ -470,6 +472,99 @@ tuning is a balance question, and balance is its own pass.
 reposition dials are now inside `simContentHash()`, which they should always have
 been — a sweep run before and after a horizon change must not claim to be
 comparable.
+
+## F12 — Heat, the Stride doorway and the railgun's footprint, settled
+
+Three decisions taken together, each measured on its own.
+
+**Heat now costs something below the threshold.** `heatDispersionMult` widens a
+gun's own cone from ×1.0 at ambient to ×1.5 at the 115 °C fire-hold, applied
+inside `weaponSigmaMrad` so planning, shot resolution and the HUD cannot
+disagree about the same shot — the mistake `BattleDiagnostics` already carries
+two comments about. It bites where it was supposed to: across the template
+matrix **47% of weapon-frames run above 45 °C**, at ×1.16 to ×1.47, and every
+one of those was ×1.00 before. Shots per side and silent sides are unchanged
+(134.0, zero), so this bought a gradient without buying a regression.
+
+The motion term is deliberately untouched. A hot barrel is the gun's problem;
+jitter is the frame's.
+
+**The Stride doorway is open.** `coil-sprung`, `gyro-flywheel`, `hull-down` and
+`weaving-gait` moved from `U-ACT` to any structural or utility fitting: legal
+carriers per template went **0/7 to 7/7**. All four already write to mech-scope
+channels, so the part they hang on was only ever a mounting point. `marsh-pistons`
+stays on the Stride — its effect *is* locomotion through terrain and its tradeoff
+names the fitting. Blurbs that said "servo mass" now say "carrier mass", because
+they no longer know what they are bolted to.
+
+**W-RG went from 2×5/1400 kg to 1×4/950 kg.** A Vulture's regions are a 1-wide
+spine of four cells with a 2×2 bulge, so a 2-wide gun was not a tight fit there
+but an impossible one, at any budget (F9). A 1×4 column fits that spine exactly.
+The commitment did not go away, it moved off the cell budget: 950 kg is a third
+of a 3.0 t rating, and 220 kJ a shot still demands a reactor and capacitors the
+frame must also find room for.
+
+The build the reshape exists for now exists. `sim:try -- CH-2 W-RG:1 R-C40:1
+P-CAP:2 --no-armour` is a tier-10, 2.40 t Vulture that fits nothing but the gun,
+its reactor and its caps, and scores **71%** against the canonical roster —
+100% against `mule-gunline`, `vulture-sniper` and `bastion-tank`, 17% against
+`mule-skirmisher`. It cannot sustain fire (−23.3 kW, ~5 s of capacitor) and runs
+−11.0 kW on heat. That is the shape that was asked for: a light mech built only
+to fire one gun, which beats what it out-ranges and dies to whatever reaches it.
+`sim:try` is a smell test, not a verdict — six seeds against seven templates.
+
+**What the instruments say after all three.** A 2-lock slice at ranks 8 and 16
+(a slice, not the full sweep — read it as indicative):
+
+- **I2 passes for the first time.** 1 of 4 cells, and the passing one is rank 16
+  lock 0 at spread **0.043** against a 0.08 threshold. Every previous sweep was
+  0 of 8 with spreads of 0.36–0.72. Rank 8 lock 1 is 0.086, a whisker outside.
+- **W-RG is no longer dead gear.** It appears in the archive's part counts for
+  the first time; the reshape did what F9 said was needed.
+- CH-9 @ 16 reads 77, against 44 in the F8 control — the best figure the Bastion
+  has recorded.
+- I1 holds 5/6.
+- `tidecooler` is still dead, which F13 explains and no heat model can fix.
+  `coil-sprung` and `gyro-flywheel` are still listed dead, but on two locks that
+  is weak evidence — the doorway only just opened.
+
+The balance report settles to **three** swings against the 26 Aug baseline, down
+from six after the verb alone: `bastion-tank` 16% → 43% (+27), `mule-gunline`
+39% → 12% (−27), `vulture-sniper` 57% → 48% (−9). The gunline is the bill for
+all of this and it is getting worse, not better; it is on the watchlist.
+
+## F13 — The radiator does not radiate, and no radiator mod can ever matter
+
+Found by the heat gradient failing to do what it should have. With heat finally
+carrying a continuous cost, `tidecooler` was still worth **exactly +0.0** on all
+four of its carriers. So the water condition was never the problem.
+
+The test that settled it: drop the condition entirely and give the carrier a
+**permanent** radiator ×2. `mule-laser-boat` 62.1% → 62.1%. `mule-gunline`
+20.0% → 20.0%. A radiator-scaling mod cannot move anything, ever, under any
+heat model.
+
+The cause, instrumented over 7,613 radiator ticks:
+
+- the radiator's **own cells sit at 25.87 °C**, against a 25 °C ambient (max 29.03);
+- its throughput averages **0.0755**, and is **exactly zero on 48.6% of ticks**;
+- meanwhile the guns feeding it average 49.2 °C and peak at 83.5 °C.
+
+Radiation is priced on the radiator's own cell temperature — `RADIATOR_K ×
+radMult × (T − AMBIENT)` — and conduction from the hot cells to a perimeter
+part never raises it above ambient. So the term is ~0, and scaling ~0 by two is
+~0. **U-RAD is a heat pipe wearing a radiator's name**: removing it does raise
+peak temperature (80.4 → 91.3 °C), but that is its `thermalConductance: 2`
+doing the work, not its radiative area.
+
+This is why F10's account of `tidecooler` was incomplete, and F10 now says so.
+
+No fix is taken here. Making a radiator radiate — pricing it on the cells it is
+connected to rather than on itself, or raising conduction so heat can actually
+reach it — is a change to the thermal model, and the thermal model was not one
+of the decisions on the table. It is on the watchlist as a decision, not a bug
+to quietly patch, because every cooling part and every cooling mod in the
+content pass depends on which answer is chosen.
 
 ## Non-findings, recorded so they are not re-investigated
 

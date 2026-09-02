@@ -30,7 +30,7 @@ import {
   INSTANCE_KNOBS, resolveBuildEffects, resolveFireControlLateralMult, resolveSpeedMultiplier,
   type BuildEffects,
 } from './buildEffects.js';
-import { Simulation, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
+import { Simulation, HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 import { Pcg32 } from './rng.js';
@@ -123,6 +123,8 @@ export const TRACKING_LAG_S = 0.5;
  * speed is not a tradeoff, it is just the best stat.
  */
 export const MOVE_JITTER_MRAD_PER_MPS = 0.75;
+/** Dispersion multiplier at the fire-hold threshold; 1.0 at ambient. */
+export const HEAT_DISPERSION_AT_HOLD = 1.5;
 
 /**
  * A weapon's aim-error standard deviation before the shot-time multipliers
@@ -146,6 +148,12 @@ export interface WeaponSigmaInputs {
   speedMps: number;
   /** The gun's effective multipliers (`effectiveMults`); omit for neutral. */
   mults?: { dispersionMrad: number; moveJitter: number };
+  /**
+   * Hottest cell under this weapon, °C. Omitted means ambient — every caller
+   * that can know the temperature must pass it, or planning, resolution and
+   * the HUD will quietly disagree about the same shot.
+   */
+  tempC?: number;
   /** `ChassisSpec.moveJitterMult`; omit for a neutral frame. */
   chassisMoveJitterMult?: number;
 }
@@ -156,9 +164,30 @@ export interface WeaponSigmaInputs {
  * it through the radian form would introduce a x0.001 / x1000 round trip that
  * is not bit-exact -- which the golden determinism hash would notice.
  */
+/**
+ * Dispersion multiplier from a weapon's own heat: 1.0 at ambient, rising to
+ * `HEAT_DISPERSION_AT_HOLD` as the mount reaches the fire-hold threshold.
+ *
+ * Before this existed, temperature only reached an outcome *through* a
+ * threshold -- hold fire at 115 °C, shut down at 130 -- so a build that peaked
+ * at 80 °C was thermally identical to one that peaked at 30, and cooling was
+ * worth bit-identical nothing to it (docs/17 F10, measured over 280 battles).
+ * That is what made every cooling mod dead and the one deliberate redliner the
+ * dominant build. A hot barrel that walks its shots gives heat a cost that
+ * scales, so cooling is worth something to any build in proportion to how hot
+ * it actually runs.
+ */
+export function heatDispersionMult(tempC: number): number {
+  const span = HEAT_FIRE_HOLD_C - HEAT_AMBIENT_C;
+  const t = span <= 0 ? 0 : (tempC - HEAT_AMBIENT_C) / span;
+  return 1 + (HEAT_DISPERSION_AT_HOLD - 1) * Math.min(1, Math.max(0, t));
+}
+
 export function weaponSigmaMrad(inputs: WeaponSigmaInputs): number {
   const m = inputs.mults;
-  return inputs.dispersionMrad * (m?.dispersionMrad ?? 1)
+  // Heat widens the gun's own cone; it does not touch the motion term, which
+  // is the frame's problem rather than the barrel's.
+  return inputs.dispersionMrad * (m?.dispersionMrad ?? 1) * heatDispersionMult(inputs.tempC ?? HEAT_AMBIENT_C)
     + MOVE_JITTER_MRAD_PER_MPS * inputs.speedMps * (m?.moveJitter ?? 1)
       * (inputs.chassisMoveJitterMult ?? 1);
 }
@@ -1058,6 +1087,7 @@ export function estimateExpectedDps(
         speedMps: shooterSpeedMps,
         mults: m,
         chassisMoveJitterMult,
+        tempC: snapshot ? shooter.hottestCellC(p.instanceId, snapshot) : HEAT_AMBIENT_C,
       }),
       lateralSpeedMps: targetLateralMps,
       lagS,
@@ -2022,7 +2052,10 @@ export class Battle {
       * enemy.profileMult(targetTile);
     const model = computeHitModel({
       rangeM: range,
-      sigmaRad: this.effectiveDispersionRad(self, instanceId, def, aimBearing, shooterTile, shooterM),
+      sigmaRad: this.effectiveDispersionRad(
+        self, instanceId, def, aimBearing, shooterTile, shooterM,
+        this.lastSnapshots[i] ? self.hottestCellC(instanceId, this.lastSnapshots[i]!) : HEAT_AMBIENT_C,
+      ),
       lateralSpeedMps: enemy.lateralSpeedMps(losDir),
       lagS,
       lateralPenaltyMult: fireControlMult * shooterM.lateralPenalty,
@@ -2082,12 +2115,13 @@ export class Battle {
   }
 
   /** Base dispersion + motion jitter, then turning x arc-edge x stagger multipliers (docs/03 §5). */
-  private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, tile: TerrainType, m: Readonly<EffectiveMults> = NEUTRAL_MULTS): number {
+  private effectiveDispersionRad(self: Combatant, instanceId: string, def: PartDef, aimBearing: number, tile: TerrainType, m: Readonly<EffectiveMults> = NEUTRAL_MULTS, tempC = HEAT_AMBIENT_C): number {
     let mrad = weaponSigmaMrad({
       dispersionMrad: def.weapon!.dispersionMrad,
       speedMps: len(self.vel),
       mults: m,
       chassisMoveJitterMult: (self.chassis.moveJitterMult ?? 1) * self.mechMoveJitterMult(tile),
+      tempC,
     });
     // Neutral turnJitter (1) reproduces the flat ×1.3 spike exactly; a source
     // that scales it down only buys back the 0.3 of excess above ×1, so it

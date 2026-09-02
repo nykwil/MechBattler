@@ -225,7 +225,18 @@ export const PARTS: Record<string, PartDef> = {
   },
   'W-RG': {
     id: 'W-RG', name: 'Longshot (railgun)', category: 'weapon',
-    shape: rect(2, 5), massKg: 1400, hp: 70, tier: 4,
+    // 2x5/1400 kg -> 1x4/950 kg, Sep 2026. The railgun is the only gun in the
+    // game with effective damage past 120 m, and it was unmountable on the only
+    // chassis that can hold a range at all: a Vulture's regions are a 1-wide
+    // spine of four cells, so a 2-wide part is not a tight fit there, it is an
+    // impossible one, and the long-range playstyle could not be occupied by
+    // anybody (docs/17 F9). A 1x4 column fits that spine exactly.
+    //
+    // The commitment stays, it just moved off the cell budget: 950 kg is still
+    // a third of a Vulture's 3.0 t rating, and 220 kJ a shot means a reactor
+    // and capacitors the frame must also find room for. That is the "built only
+    // to fire this one gun" build -- the cells were never the interesting cost.
+    shape: rect(1, 4), massKg: 950, hp: 70, tier: 4,
     draw: { capFedEnergyPerShotKj: 220 },
     heat: { heatPerShotKj: 25 },
     weapon: {

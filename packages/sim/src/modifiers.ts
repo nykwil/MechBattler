@@ -375,6 +375,18 @@ export const HULL_DOWN_MAX_MPS = 1.5;
 
 const isWeapon = (d: PartDef) => d.category === 'weapon';
 const isRadiator = (d: PartDef) => d.id === 'U-RAD';
+/**
+ * Where a gait/stabilisation package can be bolted: any frame fitting. These
+ * four mods all write to *mech-scope* channels (`mechMoveJitter`,
+ * `targetProfile`, `turnJitter`), so the part they hang on is a mounting point
+ * and nothing else. They used to require a `U-ACT` Stride, which no canonical
+ * template fits (docs/17 F10) -- wanting one was therefore two decisions, and
+ * the first of them was a marginal deal on its own. Every template carries a
+ * utility part and five of seven carry a structural one, so this is a doorway
+ * that opens. `marsh-pistons` deliberately stays on the Stride: its effect is
+ * locomotion through terrain, and its tradeoff names the fitting.
+ */
+const isFrameFitting = (d: PartDef) => d.category === 'structural' || d.category === 'utility';
 const any = () => true;
 
 /** The registry. Quirks from docs/04 §4; mods from §4b. */
@@ -507,10 +519,10 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   'hull-down': {
     id: 'hull-down', name: 'Hull-down suspension', kind: 'mod',
     tier: 3,
-    blurb: 'below 1.5 m/s target profile ×0.4 · servo mass ×1.15',
-    tradeoff: 'Requires a powered two-cell Stride and adds 15% servo mass; moving turns it off.',
+    blurb: 'below 1.5 m/s target profile ×0.4 · carrier mass ×1.15',
+    tradeoff: 'Adds 15% to whatever it is bolted to, and moving turns it off entirely.',
     maxCopiesPerBuild: 1,
-    appliesTo: (d) => d.id === 'U-ACT',
+    appliesTo: isFrameFitting,
     apply: (m, ctx) => {
       m.scale('massKg', 1.15);
       if (ctx.speedMps < HULL_DOWN_MAX_MPS) m.scale('targetProfile', 0.4);
@@ -520,11 +532,11 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   'coil-sprung': {
     id: 'coil-sprung', name: 'Coil-sprung actuators', kind: 'mod',
     tier: 3,
-    blurb: 'own movement aim jitter ×0.6, mech-wide · servo mass ×1.15',
-    tradeoff: 'Damped legs add 15% servo mass and worsen load/CoG pressure, like Gyrostabilized — '
-      + 'but this buys down every gun at once instead of one.',
+    blurb: 'own movement aim jitter ×0.6, mech-wide · carrier mass ×1.15',
+    tradeoff: 'Damped legs add 15% to their mounting and worsen load/CoG pressure, like '
+      + 'Gyrostabilized — but this buys down every gun at once instead of one.',
     maxCopiesPerBuild: 1,
-    appliesTo: (d) => d.id === 'U-ACT',
+    appliesTo: isFrameFitting,
     apply: (m) => { m.scale('mechMoveJitter', 0.6); m.scale('massKg', 1.15); },
   },
   'gyro-flywheel': {
@@ -533,7 +545,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     blurb: 'halves the fast-turn dispersion spike · +0.5 kW waste heat',
     tradeoff: 'The spinning mass sheds its own heat into the chassis continuously, whether or not you turn.',
     maxCopiesPerBuild: 1,
-    appliesTo: (d) => d.id === 'U-ACT',
+    appliesTo: isFrameFitting,
     apply: (m) => { m.scale('turnJitter', 0.5); m.add('extraHeatKw', 0.5); },
   },
   'weaving-gait': {
@@ -543,7 +555,7 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     tradeoff: 'The irregular stride that makes you harder to lead also makes your own guns worse '
       + 'on the move — it only pays off if you shoot while closing rather than standing to fire.',
     maxCopiesPerBuild: 1,
-    appliesTo: (d) => d.id === 'U-ACT',
+    appliesTo: isFrameFitting,
     apply: (m, ctx) => {
       m.scale('mechMoveJitter', 1.3);
       if (ctx.speedMps > 4) m.scale('targetProfile', 0.8);

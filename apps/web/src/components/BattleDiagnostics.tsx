@@ -99,13 +99,19 @@ export function BattleDiagnostics({ view, frame, tSec, build, foeBuild }: {
       chassisMoveJitterMult: chassisMoveJitterMultAt(view, build, tSec, 0, {
         speedMps: speed, tile: me.tile,
       }),
+      // This gun's own heat, which widens its cone below the hold line too
+      // (docs/17 F10). WeaponFrame.tempC is the same per-part figure the sim
+      // scores the shot with -- the mech-wide hottest cell would read high.
+      tempC: gun?.tempC,
     })
     : 0;
   // The jitter row shows what movement alone added, derived by re-running the
   // same function at a standstill rather than by re-multiplying the constant --
   // which is how this row came to disagree with its own total.
   const jitterMrad = w
-    ? (sigmaRad - weaponSigmaRad({ dispersionMrad: w.dispersionMrad, speedMps: 0, mults })) * 1000
+    ? (sigmaRad - weaponSigmaRad({
+      dispersionMrad: w.dispersionMrad, speedMps: 0, mults, tempC: gun?.tempC,
+    })) * 1000
     : 0;
   // The target's own speed, derived from its last two frames the same way ours is.
   // Passing 0 here was the very mistake this function exists to correct: a modifier

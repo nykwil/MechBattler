@@ -189,6 +189,45 @@ point of writing them here is that the evidence exists and the change does not.
   that does nothing. This cost a full measurement pass. Any future mod harness
   should assert the attachment took.
 
+## The radiator does not radiate (added 1 Sep 2026)
+
+**This is a decision, not a bug to quietly patch.** `U-RAD`'s radiative term is
+priced on its own cell temperature, and conduction from the guns never lifts it
+above ambient — measured at 25.87 °C over 7,613 ticks against a 25 °C ambient,
+throughput ~0.08 and exactly zero half the time (docs/17 F13). The part works
+purely as a heat pipe. A consequence worth stating plainly: **the `radiator`
+modifier channel is inert**, so any mod authored on it is dead on arrival, which
+is what `tidecooler` has been all along.
+
+The three answers, none taken:
+- price radiation on the cells the radiator is *connected to* rather than on
+  itself — closest to what the part's name promises, and the largest change;
+- raise conduction so heat can actually reach the perimeter — smaller, but it
+  moves every thermal build at once;
+- accept it, rename the part to what it is, and delete the `radiator` channel so
+  nothing else is authored against it.
+
+Settle this **before** the content pass authors more cooling gear. Every cooling
+part and every cooling mod depends on which answer is chosen.
+
+## Still open after the 1 Sep decisions (added 1 Sep 2026)
+
+- **I2 still fails.** The second defensive verb moved CH-9 a long way (F11) but
+  parity spreads are 0.30–0.76 against a 0.08 threshold. What is left is not
+  obviously the pilot any more, so the next investigation should not assume it is.
+- **`mule-gunline` fell 39% → 16%** when the verb landed. It is a
+  stand-and-shoot build whose victims can now leave. Whether it wants a rework or
+  the verb wants tuning is a balance question and belongs in a balance pass.
+- **`vulture-skirmisher` is over the 70% kill criterion**, replacing the two
+  findings the verb closed. A fast frame with the lowest `moveJitterMult` in the
+  game gains most from choosing its ground, which is not a surprise but is
+  unbalanced.
+- **The scout railgun scores 71% on a smell test.** `sim:try` is six seeds
+  against seven templates. Do not treat that as a verdict; the breed sweep and
+  the balance report decide whether the reshape overshot.
+- **CH-9 at rank 8 is still partly broke** (34% after the verb, up from 19%).
+  Better, not solved. The `chassisTier` spread question stands.
+
 ## Ammo stays a placeholder — on purpose (25 Aug 2026)
 
 **No decision is being taken on ammunition for now.** `U-AMMO` remains in the
