@@ -2355,3 +2355,55 @@ itself make cold builds want to be hot. Every probe gained temperature (+1 kW
 works) but none crossed from cold into the band. If the sweep leaves the archive
 unchanged, that is the reason, and the honest next question is whether anything
 short of a cooling *cost* can move a build across.
+
+## F33 — `thermocouple-skin` is not dead gear either; it is live, weak, and conditional on two things that rarely coincide
+
+Fourth dead lever examined, and the third that turned out not to be dead in the
+way the report implies. Recorded because the brief says a failed hypothesis is a
+result, and because it completes a pattern.
+
+**The channel is live and it is not small.** `harvestsHeat` pulls
+`THERMOCOUPLE_K × ΔT × efficiency` from the capacitor's own cells — 0.5 × 30 ×
+0.5 = 7.5 kW at 30 °C above ambient. An early guess that capacitors cannot get
+hot was wrong: `conductanceMult` defaults to 1 for every part, and
+`transfersHeat` gates ports and coolant rather than the conduction grid, so a
+capacitor heats by conduction like anything else.
+
+**Placement is not the problem either.** The assembler puts the bank adjacent to
+the reactor on CH-5 every time and on CH-9 sometimes; never on CH-2. So the
+"wants to sit by the reactor" blurb is satisfied often enough to measure.
+
+**Measured, 20 seeds, attachment asserted:**
+
+```
+build          mean stored kJ        mean C        win%
+CH-2 W-LAS     21.30 -> 24.49  (+15%)  57.0 -> 55.8   12 -> 13
+CH-5 W-RG       6.62 ->  6.89  ( +4%)  31.0 -> 31.1   20 -> 21
+CH-5 W-LAS     48.80 -> 48.85  ( +0%)  48.8 -> 48.9    7 ->  7
+CH-9 W-RG     116.04 -> 116.44 ( +0%)  39.7 -> 39.7   72 -> 72
+```
+
+It works, and the pattern is exact: **it pays only on a bank that is starved.**
+Where the reserve already sits near full — 48.8 of 60, 116 of 200 — harvested
+charge has nowhere to go and the mod adds nothing. Where the bank is empty it
+adds 15% to mean stored charge and takes about a degree off the hull.
+
+But a starved bank is usually starved for *power* reasons, not heat ones, and the
+two conditions the mod needs — an empty reserve and a hot hull — rarely coincide.
+Win rate moves by at most a point, inside the noise band.
+
+**The pattern this completes.** Three of the six dead mods are dead for the same
+upstream reason rather than for anything about themselves:
+
+- `tidecooler` needs the pilot to value a coolant bath; it does not, because heat
+  costs cold builds no dps (F31).
+- `thermocouple-skin` needs a hot hull to harvest from; builds are not hot.
+- `hull-down` needs standing still to be worth it; measured 0 at 20 seeds.
+
+**None of them is a content gap.** They are all downstream of F32: nothing in the
+catalog paid for being hot, so no build chose to be, so every mod keyed to heat
+had no customer. `annealed-bore` is the first thing that pays above 100 °C, and
+the prediction it sets up is now two mods wide: **if it moves builds into the
+band, `tidecooler` and `thermocouple-skin` should improve without being touched.**
+If it does not, the root is deeper than a missing reward and the next thing to
+question is whether a build can reach the band at all while staying alive.
