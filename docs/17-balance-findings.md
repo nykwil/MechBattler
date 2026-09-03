@@ -4768,3 +4768,62 @@ decides matchups.**
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, 39 parts.
 Nothing tuned or re-baselined.
+
+## F66 — Full channel audit: one dead channel, one applied inconsistently, and `outputKw` has no mod
+
+Every channel in `EffectiveMults`, against every modifier's `apply` body:
+
+```
+damage             overvolted cold-blooded annealed-bore cold-bore ram-bore
+cycleS             heat-loose fever-cycle lead-cam
+massKg             frankensteined gyrostabilized raked-plating hull-down coil-sprung
+extraHeatKw        hot-running leaky annealed-bore gyro-flywheel ram-bore
+targetProfile      raked-plating hull-down weaving-gait
+dispersionMrad     lucky cold-bore              (cone leg — F61 says worth ~3% of sigma)
+moveJitter         cold-bore gyrostabilized     (cone leg)
+mechMoveJitter     coil-sprung weaving-gait     (cone leg)
+turnJitter         gyro-flywheel                (cone leg)
+lateralPenalty     lead-cam                     (lead leg — the one that matters)
+drawKw             marsh-pistons fever-cycle
+radiator           tidecooler
+conduction         insulated-mount
+thermalMass        cold-soaked        (quirk only)
+hp                 overvolted         (quirk only)
+outputKw           overvolted cold-blooded      (quirk only — NO MOD)
+cookoffSplash      sacrificial-casing (no enabled carrier)
+firstPriority      surge-gate
+harvestsHeat       thermocouple-skin
+ignoreTerrainSlow  marsh-pistons
+orderLatencyS      sticky             (quirk only)
+overkillCarry      ** NONE **         (dead channel, F43)
+```
+
+**Three channels have no mod**: `hp` and `thermalMass` are quirk-only, and
+**`outputKw`** — reactor output — is quirk-only too. That last one matters,
+because F58 measured power as the single biggest separator between winning and
+losing builds (`R-C40`, +43 lift), and F47's addendum established that **a power
+cost the completer repairs is converted into cells**, which are the currency that
+cannot be refunded. A mod that adds reactor output does not merely add watts; it
+removes a reactor's worth of cells from a build's future.
+
+**And `outputKw` is applied inconsistently.** Four sites read reactor output; only
+one applies the multiplier:
+
+```
+simulation.ts:410  target = outputKw * M(id).outputKw     ✓ spin-up, the one that matters
+simulation.ts:681  output = def.reactor.outputKw          ✗ waste-heat utilisation denominator
+simulation.ts:837  totalOutput += ...outputKw             ✗ network load share
+simulation.ts:839  thisOutput = ...outputKw               ✗ network load share
+```
+
+So a boosted reactor delivers its extra power correctly, but computes utilisation
+against its *rated* output — reading as more loaded than it is, which tips a
+combustion reactor onto its high waste-heat figure sooner — and splits network
+load by rated rather than actual share. Both are second-order and the first is
+arguably a feature (overvolting should run hot). **Recorded rather than fixed**:
+changing it moves the heat behaviour of every `overvolted` reactor, which is a
+balance question, and the direction is at least defensible as written.
+
+**What this licenses.** `outputKw` is live, consumed where it counts, has no mod,
+and sits on the biggest separator in the game. That is F52's ordering item 1 for
+the third time, and it is the next thing to author.
