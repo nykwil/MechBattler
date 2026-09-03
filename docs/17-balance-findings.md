@@ -3350,3 +3350,63 @@ none of the probe builds had. Unmeasured rather than inert.
 means base carry becomes 50% where it is currently 100%, which changes damage
 resolution for every weapon in the game. That is a mechanic, not a number, so it
 is the owner's call and is asked rather than taken.
+
+## F44 — `ram-bore` re-authored onto a live channel, and it is a stat bump I stopped short of tuning
+
+F43 established that `ram-bore`'s only effect wrote `overkillCarry`, which nothing
+reads. Implementing the missing consumer is a rules change and was put to the
+owner; moving the mod onto a channel the sim consumes is numbers, so that is what
+was done.
+
+**Now live**, confirmed with the same determinism oracle that caught it dead —
+bit-diff over 12 fights, on four carriers, all four differ.
+
+**The first cost did not bite.** `damage ×1.25 · dispersion ×1.35` measured **+3
+to +15 on every carrier**, including the most precise gun in the game. The reason
+is the same shape as F28: scaling a gun's own 3–8 mrad cone is swamped by the
+motion term, `MOVE_JITTER_MRAD_PER_MPS × speed`, which adds ~3.75 mrad at cruise
+regardless of what the barrel does — and F38 says the mech is moving 93% of the
+time. **A cost applied to a small term inside a large sum is not a cost.**
+
+**The second cost bites and is still outweighed.** `damage ×1.25 · +1.5 kW`:
+
+```
+build            mod        shots   hit%   dealt  taken  win%
+CH-5 W-AC x2     none        16902   69.1     386    228    69
+CH-5 W-AC x2     ram-bore    13642   73.4     441    174    85   (+16)
+CH-9 W-BR x2     none         3863   94.9     276    775    29
+CH-9 W-BR x2     ram-bore     3816   94.9     325    699    45   (+16)
+CH-2 W-KL x2     none         2219   84.5     368    171    54
+CH-2 W-KL x2     ram-bore     1808   83.8     390    140    66   (+12)
+CH-9 W-CV x2     none         2308   52.4     382     74    96
+CH-9 W-CV x2     ram-bore     2036   50.1     395     32    98   ( +2)
+CH-2 W-CB x2     none        18942   76.9     472     76    94
+CH-2 W-CB x2     ram-bore    15435   77.7     483     51   100   ( +6)
+```
+
+The heat cost is **visible** — shots fired drops 19% on the hot Kiln builds as
+guns hold fire — and +25% damage outweighs it anyway.
+
+**I stopped here deliberately.** Two iterations on the cost is exploration; a third
+would be tuning a number to move a win rate, which the brief forbids. So the
+honest verdict is recorded rather than engineered away:
+
+**Verdict.** `ram-bore` is now a **stat bump with a build-dependent cost**, and by
+docs/20 §2's standard that is the weaker kind of content — "a part that adds 8%
+damage" is the example it gives of what not to ship. It is +2 to +16 depending on
+how much thermal headroom the carrier has, which is a real gradient, but it is
+positive everywhere and never a wrong answer. Shipping it anyway is the right call
+under "interesting beats balanced" only in the narrow sense that a live mod beats a
+dead one.
+
+**The swing is large and deliberate, and it is the owner's.** `ram-bore` was
+drafted **16–21 times per sweep while doing nothing**. Every one of those builds
+now receives +25% damage on its carrier for free where it previously received
+nothing. This is a catalog-wide power increase applied through the single
+most-drafted mod in the game, and it will move essentially every balance number.
+Not tuned, not re-baselined, recorded here.
+
+**Also unblocked:** *Widow of Fell Ford* (`W-BR` + `ram-bore` + `overvolted`) still
+assembles and is still named correctly, and is no longer built on a no-op.
+
+`verify` green (447 / 36 / 209), `game:audit` clean.

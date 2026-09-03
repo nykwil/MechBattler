@@ -617,9 +617,32 @@ export const MODIFIERS: Record<string, ModifierDef> = {
   'ram-bore': {
     id: 'ram-bore', name: 'Ram bore', kind: 'mod',
     tier: 2,
-    blurb: 'overkill penetration carries 75% instead of 50%',
+    blurb: 'bored out: damage ×1.25 · +1.5 kW of its own waste heat',
+    tradeoff: 'A wider bore throws a heavier round and dumps the extra work into the '
+      + 'mount. A build with cooling to spare gets a quarter more damage for nothing; '
+      + 'one already near its limit pays in dispersion, held fire, or a radiator it '
+      + 'has nowhere to put.',
     appliesTo: isWeapon,
-    apply: (m) => { m.scale('overkillCarry', 1.5); },
+    // Re-authored 3 Sep 2026 (docs/17 F43/F44). It used to be
+    // `m.scale('overkillCarry', 1.5)`, and `overkillCarry` is declared, given a
+    // neutral, given a knob spec, and **read by nothing** -- the damage loop
+    // carries surplus at 100% into the next part and then the chassis, so the
+    // old blurb described a rule that does not exist. The mod was dead from the
+    // day it was written and was still drafted 16-21 times a sweep, because a
+    // no-op is taken as often as chance offers it.
+    //
+    // Kept on the same theme -- a bored-out barrel -- but on channels the sim
+    // actually consumes, and shaped as a trade rather than a bonus. The numbers
+    // are inline rather than named constants on purpose: `apply.toString()` is
+    // in `simContentHash()`, and a named threshold is not unless it is added to
+    // the dial list, which is the trap F35 was written about.
+    // Dispersion was the first cost tried and it does not bite: scaling a gun's
+    // own 3-8 mrad cone is swamped by the motion term, which is
+    // MOVE_JITTER_MRAD_PER_MPS x speed and adds ~3.75 mrad at cruise regardless
+    // (docs/17 F44). x1.35 measured +3 to +15 on every carrier -- a stat bump,
+    // which docs/20 says is not worth shipping. Heat is the cost that varies by
+    // build instead of being diluted by one.
+    apply: (m) => { m.scale('damage', 1.25); m.add('extraHeatKw', 1.5); },
   },
   'sacrificial-casing': {
     id: 'sacrificial-casing', name: 'Sacrificial casing', kind: 'mod',
