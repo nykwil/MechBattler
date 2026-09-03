@@ -4876,3 +4876,35 @@ has twice saved a part that would have been reverted and once saved one that was
 (F59's open question — smallest, versus smallest that covers demand), the deficit
 distribution above changes with it, and this lever may become gradual enough to
 price. The two are the same decision seen from opposite ends.
+
+### F65 addendum — the sweep drafts `raked-plating` onto the Vulture and nothing else
+
+`artifacts/raked-12lock.json`, hash `bae274ff`, gallery 287 — the largest of the
+pass — with `emptyCells` down to one.
+
+```
+mod              cov  builds  med@8  med@16  chassis drafted onto
+raked-plating      5       4   0.33    0.88   CH-2 only
+lead-cam           7       5   0.97    0.98   CH-2, CH-5
+hull-down          0       0      -       -   —   (deadMods)
+weaving-gait       0       0      -       -   —   (deadMods)
+```
+
+**Every build the search chose to fit it on is a Vulture.** F64 derived that from
+`erf` saturation alone — a profile reduction is worth −19% incoming hits on a
+1.13 m half-width and −11% on a 2.13 m one, so the mod is a light-frame mod by
+arithmetic — and nothing in the authoring says "Vulture" anywhere. **The chassis
+identity was predicted from the hit model and then produced by the search**, which
+is the strongest form docs/20 §2's second signal has taken in this pass.
+
+**And the contrast the mod was authored against holds exactly.** The two
+conditional profile mods, on the same channel, are at **zero builds** and both sit
+in `deadMods` — `hull-down` gated on 6.2% of fight time and `weaving-gait` on
+19.3% (F38). The unconditional one on the same channel is drafted and wins at rank
+16. The channel was never the problem; the gates were.
+
+**Caveat, and it is the usual one.** Four builds. F16's rule applies to my own
+predictions as much as to anything else: the *direction* is confirmed by a
+mechanism derived in advance, the *magnitude* rests on n = 4, and med@8 of 0.33
+says it is not carrying low-rank builds. What is solid is F64's arithmetic and
+F65's controlled per-chassis measurement.
