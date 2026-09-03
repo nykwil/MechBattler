@@ -4182,3 +4182,62 @@ design was built on.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
 tuned or re-baselined.
+
+## F56 — The salvo variance hypothesis is untestable this way, and the rocket pod is the worst gun in the catalog for unrelated reasons
+
+**Hypothesis.** `applySpatialHit` samples independently per projectile with its own
+RNG draw (F50), so a salvo converts one all-or-nothing `pHit` roll into N partial
+outcomes. Damage dealt should therefore vary *less* fight to fight, and that should
+matter most where `pHit` is low — making a long-range salvo a distinct answer to
+the accuracy problem, different from the Lance's hitscan, which removes lead error
+outright rather than averaging over it.
+
+**Measured — coefficient of variation of per-fight damage dealt, 20 seeds, whole
+roster:**
+
+```
+gun     salvo   dps   hit%   mean dmg    sd     cv    win%
+W-RKT       6   2.4   47.4         67    93  1.389       1
+W-AV        1  18.8   83.5        236   269  1.141      30
+W-BR        1  20.0   95.2        320   208  0.652      54
+W-MG        1  15.0   82.9        341   287  0.842      45
+W-CV        1  11.7   50.6        395   179  0.452      99
+W-LNC       1  10.8   76.0        456   210  0.460      99
+```
+
+**The only salvo weapon has the *highest* variance, not the lowest** — 1.389
+against the single-shot Culverin's 0.452. The hypothesis is dead, and so is the
+measurement: **per-fight damage variance is dominated by fight duration and
+outcome, not by per-shot roll variance.** A gun that wins 99% of its fights
+produces consistent damage because its fights are consistent; a gun that wins 1%
+produces wild damage because sometimes it lands a rocket and mostly it dies. The
+instrument answers a different question from the one asked, and I built it before
+noticing.
+
+Isolating the salvo's variance contribution would need per-*trigger-pull* damage
+sampled at fixed range against a fixed target — a bench measurement, not a battle
+one. Not built, because the answer would be a subtle property and F55 has just
+finished showing what happens when a part is authored on a reasoned mechanism
+rather than a measured effect.
+
+### What the table does say, clearly
+
+**`W-RKT` is the worst weapon in the game and it is not close.** 2.4 dps — less
+than half the Sear's 5, which was authored deliberately as the lowest-damage gun
+in the catalog — 67 mean damage, and a **1% win rate**. Two authored numbers cause
+it and neither is the salvo:
+
+- **`cycleS` 15** against a 36-damage payload. Nothing else in the catalog waits
+  more than 13 s, and that one (`W-SR`) delivers 110.
+- **An ideal band 10 m wide**, 30–40 m, against a median engagement range of 85 m
+  (F54). Even the close guns get a 15–30 m plateau.
+
+So the rocket pod is mis-costed and mis-banded, in the same way F54 found for the
+close-range trio, and the salvo mechanic it carries is fine. **Recorded, not
+fixed** — it is three authored numbers on a shipped weapon, which is a balance
+pass.
+
+**Verdict.** No part authored. A hypothesis killed by measurement, a measurement
+killed by its own confounds, and a pre-existing weapon identified as the catalog's
+weakest by a factor of two. The middle one is the finding worth carrying: **a
+battle-level statistic cannot isolate a shot-level mechanism.**
