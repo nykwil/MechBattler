@@ -4908,3 +4908,64 @@ predictions as much as to anything else: the *direction* is confirmed by a
 mechanism derived in advance, the *magnitude* rests on n = 4, and med@8 of 0.33
 says it is not carrying low-rank builds. What is solid is F64's arithmetic and
 F65's controlled per-chassis measurement.
+
+## F68 — A weapon's band *decides* where the fight happens, so "banded for where fights happen" is circular. F54's premise corrected
+
+**The idea.** At the median engagement range of 85 m (F54), the best tier-1 gun in
+the game does **1.6 dps** while tier 2 does 10.0, tier 3 10.8 and tier 4 16.5 —
+because both tier-1 guns are banded 10–45 and sit on 10–27% of their curve at
+85 m. A six-fold cliff at the range fights happen, and the best available
+explanation for F62's rank gap (rank-8 median fitness 0.33, rank-16 0.96).
+
+So: `W-FUS`, a tier-1 two-cell rifle banded 55–110, 5.0 dps at 85 m — between the
+Pin's 1.6 and the Judge's 10.0, closing the cliff without flattening the ladder.
+
+**It lost to the Stitcher on every chassis.**
+
+```
+build           hit%   dealt  taken  win%
+CH-2 W-FUS x3   71.0     459    107    89
+CH-2 W-MG  x3   86.3     485    119    96
+CH-5 W-FUS x3   69.9     427    240    66
+CH-5 W-MG  x3   85.7     411    284    74
+CH-9 W-FUS x3   69.4     391    452    52
+CH-9 W-MG  x3   81.6     392    517    60
+```
+
+Same damage dealt, 15 points worse hit rate, and 6–8 points worse in every
+matchup — despite tripling the dps figure at 85 m that motivated it.
+
+**Because 85 m was never the environment. It is an outcome.**
+
+```
+build           ideal band   median engagement range
+CH-5 W-BR  x2        0-15                      36 m
+CH-5 W-MG  x3       10-40                      74 m
+CH-5 W-FUS x3      55-110                     116 m
+CH-5 W-BMB x2     100-190                     126 m
+```
+
+**A build fights where its own guns want to.** The pilot picks its standing range
+by scanning the exchange curve, which is built from the guns it carries, so the
+band *sets* the range rather than meeting it. F54's 85 m was an aggregate over a
+roster of mixed bands, and I read it as a fixed property of the world.
+
+**And the correction has teeth beyond this part.** Every build fights *further out*
+than its own band's midpoint — the Stitcher's 10–40 fights at 74 — because the
+enemy has a vote and the exchange prices both sides. So a short band does not buy
+you a short fight; it *pulls* the fight shorter, and closing improves your accuracy
+on **both** legs of F61's model at once, since `dispersionM = sigmaRad × rangeM`
+and `leadErrorM` carries `tofS = rangeM / speed`. **A short band is partly
+self-compensating: it drags the fight into range where hitting is cheaper.** That
+is why the Stitcher out-hits the Fusil 86% to 71% while banded for a third of the
+distance.
+
+**It also part-rehabilitates F54's criticism of the close trio.** `W-BR`, `W-AV`
+and `W-SC` are banded 0–30 and do pull the fight to 36 m, so they are not simply
+mis-banded. They still lose, for F40's reason — damage taken on the way in — which
+was the correct diagnosis all along, and F54's second explanation was the weaker of
+the two.
+
+**Reverted**, third of the pass, and the cleanest-cut of the three: same tier, same
+footprint, strictly worse. **The finding is worth more than the part would have
+been**, and it retires a line of reasoning I had already used twice.
