@@ -169,6 +169,39 @@ are the current record, and F20 is the one to read first: `simContentHash()`
 depends on the compiler as well as the content, so a locally computed hash must
 never be compared against a report's stamp.
 
+**The 3 Sep 2026 content pass shipped eight parts, two mods and a unique, and
+`17` F28–F55 is its record.** Read F52 before using `20` §3: the empty-cell
+backlog is closed and the metric is retired, because occupancy measures neither
+reachability nor quality — the last empty cell held a 99% build made of parts that
+already shipped, while *filled* cells hold builds that win 21%. F52 carries the
+replacement ordering for choosing what to author next.
+
+Shipped: `U-MANTLE` (2×2 armour, F29), `W-CV` Culverin (recoil paid in hull mass,
+F34), `U-VENT` (1-cell radiator, F36), `U-DRIVE` (sprint drive, F41), `U-SIGHT`
+(power-free fire control, F47), `W-LNC` Lance (long-range hitscan, F49 — the
+best-performing part of the pass), `W-SER` Sear (ranged heat attack, F53),
+`W-BMB` Bombard (the only gun with a dead zone, F55); `annealed-bore` and a
+re-authored `ram-bore`; the unique *Winterbourne*.
+
+**Three instrument fixes came out of it and matter more than most of the parts.**
+Armour was unassemblable by *any* search since the layer existed (F29); the
+pilot's coolant-bath incentive was a typed constant no content could reach (F31);
+"radiator" was a hardcoded part id in eight places and is now `radiatorStrength`
+(F36). `simContentHash()` also could not see modifier thresholds, so two
+materially different games hashed identically (F35) — fixed.
+
+**Two half-built fields and one dead lever are the owner's to decide** and each
+blocks a class of content: `overkillCarry` is declared and read by nothing (F43),
+`idleHeatKw` likewise so no part can run hot (F46), and mount arc is inert, which
+leaves the Mule the only chassis with no working identity effect (F28, F48).
+
+**Two findings constrain what a *part* can ever do.** Weapon economics do not
+steer pilot behaviour: a reward cannot make a build run hot (F35) and a cost
+cannot make it stand off (F55), because the pilot travels 93% of the fight (F38)
+and standing is 7%. And `coverage` cannot tell a good part from a harmless one —
+use the **median fitness of the builds carrying it** (F53 addendum): 0.98 for the
+Lance against 0.02 for the Sear, where coverage says both are used.
+
 **The thermal model changed on 1 Sep 2026 and `02` §3 is the authority.** A
 radiator now sheds from its whole conduction component instead of from its own
 cells, which it never warmed; before that change the part was inert and the
