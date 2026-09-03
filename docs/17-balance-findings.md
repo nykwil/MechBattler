@@ -3284,3 +3284,69 @@ layer, and it is +2 rather than +11 because the cost is real.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Nothing
 tuned, nothing re-baselined, no sweep displaced.
+
+## F43 — `ram-bore` writes to a channel nothing reads, and coverage cannot tell a good mod from a harmless one
+
+**Hypothesis, and it was falsified before it got interesting.** F42's screening
+trick — run the candidate and diff the outcome — suggested the machinist might
+offer mods that are inert on their carriers. Checked exhaustively: across
+**177 offered (mod, carrier) pairs**, evaluating `effectiveMults` over a grid of
+temperature, speed and tile, **zero are statically inert**. Every mod the
+machinist offers changes some number on every carrier it is offered on. Good news,
+and it sharpens the question rather than answering it.
+
+**Statically live is not dynamically live.** On an ordinary `CH-5 W-AC:2` build,
+diffing full battle outcomes over 12 fights, **5 of 14 mods produce bit-identical
+battles**: `tidecooler`, `gyro-flywheel`, `ram-bore`, `surge-gate`,
+`thermocouple-skin`. The mod changes a number; the number is never consumed
+because the build never enters the state.
+
+Retried on carriers where each condition should actually arise:
+
+```
+thermocouple-skin  CH-2 W-LAS  live       starved bank (F33)
+gyro-flywheel      CH-2 W-CB   live       fast turner, 167 deg/s
+surge-gate         CH-5 W-RG   IDENTICAL  cap-fed gun that can brown out
+ram-bore           CH-9 W-CV   IDENTICAL  70 damage a shot
+ram-bore           CH-9 W-BR   IDENTICAL  40 damage a shot
+```
+
+### `overkillCarry` is written and never read
+
+```
+modifiers.ts:61   overkillCarry: number;              declaration
+modifiers.ts:113  overkillCarry: 1,                   neutral
+modifiers.ts:158  overkillCarry: {kind:'pooled', …}   knob spec
+modifiers.ts:622  m.scale('overkillCarry', 1.5)       ram-bore writes it
+(nothing, anywhere)                                    reads it
+```
+
+And the damage loop it is supposed to govern carries surplus at **100%** into the
+next part in the stack and then into the chassis — there is no 50% carry anywhere
+in the codebase. So `ram-bore`'s blurb, *"overkill penetration carries 75% instead
+of 50%"*, describes a rule that does not exist. **The mod has been dead on arrival
+since it was written**, and one of the five uniques — *Widow of Fell Ford* — is
+built on it.
+
+This is docs/20 §8's warning realised exactly: *"A modifier channel can be inert.
+The `radiator` channel did nothing for a year and every mod authored on it was
+dead on arrival."* Same shape, different channel, and the fence that was added
+after the radiator case does not catch it — `game:audit` checks that a mod has a
+legal **carrier**, not that its channel has a **consumer**.
+
+### The instrument implication is the bigger half
+
+**`ram-bore` is drafted 16–21 times per sweep.** A no-op mod is taken as often as
+chance offers it, because it never hurts — so **`coverage` cannot distinguish a
+good mod from a harmless one**, and a high count is not evidence that a mod does
+anything. Every "this mod is taken, so it works" reading in this file is weaker
+than it looks; the ones that survive are those with a measured effect beside them.
+
+`surge-gate` is a different case and not dead: `firstPriority` **is** consumed, in
+the brownout ordering at `simulation.ts:516`. It needs an actual brownout, which
+none of the probe builds had. Unmeasured rather than inert.
+
+**Not fixed, because the fix is a rules change.** Implementing the missing consumer
+means base carry becomes 50% where it is currently 100%, which changes damage
+resolution for every weapon in the game. That is a mechanic, not a number, so it
+is the owner's call and is asked rather than taken.
