@@ -2548,3 +2548,50 @@ pass has surfaced a strong archetype rather than created one, and the thing wort
 the owner's attention is the armoured Bastion, not only the new gun.
 
 `verify` green (446 / 36 / 209), `game:audit` clean, nothing re-baselined.
+
+### The other three heavy cells: reachable, strong, and still reported empty
+
+Gate 6 again, this time on the cells the Culverin does *not* fill, and pairing
+guns rather than sweeping them singly — a combination nothing proposes looks
+identical to a combination that does not work (F19's lesson, one level up).
+2,214 two-gun builds:
+
+```
+mid/heavy/cold        REACHABLE   CH-2 W-MG+W-LAS arm8
+mid/heavy/redliner    REACHABLE   CH-2 W-MG+W-KL  arm8
+long/heavy/redliner   REACHABLE   CH-2 W-CB+W-KL  arm8
+```
+
+**Every hit is on CH-2**, which is the same mechanism as before: the weight bucket
+is a load *fraction*, so the Vulture is the cheapest frame to make "heavy".
+
+The obvious next assumption is that those builds are junk, which is why the
+breeder skips them. **It is wrong**, and this is the finding:
+
+```
+CH-2 W-MG+W-LAS arm8   mid/heavy/cold        19%
+CH-2 W-MG+W-KL  arm8   mid/heavy/redliner    71%
+CH-2 W-CB+W-KL  arm8   long/heavy/redliner   95%
+```
+
+**A 95% build exists in `long/heavy/redliner`, out of parts that shipped months
+ago.** So that cell is not empty for want of content, and not empty because what
+lives there is weak. It is empty because the search does not propose it — the
+same class as F24, where `long/heavy/redliner` turned out reachable at rank 13
+with existing parts and simply never offered.
+
+`mid/heavy/cold` is the honest exception: its best reachable build measures 19%,
+so that one may genuinely be a bad neighbourhood rather than an unexplored one.
+
+**What this means for `W-CV`.** The Culverin's contribution is not "it filled an
+unreachable cell" — nothing here was unreachable. It is that heavy-at-range was
+only ever available by *overloading a scout*, and the Culverin makes it available
+on a frame where being heavy is not suicide: CH-5 at load 0.85 and CH-9 at 0.94,
+winning 86% and 99%. The cell was reachable; being heavy at range was not
+*sensible*. That is a smaller and more accurate claim than the one I would have
+made without gate 6.
+
+**Recorded for the owner, not acted on:** three of the four "empty" heavy cells
+hold builds of 71–95% that the breeder never proposes. If that is worth chasing
+it is a search question — proposal, not content — and it is the third time this
+pass that an empty cell turned out to be the instrument.
