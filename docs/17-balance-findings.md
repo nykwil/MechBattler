@@ -4969,3 +4969,57 @@ the two.
 **Reverted**, third of the pass, and the cleanest-cut of the three: same tier, same
 footprint, strictly worse. **The finding is worth more than the part would have
 been**, and it retires a line of reasoning I had already used twice.
+
+## F69 — Heat is a step function, not a slope: its whole accuracy cost is 1–5%, and that corrects F31's explanation
+
+F61 showed `sigmaM` is a hypotenuse whose cone leg is worth a few percent. Heat's
+only path into the exchange is `heatDispersionMult`, which is *on that leg* —
+`estimateExpectedDps` reads `tempC` in exactly one place, inside `weaponSigmaRad`.
+So the whole thermal contribution to accuracy is bounded by the cone's share.
+
+**Measured across the full thermal range, ambient to fire-hold, at 85 m:**
+
+```
+gun     base mrad   pHit@25C   pHit@115C   total accuracy cost of heat
+W-CV          3.0     0.4937      0.4870        1.3%
+W-LNC         2.5     0.7082      0.6938        2.0%
+W-MG          8.0     0.4679      0.4419        5.5%
+```
+
+**Going from stone cold to the edge of shutdown costs a gun between 1.3% and 5.5%
+of its hit rate.** The gradient is almost flat, and it is widest on the gun with
+the largest base cone — because a bigger cone is a bigger share of a hypotenuse.
+
+### This corrects F31, and the correction is more interesting than the finding
+
+F31 replaced the pilot's typed `u += 2` coolant-bath incentive with a derived one:
+*(the exchange with cones at ambient) − (the exchange as they are)*, capped by what
+water's extra cooling could recover. Its sweep was a no-op (F31 addendum), and I
+explained that as **"the breeder's builds are cold, so heat costs them no dps."**
+
+That was half right and the wrong half. **The term is structurally small even on a
+maximally hot mech**, because the quantity it measures — heat's effect on the cone
+— tops out at 1–5% of one gun's hit rate. A build at 114 °C values a coolant bath
+at a few percent of dps, not because it is cold but because heat's accuracy cost
+is nearly nothing right up to the cliff.
+
+**So heat in this sim is a step function.** Below 115 °C it is almost free; at 115
+the gun stops firing, at 130 the part shuts down, at 150 it takes damage. That
+single fact ties three findings together:
+
+- **F32** — the upper band is "a cliff, not a slope". Now quantified: the slope is
+  1–5% and the cliff is total.
+- **F35** — a reward cannot make a build run hot. Because there is nothing to
+  reward *approaching*; the cost is all at the edge.
+- **F31** — the derived coolant term is small by construction, not by circumstance.
+
+**Authored nothing, by gate 10.** The ceiling on "reduce heat's accuracy cost" is
+5.5% on the worst-affected gun in the game and 1.3% on a typical one. The lever
+worth having would be one that moves the *cliff* — a gun that keeps firing past
+115 °C — and that is a new rule, not a number, so it stays with the owner beside
+`overkillCarry` and `idleHeatKw`.
+
+**Recorded for whoever revisits F31:** the derived term is correct and should stay
+— it removed a constant no content could reach — but nobody should expect it to
+grow. If a coolant bath is ever meant to matter, the thing to derive it from is the
+fire-hold cliff, not the dispersion curve.
