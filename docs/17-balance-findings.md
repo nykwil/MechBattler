@@ -4686,3 +4686,34 @@ through two conditions the pilot is rarely in — which is exactly why both sit 
 That is F52's ordering item 1 again — a live lever nobody prices — and it is the
 next thing to author, with the ceiling above measured *before* the part rather
 than after.
+
+### F63 addendum — `lead-cam` is drafted rarely and always into winning builds
+
+`artifacts/leadcam-12lock.json`, hash `38a508c0`, medians split by rank per F62:
+
+```
+mod               leg          cov  builds  med@8  med@16
+insulated-mount   heat          22       6   0.34    0.99
+lead-cam          LEAD           7       5   0.97    0.98
+ram-bore          damage        31      25   0.34    0.98
+weaving-gait      cone+profile   4       4   0.97    0.95
+cold-bore         cone+damage   16      13   0.33    0.33
+gyrostabilized    cone           3       3   0.01    0.02
+coil-sprung       cone           0       0      -       -
+gyro-flywheel     cone           0       0      -       -
+lucky             cone           0       0      -       -
+```
+
+**`lead-cam` has the best rank-8 median of any mod in the game (0.97) and holds
+0.98 at rank 16.** Drafted only seven times, but never into a build that loses —
+which for a tier-3 mod on its first sweep is the shape you want.
+
+**F61's leg model is consistent with this table and is not established by it.**
+Four of the five pure-cone mods are either never drafted (`coil-sprung`,
+`gyro-flywheel`, `lucky` — zero builds each) or drafted into losing ones
+(`gyrostabilized`, 0.01/0.02), which is what F61 predicts. But `weaving-gait`
+reads 0.97/0.95, and it carries a cone term. The samples are 3–5 builds; **F16's
+rule applies to my own model as much as to anything else, and one sweep at
+n = 5 is not a confirmation.** What is solid is the arithmetic in F61 and the
+controlled per-carrier measurement in F63, where the ordering was predicted in
+advance and held across five guns.
