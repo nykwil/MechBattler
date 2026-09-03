@@ -3630,3 +3630,73 @@ shape (`.## / ###`) that nothing in the catalog is cut for, so the *part* half o
 the W-SR trick is available and cheap. It is worth nothing until the region it
 fits is worth occupying, so authoring one now would be a part aimed at a bonus of
 zero — which is the mistake F28 exists to prevent.
+
+## F49 — `W-LNC`, the first hitscan gun that reaches, and a process mistake worth recording
+
+**Hypothesis.** Lead error is the dominant accuracy term (F45: one Abacus is +17
+win points, the largest single-part effect in this pass) because both mechs travel
+93% of the fight (F38). Lead error scales with time of flight — and **every long
+gun in the catalog is a projectile**. Nothing above 150 m is hitscan, so the one
+property that makes lead error *zero* is unavailable exactly where it costs most.
+
+```
+gun     speed     ideal band   max     hit% (CH-9, F40)
+W-SC    hitscan        0-20     45
+W-LAS   hitscan       25-60    140
+W-ION   hitscan       25-50    150
+W-KL        700      90-160    300     67.7
+W-CV        260      70-140    240     52.4   <- 0.54 s in the air at 140 m
+W-SR       1400      70-130    280
+```
+
+**Authored.** `W-LNC`, "Lance (beam lance)": 2×2, 300 kg, tier 3, energy,
+**hitscan**, 13 damage on a 1.2 s cycle, ideal 80–150, max 260, 14 kJ/shot
+(11.7 kW sustained, between the Kiln's 15 and the laser's 4.5). Chip damage that
+never misses for want of leading, against a long band of guns that all hit hard,
+slowly, and behind a crossing target. It pays in heat rather than power on
+purpose: F47 showed the completer repairs a power deficit before anything is
+scored, so a power cost is a trade that gets designed away, while heat is a cost
+40% of builds decline (F36).
+
+**Reachability.** Completes alone on all three chassis, order-independent
+`[1,1,1]`. Two do not fit a Vulture — a 2×2 gun twice over is more than that frame
+has — so it is a Mule and Bastion gun by geometry. All six registrations;
+`weaponClass` and the enabled-part count both failed loudly first.
+
+**Measured, 20 seeds, whole roster:**
+
+```
+build          heat kW  shots   hit%  dealt  taken  win%
+CH-5 W-LNC x2     10.1   6854   76.0    456     66    99
+CH-5 W-KL  x2      9.8   2885   71.5    430     83    95
+CH-5 W-CV  x2      8.9   2528   50.6    395     21    99
+CH-9 W-LNC x2     31.0   7342   74.1    458    104    96
+CH-9 W-KL  x2     23.4   3308   67.7    425    153    91
+CH-9 W-CV  x2     13.8   2308   52.4    382     74    96
+```
+
+**The hitscan premium is real and is the size the theory predicts**: +4.5 to +6.4
+hit points over the Kiln at comparable range, and **+22 to +24 over the Culverin**,
+whose 260 m/s slug spends half a second in the air. Damage dealt rises with it,
++26 to +33 over the Kiln, and shots fired more than doubles — it is the chip gun it
+was designed as.
+
+**Win rate barely moves, and that is the instrument.** 99 / 96 against 95 / 91:
+these builds are already at the ceiling, so a real mechanical advantage reads as
++4. F44's addendum said the archive cannot see a power increase on a saturated
+scale; this is the same saturation one level down, in the probe. **Hit rate and
+damage dealt are the honest signals here and win rate is not**, which is F40's
+warning pointing the other way for once.
+
+### The process mistake
+
+I started the `U-SIGHT` sweep and then edited `packages/sim` under it, which
+CLAUDE.md explicitly warns kills a running experiment. It survived — the workers
+run the compiled `dist` and I did not rebuild it — but the main process computes
+`stamp.contentHash` from source, so **that report's stamp may describe content its
+workers never measured**. Treat `artifacts/sight-12lock.json`'s hash as unreliable
+and its coverage numbers as pre-`W-LNC`. The rule exists for a reason and I broke
+it while writing up a finding about checking things before believing them.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
+tuned or re-baselined.

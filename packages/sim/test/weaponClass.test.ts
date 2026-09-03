@@ -20,6 +20,7 @@ const EXPECTED: Record<string, WeaponClass> = {
   'W-BR': 'ballistic',
   'W-AV': 'ballistic',
   'W-CV': 'ballistic',
+  'W-LNC': 'energy',
   'W-KL': 'ballistic',
   // Pays an energy cost on top of the projectile it still has to carry.
   'W-RG': 'ballistic',

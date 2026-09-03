@@ -516,6 +516,36 @@ export const PARTS: Record<string, PartDef> = {
   // wants it. 11.7 dps sits between the Kiln's 10.7 and the Pinion's 8.5, and
   // well under the Longshot's 17: it is not the best long gun, it is the one a
   // heavy frame can actually hold still.
+  // The long band has no hitscan gun, and that is the gap. docs/17 F45: the mech
+  // and its target both travel 93% of the fight (F38), so nearly every shot is
+  // fired at a crosser and leading error dominates the hit model -- one Abacus is
+  // worth +17 win points, the largest single-part effect measured in this pass.
+  // Lead error scales with time of flight, and every long gun in the catalog is a
+  // projectile: the Culverin spends 0.54 s in the air at 140 m and hits 52%,
+  // where the Pinion's 1400 m/s spends 0.09 s. Nothing above 150 m is hitscan --
+  // W-LAS reaches 140, W-ION 150, W-SC 45 -- so the one weapon property that
+  // makes lead error *zero* is unavailable at the range where it costs most.
+  //
+  // The Lance is that: a beam that arrives instantly at 150 m. It pays in heat
+  // rather than power, deliberately, because the completer answers a power
+  // deficit by adding a reactor and the trade disappears before anything is
+  // scored (docs/17 F47), while heat is a cost 40% of builds decline to pay
+  // (F36). 12 kW sustained sits between the Kiln's 15 and the laser's 4.5, on a
+  // gun with a third of the Kiln's damage per shot: this is chip damage that
+  // never misses for want of leading, against the catalog's existing long guns
+  // which all hit hard, slowly, and behind their target.
+  'W-LNC': {
+    id: 'W-LNC', name: 'Lance (beam lance)', category: 'weapon',
+    shape: rect(2, 2), massKg: 300, hp: 30, tier: 3,
+    heat: { heatPerShotKj: 14 },
+    draw: { chargedEnergyPerShotKj: 9, minChargeS: 0.4, maxChargeKw: 30 },
+    weapon: {
+      weaponClass: 'energy',
+      damage: 13, cycleS: 1.2, projectileSpeed: 'hitscan', dispersionMrad: 2.5,
+      falloff: { idealMin: 80, idealMax: 150, max: 260 }, mountArcDeg: 45,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 2, clearsForward: 1 },
+  },
   'W-CV': {
     id: 'W-CV', name: 'Culverin (siege rifle)', category: 'weapon',
     shape: rect(2, 3), massKg: 900, hp: 70, tier: 4,
