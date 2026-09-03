@@ -3949,3 +3949,72 @@ directly at a cell (`U-DRIVE` at `close/heavy`) never landed there.
    no part.
 
 Empty cells are last, not first.
+
+## F53 — `W-SER`, and suppression that lengthens the fight can let the enemy shoot *more*
+
+First idea taken under F52's replacement ordering: **a live-but-unpriced lever.**
+
+**Hypothesis.** `enemyHeatKj` is a system attack whose target always exists —
+unlike `capDrainKj`, which six of seven panel templates have no capacitors to lose
+(F37) — and it is priced onto exactly one gun: a 3-damage flamer with a 20 m band.
+The lever is unpriced at range, not absent.
+
+**Measured before authoring.** Three Scalds against three Stitchers, same chassis,
+same close band, 15 seeds, watching the *enemy's* heat:
+
+```
+gun     enemy meanC  peakC  >115%   win%
+W-SC           62.6    178   9.38%    26
+W-MG           40.0    102   0.00%    72
+```
+
+The mechanism is real and strong — 9.4% of the fight held over the fire-hold
+threshold, peaks past the 150 °C damage line — and the gun carrying it wins 26%.
+
+**Authored.** `W-SER`, "Sear (induction beam)": `line(3)`, 240 kg, tier 3, energy,
+hitscan, **4 damage on a 0.8 s cycle** — 5 dps, the lowest in the catalog — ideal
+40–100, max 180, `enemyHeatKj` 9 (11.25 kJ/s), and 6 kJ/shot of its own heat. It
+does not kill, it disables: past 115 °C the struck part holds fire, past 130 it
+shuts down, past 150 it takes damage. And it cooks itself doing it, spending its
+own thermal headroom to spend the enemy's.
+
+**Reachability.** Alone on all three chassis, order-independent `[1,1,1]`. Six
+registrations; `weaponClass` and the part count failed loudly first.
+
+**Measured, 15 seeds, whole roster:**
+
+```
+build          enemy meanC  >115%  >130%  enemy shots  own dealt  win%
+CH-5 W-SER x3         73.2   5.84   2.16        18008        369     50
+CH-5 W-SC  x3         62.6   9.38   4.25        15937        219     26
+CH-5 W-MG  x3         40.0   0.00   0.00        14274        408     72
+CH-9 W-SER x3         72.9   5.75   1.92        20428        349     48
+CH-5 W-LNC x2         33.6   0.00   0.00         5595        452     99
+```
+
+**It works and it nearly doubles the flamer**: 50% against 26%, cooking opponents
+to a *higher mean* than the flamer does (73.2 against 62.6) from 40–100 m instead
+of inside 20.
+
+**And it loses to simply killing things.** The machine gun is 72% and the Lance
+99%. Disabling is worse than damage here, and the numbers say something sharper
+than that:
+
+> **Enemy shots fired go *up*, not down.** 18,008 against the machine gun's
+> 14,274 — the Sear suppresses 5.84% of enemy ticks and still lets the enemy fire
+> 26% more shots, because 5 dps makes the fight far longer. Suppression measured
+> per-second is not suppression measured per-fight.
+
+That is a genuine trap in the design of any disabling weapon in this sim, and it
+is not visible from the mechanism: the flamer shows the same shape more sharply
+(9.38% suppression, 15,937 enemy shots, 26% win). **A weapon that wins by turning
+the enemy off has to turn them off faster than its own low damage extends the
+fight**, and neither of these two does.
+
+**Verdict.** Keep. It takes a live lever from an unusable range to a usable one and
+doubles the win rate of the only other gun that carries it, which is what the
+ordering in F52 said to look for. It is mid-tier and honestly so: 50% is a real
+weapon and not a good one.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
+tuned or re-baselined.

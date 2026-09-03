@@ -534,6 +534,35 @@ export const PARTS: Record<string, PartDef> = {
   // gun with a third of the Kiln's damage per shot: this is chip damage that
   // never misses for want of leading, against the catalog's existing long guns
   // which all hit hard, slowly, and behind their target.
+  // enemyHeatKj is a live, powerful, universally-applicable system attack that
+  // exists on exactly one gun -- and that gun is a 3-damage flamer with a 20 m
+  // band. Measured (docs/17 F53): three Scalds push their opponent to a mean of
+  // 62.6 °C and a peak of 178, and hold it over the 115 °C fire-hold for 9.4% of
+  // the fight, where three Stitchers at the same range leave it at 40.0 °C and
+  // 0.00%. The mechanism works; it is priced onto something nobody wants.
+  //
+  // Unlike `capDrainKj`, which six of seven panel templates have no capacitors to
+  // lose (F37), *every* build has a thermal system to push on. So this is the
+  // system attack that always has a target, and the Sear is it at range.
+  //
+  // Deliberately the lowest-dps weapon in the catalog: 5 dps against the
+  // Stitcher's 15. It does not kill, it disables -- heat past 115 °C makes the
+  // struck part hold fire, past 130 shuts it down, past 150 damages it. And it
+  // cooks itself doing it, 7.5 kW sustained, so the mech that carries one is
+  // spending its own thermal headroom to spend the enemy's.
+  'W-SER': {
+    id: 'W-SER', name: 'Sear (induction beam)', category: 'weapon',
+    shape: line(3), massKg: 240, hp: 25, tier: 3,
+    heat: { heatPerShotKj: 6 },
+    draw: { chargedEnergyPerShotKj: 7, minChargeS: 0.3, maxChargeKw: 26 },
+    weapon: {
+      weaponClass: 'energy',
+      damage: 4, cycleS: 0.8, projectileSpeed: 'hitscan', dispersionMrad: 4,
+      falloff: { idealMin: 40, idealMax: 100, max: 180 }, mountArcDeg: 60,
+      enemyHeatKj: 9,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 2, clearsForward: 1 },
+  },
   'W-LNC': {
     id: 'W-LNC', name: 'Lance (beam lance)', category: 'weapon',
     shape: rect(2, 2), massKg: 300, hp: 30, tier: 3,

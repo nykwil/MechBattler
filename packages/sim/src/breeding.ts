@@ -37,7 +37,7 @@ import { computeRank } from './rank.js';
 export const MIDGAME_POOL = {
   parts: [
     'R-C40', 'R-C90', 'R-E25', 'R-E60',
-    'W-MG', 'W-AC', 'W-LAS', 'W-RKT', 'W-CB', 'W-BR', 'W-AV', 'W-KL', 'W-SC', 'W-ION', 'W-RG', 'W-SR', 'W-CV', 'W-LNC',
+    'W-MG', 'W-AC', 'W-LAS', 'W-RKT', 'W-CB', 'W-BR', 'W-AV', 'W-KL', 'W-SC', 'W-ION', 'W-RG', 'W-SR', 'W-CV', 'W-LNC', 'W-SER',
     'U-RAD', 'U-VENT', 'U-HS', 'U-ARM', 'U-TC1', 'U-SIGHT', 'U-ACT', 'U-DRIVE', 'U-TUR', 'U-SHELL', 'U-MANTLE',
     'U-RISE2', 'U-RISE3', 'U-RISEL',
     'P-CAP', 'P-CAP2',
