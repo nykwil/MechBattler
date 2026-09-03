@@ -2666,3 +2666,69 @@ a heavy frame", not "the part that fills `long/heavy/*`".
 All of it hash-confounded and none of it attributable, but the Longshot going to
 zero is worth a look in a deliberate balance pass. `verify` green, `game:audit`
 clean, nothing re-baselined.
+
+## F35 — A reward cannot make a build hot, and the stamp could not see the number that proved it
+
+Two findings, and the second was only reachable because the first one failed.
+
+### The onset experiment, pre-registered and falsified
+
+F32 left an explicit next step: `annealed-bore` pays from 40 °C, so a build at
+60–90 °C collects most of the bonus without approaching the band, and the onset
+rather than the magnitude might be what decides whether a heat mod creates
+redliners. Tested by moving the onset to 90 °C and the rate to 0.015 — **the peak
+held identical at ×1.375 by fire-hold**, so the only variable was the shape.
+
+```
+build              plain   onset 40   onset 90
+CH-2 W-KL:1  (103 C mean)    46%    58% (+12)   51% (+4)
+CH-5 W-KL:2   (65 C mean)    95%    96% ( +1)   95% ( 0)
+CH-2 W-CB:2   (39 C mean)    94%    94% (  0)   94% ( 0)
+```
+
+**Worse everywhere, including on the build that lives in the band**, and no build
+moved into the band that was not already there. The reason is simple once seen: a
+mech running at 103 °C mean collects on the curve *where it sits*, not at its
+peak, and 90 °C onset gives ×1.195 there against the old ×1.315. Holding the peak
+constant held the wrong thing constant.
+
+**The general lesson, which is worth more than the mod.** A reward changes which
+builds *take* a mod; it never changes which builds *run hot*. Heat is set by the
+gun, the frame and the cooling — a damage mod touches none of the three, and its
+own +1 kW is a rounding error against a Kiln's 15. If the upper band is to be
+inhabited on purpose, the lever is cooling capacity or a survivable threshold,
+not a bigger prize for being there. **Reverted**; the shipped mod is the 40 °C
+version, which is drafted 13 times and honest about what it is.
+
+### The stamp did not move, and that is a hole in every A/B in this file
+
+Both variants — a change that halves what the mod is worth on the one build that
+lives in the band — stamped **the same content hash, `5a3e6ae6`**.
+
+`simContentHash()` hashes `PARTS`, `CHASSIS`, `TEMPLATES`, a modifier fingerprint
+and a dial list. The fingerprint records `apply.toString()`, which captures the
+*name* of a constant and never its value, and the mod thresholds were not in the
+dial list. So `COLD_BORE_MAX_C`, `FEVER_CYCLE_MIN_C`, `HULL_DOWN_MAX_MPS` and
+both `ANNEALED_BORE_*` constants were invisible to the stamp: **two materially
+different games hashed identically.**
+
+This is the mirror of F20. There the hash moved when the content had not
+(source against compiled). Here the content moved and the hash did not, which is
+the more dangerous direction — F20 costs you a false alarm, this costs you a
+false *equality*, and every A/B in this pass rests on two reports sharing a stamp
+meaning they describe the same game.
+
+**Fixed**: the five thresholds are in the dial list. Verified deterministic —
+onset 40 hashes `aa0a8f95`, onset 90 hashes `4d372e4c`, reverting restores
+`aa0a8f95`.
+
+**The rule this implies, for anyone authoring a mod:** any constant referenced
+inside an `apply` body must be added to `version.ts`'s dial list at the same
+time. The fingerprint will not catch it, and nothing else will either.
+
+**Cost, and it is real.** The hash re-bases: identical content now stamps
+`aa0a8f95` where it stamped `5a3e6ae6`. `artifacts/culverin-12lock.json` carries
+the old stamp and describes exactly the content that now hashes `aa0a8f95`; that
+mapping is recorded here because the stamp can no longer state it. Every other
+artifact on file predates this and compares only among itself, which was already
+true across content changes.

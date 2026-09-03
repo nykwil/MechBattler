@@ -385,6 +385,16 @@ export const HULL_DOWN_MAX_MPS = 1.5;
  * Magnitude is `fever-cycle`'s, the only other mod that pays for heat: tier 3,
  * about +18% dps at 100 C. This is +35% damage at 110 C, in heat rather than
  * power, and it manufactures the heat it feeds on.
+ *
+ * **The onset was raised to 90 C and reverted, 2 Sep 2026 (docs/17 F35).** The
+ * hypothesis was that an onset, not a magnitude, decides whether a heat mod
+ * creates redliners or merely rewards warmth, so the peak was held identical --
+ * x1.375 at fire-hold either way -- and only the shape moved. It is false. The
+ * committed build gained *less* (+4 instead of +12), because a mech running at
+ * 103 C mean collects on the curve where it actually sits and not at its peak,
+ * and no build moved into the band that was not already there. A reward changes
+ * which builds take a mod, never which builds run hot: heat is set by the gun,
+ * the frame and the cooling, and a damage mod touches none of them.
  */
 export const ANNEALED_BORE_MIN_C = 40;
 export const ANNEALED_BORE_PER_C = 0.005;

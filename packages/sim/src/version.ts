@@ -15,7 +15,10 @@
 import { PARTS } from './catalog.js';
 import { CHASSIS } from './chassis.js';
 import { TEMPLATES } from './templates.js';
-import { ADDITIVE_POOL_FLOOR, MODIFIERS } from './modifiers.js';
+import {
+  ADDITIVE_POOL_FLOOR, ANNEALED_BORE_MIN_C, ANNEALED_BORE_PER_C, COLD_BORE_MAX_C,
+  FEVER_CYCLE_MIN_C, HULL_DOWN_MAX_MPS, MODIFIERS,
+} from './modifiers.js';
 import { AMBIENT_C, RADIATOR_CAP_KW, RADIATOR_K, CONDUCTION_K_NORMAL, CONDUCTION_K_PIPE } from './thermal.js';
 import {
   CELL_SIZE_M, CORE_HP, DEFAULT_ARENA_LENGTH_M, DEFAULT_ARENA_WIDTH_M,
@@ -67,6 +70,16 @@ export function simContentHash(): string {
       RAM_AIR_MAX_BONUS, SPEED_SETTING_FRACTIONS, THERMOCOUPLE_K, THERMOCOUPLE_EFFICIENCY,
       COOLANT_CONDUCTANCE, EXTERIOR_PASSIVE_K, ROUTE_MASS_KG, WIRE_CAPACITY_KW,
       FOREST_COVER_MULT, HILL_RANGE_MULT, TERRAIN_CELL_SIZE_M, TERRAIN_SPEED_MULT, WATER_RADIATOR_MULT,
+      // Modifier thresholds. These were missing until 2 Sep 2026 and it was a
+      // hole in the stamp, not an omission of detail: `modifierFingerprint`
+      // records `apply.toString()`, which captures the *name* of a constant and
+      // never its value, so moving `annealed-bore`'s onset from 40 °C to 90 °C
+      // -- a change that halves what the mod is worth on the one build that
+      // lives in the band -- left the hash at `5a3e6ae6`, unmoved. Two
+      // materially different games stamped identically, which silently breaks
+      // every A/B in this file (docs/17 F35).
+      COLD_BORE_MAX_C, FEVER_CYCLE_MIN_C, HULL_DOWN_MAX_MPS,
+      ANNEALED_BORE_MIN_C, ANNEALED_BORE_PER_C,
     },
   }));
   return cached;
