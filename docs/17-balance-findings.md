@@ -2595,3 +2595,74 @@ made without gate 6.
 hold builds of 71–95% that the breeder never proposes. If that is worth chasing
 it is a search question — proposal, not content — and it is the third time this
 pass that an empty cell turned out to be the instrument.
+
+### The Culverin sweep: a successful gun that failed at its job, for a structural reason
+
+`artifacts/culverin-12lock.json`, hash `5a3e6ae6`. Hash moved, so only
+build-level attribution is quotable (F22).
+
+**Build-level, and it is emphatic.** `W-CV` appears in **37 of 263** gallery
+builds, coverage **53** — second only to `W-KL`'s 59, ahead of every other
+weapon in the catalog. As a gun it is the most-adopted thing this pass produced.
+
+**And it did not do its job.** `emptyCells` fell 4 → 2 (`mid/heavy/cold` and
+`long/heavy/cold` filled), which looks like the intended result and is not:
+
+```
+long/heavy/cold   2 builds, both CH-2 W-SR R-C40 P-CAP     carrying W-CV: 0
+mid/heavy/cold    1 build,  CH-2 W-LAS + 8 plates          carrying W-CV: 0
+```
+
+**Not one newly-filled heavy cell contains a Culverin.** They are Vultures with
+ballast — precisely the builds gate 6 already showed were reachable, found by a
+different draw domain. The cells filled; the gun did not fill them. Where `W-CV`
+actually lands is `long/light/cold`, `long/medium/cold`, `mid/medium/cold`.
+
+### Why it cannot fill a heavy cell, and it is the axis, not the gun
+
+The weight bucket is `mass ÷ ratedMass`, and rated mass differs by a factor of
+four:
+
+```
+CH-2 Vulture   rated  3 t   heavy needs > 2.4 t of parts
+CH-5 Mule      rated  6 t   heavy needs > 4.8 t
+CH-9 Bastion   rated 12 t   heavy needs > 9.6 t
+```
+
+Gallery weight buckets by chassis:
+
+```
+CH-2   light 28   medium 26   heavy 4
+CH-5   light 59   medium 53   heavy 3
+CH-9   light 66   medium 24   heavy 0
+```
+
+**The Bastion has zero heavy builds in ninety entries, and reads mostly *light*.**
+The biggest chassis in the game can essentially never be "heavy", because heavy
+means *overloaded* and a 12 t rating is very hard to overload.
+
+So the Culverin — a gun designed so that hull mass tames its recoil, i.e. a
+Bastion gun — **cannot contribute to a heavy cell by construction**. It was
+authored against a goal function that its target chassis cannot reach. That is
+not a fact about the gun and it is not a fact about the Bastion; it is a property
+of the axis, and it is the fourth time this pass that the instrument turned out
+to be the thing under measurement.
+
+**What this means for docs/20 §2.** The weight axis does not express "this is a
+big mech". It expresses "this frame is overloaded", and the largest frame is the
+one that cannot be. One third of the archive's weight axis is effectively
+unreachable on one third of the chassis, so "fill the empty cells" is a skewed
+goal function — it systematically directs content at light frames carrying
+ballast. Recorded for the owner; changing a bucket rule is a design decision.
+
+**Verdict on `W-CV`.** Keep. It is drafted more heavily than anything else this
+pass produced and it does what its comment claims — mass buys accuracy, measured
+at 4.3 → 2.7 m/s of kick under twelve plates. But the cell it was authored for
+was the wrong target, and the honest description is "a strong long gun that wants
+a heavy frame", not "the part that fills `long/heavy/*`".
+
+**Cost elsewhere, recorded not tuned.** At the new hash: `W-AV` 58 → 24,
+`W-RG` 2 → 0 and now in `deadParts`, `annealed-bore` 13 → 4, `U-ARM` 71 → 112.
+All of it hash-confounded and none of it attributable, but the Longshot going to
+zero is worth a look in a deliberate balance pass. `verify` green, `game:audit`
+clean, nothing re-baselined.
