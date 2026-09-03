@@ -4827,3 +4827,52 @@ balance question, and the direction is at least defensible as written.
 **What this licenses.** `outputKw` is live, consumed where it counts, has no mod,
 and sits on the biggest separator in the game. That is F52's ordering item 1 for
 the third time, and it is the next thing to author.
+
+## F67 — The `outputKw` lever is bimodal, so it makes a bad mod: below 60% it changes nothing, above it deletes a reactor
+
+F66 identified `outputKw` as live, consumed where it matters, carrying no mod, and
+sitting on the biggest separator in the game (F58: power, `R-C40` +43 lift). The
+argument for a reactor-output mod was F47's: **a power cost the completer repairs
+is converted into cells**, so adding output should save a build a whole reactor's
+footprint.
+
+**Ceiling measured first, and the first measurement asked the wrong question.** I
+checked whether a `×1.3` boost on the largest reactor covers the *total* output of
+a multi-reactor build: 0 of 23. That is the wrong test — the completer adds
+reactor #2 because the margin is negative with #1 alone, so the question is
+whether the boost closes that *deficit*.
+
+**Re-measured properly**, across 110 assembled builds:
+
+```
+builds carrying 2+ reactors            23  (21%)
+cells spent on the extra reactors      4.8 per multi-reactor build
+deficit with the first reactor only    p25 9.5 kW · median 23.4 · p75 23.9 · max 56.8
+a +30% boost closes that deficit in     4 of 23  (17%)
+median deficit needs                    ~94% of a 25 kW reactor, or 59% of a 40 kW one
+```
+
+**So a +30% mod averts a second reactor in 17% of the cases where one exists** —
+about 3.6% of all builds — and otherwise supplies margin the completer would have
+supplied anyway. The cell saving that motivated the mod almost never happens.
+
+**And a mod big enough to matter is a mod too big to ship.** To close the median
+deficit it needs roughly `×1.6`, at which point one reactor does the work of two
+and the build keeps 4–9 cells — on the lever F58 measured as the largest
+separator in the game. There is no middle setting: **reactors are chunky, so the
+output lever is bimodal — irrelevant below about 60%, decisive above it.**
+
+That is the same shape as F37's ion cannon, where a counter in a fixed
+seven-template metagame is either dead or degenerate and never a decision. A lever
+with no gradient cannot be priced into a choice.
+
+**Verdict: not authored, and this is the third time measuring the ceiling first
+has prevented a part** — F39 (own-motion jitter, ±2 win points, no headroom), F58's
+`R-L35` (measured *after* authoring, and reverted), and this one. The pattern is
+now the cheapest thing in the loop: **the ceiling measurement costs ten minutes and
+has twice saved a part that would have been reverted and once saved one that was.**
+
+**Recorded for the owner:** if the completer's reactor seeding is ever changed
+(F59's open question — smallest, versus smallest that covers demand), the deficit
+distribution above changes with it, and this lever may become gradual enough to
+price. The two are the same decision seen from opposite ends.
