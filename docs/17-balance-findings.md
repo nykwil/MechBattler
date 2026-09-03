@@ -5023,3 +5023,54 @@ worth having would be one that moves the *cliff* — a gun that keeps firing pas
 — it removed a constant no content could reach — but nobody should expect it to
 grow. If a coolant bath is ever meant to matter, the thing to derive it from is the
 fire-hold cliff, not the dispersion curve.
+
+## F70 — Most damage bypasses parts entirely, so prevention beats absorption, and the ticket-dilution lever is not one
+
+**Hypothesis.** `applySpatialHit` picks a target from
+`equipment.length + chassis.chassisHitTickets`, so **exposed equipment dilutes
+chassis hits** — and F40 found `chassis-failure` is the dominant loss mode. The
+chassis ticket pools are 6 / 10 / 18 for Vulture / Mule / Bastion, and builds carry
+2–39 parts, so on paper the chassis share should swing from ~80% down to ~30%.
+That would make *any* cheap part a chassis-protection part, and nothing in the
+catalog is designed as filler.
+
+**Measured, and the arithmetic is wrong:**
+
+```
+build                 parts   chassis dmg   part dmg   chassis share   win%
+CH-5 W-AC  x2 arm0        3           158         79           67%      63
+CH-5 W-AC  x2 arm12      15           143         82           64%      74
+CH-9 W-BMB x2 arm0        3            84         24           78%      90
+CH-9 W-BMB x2 arm20      39           126         54           70%      85
+```
+
+**Adding 12 to 36 parts moves the chassis share by 3–8 points, not 50.** So
+`exposedEquipmentTickets` is not proportional to part count — it is built from the
+cells *facing the shooter* at the nearest depth, so it saturates at the chassis's
+silhouette and a build cannot buy meaningfully more of it. **Ticket dilution is not
+a lever**, and by gate 10 that is the end of the part idea.
+
+*(Chassis damage is read exactly from `chassisIntegrity`; part damage is estimated
+from `partsFinalHp` at a nominal 60 HP a part, so the share is approximate. The
+direction is robust — even at double the part-damage estimate the chassis still
+takes about half.)*
+
+### The larger finding: armour guards the minority
+
+**64–78% of the damage a mech takes lands on the chassis, not on equipment.** So
+`U-ARM` — which absorbs damage aimed at the *part it covers* — is protecting the
+smaller share, and nothing in the catalog protects the larger one. That is the best
+explanation yet for `U-ARM`'s median carrier fitness of **0.66** (F62) while every
+part that *wins* sits at 0.97–0.99: it is a good part guarding the wrong target.
+
+**And it explains why `raked-plating` worked.** A profile reduction cuts the
+probability of being hit *at all* — chassis and equipment alike — where armour
+absorbs one hit on one part. Prevention scales across the whole 100%; absorption
+scales across the 22–36% that reaches equipment.
+
+> **In this sim, preventing a hit is worth roughly three times absorbing one**,
+> because two-thirds of damage never touches a part. Any future defensive content
+> should move `targetProfile`, cover, or range — not hit points.
+
+**Authored nothing.** The measurement killed the part it was run for and produced
+a design rule instead, which is gate 10 working as intended for the fourth time.
