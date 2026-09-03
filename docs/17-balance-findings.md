@@ -4353,3 +4353,55 @@ its own small hazard.
 **Not fixed, recorded:** the reactor lineup is a settled choice, not a choice.
 Making electric competitive means moving `outputKw` or the density constants on
 shipped parts, which is a balance pass.
+
+## F59 — Adding the smallest part in a category silently changes the completer's default for every build in the game
+
+**The idea, and it was a good one.** F58 established that placeability is a
+function of footprint *size*, and that reactors — the category carrying the largest
+winner/loser lift in the game (`R-C40`, +43) — have a four-cell minimum, with
+**zero legal 2×2 placements on a Vulture or a Mule once two guns are down**. So: a
+two-cell reactor, `R-C16`, deliberately the worst in the catalog on both densities
+(8.0 kW/cell against 10.0, 0.080 kW/kg against 0.114) so that stacking never pays
+and it earns its place only when two cells are what is left. That is `U-VENT`'s
+trade exactly, in the category that matters most.
+
+**It broke two unrelated tests, and the cause is not the part.**
+
+```
+armourAssembly   U-MANTLE could not be completed beside W-RKT on any chassis
+coolantBath      tidecooler no longer cools a wading mech more (100.5 vs 98.7)
+```
+
+Neither test mentions reactors. Both changed because `assembleBuild` seeds a
+reactor before anything else and picks **`REACTORS()[0]` — the smallest by
+output**. Adding a 16 kW reactor made it the seed for *every assembled build in
+the game*, replacing the 25 kW Whisper, and every probe in the suite shifted
+underneath.
+
+> **A part that is an extremum in its category does not join the catalog; it
+> replaces a default.** The completer selects by `[0]` after sorting — smallest
+> reactor, smallest capacitor — so shipping the smallest anything silently
+> re-baselines every build the search or the tests produce. Nothing in docs/20 §6's
+> six-place registration checklist asks about this, and no guard catches it: the
+> two tests that failed did so for reasons that look nothing like the change.
+
+**And it makes a known weakness worse.** F21 already records that the completer
+under-sizes the reactor — *"it closes an energy gap with the smallest reactor that
+helps and cannot upgrade when cells run out — worth 25 points on one build"*. A
+smaller reactor is strictly more under-sizing. The part would have shipped a
+measured instrument defect deeper into every build.
+
+**Reverted**, second in a row, and for a better reason than the first: `R-L35` was
+dominated content, `R-C16` is content whose side effect is an instrument change.
+The distinction matters — the first should not exist, the second could, but not
+until the completer stops choosing by extremum.
+
+**A fourth question for the owner**, and it now blocks a real part rather than a
+hypothetical one: should `assembleBuild` seed the *smallest* reactor, or the
+smallest that covers the build's measured demand? F21 says the current rule costs
+up to 25 points on a heavy build. Changing it moves every assembled build in the
+game, which is why it is not mine — but until it changes, **no small reactor can be
+added to this catalog**, and that is a content gap held shut by a search heuristic.
+
+**Cost elsewhere.** None: reverted clean, 447 sim and 36 game tests green, enabled
+parts back to 38.
