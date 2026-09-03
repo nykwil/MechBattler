@@ -3700,3 +3700,54 @@ it while writing up a finding about checking things before believing them.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
 tuned or re-baselined.
+
+### F49 addendum — the stamp survived, and why
+
+The caution in F49 was warranted and the risk did not materialise. The sweep
+stamped `fd14516c`; the source with `W-LNC` in it hashes `1f115c99`. They differ,
+so the stamp was computed from the module state loaded at process start — Node's
+module cache means `catalog.ts` was read once, at import, before the edit. The
+report is internally consistent: pre-Lance stamp, pre-Lance workers, and `W-LNC`
+is absent from its coverage table as it should be.
+
+**Keep the rule anyway.** It held by a property of the module loader rather than
+by design, and a sweep that reloaded or a `dist` rebuild mid-run would have
+produced a report whose stamp lied. The rule costs nothing; the failure it
+prevents is silent.
+
+### F47 addendum — the Reticle is drafted *more* than the Abacus, and my prediction was wrong
+
+`artifacts/sight-12lock.json`, hash `fd14516c`:
+
+```
+U-SIGHT  coverage 14
+U-TC1    coverage  9
+```
+
+F47 concluded the Reticle would be *"close to invisible to a search that repairs
+power before it scores anything"* — that the completer's habit of answering a
+power deficit with a reactor would erase the axis the part trades on. **It is
+drafted more often than the part it was designed as an alternative to.**
+
+The mechanism I missed is that **repairing power is not free.** The completer does
+add a reactor, so no build is ever left browned out — but a reactor costs *cells*,
+and a 2×2 or 3×3 of them is a large bite out of a plate. A part that draws nothing
+does not avoid a brownout; it avoids the reactor that would have prevented one. So
+the Reticle's three cells and 220 kg are frequently cheaper in total footprint
+than the Abacus's one cell plus the reactor upgrade its 3 kW eventually forces.
+
+That is a real correction to the rule F47 proposed. The sharper version:
+
+> **A cost the completer repairs is not erased — it is converted.** Power becomes
+> cells, heat becomes perimeter, and the part that avoids the original cost still
+> avoids the conversion. What *is* erased is only the failure state, not the price.
+
+Which also means F41's `U-DRIVE` reading — 7 uses, and 2 of 101 close builds —
+should not be re-explained by the same argument I used there. It is drafted
+modestly for its own reasons, and the "completer erases the axis" story is now the
+weaker half of that finding.
+
+**Other movement at this hash, unattributable and untuned:** `ram-bore` climbs
+again to 29 from 21; `U-RAD` and `P-CAP` appear in `deadParts` for the first time
+in this pass; `W-SR`, `W-BR` and `U-SHELL` land in `neverOffered`. Gallery 249,
+four empty cells including `close/heavy/redliner` which has not been empty before.
