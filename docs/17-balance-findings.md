@@ -3528,3 +3528,64 @@ answer "did the game get more powerful", and a reader comparing two galleries an
 seeing an identical median would conclude nothing changed. The instrument for that
 question is `balance:report`'s per-build diff against the baseline, which is
 exactly what docs/20 §9 says not to re-cut and exactly why.
+
+## F47 — `U-SIGHT`, a second fire-control part, and the completer hides the thing it was built to trade
+
+**Hypothesis.** F45 showed fire control is the strongest lever in the catalog and
+that *stacking* it is already the wrong answer, so a second fire-control part must
+differ in what it costs, not in how much it gives. Power is what this pass keeps
+measuring as scarce, so a version that draws nothing should be a real second
+answer.
+
+**Authored.** `U-SIGHT`, "Reticle (optical sight)": `line(3)`, 220 kg, 20 HP,
+tier 2, `fireControlLateralMult` 0.55, **no draw**. Against the Abacus's 1 cell,
+50 kg, 3 kW and 0.4. Worse per cell, worse per kilogram, weaker on the lever, and
+the only one of the two that costs nothing to run. Sources multiply, so it stacks
+with an Abacus rather than replacing it.
+
+The heat-paying version would have been the sharper substitution and is not
+currently expressible — `HeatProfile.idleHeatKw` is declared and read by nothing
+(F46).
+
+**Reachability.** Completes alone on all three chassis, order-independent
+`[1,1,1]` in every case. All six registrations; the enabled-part count failed
+loudly first.
+
+**Measured, 20 seeds, whole roster:**
+
+```
+build            fitting   power kW  shots   hit%  dealt  taken  win%
+CH-5 W-AC x2     none           0.2  16902   69.1    386    228    69
+CH-5 W-AC x2     U-TC1          0.2  14348   84.1    443    177    86
+CH-5 W-AC x2     U-SIGHT        0.7  15124   80.5    432    189    84
+CH-2 W-CB x2     none           3.9  18942   76.9    472     76    94
+CH-2 W-CB x2     U-TC1          1.7  14570   95.5    480     68    96
+CH-2 W-CB x2     U-SIGHT        5.8  16594   90.3    474     76    96
+CH-9 W-CV x2     none           0.2   2308   52.4    382     74    96
+CH-9 W-CV x2     U-TC1          0.2   1944   70.0    408     27    99
+CH-9 W-CV x2     U-SIGHT        0.5   1996   64.5    402     36    99
+```
+
+It works — +15 win points over nothing on the Mule, and it ties the Abacus on the
+other two frames while giving up 4–6 points of hit rate. That is the intended
+shape: a weaker computer that any build can run.
+
+**But the trade it was built around does not show up, and the reason is the
+completer.** The differentiating condition is a build too power-starved to run an
+Abacus, and `assembleBuild` does not produce those — it answers a negative energy
+margin by adding a reactor, so by the time a build is scored it can afford the
+3 kW and the Reticle's advantage has been designed away. Look at the power column:
+the Abacus costs CH-2 2.2 kW of margin and the Reticle *raises* margin, but only
+because its three cells crowd out other draw, not because the build was ever short.
+
+**Verdict.** Keep, with the limitation stated. It is a legitimate second answer
+for a player building by hand under a tight reactor, and close to invisible to a
+search that repairs power before it scores anything. That is the same shape as
+F41's `U-DRIVE` — a part aimed at a condition the instrument removes — and the
+second time this pass that **the completer's helpfulness erases the axis a part was
+designed to trade on.** Worth remembering before authoring a third: *if the cost
+your part avoids is one `assembleBuild` fixes for free, the breeder will never see
+the point of it.*
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
+tuned or re-baselined.

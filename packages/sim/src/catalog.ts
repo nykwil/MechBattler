@@ -85,6 +85,33 @@ export const PARTS: Record<string, PartDef> = {
     // perfect leading, and the cost is what limits it rather than a cap.
     fireControlLateralMult: 0.4,
   },
+  // The second fire-control part `types.ts` invites, and it is deliberately not a
+  // stronger Abacus. docs/17 F45: one Abacus is +15 hit points and +17 win points
+  // on a Mule -- the largest single-part effect measured anywhere in this pass --
+  // because the mech travels 93% of the fight and so does its target, so nearly
+  // every shot is fired at a crosser and leading error dominates the hit model.
+  // But a *second* Abacus takes CH-2 W-CB from 96% to 90% while hit rate still
+  // climbs to 98.8%: above about 95% there is nothing left to buy and the cell
+  // and the 3 kW are pure cost. Stacking is already the wrong answer, so a
+  // stronger version would only make it wronger.
+  //
+  // What binds instead is power. This pass has repeatedly watched a build fit
+  // what it wanted and read back "energy margin -15.2 kW, but no legal cell is
+  // left for a reactor". So the Reticle buys the same lever with **no draw at
+  // all**, and pays in the two currencies that are expressible: three cells and
+  // 220 kg against the Abacus's one cell and 50 kg. Worse per cell, worse per
+  // kilogram, and the only one of the two a browned-out build can actually use.
+  //
+  // 0.55 against 0.4 keeps the Abacus the better computer wherever the power is
+  // there to spare, which is the point -- this is a second answer, not a
+  // replacement. (A version paying in heat would have been the sharper
+  // substitution; `HeatProfile.idleHeatKw` is declared and read by nothing, so it
+  // is not currently expressible -- docs/17 F46.)
+  'U-SIGHT': {
+    id: 'U-SIGHT', name: 'Reticle (optical sight)', category: 'utility',
+    shape: line(3), massKg: 220, hp: 20, tier: 2,
+    fireControlLateralMult: 0.55,
+  },
   'U-ACT': {
     id: 'U-ACT', name: 'Stride (servo booster)', category: 'utility',
     shape: line(2), massKg: 160, hp: 25, tier: 2,
