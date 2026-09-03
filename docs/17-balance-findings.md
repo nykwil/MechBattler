@@ -2850,3 +2850,65 @@ obviously correct is measurably wrong, which is worth knowing before anyone
 bundles the two into a unique. That was the unique I was about to author, and
 uniques.ts's own rule stopped it — a unique that is only *worse* than its stock
 part is not identity either.
+
+## F37 — `W-ION` cannot score well no matter how it is designed, because the panel it is measured against carries no capacitors
+
+Ninth lever examined, and it is dead for a reason that is neither the gun nor the
+search: it is the fitness function.
+
+**Hypothesis.** `W-ION` is dead because `capDrainKj` attacks a subsystem almost no
+build carries, so a system-attacking weapon is a counter with nothing to counter.
+
+**The panel, measured.** `stamp.fullPanel` is seven canonical templates, and
+capacitors are in exactly one of them:
+
+```
+vulture-skirmisher  0 caps      mule-laser-boat  0 caps
+mule-gunline        0 caps      railgun-mule     3 caps, 180 kJ
+mule-skirmisher     0 caps      vulture-sniper   0 caps
+bastion-tank        0 caps
+```
+
+**And the win rates track it exactly.** `CH-5` with two guns, 20 seeds, against
+each panel member, with `W-LAS` as the control — same chassis, same slot, an
+energy gun with no system attack:
+
+```
+opponent             caps   W-ION   W-LAS
+vulture-skirmisher     0      0%     20%
+mule-gunline           0     10%     85%
+mule-skirmisher        0      5%     70%
+mule-laser-boat        0      0%     55%
+railgun-mule           3     35%     50%
+vulture-sniper         0      5%     25%
+bastion-tank           0      0%     80%
+```
+
+The ion's best matchup by a factor of three is the only opponent with a bank to
+drain, which is the identity working. It is also the *only* matchup where the ion
+outperforms the laser's relative standing. Everywhere else it is 0–10% against
+the control's 20–85%.
+
+**So the design is legible and the gun is still bad**, because its ceiling is set
+by panel composition rather than by its own numbers. Fitness here is "win against
+these seven", so a counter-weapon's score is bounded by how much of the panel it
+counters — one seventh — and even that matchup loses at 35%.
+
+**Nothing I can author fixes this.** Rebalancing `capDrainKj` upward would make
+the ion dominant against `railgun-mule` and still useless against six others; the
+distribution would get more extreme, not more interesting. A counter in a fixed
+metagame is either dead or degenerate, never a decision.
+
+**What would**, and both are the owner's call:
+
+- **A second capacitor-carrying template on the panel.** Two of seven is still a
+  read on a niche, but it makes the ion a gamble rather than a coin already
+  flipped. `railgun-mule` is the only cap-fed build on the panel and `W-SR`,
+  `P-CAP2` and the whole cap-fed class exist to be built from.
+- **Or a floor that lands on any target.** `W-SC` is the worked example of the
+  other shape: `enemyHeatKj` 6 on a 0.4 s cycle is **15 kJ/s**, and every build
+  has a thermal system to push on, so the flamer's system attack always does
+  something. The ion's does not.
+
+Recorded rather than acted on: changing the panel changes every fitness number in
+this file, and it is a measurement decision rather than a content one.
