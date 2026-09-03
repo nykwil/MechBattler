@@ -2814,3 +2814,39 @@ content one, and not mine to take.
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Redliner
 builds should become rarer across the archive; that is a prediction and the sweep
 below tests it. Nothing tuned, nothing re-baselined.
+
+### F34 addendum — the Culverin's mechanism, measured with a control
+
+F34 claimed "mass buys accuracy" from reading the code path and measuring the
+*impulse* (4.3 → 2.7 m/s of kick under twelve plates). It never measured the
+accuracy. That gap is closed here, and the claim survives — but only because the
+control was run.
+
+One chassis, one gun, mass as the only variable, with a zero-recoil gun given the
+identical treatment:
+
+```
+                       massT   kick m/s   shots   hit%
+CH-9 W-CV x2  bare      5.75      5.22     1190   52.0
+CH-9 W-CV x2  + 8       6.90      4.35     1166   52.6
+CH-9 W-CV x2  +35      11.25      2.67     1042   55.6
+
+CH-9 W-KL x2  bare      4.85      0.00     1542   69.9   <- control, no recoil
+CH-9 W-KL x2  +15       6.94      0.00     1623   69.2
+CH-9 W-KL x2  +37      10.29      0.00     1688   68.5
+```
+
+**Hit rate rises monotonically with mass on the recoil gun (+3.6 points across a
+doubling) and *falls* slightly on the control (−1.4).** So mass by itself does not
+buy accuracy — if anything it costs a little — and the difference-in-differences
+of roughly five points is the recoil term, isolated. The mechanism is real and it
+is modest, which is the honest size to quote.
+
+**And the mod that looks made for it makes it worse.** `gyrostabilized` scales
+own-motion aim jitter ×0.4 for 15% more weapon mass — apparently exactly the
+Culverin's problem — and measures **96% → 90%** on `CH-9 W-CV:2` and 99% → 97% on
+CH-5, at 20 seeds. Recorded rather than explained: the pairing that reads as
+obviously correct is measurably wrong, which is worth knowing before anyone
+bundles the two into a unique. That was the unique I was about to author, and
+uniques.ts's own rule stopped it — a unique that is only *worse* than its stock
+part is not identity either.
