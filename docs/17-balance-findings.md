@@ -4115,3 +4115,70 @@ for it.
 **Also at this hash, unattributable:** `U-MANTLE` and `U-ACT` enter `deadParts`,
 `W-SC` falls 35 → 26 (the Sear plausibly displacing the flamer, same band, same
 mechanism), gallery 263 against 283.
+
+## F55 — A dead zone does not push the fight outward, because the pilot chooses where it *stands* and spends 93% of the fight travelling
+
+Second idea under F52's ordering, item 2: **a cost no part currently pays.**
+`falloff.min` is live and consumed — `falloffAt` returns a hard 0 below it — and
+exactly one weapon authors it, `W-MG` at 10 m, where its ideal band starts anyway.
+
+**Hypothesis.** A real dead zone should make the pilot *stand off*: it picks its
+standing range by scanning the exchange curve, and that curve reads exactly zero
+inside the zone, so an artillery piece should change where the fight happens
+rather than merely suffer up close. That is docs/20 §2's first and strongest
+signal and nothing had tested it.
+
+**Authored.** `W-BMB`, "Bombard (siege artillery)": 3×2, 1000 kg, tier 4,
+ballistic, 95 damage on a 7 s cycle — **13.6 dps, the best of any long gun**
+against the Culverin's 11.7 — ideal 100–190, max 300, and **`falloff.min` 60**,
+where fights currently spend 30.8% of their time (F54). Charged for twice: the
+dead zone, and 200 m/s, which is 0.95 s of flight at 190 m, so it eats the lead
+error the Lance was authored to escape.
+
+**Reachability.** Alone on CH-5 and CH-9, order-independent `[1,1,1]`; refused on
+CH-2, where a 3×2 does not fit a Vulture region. All six registrations —
+`weaponClass`, `powerBudget` and the enabled-part count all needed hand edits.
+
+**Measured, 15 seeds, whole roster — and the hypothesis is false:**
+
+```
+build          median range  % under 60 m   hit%  dealt  taken  win%
+CH-5 W-BMB x2           127        11.0     55.6    400     51     95
+CH-5 W-CV  x2           195         0.0     50.1    401     20    100
+CH-5 W-KL  x2           116         5.3     72.0    429     73     96
+CH-9 W-BMB x2           112        27.7     49.7    389    162     87
+CH-9 W-CV  x2           164         2.3     52.1    391     85     95
+```
+
+**The Bombard fights *closer* than the Culverin, not further** — median 127 m
+against 195 — and spends **11% of its fight on CH-5 and 27.7% on CH-9 inside its
+own dead zone**, where it does literally nothing. On the Bastion that costs it
+162 damage taken against the Culverin's 85, nearly double, for the same damage
+dealt.
+
+**The mechanism is F38.** The exchange scan chooses where the mech wants to
+*stand*, and standing is 7.2% of the fight; the other 92.8% is transit, during
+which the mech passes through its own dead zone and the *enemy* decides how close
+to come. A cost keyed to range is therefore a cost the pilot cannot avoid paying,
+because it does not control range — it controls a preference it acts on for one
+tick in fourteen.
+
+**This is the second falsified premise about steering the pilot.** F35: a reward
+cannot make a build run hot, because heat is set by the gun, frame and cooling. F55:
+a cost cannot make a build stand off, because range is set by transit and the
+enemy. Together:
+
+> **Weapon economics do not steer pilot behaviour.** Both attempts to change what
+> the autopilot does by pricing a part failed, in opposite directions. docs/20 §2
+> ranks "it changes what the autopilot does" as the strongest signal a part can
+> have — and on this evidence a *part* cannot produce it at all. That is a
+> statement about the four verbs, not about the two parts.
+
+**Verdict.** Keep, with the premise struck out. It is a real weapon — 95% and 87%,
+the best printed dps of the long guns — but it is *worse* than the Culverin at both
+chassis it fits, and it is worse for exactly the reason it was supposed to be
+interesting. The dead zone is a pure cost with none of the positioning payoff the
+design was built on.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
+tuned or re-baselined.

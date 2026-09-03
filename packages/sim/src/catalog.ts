@@ -550,6 +550,37 @@ export const PARTS: Record<string, PartDef> = {
   // struck part hold fire, past 130 shuts it down, past 150 damages it. And it
   // cooks itself doing it, 7.5 kW sustained, so the mech that carries one is
   // spending its own thermal headroom to spend the enemy's.
+  // The only gun that pays a dead zone. docs/17 F54: `falloff.min` is live and
+  // consumed -- `falloffAt` returns a hard 0 below it -- and exactly one weapon
+  // authors it, `W-MG` at 10 m, where its ideal band starts anyway, so it pays
+  // nothing. Meanwhile the engagement-range distribution over 145,338 frames puts
+  // the median fight at 85 m, with 30.8% of fight time inside 60.
+  //
+  // So a 60 m dead zone is a real price -- nearly a third of the range axis as
+  // the game currently uses it -- and it is the *interesting* kind, because the
+  // pilot picks its standing range by scanning the exchange curve and that curve
+  // reads exactly zero inside the zone. An artillery piece should not merely
+  // suffer up close; it should push the fight outward. That is docs/20 §2's
+  // first and strongest signal, "it changes what the autopilot does", and
+  // nothing in the catalog has tested it.
+  //
+  // Paid for with the best sustained damage of the long guns -- 13.6 dps against
+  // the Culverin's 11.7, the Lance's 10.8 and the Kiln's 10.7 -- and charged for
+  // twice over: 200 m/s is 0.95 s of flight at 190 m, so it eats the lead error
+  // the Lance was authored to escape (F49). Reach, damage, and a gun that cannot
+  // defend itself or lead a crosser.
+  'W-BMB': {
+    id: 'W-BMB', name: 'Bombard (siege artillery)', category: 'weapon',
+    shape: rect(3, 2), massKg: 1000, hp: 60, tier: 4,
+    heat: { heatPerShotKj: 20 },
+    weapon: {
+      weaponClass: 'ballistic',
+      damage: 95, cycleS: 7, projectileSpeed: 200, dispersionMrad: 5,
+      falloff: { min: 60, idealMin: 100, idealMax: 190, max: 300 }, mountArcDeg: 40,
+      recoilKnS: 20,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 3, clearsForward: 1 },
+  },
   'W-SER': {
     id: 'W-SER', name: 'Sear (induction beam)', category: 'weapon',
     shape: line(3), massKg: 240, hp: 25, tier: 3,

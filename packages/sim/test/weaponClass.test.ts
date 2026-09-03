@@ -19,6 +19,7 @@ const EXPECTED: Record<string, WeaponClass> = {
   'W-CB': 'ballistic',
   'W-BR': 'ballistic',
   'W-AV': 'ballistic',
+  'W-BMB': 'ballistic',
   'W-CV': 'ballistic',
   'W-LNC': 'energy',
   'W-SER': 'energy',
