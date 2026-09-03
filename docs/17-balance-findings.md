@@ -3839,3 +3839,49 @@ paying accuracy rather than being refused outright — which is a new rule and t
 owner's. Recorded rather than asked, because unlike the three questions already
 outstanding this one has no content blocked behind it. It is a reason *not* to
 build, and that is worth as much as a reason to.
+
+### F49 addendum — the Lance is the most-drafted weapon in the sweep and fills both heavy/redliner cells
+
+`artifacts/lance-12lock.json`, hash `1f115c99`.
+
+```
+W-LNC coverage 48, in 31 of 283 gallery builds   <- most-drafted weapon in the run
+gallery      283   (previous run 249, the largest of this pass)
+emptyCells   ["long/heavy/cold"]   — one, down from four
+```
+
+**Build-level attribution, which is the only kind F22 permits, and it is
+affirmative:**
+
+```
+mid/heavy/redliner    1 build, fitness 0.99, CARRIES W-LNC
+                      CH-2  R-C40 W-LNC W-MG + 5 plates
+long/heavy/redliner   1 build, fitness 0.99, CARRIES W-LNC
+                      CH-2  R-C40 W-LNC + 7 plates
+mid/heavy/cold        1 build, no Lance (a CH-5 Culverin build)
+close/heavy/redliner  5 builds, no Lance
+```
+
+**Both heavy/redliner cells — empty through almost this entire pass — are filled,
+and both builds carry the Lance.** That is the design working end to end and it is
+worth naming why, because it was not the stated goal. The Lance was authored for
+*reach without lead error* (F49) and paid in heat because F47 said a power cost
+gets repaired away. Heat is what made it fill a **redliner** cell: a build carrying
+two of them runs a negative margin by construction, and armour ballast on a
+Vulture supplies the *heavy*. The part reached a cell it was not aimed at, through
+the cost it was given rather than the benefit it was designed for.
+
+That is the opposite of `U-DRIVE` (F41), which was aimed squarely at `close/heavy`
+and never landed there. **Costs place a part in the archive at least as much as
+benefits do** — the axes are range, weight and heat, and two of those three are
+costs.
+
+**What it displaced, and the caveat.** The other long guns all fall at this hash:
+`W-KL` 37 → 21, `W-CV` 51 → 27, `W-LAS` 34 → 16. The hash moved, so none of that
+is attributable — but a new gun taking 48 draws in the band the other three share
+is the obvious reading and I will not pretend it is not. `cold-bore` enters
+`deadMods`; `U-VENT` and `P-CAP` enter `neverOffered`. Recorded, not tuned.
+
+**Verdict on `W-LNC`: keep, and it is the best content outcome of this pass.**
+Most-drafted weapon, largest gallery on file, and the only part all session with
+affirmative build-level attribution into a previously empty cell.
