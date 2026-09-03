@@ -5246,3 +5246,88 @@ assertion that pins the fill logic (`rank <= budget + dearestMod`) never failed.
 floor that one tier-3 mod can cross is not guarding what its comment says it
 guards. Flagging it as a test I loosened to accommodate my own content, which is
 the category that deserves a second opinion.
+
+## F73 — Three of the four heat thresholds have never fired, and one negative feedback loop is why
+
+**Hypothesis.** `game:audit` warns that `sacrificial-casing` has no enabled carrier:
+it is `appliesTo: (d) => d.id === 'U-AMMO'`, and `U-AMMO` is a dead placeholder. That
+looked like a small reachability bug. Following it found the cook-off check in
+`simulation.ts:812`:
+
+```ts
+if (hottest >= 180 && p.partId === 'U-AMMO' && !rt.cookedOff) { … }
+```
+
+A **hardcoded part id** — which `types.ts:133` already names as "the mistake" in its
+own comment. So the whole cook-off mechanism (a threshold, an event type, splash
+damage to edge-adjacent neighbours at `combat.ts:1880`, the `cookoffSplash` knob,
+the `ammo-cookoff-risk` validation code, and one mod) can only ever fire on a part
+that does nothing. Un-hooking it from that id looked like the content unlock.
+
+**Measured before asking for it, and the answer is much worse.** Peak
+`hottestCellC` ever observed, over the canonical roster and over builds
+deliberately overloaded with the hottest gun in the catalog and no cooling at all:
+
+```
+build                          peak     <115   115-130   130-150   150-180   >=180
+canonical roster              115.5 °C  99.5%     0.5%      0.0%      0.0%    0.0%
+CH-9 W-KL x3 bare             125.2 °C  92.7%     7.3%      0.0%      0.0%    0.0%
+CH-9 W-KL x4 bare             123.8 °C  98.0%     2.0%      0.0%      0.0%    0.0%
+CH-2 W-KL x2 bare             125.6 °C  97.4%     2.6%      0.0%      0.0%    0.0%
+CH-9 W-SC x3 + hot-running    115.2 °C 100.0%     0.0%      0.0%      0.0%    0.0%
+```
+
+**Nothing has ever exceeded 125.6 °C.** The four thermal thresholds are fire-hold
+115, shutdown 130, heat damage 150, cook-off 180 — so **shutdown, heat damage and
+cook-off are all structurally unreachable**, and un-hooking cook-off from `U-AMMO`
+would have changed nothing at all. That is the second time this pass a content
+idea died on the measurement that preceded it, and both times the measurement was
+worth more than the part.
+
+### The mechanism: fire-hold is a governor, and there is nothing for it not to govern
+
+Fire-hold is a **negative feedback loop** — the gun gets hot, the gun stops firing,
+the gun stops making heat — so it clamps the system just below the next threshold.
+That explanation only holds if every heat source is a gun, so I tested a heat
+source fire-hold cannot reach:
+
+```
+build                                    mean demand    peak
+R-C90 + W-KL x3                                        121.0 °C
+R-C90, no weapons                                       26.0 °C
+R-C40, no weapons                                       26.2 °C
+R-C90 + 4x U-ACT + 2x U-TC1, no guns        22.0 kW     26.0 °C
+R-C90 + W-LAS x3                            54.0 kW     96.3 °C
+```
+
+**22 kW of continuous electrical demand for a whole fight raises the mech one
+degree.** Reactors emit nothing, utilities emit nothing, and no part in the catalog
+declares any standing heat. Every joule in this game is emitted by a weapon at the
+instant it fires, and firing is exactly what fire-hold stops. The loop is closed,
+with no term outside it.
+
+> The heat system is a **one-threshold system wearing four**. 115 °C is the whole
+> of it; 130, 150 and 180 are decoration.
+
+This is the mechanical root of F69, which measured heat's total accuracy cost at
+1.3–5.5% and concluded heat behaves as a step function. It is a step function
+because it is a governed loop with a single trip point.
+
+### What it means for content
+
+Everything below is currently unauthorable, and one missing term is why:
+
+- Nothing can be built that risks **shutdown**, **heat damage** or **cook-off**.
+- `cookoffSplash`, `sacrificial-casing`, the cook-off event, the splash code and
+  `ammo-cookoff-risk` are all dead, and fixing the hardcoded id will not revive them.
+- `hot-running`, `insulated-mount`, `thermalMass` and `conduction` all operate
+  inside a 25–125 °C band with exactly one consequence at the top of it.
+- No mod can bend it: `HEAT_FIRE_HOLD_C` is a constant, not an `EffectiveMults`
+  channel, so no content can move the one trip point that exists.
+
+**Authored nothing.** The unlock is `idleHeatKw` — a part that emits heat whether or
+not it fires — which is already parked as F46's open decision. F46 asked for it as
+"so a part can run hot"; this finding says what it actually buys: **it is the only
+term that puts a heat source outside the governor's loop**, and it would bring an
+entire already-implemented mechanic, its knob, its mod and its validation code back
+from the dead in one move. That is a mechanic decision, so it stays with the owner.
