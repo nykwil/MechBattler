@@ -632,11 +632,11 @@ function applyBetweenBattlePolicy(
  * and protection, the other buys reach — where survival and armor did not.
  */
 const POLICY_BRANCH: Record<ProgressionPolicyId, Record<string, string>> = {
-  range: { 'CH-2': 'probe-vulture-range', 'CH-5': 'probe-mule-gunline', 'CH-9': 'probe-bastion-casemate' },
-  thermal: { 'CH-2': 'probe-vulture-cold', 'CH-5': 'probe-mule-thermal', 'CH-9': 'probe-bastion-thermal' },
-  armor: { 'CH-2': 'probe-vulture-close', 'CH-5': 'probe-mule-brawler', 'CH-9': 'probe-bastion-suppression' },
-  survival: { 'CH-2': 'probe-vulture-range', 'CH-5': 'probe-mule-gunline', 'CH-9': 'probe-bastion-casemate' },
-  skirmish: { 'CH-2': 'probe-vulture-close', 'CH-5': 'probe-mule-thermal', 'CH-9': 'probe-bastion-suppression' },
+  range: { 'CH-2': 'probe-vulture-range', 'CH-5': 'probe-mule-gunline', 'CH-7': 'probe-ridgeline-spine', 'CH-9': 'probe-bastion-casemate' },
+  thermal: { 'CH-2': 'probe-vulture-cold', 'CH-5': 'probe-mule-thermal', 'CH-7': 'probe-ridgeline-thermal', 'CH-9': 'probe-bastion-thermal' },
+  armor: { 'CH-2': 'probe-vulture-close', 'CH-5': 'probe-mule-brawler', 'CH-7': 'probe-ridgeline-armour', 'CH-9': 'probe-bastion-suppression' },
+  survival: { 'CH-2': 'probe-vulture-range', 'CH-5': 'probe-mule-gunline', 'CH-7': 'probe-ridgeline-spine', 'CH-9': 'probe-bastion-casemate' },
+  skirmish: { 'CH-2': 'probe-vulture-close', 'CH-5': 'probe-mule-thermal', 'CH-7': 'probe-ridgeline-armour', 'CH-9': 'probe-bastion-suppression' },
 };
 
 function startingBuild(profileId: ProgressionProfileId, policy: ProgressionPolicyId, chassisId: string): { id: string; build: Build } {

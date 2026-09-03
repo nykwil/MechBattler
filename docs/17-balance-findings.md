@@ -5331,3 +5331,112 @@ not it fires — which is already parked as F46's open decision. F46 asked for i
 term that puts a heat source outside the governor's loop**, and it would bring an
 entire already-implemented mechanic, its knob, its mod and its validation code back
 from the dead in one move. That is a mechanic decision, so it stays with the owner.
+
+## F74 — CH-7 Ridgeline, and why aspect ratio is not the axis it looks like
+
+**Hypothesis.** `chassisTier` shipped 1, 2 and 4. **Tier 3 is a literally empty
+rung**, and rated mass doubles across the three frames (3.0 / 6.0 / 12.0 t), so the
+missing chassis is a 9-tonne one. Nothing about the gap is subtle; it had simply
+never been authored.
+
+### The shape axis, measured before using it — and abandoned
+
+The obvious way to make a fourth frame *different* rather than merely *between* is
+shape. `projectedHalfWidthM` mixes half-length and half-width by facing:
+
+```ts
+halfLen * |fwd·perp| + halfWid * |rgt·perp|
+```
+
+so a long narrow frame should be hard to hit head-on and easy to hit broadside —
+a real trade, and the existing chassis are all near-square (5×4, 6×6, 8×9; aspect
+1.25, 1.00, 0.89), so the cell is genuinely empty. **The autopilot never gives it
+up.** Sampled over the full template matrix, the angle a mech presents to its
+enemy:
+
+```
+  0-15°  100.0%      15-30°  0.0%      30-45°  0.0%      45°+  0.0%
+```
+
+**100% of frames are within 15° of nose-on.** So `fwd·perp ≈ 0`, only
+`chassis.width` ever reaches the hit model, and `height` is free cells. Aspect
+ratio is not a trade, it is an **unpriced stat**: a tall thin chassis would be
+strictly best rather than different. CH-7 is therefore deliberately square (7×7),
+and the shape axis stays shut until facing varies.
+
+*(A smaller inconsistency fell out of the same measurement: planning uses
+`meanSilhouetteHalfWidthM = (w+h)/4` while shot resolution uses `w/2`. The
+autopilot therefore over-rates how hittable a Bastion is, 4.25 against 4.0 cells,
+and under-rates a Vulture, 2.25 against 2.5. Small, and noted rather than fixed.)*
+
+### What was authored
+
+**CH-7 Ridgeline**, Line quad, tier 3, 9.0 t rated, 7×7 (37 usable cells, between
+the Mule's 32 and the Bastion's 56), 5.0/2.5/2.0 m/s, turn 65°/s, 14 hit tickets,
+480 integrity. Every number interpolates between the Mule and the Bastion on
+purpose — **the identity is geometric, not statistical**:
+
+> The **spine** is a full 3×7 block: the only zone in the catalog both three cells
+> wide and deep enough to swallow a 2-wide gun, so it is the only place `W-SR` or
+> `W-RG` can sit *wholly inside* a zone and claim its effect. The Vulture's
+> hardpoints are too narrow for a 2-wide footprint; the Bastion's hull offers heat
+> rather than reach. Zone effect: **Ranging spine, +15% range.**
+
+That aims at two guns the sweeps keep reporting as unreachable — `W-RG` in
+`deadParts`, `W-SR` in `neverOffered`.
+
+### Four instrument facts, each found by it refusing to work
+
+1. **The core cell's *column* decides whether a long gun can run the frame's
+   length.** Authored `coreCell` at (3,3) — dead centre of a 7×7 — and `W-RG` was
+   refused `core-occupied` at all six origins the grid otherwise accepted, so the
+   frame built to home the railgun could not mount it. The Mule (2,2 in a body
+   spanning 0–5) and the Bastion (2,4 in a hull spanning 2–5) both edge their
+   cores. Moved to (2,3) and it fits.
+2. **The completer still seeds the reactor first, and on a narrow frame that is
+   fatal.** `R-E25` is 2 cells wide and lands at spine (2,0) before the wished
+   gun, leaving one free column where a 2-wide gun needs two — so `assembleBuild`
+   returns a Ridgeline with **no weapon at all** when asked for `W-RG`, while
+   `complete: false` places it immediately. `W-SR` (2×4) still completes fine.
+   This is the parked F59/F67 decision, reproduced on new geometry: fresh evidence
+   for it, not something I worked around.
+3. **`assembleBuild` knows nothing about location zones.** Asked for `W-SR` on
+   CH-7 it parked the gun in a *sponson*, reading a 1.00 range multiplier instead
+   of the spine's 1.15. A generated probe would have taught the wrong frame, so
+   the range probe is hand-placed.
+4. **The per-part spatial check and the whole-build validator disagree about
+   radiators.** `checkSpatialPartPlacement` accepted `U-RAD` at spine (2,5);
+   `validateBuild` rejected it `perimeter-required`. Anything laying out by the
+   per-part check alone can produce a build the loader refuses.
+
+Plus one contract worth writing down: **a branch probe may only use the one-hour
+inventory.** The first `probe-ridgeline-spine` reached for `W-SR` and `P-CAP2`,
+both outside it. The shipped probe is two identical carbines — one in the spine
+reading **1.15**, one on the flank reading **1.00** — so the probe teaches the
+frame by contrast.
+
+### What moved
+
+`sim:try` against the canonical roster, 6 seeds — **recorded, not tuned**:
+
+```
+CH-7 W-SR      tier 11   36%    never loses to bastion-tank; never beats either mule
+CH-7 W-AC x2   tier 18   69%
+CH-7 W-CV x1   tier 19   88%
+CH-7 W-KL x2   tier 30   98%    ! wanted another radiator — no perimeter cell left
+```
+
+The Kiln build at 98% is a swing worth flagging, though the roster is weak against
+Kilns generally and this is six seeds. The `!` line names the frame's real
+constraint: a 7×7 octagon has a short perimeter, and radiators need one.
+
+A 1-lock budget-40 smoke sweep confirms CH-7 is **offered and breedable** — it
+fills gallery cells and is still climbing at the top of the range. Its I3 line
+lists `cold-shroud` as offered-but-never-wanted, which at one lock is exactly the
+reading docs/20 §7 gate 1 says not to believe.
+
+### What it cost elsewhere
+
+`game.test.ts`'s "three branchable chassis" became four, and `savedMechs` 9 → 12.
+That is an inventory assertion tracking authored content, not a threshold relaxed
+to fit it — unlike F72's floor, which still wants a second opinion.

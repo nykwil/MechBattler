@@ -114,7 +114,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
 
 export const INITIAL_PART_IDS = ['R-E25', 'W-MG', 'W-CB', 'W-PIN', 'U-CON', 'U-PIPE', 'U-RAD', 'U-ARM'];
 export const ENABLED_PART_IDS = Object.keys(PARTS).filter((id) => id !== 'U-AMMO');
-export const ENABLED_CHASSIS_IDS = ['CH-2', 'CH-5', 'CH-9'];
+export const ENABLED_CHASSIS_IDS = ['CH-2', 'CH-5', 'CH-7', 'CH-9'];
 export const ONE_HOUR_PART_IDS = [
   ...INITIAL_PART_IDS,
   'R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE',

@@ -156,14 +156,19 @@ describe('game content', () => {
     expect(again.gains.challengeIds).toEqual([]);
   });
 
-  it('defines the exact one-hour inventory and three branchable chassis', () => {
+  it('defines the exact one-hour inventory and four branchable chassis', () => {
     const profile = oneHourProfile();
     expect(profile.schemaVersion).toBe(GAME_SAVE_VERSION);
-    expect(profile.unlockedChassisIds).toEqual(['CH-2', 'CH-5', 'CH-9']);
+    // CH-7 Ridgeline added 3 Sep 2026 (docs/17 F74): chassisTier 3 was the empty
+    // rung between the Mule and the Bastion. Every branchable chassis needs three
+    // probe templates, and a probe may only use the one-hour inventory -- which
+    // is what caught the first draft of `probe-ridgeline-spine` reaching for the
+    // Pinion and the Reservoir.
+    expect(profile.unlockedChassisIds).toEqual(['CH-2', 'CH-5', 'CH-7', 'CH-9']);
     expect(profile.unlockedPartIds).toEqual(ONE_HOUR_PART_IDS);
-    expect(profile.savedMechs).toHaveLength(9);
+    expect(profile.savedMechs).toHaveLength(12);
     expect(new Set(profile.savedMechs.map((mech) => mech.build.chassisId)))
-      .toEqual(new Set(['CH-2', 'CH-5', 'CH-9']));
+      .toEqual(new Set(['CH-2', 'CH-5', 'CH-7', 'CH-9']));
   });
 
   it('applies battle unlocks without browser state', () => {

@@ -279,6 +279,65 @@ function bastionTank(): Build {
   return wired({ chassisId: 'CH-9', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'tc', 'br'] });
 }
 
+/**
+ * CH-7 probes. The Ridgeline's identity is its spine -- the only zone in the
+ * catalog that is three cells wide and seven deep, so it is the only place a
+ * 2-wide long gun fits *wholly inside* a zone and takes its effect. The range
+ * probe therefore hand-places the Pinion in the spine rather than letting the
+ * assembler choose: `assembleBuild` knows nothing about location zones and put
+ * it in a sponson, where it reads 1.00 instead of the spine's 1.15 (docs/17
+ * F74). A probe that misses the frame's own mechanic teaches the wrong frame.
+ */
+function ridgelineRangingSpine(): Build {
+  const parts: PlacedPart[] = [
+    // Two identical carbines, one in the spine and one in a sponson, so the
+    // probe teaches the frame by contrast: `cbSpine` reads a 1.15 range
+    // multiplier and `cbFlank` reads 1.00. Authored with `W-SR` first, which is
+    // the gun the spine exists for -- but a branch probe may only use the
+    // one-hour inventory, and the Pinion and the Reservoir are both outside it.
+    regionalPart('cbSpine', 'W-CB', 'spine', 3, 0),
+    regionalPart('cbFlank', 'W-CB', 'left-sponson', 0, 2),
+    regionalPart('reactor', 'R-E25', 'right-sponson', 5, 2),
+    regionalPart('rad', 'U-RAD', 'spine', 2, 6),
+    regionalPart('a0', 'U-ARM', 'spine', 2, 0),
+    regionalPart('a1', 'U-ARM', 'spine', 2, 1),
+  ];
+  return wired({ chassisId: 'CH-7', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'cbSpine', 'cbFlank'] });
+}
+
+function ridgelineLaserLine(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-E25', 'spine', 2, 0),
+    regionalPart('las1', 'W-LAS', 'spine', 4, 0, 90),
+    regionalPart('las2', 'W-LAS', 'left-sponson', 1, 1, 90),
+    regionalPart('reactor2', 'R-E25', 'right-sponson', 5, 2),
+    regionalPart('a0', 'U-ARM', 'right-sponson', 5, 1),
+    regionalPart('a1', 'U-ARM', 'left-sponson', 0, 2),
+    regionalPart('a2', 'U-ARM', 'spine', 2, 2),
+    regionalPart('a3', 'U-ARM', 'spine', 3, 2),
+  ];
+  return wired({ chassisId: 'CH-7', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'las1', 'las2'] });
+}
+
+function ridgelineArmouredGunline(): Build {
+  const parts: PlacedPart[] = [
+    regionalPart('reactor', 'R-E25', 'spine', 2, 0),
+    regionalPart('ac1', 'W-AC', 'left-sponson', 0, 2),
+    regionalPart('ac2', 'W-AC', 'right-sponson', 5, 2),
+    regionalPart('a0', 'U-ARM', 'spine', 4, 0),
+    regionalPart('a1', 'U-ARM', 'left-sponson', 1, 1),
+    regionalPart('a2', 'U-ARM', 'spine', 4, 1),
+    regionalPart('a3', 'U-ARM', 'right-sponson', 5, 1),
+    regionalPart('a4', 'U-ARM', 'spine', 2, 2),
+    regionalPart('a5', 'U-ARM', 'spine', 3, 2),
+    regionalPart('a6', 'U-ARM', 'spine', 4, 2),
+    regionalPart('a7', 'U-ARM', 'spine', 3, 3),
+    regionalPart('a8', 'U-ARM', 'spine', 4, 3),
+    regionalPart('a9', 'U-ARM', 'spine', 2, 4),
+  ];
+  return wired({ chassisId: 'CH-7', parts, routes: [], powerPriority: [CORE_INSTANCE_ID, 'ac1', 'ac2'] });
+}
+
 function vultureCloseScout(): Build {
   const parts: PlacedPart[] = [
     regionalPart('reactor', 'R-E25', 'right-hardpoint', 3, 1),
@@ -579,6 +638,9 @@ export const BRANCH_PROBE_TEMPLATES: TemplateDef[] = [
   { id: 'probe-mule-gunline', name: 'Mule Autocannon Gunline', blurb: 'Combustion autocannon firing line with tracking support.', build: probeMuleGunline() },
   { id: 'probe-mule-thermal', name: 'Mule Laser Platform', blurb: 'Hybrid heat-managed laser platform.', build: probeMuleThermal() },
   { id: 'probe-mule-brawler', name: 'Mule Armored Brawler', blurb: 'Cheap sustained fire behind armor, one gun under a shell.', build: probeMuleBrawler() },
+  { id: 'probe-ridgeline-spine', name: 'Ridgeline Ranging Spine', blurb: 'Paired carbines: one in the spine for the 15% it buys, one on the flank.', build: ridgelineRangingSpine() },
+  { id: 'probe-ridgeline-thermal', name: 'Ridgeline Laser Line', blurb: 'Twin lasers on split reactors.', build: ridgelineLaserLine() },
+  { id: 'probe-ridgeline-armour', name: 'Ridgeline Armoured Gunline', blurb: 'Sponson autocannon with a plated spine.', build: ridgelineArmouredGunline() },
   { id: 'probe-bastion-casemate', name: 'Bastion Autocannon Casemate', blurb: 'Protected, targeted sustained fire.', build: probeBastionCasemate() },
   { id: 'probe-bastion-thermal', name: 'Bastion Laser Bunker', blurb: 'Casemate heat spreading and paired radiators.', build: bastionLaserBunker() },
   { id: 'probe-bastion-suppression', name: 'Bastion Suppression Stride', blurb: 'Armored twin-MG platform with powered mobility.', build: bastionSuppressionStride() },

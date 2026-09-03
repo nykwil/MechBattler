@@ -200,7 +200,7 @@ function drawWithoutReplacement<T>(rng: Pcg32, source: readonly T[], count: numb
 }
 
 /** The chassis each card should be built on; the doctrine still decides what kind of fight it is. */
-const CHASSIS_SPREAD = ['CH-2', 'CH-5', 'CH-9'] as const;
+const CHASSIS_SPREAD = ['CH-2', 'CH-5', 'CH-7', 'CH-9'] as const;
 
 export function ladderOpponents(runSeed: number, nodeIndex: number): RunOpponentChoice[] {
   const countRng = new Pcg32(runSeed * 31 + nodeIndex);
