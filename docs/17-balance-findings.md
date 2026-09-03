@@ -2973,3 +2973,43 @@ it is what the four verbs actually do, and three mods were authored against the
 
 Recorded rather than acted on: changing how much the pilot stands is a pilot
 decision, and F31 showed how far those reach.
+
+### F36 addendum — the prediction was wrong, and it narrows the finding
+
+`artifacts/vent-12lock.json`, hash `11f62676`. Hash moved, so build-level only.
+
+**`U-VENT` is drafted: coverage 12** in 267 gallery builds, beside the Gill's 12.
+So the part is reachable and chosen, and the `radiatorStrength` refactor carries
+it end to end.
+
+**The recorded prediction — that redliner builds would get rarer — is false.**
+
+```
+redliner builds   108 (with Vent)   vs   110 (without)
+emptyCells        mid/heavy/redliner, long/heavy/redliner   — identical
+```
+
+Unchanged. And the reason corrects something I over-claimed above: F36's heading
+says the Vent "removed the only redliner in the game". It removed the redline from
+**one build** — `CH-2 W-KL:1`, the one I had been measuring — and that build was
+the only redliner among the seven *canonical templates*. In the archive, redliner
+is **40% of all builds** (108 of 267) and always has been. It is not a rare state
+the game struggles to produce; it is the normal state of a build that would rather
+spend cells on guns than on cooling.
+
+So the correct version of F36's conclusion is narrower and less dramatic. Cooling
+being available does not make builds cold: the breeder takes the Vent when it is
+worth cells and mass and declines it otherwise, which is exactly what a working
+option looks like. What the Vent fixed is that on a fragmented perimeter there
+was previously **no option at all** — the completer had to give up, and the
+readout could not even see the cooling if you added it by hand.
+
+**The heat thread's conclusion stands, on better evidence.** Heat is not an
+under-rewarded choice. It is a *priced* choice that 40% of builds decline, and
+five attempts to reward it more (F31–F33, F35) moved nothing because the price,
+not the prize, is what they were declining.
+
+**Swing, recorded not tuned.** `annealed-bore` fell 4 → 0 and is now in
+`deadMods`; at two hashes ago it was 13 of 247. `W-CV` 53 → 32, still heavily
+used. `U-HS` 3 → 8. All hash-confounded and none attributable, but the mod
+going to zero is worth a look in a deliberate balance pass.
