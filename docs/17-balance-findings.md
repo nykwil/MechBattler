@@ -4289,3 +4289,67 @@ pilot behaviour.
 **And `emptyCells` is five here**, all heavy, against one two sweeps ago. That
 volatility across hashes is F52's point restated: the cell list is a property of
 the draw domain, not of the catalog, which is why it was retired as a target.
+
+## F58 — Smaller is more placeable; a different shape of the same size is not. Reactor choice is settled and I shipped a dominated part before catching it
+
+**Where the idea came from.** Reading the gallery for what separates winning from
+losing builds (`bombard-12lock`, top 93 builds at 0.95+ against 50 under 0.20,
+share of builds containing each part):
+
+```
+R-C40  57% of winners, 14% of losers   +43   <- largest lift of any part
+W-KL   26%  /  0%                      +26
+W-BMB  25%  /  0%                      +25
+...
+W-SER   4%  / 24%                      -20
+R-E60  10%  / 30%                      -20
+```
+
+**Power is the biggest separator in the game, and the reactor choice is already
+settled.** Combustion gives 10.00 kW per cell against electric's 6.25–6.67, and
+0.114 kW/kg against 0.080. Electric buys low waste heat and zero throttle lag —
+`throttleLagS` *is* consumed (`simulation.ts:411`), so that is a real property —
+and the gallery says it is not worth 37% of power density. `diversity.ts` calls
+`R-E25 vs R-C40` a distinct choice; on this evidence it is not a choice.
+
+**Hypothesis, and it was wrong in an instructive direction.** The best part of
+this pass was `U-VENT` — a deliberately *worse* radiator whose whole value was
+fitting where the Gill could not (median 0.99, coverage 55). Every reactor is a
+square, so the same move should work on power: a 1×4 line reactor, deliberately
+worse per cell (8.75 against 10.00), bought for fitting a strip instead of a block.
+
+**Measured — legal placements for each reactor on a plate already carrying two
+guns:**
+
+```
+CH-2, W-CB x2 down    R-C40 (2x2):  0    R-L35 (1x4):  0
+CH-5, W-AC x2 down    R-C40 (2x2):  0    R-L35 (1x4):  0
+CH-9, W-BMB x2 down   R-C40 (2x2): 60    R-L35 (1x4): 30
+```
+
+**The line fits in half as many places as the square, not more** — and on the Mule
+it could not be fitted at all where the square could. Performance was identical
+everywhere it did fit (74/73, 98/98, 86/86), so it was strictly dominated: harder
+to place, no better, and worse per cell by design.
+
+**The correction, which is the finding.** I read `U-VENT`'s lesson as *"a different
+shape fits where the standard one cannot"*. It is not. The Vent went from **3 cells
+to 1** — the Gill needs three *contiguous perimeter* cells and the Vent needs one,
+so it fits strictly more places. `R-L35` went from four cells to four cells in a
+different arrangement, which buys nothing and costs collinearity: a straight run of
+four is rarer on these chassis than a 2×2 block, because the Vulture's regions are
+narrow and the Bastion's hull is four wide.
+
+> **Placeability is a function of footprint *size*, not footprint *shape*.**
+> Fewer cells fits more places. The same cells rearranged fits fewer, because
+> every additional constraint on arrangement is a constraint.
+
+**Reverted.** docs/20 §2 says a part that changes nobody's decisions is not worth
+shipping; a strictly dominated one is worse than that. Removed from the catalog,
+the pool, the unlock route, the diversity table and both count guards — the same
+five-place removal the six-place registration implies, which is worth noting as
+its own small hazard.
+
+**Not fixed, recorded:** the reactor lineup is a settled choice, not a choice.
+Making electric competitive means moving `outputKw` or the density constants on
+shipped parts, which is a balance pass.
