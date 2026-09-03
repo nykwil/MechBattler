@@ -3789,3 +3789,53 @@ fixing it changes a number no current part produces.
 but not delivered" cases this pass turned up is not one. Worth the check — the
 two that were real (F43, F46) were found by exactly this reading, and the cost of
 confirming the third was ten minutes.
+
+## F51 — The support layer is four parts serving a constraint that binds 0.84% of the time
+
+docs/20 §4 sells height and forward clearance as a real spatial game: *"a gun can
+be blocked by its own hull — that is where risers and gimbals earn their place."*
+Measured rather than assumed.
+
+**`clearsForward` has no runtime consumer.** Its only reader is `spatial.ts:323`,
+returning `blocks-firing-lane` at placement time. Nothing in combat asks whether a
+gun's lane is clear; the rule shapes what you may build and never fires again.
+That is legitimate — placement rules are a real design surface — but it means the
+whole system is a builder constraint, not a battle one.
+
+**And it barely binds.** Every enabled weapon, at every origin and rotation, on
+every canonical build — 14,336 attempted placements:
+
+```
+out-of-mask          7263   50.66%
+footprint-mismatch   3283   22.90%
+out-of-region        1539   10.74%
+core-occupied        1525   10.64%
+incompatible-stack    200    1.40%
+blocks-firing-lane    120    0.84%   <- the entire height/clearance game
+ceiling-exceeded       85    0.59%
+```
+
+The firing-lane rule is the **second-rarest** reason a placement is refused. Shape
+and region account for 85% of refusals between them; height and clearance together
+account for 1.4%.
+
+**Four parts serve it.** `U-RISE2`, `U-RISE3`, `U-RISEL` — which `diversity.ts`
+already flags as `overlap-watch`, "three risers doing one job... they separate
+only on footprint" — plus `U-TUR`, whose only differentiator is arc and is
+therefore dead (F28). That is four of roughly thirty-six catalog parts, an ninth
+of the catalog, aimed at a constraint that arises under one placement in a
+hundred. **No canonical template fits any of them.** Zero of seven.
+
+**Verdict, and it is a recommendation not to author.** The support layer is not
+broken — the rule works, the parts do lift things, and `U-VENT` and `U-MANTLE`
+both showed this pass that geometry constraints are where content lands well. But
+it is over-provisioned relative to the problem it solves, and the honest reading of
+"risers are `overlap-watch` and the gimbal is dead" is not *"author a better
+riser"* — it is that a fifth part here would serve the same 0.84%.
+
+**What would change it is a rules question, not a content one:** whether
+`clearsForward` should have a runtime effect — a gun firing over its own hull
+paying accuracy rather than being refused outright — which is a new rule and the
+owner's. Recorded rather than asked, because unlike the three questions already
+outstanding this one has no content blocked behind it. It is a reason *not* to
+build, and that is worth as much as a reason to.
