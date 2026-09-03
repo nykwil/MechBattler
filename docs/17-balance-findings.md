@@ -4071,3 +4071,47 @@ curve reads zero inside the zone, an artillery piece should *change where the
 fight happens* rather than merely suffer. That is docs/20 §2's first and strongest
 signal, and `falloff.min` is a live, consumed lever that exactly one gun pays —
 `W-MG`, at 10 m, where its ideal band starts anyway, so it pays nothing at all.
+
+### F53 addendum — the Sear is drafted into builds that lose, and median carrier fitness is how you see that
+
+`artifacts/sear-12lock.json`, hash `abfb5a05`. `W-SER` coverage 14, in 11 builds —
+which on its own reads like a modest success. It is not, and the number that shows
+it is not coverage:
+
+```
+part     builds   best   median fitness of builds carrying it
+W-LNC        30   1.00   0.98
+W-CV          7   1.00   0.99
+W-MG         53   1.00   0.66
+W-SC         23   0.99   0.33
+W-SER        11   0.99   0.02
+```
+
+**The Sear's median carrier scores 0.02.** It is drafted, and drafted into builds
+that lose essentially everything — the archive keeps them because they are the only
+occupant of their cell, not because they are good. That matches the hand-built
+measurement exactly (50% against a machine gun's 72%) and it is invisible in the
+coverage column, which counts draws and says nothing about what happened next.
+
+**This is the fix for F43's complaint.** That finding showed `coverage` cannot
+distinguish a good mod from a harmless one, because a no-op is drafted as often as
+chance offers it. **Median fitness of the builds carrying a part is the missing
+discriminator**, and it separates cleanly here: 0.98 for the Lance, 0.66 for the
+machine gun, 0.33 for the flamer, 0.02 for the Sear. Coverage says all four are
+used; the median says only two are used *well*.
+
+**Read every coverage number in this file with that caveat.** The claims that
+survive it are the ones where a fitness or win-rate measurement sits alongside —
+`W-LNC` (median 0.98, both heavy/redliner cells), `W-CV` (0.99) — and the ones that
+do not are weaker than they looked, including `ram-bore`'s 21→29→40 climb, which
+was never checked this way.
+
+**Verdict on `W-SER`, revised down.** Keep, but as a *filler*: it occupies cells
+rather than winning them, and the honest description is a weapon that works — the
+suppression is real and measured — attached to builds that do not. F53's "mid-tier
+and honestly so" was generous; the archive says the search cannot find a good home
+for it.
+
+**Also at this hash, unattributable:** `U-MANTLE` and `U-ACT` enter `deadParts`,
+`W-SC` falls 35 → 26 (the Sear plausibly displacing the flamer, same band, same
+mechanism), gallery 263 against 283.
