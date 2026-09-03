@@ -3751,3 +3751,41 @@ weaker half of that finding.
 again to 29 from 21; `U-RAD` and `P-CAP` appear in `deadParts` for the first time
 in this pass; `W-SR`, `W-BR` and `U-SHELL` land in `neverOffered`. Gallery 249,
 four empty cells including `close/heavy/redliner` which has not been empty before.
+
+## F50 — `salvoCount` is a real saturation mechanic, and two caveats found while checking
+
+**Hypothesis, and it was wrong.** Two of the three `salvoCount` sites multiply it
+straight into a damage total (`simulation.ts:625, 665`), which reads like a
+"salvo" that is really a damage multiplier — the same class as `overkillCarry`
+(F43) and `idleHeatKw` (F46), where a field's name promises more than its
+implementation delivers. Reading further shows it is not: `resolveShot` loops
+`salvo` times with an **independent `hitRoll` and an independent
+`applySpatialHit` per projectile**, at `damagePerProjectile` un-multiplied. The
+rocket pod really does throw six six-damage projectiles that each hit or miss on
+their own, and the diversity note's "saturation vs a hammer" is accurate.
+
+No double-application either: the multiplied `totalDamage` on the shot event is
+consumed only by `derivedStats`'s burst-dps readout, never to apply damage.
+`estimateExpectedDps` multiplying by salvo is likewise correct — expected dps is
+`pHit × damage × salvo / cycle`.
+
+**Caveat 1, and it is a trap for this file.** `stats.shotsFired++` is inside the
+salvo loop, so a salvo weapon reports **six shots per cycle**. Every `hit%` in
+this pass is safe — numerator and denominator both count projectiles — but the
+`shots` and `shots/fight` columns in F40, F41 and F49 are per-*projectile*, not
+per-trigger-pull. None of those tables includes `W-RKT`, so nothing published here
+is wrong, and a future comparison that mixes a salvo weapon with a single-shot one
+would be. **Compare shot counts only within the same salvo size.**
+
+**Caveat 2, latent.** The charged path (`simulation.ts:632`, i.e.
+`chargedEnergyPerShotKj` — the laser, the ion, and now the Lance) pushes
+`totalDamage` **without** the salvo multiplier, while the continuous and
+mechanical paths include it. No shipped weapon is both charged and a salvo, so
+nothing is wrong today; the first one authored will under-report its burst dps in
+the workshop readout while fighting correctly. Recorded rather than fixed, because
+fixing it changes a number no current part produces.
+
+**Verdict.** A negative result: the lever works, and one of the three "declared
+but not delivered" cases this pass turned up is not one. Worth the check — the
+two that were real (F43, F46) were found by exactly this reading, and the cost of
+confirming the third was ten minutes.
