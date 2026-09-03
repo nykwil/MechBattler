@@ -4637,3 +4637,52 @@ tuned or re-baselined. Note the probe hazard hit on the way: the first run read
 `MIDGAME_POOL` from a stale `dist` and reported the mod undrawable. It is drawable;
 **a probe that mixes `src` and `dist` imports will lie about anything just
 authored.**
+
+## F64 — The defensive half of the hit model: profile is worth 11–19%, and it is worth most to the smallest frame
+
+F61 mapped the two legs of `sigmaM`. The other half of `pHit` is the numerator:
+
+```ts
+pHit = erf(targetHalfWidthM / (sigmaM * √2))
+targetHalfWidthM = meanSilhouetteHalfWidthM(chassis) * coverMult * profileMult
+```
+
+`targetProfile` is the channel that scales it, and it is the **defensive mirror of
+fire control** — F45 measured the offensive side at +17 win points, the largest
+single-part effect in the pass.
+
+**Measured at 85 m, shooter at cruise, target crossing at the roster's mean
+2.64 m/s — the incoming `pHit` a `×0.8` profile buys down:**
+
+```
+chassis  half-width   gun      pHit@1.00  @0.80   change
+CH-2          1.13 m  W-CV         0.382  0.310    -19%
+CH-2                  W-LNC        0.571  0.473    -17%
+CH-5          1.50 m  W-CV         0.494  0.405    -18%
+CH-5                  W-LNC        0.708  0.601    -15%
+CH-9          2.13 m  W-CV         0.654  0.549    -16%
+CH-9                  W-LNC        0.865  0.768    -11%
+```
+
+**A 20% profile reduction is worth 11–19% of incoming hits**, which is a large
+defensive effect — and F40 established that damage *taken*, not dealt, is what
+decides these matchups.
+
+**And the gradient is free.** It is worth **−19% to a Vulture and −11% to a
+Bastion against the same gun**, with no special case anywhere: `erf` saturates, so
+shaving the numerator matters less once `pHit` is already high, and `pHit` is
+already high against a 2.13 m half-width. **A profile mod is a light-frame mod by
+arithmetic rather than by authoring** — which is docs/20 §2's second signal
+arriving from the maths instead of from a designer's intent, the same way the
+Culverin's recoil made it a heavy-frame gun (F34).
+
+**The gap this names.** `targetProfile` has exactly two mods and both are gated on
+movement states that F38 measured at 6.2% (`hull-down`, below 1.5 m/s) and 19.3%
+(`weaving-gait`, above 4 m/s) of fight time. **No unconditional profile mod
+exists**, so the defensive mirror of the game's strongest lever is available only
+through two conditions the pilot is rarely in — which is exactly why both sit in
+`deadMods` sweep after sweep.
+
+That is F52's ordering item 1 again — a live lever nobody prices — and it is the
+next thing to author, with the ceiling above measured *before* the part rather
+than after.
