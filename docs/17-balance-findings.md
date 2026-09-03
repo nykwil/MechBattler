@@ -4531,3 +4531,60 @@ term, it is consumed at `combat.ts:1094`, and — checked against every mod's
 The single highest-value accuracy channel in the game has no mod on it. That is
 F52's ordering item 1, a live lever nobody prices, and it is what the next part
 goes after.
+
+## F62 — Median carrier fitness is confounded by rank, and controlling for it reverses one of my own verdicts
+
+F53's addendum introduced *median fitness of the builds carrying a part* as the
+discriminator `coverage` lacks. It is better than coverage and it has its own
+confound, which the `W-PIN` sweep exposed.
+
+**Rank determines fitness far more than any part does:**
+
+```
+rank 8   99 builds   median fitness 0.33
+rank 16 181 builds   median fitness 0.96
+```
+
+So a part the search drafts more often at rank 8 carries a lower median for that
+reason alone. Split by rank:
+
+```
+part      builds  rank8  rank16   median@8   median@16
+W-BMB         26      4      22       0.98        0.99
+W-LNC         21      6      15       0.66        0.99
+W-MG          82     28      54       0.65        0.99
+W-SER         12      5       7       0.02        0.98
+U-VENT        38     15      23       0.65        0.97
+U-ARM         43     11      32       0.33        0.66
+W-PIN         16      6      10       0.02        0.30
+```
+
+**Correction — `W-SER` is not a filler and I was wrong to say so.** F53's addendum
+read its pooled median of 0.02 and revised the verdict down to *"it occupies cells
+rather than winning them"*. Controlled for rank it is **0.98 at rank 16**, level
+with the Lance and the Bombard. Its pooled median was low because it was drafted
+into rank-8 builds, where *everything* is low. The original F53 verdict — a real
+weapon, mid-tier, honestly so — was right, and the correction was the error.
+
+**`W-PIN` is genuinely weak, and this is the check that shows it.** 0.30 at rank
+16, against 0.97–0.99 for every other part in the table. It is the only part whose
+low median survives the control, so the finding is about the part rather than
+about where it was drafted.
+
+**Why it disagrees with F60's probe.** That measurement *substituted* Pins for
+armour on a fixed wish and got +9, +6, +8. The breeder is not substituting: it is
+spending a tier-1 slot on a 6 dps gun in builds that also want real weapons, so the
+Pin appears in weak builds rather than making builds weak. Both measurements are
+true and they answer different questions — **"is this better than the armour it
+replaces" is not "does the search build well with it available"** — and only the
+first was ever tested.
+
+**Verdict on `W-PIN`: keep, with the honest note.** It measurably beats the Plate
+it competes with, which is the claim F60 made and still stands. It does not survive
+contact with a search that has better things to spend a slot on, and 0.30 at rank
+16 says so plainly.
+
+**And the metric now has a rule.** *Median carrier fitness, split by rank* — never
+pooled. Pooling cost me one wrong verdict and nearly cost a second; the split takes
+one line of the same query. Every median quoted in this file before F62 is a
+pooled figure and should be re-read with that caveat, `W-SER`'s especially.
