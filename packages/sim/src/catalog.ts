@@ -176,6 +176,32 @@ export const PARTS: Record<string, PartDef> = {
     shape: line(3), massKg: 70, hp: 20, tier: 1,
     spatial: { layer: 'support', stacksOn: ['support'], height: 1, electricalCapacityKw: 60, transfersHeat: true },
   },
+  'U-PLINTH': {
+    // The riser family matches gun footprints exactly -- `checkStackLegality`
+    // refuses a partial cover as `footprint-mismatch`, so a riser only earns its
+    // cells when its shape *is* the shape of the thing standing on it. Measured
+    // against the catalog, the family covers 14 of 17 guns and misses exactly
+    // three: `W-RG`, `W-SR` and `W-PIN`. Two of those are the guns every sweep
+    // reports as unreachable. This is the smallest of the three gaps -- the
+    // single cell the Pin lives in, and the only spare-cell shape a light frame
+    // ever has left.
+    //
+    // It pays on `electricalCapacityKw`, which is a fully live lever
+    // (`spatialPower.ts` runs a widest-path capacity search that `simulation.ts`
+    // reads twice) and a completely flat one: ten of the eleven parts that
+    // declare it declare exactly the 60 kW wire default, and the eleventh
+    // declares 90. So 20 kW here is the first real content on that axis, and it
+    // bites as a *power path* rather than as a mount: measured, a laser fed
+    // through a Plinth resolves at 20 kW and the sim lists it in
+    // `bottleneckInstanceIds`, where the same laser fed through a coupler
+    // resolves at 60. (It cannot starve a charged gun it *carries* -- a 3-cell
+    // laser cannot stack on a 1-cell plinth at all, because the footprint must
+    // match exactly. That was the first thing this comment claimed and it was
+    // wrong.) docs/17 F75.
+    id: 'U-PLINTH', name: 'Plinth (light riser)', category: 'structural',
+    shape: rect(1, 1), massKg: 30, hp: 12, tier: 1,
+    spatial: { layer: 'support', stacksOn: ['support'], height: 1, electricalCapacityKw: 20, transfersHeat: true },
+  },
   'U-SHELL': {
     id: 'U-SHELL', name: 'Carapace (sealed shell)', category: 'structural',
     shape: line(2), massKg: 180, hp: 60, tier: 2,

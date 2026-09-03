@@ -39,7 +39,7 @@ export const MIDGAME_POOL = {
     'R-C40', 'R-C90', 'R-E25', 'R-E60',
     'W-PIN', 'W-MG', 'W-AC', 'W-LAS', 'W-RKT', 'W-CB', 'W-BR', 'W-AV', 'W-KL', 'W-SC', 'W-ION', 'W-RG', 'W-SR', 'W-CV', 'W-LNC', 'W-SER', 'W-BMB',
     'U-RAD', 'U-VENT', 'U-HS', 'U-ARM', 'U-TC1', 'U-SIGHT', 'U-ACT', 'U-DRIVE', 'U-TUR', 'U-SHELL', 'U-MANTLE',
-    'U-RISE2', 'U-RISE3', 'U-RISEL',
+    'U-RISE2', 'U-RISE3', 'U-RISEL', 'U-PLINTH',
     'P-CAP', 'P-CAP2',
   ] as readonly string[],
   mods: Object.values(MODIFIERS).filter((m) => m.kind === 'mod').map((m) => m.id) as readonly string[],

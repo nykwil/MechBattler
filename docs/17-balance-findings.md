@@ -5440,3 +5440,93 @@ reading docs/20 §7 gate 1 says not to believe.
 `game.test.ts`'s "three branchable chassis" became four, and `savedMechs` 9 → 12.
 That is an inventory assertion tracking authored content, not a threshold relaxed
 to fit it — unlike F72's floor, which still wants a second opinion.
+
+## F75 — Risers are a shape family, not a cost ladder; `U-PLINTH`, and a correction to F28
+
+**Where this started.** The one standing `game:audit` warning is
+`sacrificial-casing`, which follows to `U-AMMO`, which follows to arc — so I
+re-measured whether mount arc ever binds. **It does not, and F28 already said so:**
+mean bearing offset **0.08°**, 99.27% of weapon-frames under 1°, and
+`gate === 'arc'` at **0.00%** of frames including the 45° siege gun and the 20°
+Pinion, whose ×1.25 edge penalty needs 7.5°. Seventeen weapons carry an authored
+20°–120° stat that changes nothing. **This is a confirmation of F28, not a new
+finding**, and it re-confirms the mechanism behind F48's inert Mule zone and F74's
+choice of `weaponRangeMultiplier` for CH-7.
+
+### The correction: F28's *derived* claim was wrong
+
+F28 concluded from all this that `U-TUR` "is a strictly more expensive
+`U-RISE2`… dead by construction". That does not follow, because **a stacked part
+must cover exactly the cells of the part beneath it** — `checkStackLegality`
+refuses a partial cover as `footprint-mismatch`. Risers are therefore not a cost
+ladder where bigger is worse; each one **raises the guns whose footprint it
+matches** and is dead weight under everything else:
+
+```
+U-TUR    2 cells (1x2)  raises W-MG, W-CB
+U-RISEL  3 cells (1x3)  raises W-LAS, W-SER, W-KL, W-ION
+U-RISE2  4 cells (2x2)  raises W-RKT, W-AV, W-LNC, W-SC
+U-RISE3  6 cells (2x3)  raises W-AC, W-BR, W-BMB, W-CV
+```
+
+The two are not substitutes at all, and fitting the wrong one is not a small
+overpayment. On a 16-cell Vulture carrying carbines, 175 paired fights each:
+
+```
+control                     94.3%
+  + U-TUR   (2 cells)       95.4%    won 8  lost  6   net  +2   z= 0.53
+  + U-RISE2 (4 cells)       53.7%    won 8  lost 79   net −71   z=−7.61
+  + U-RISEL (3 cells)       93.7%    won 6  lost  7   net  −1   z=−0.28
+```
+
+**A mismatched riser costs that build 40 win points** — the largest effect
+measured anywhere in this pass — and `assembleBuild` fits one anyway. The Gimbal
+also conducts at 1.5 against the default 1. What it overpays for is the arc, not
+the cells. The `U-TUR vs U-RISE2` verdict has been rewritten; **`U-TUR`'s pricing
+is left alone deliberately**, because the 2 kW and the tier become fair the moment
+anything makes a mech fight off-axis, and re-pricing now would only have to be undone.
+
+### The empty cell, computed rather than guessed
+
+Matching every weapon footprint against every riser footprint under rotation: the
+family covers **14 of 17 guns and misses exactly three — `W-RG`, `W-SR` and
+`W-PIN`** — two of which are the guns every sweep reports as unreachable
+(`deadParts` and `neverOffered` respectively). Suggestive, not causal: F16 already
+established the capacitor-fed fitness valley as `W-RG`'s cause.
+
+**Authored `U-PLINTH`** (Plinth, light riser): 1 cell, 30 kg, 12 HP, tier 1, no
+draw, `electricalCapacityKw: 20`. The smallest of the three gaps — the cell the Pin
+lives in, and the only spare-cell shape a light frame is ever left with.
+
+It is also the **first content on `electricalCapacityKw`**, which is fully live
+(`spatialPower.ts` runs a widest-path search that `simulation.ts` reads twice) and
+completely flat: ten of the eleven parts declaring it declare exactly the 60 kW
+wire default, and the eleventh declares 90. Measured, the trade is real:
+
+```
+laser fed through U-PLINTH   capacity 20 kW   bottleneckInstanceIds ["las"]
+laser fed through U-CON      capacity 60 kW   bottleneckInstanceIds []
+```
+
+**Reachability** (docs/20 §7): in `MIDGAME_POOL.parts` and `enabledPartIds`;
+places listed first, middle and last with zero issues; and a Pin stacks on it.
+
+### The failure worth recording
+
+My first version of both the catalog comment and the diversity verdict said the
+Plinth "carries a mechanical gun and starves a charged one". **That is impossible**:
+a 3-cell laser cannot stack on a 1-cell plinth at all, because the footprint must
+match — the same rule the whole finding is built on, applied inconsistently one
+paragraph later. The 20 kW bites as a *power path*, not as a mount. Both texts were
+corrected before commit, and the wrong version is recorded here because it is the
+second time this pass I have written a mod or part whose stated condition could not
+occur (F72 was the first).
+
+### What moved, and what it cost
+
+`sim:try CH-2 W-CB:2 U-PLINTH` reads **98%** against the canonical roster at six
+seeds — recorded, not tuned; a Vulture with two carbines is already near that
+ceiling. A 1-lock smoke sweep does not offer the Plinth at all, which is the
+reading docs/20 §7 gate 1 says not to believe either way.
+
+`game.test.ts`'s `enabledParts` 39 → 40. Nothing else moved.

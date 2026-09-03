@@ -123,7 +123,7 @@ describe('game content', () => {
     // 28 since the component-height work added the three risers (U-RISE2,
     // U-RISE3, U-RISEL) and the siege rail (W-SR) added a seventh gun, each of
     // which carries its own unlock route.
-    expect(audit.counts.enabledParts).toBe(39);
+    expect(audit.counts.enabledParts).toBe(40);
     expect(GAME_CONTENT.enabledPartIds).not.toContain('U-AMMO');
   });
 

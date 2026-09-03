@@ -6,7 +6,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'first-blood', name: 'First Blood',
     description: 'Win one battle.',
     criterion: { all: [{ kind: 'battle-won' }] },
-    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE', 'U-RISE2', 'U-RISE3', 'U-RISEL'],
+    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE', 'U-RISE2', 'U-RISE3', 'U-RISEL', 'U-PLINTH'],
   },
   {
     id: 'clean-machine', name: 'Clean Machine',
