@@ -4588,3 +4588,52 @@ contact with a search that has better things to spend a slot on, and 0.30 at ran
 pooled. Pooling cost me one wrong verdict and nearly cost a second; the split takes
 one line of the same query. Every median quoted in this file before F62 is a
 pooled figure and should be re-read with that caveat, `W-SER`'s especially.
+
+## F63 — `lead-cam`, and F61's model predicting a result before it was measured
+
+**Hypothesis, straight out of F61.** `lateralPenalty` is the per-weapon half of
+the hit model's dominant leg, it is consumed at `combat.ts:1094`, and it is the
+**only channel in `EffectiveMults` that no mod writes**. The highest-value accuracy
+channel in the game is unpriced.
+
+**Authored.** `lead-cam`, tier 3, any weapon: `lateralPenalty ×0.5`,
+`cycleS ×1.15`. The cost is deliberately *not* dispersion — a cone penalty on a
+lead mod would be a fake price, which is precisely why F44's `ram-bore ×1.35`
+dispersion cost failed to bite. Rate of fire is a real one (F42 measured a cycle
+tax at 13 points), so this trades tracking for tempo.
+
+**Reachability.** 17 enabled carriers (every weapon); `MIDGAME_POOL.mods` is
+derived from the registry so it is drawable without an edit; `game:audit` clean.
+
+**F61 made a quantitative prediction and it holds.** The model says the gain
+should scale with each carrier's lead:cone ratio, because halving the longer leg
+of a hypotenuse is worth much more than halving the shorter one:
+
+```
+carrier        lead:cone   hit%           win%
+CH-9 W-CV x2         3.8   52.4 → 66.6    96 → 99
+CH-5 W-CB x2         3.7   72.6 → 87.3    81 → 87
+CH-9 W-BMB x2        3.3   50.1 → 61.2    89 → 89
+CH-5 W-LNC x2        2.5   76.0 → 90.2    99 → 98
+CH-5 W-MG x3         1.9   85.7 → 88.3    74 → 67
+```
+
+**+11 to +15 hit points on the four guns where lead is 2.5–3.8× the cone, and
++2.6 on the one where it is 1.9×.** The ordering is the model's, and it was written
+down before the measurement rather than after.
+
+**The wrong answer is where the design put it.** `W-MG` loses **7 win points**: it
+fires every 0.1 s, so a 15% cycle tax is expensive, and it has the least lead error
+to buy back. The cam pays on a slow gun with a long flight time and costs a fast
+one dearly — which is the tradeoff line, measured rather than asserted.
+
+**Verdict.** Keep. It prices the one channel nothing priced, its effect size was
+predicted in advance by F61's arithmetic, and it has a real negative case. This is
+the first part or mod this session whose result was *derived before it was
+measured* rather than discovered by measuring.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
+tuned or re-baselined. Note the probe hazard hit on the way: the first run read
+`MIDGAME_POOL` from a stale `dist` and reported the mod undrawable. It is drawable;
+**a probe that mixes `src` and `dist` imports will lie about anything just
+authored.**

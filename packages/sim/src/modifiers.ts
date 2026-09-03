@@ -553,6 +553,34 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     apply: (m, ctx) => { if (ctx.tile === 'water') m.scale('radiator', 2); },
     isActive: (ctx) => ctx.tile === 'water',
   },
+  'lead-cam': {
+    id: 'lead-cam', name: 'Lead cam', kind: 'mod',
+    tier: 3,
+    blurb: 'leads a crossing target: this gun\'s lead error ×0.5 · cycle ×1.15',
+    tradeoff: 'The cam that computes deflection also paces the action: the gun tracks a '
+      + 'crosser far better and fires 15% less often, so it pays on a slow heavy shot and '
+      + 'costs a fast one dearly.',
+    maxCopiesPerBuild: 1,
+    appliesTo: isWeapon,
+    // docs/17 F61: `computeHitModel` builds sigma as hypot(cone, lead), and lead
+    // is the longer leg on *every* gun in the game -- 1.9x on the Stitcher, 3.8x
+    // on the Culverin. At a ratio of 3.8 the cone is 3.4% of sigma, so halving it
+    // buys 2.4% and halving the lead buys 48%. Six of the catalog's accuracy
+    // levers sit on the cone leg and two on the lead leg, and `lateralPenalty` --
+    // the per-weapon half of the lead term, consumed at combat.ts:1094 -- was the
+    // only channel in `EffectiveMults` that no mod wrote at all.
+    //
+    // The cost is deliberately *not* dispersion. A cone penalty on a lead mod
+    // would be a fake price: F44 measured `ram-bore`'s x1.35 dispersion cost
+    // failing to bite for exactly this reason. Rate of fire is a real one -- F42
+    // measured a cycle tax at 13 points on a unique -- so this trades tracking
+    // for tempo, which is the same axis in opposite directions.
+    //
+    // Numbers inline rather than named constants: `apply.toString()` is inside
+    // `simContentHash()` and a named threshold is not unless it is also added to
+    // the dial list, which is the trap F35 was written about.
+    apply: (m) => { m.scale('lateralPenalty', 0.5); m.scale('cycleS', 1.15); },
+  },
   'gyrostabilized': {
     id: 'gyrostabilized', name: 'Gyrostabilized', kind: 'mod',
     tier: 3,
