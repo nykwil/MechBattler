@@ -417,6 +417,33 @@ export const PARTS: Record<string, PartDef> = {
   // Light precision carbine: the fast-scout sniper enabler. Long band, tight
   // dispersion, low mass -- a Vulture can kite with it -- but modest DPS and a
   // real power draw, so it is a positioning weapon, not an alpha strike.
+  // The only one-cell weapon in the game. docs/17 F58: placeability is a function
+  // of footprint *size*, and the smallest gun in the catalog is two cells, so a
+  // build's leftover single cells have never had anything to put in them but a
+  // Plate -- which is why almost every `sim:try` assembly ends with a note like
+  // "+ 8 x U-ARM -- spare cells". The Pin makes that a decision instead of a
+  // default: armour or a gun, in the slot where nothing else fits.
+  //
+  // Deliberately worse per cell than the Stitcher it undercuts -- 6.0 dps against
+  // 7.5 per cell -- and worse per kilogram, so it never displaces a real gun. It
+  // is not competing with weapons. It is competing with the armour that currently
+  // wins those cells by default, and against 60 HP of Plate it offers 6 dps and
+  // 15 HP.
+  //
+  // Weapons are not auto-added by `assembleBuild`, so unlike a smallest-in-class
+  // reactor or capacitor this cannot silently replace a completer default
+  // (docs/17 F59).
+  'W-PIN': {
+    id: 'W-PIN', name: 'Pin (light repeater)', category: 'weapon',
+    shape: [{ dx: 0, dy: 0 }], massKg: 60, hp: 15, tier: 1,
+    heat: { heatPerShotKj: 0.2 },
+    weapon: {
+      weaponClass: 'ballistic',
+      damage: 1.2, cycleS: 0.2, projectileSpeed: 380, dispersionMrad: 9,
+      falloff: { min: 8, idealMin: 15, idealMax: 45, max: 100 }, mountArcDeg: 100,
+    },
+    spatial: { layer: 'payload', stacksOn: ['support'], height: 1, clearsForward: 0 },
+  },
   'W-CB': {
     // Tier 2 -> 3, Aug 2026. At tier 2 the carbine was the longest-reaching gun
     // short of the tier-4 railgun and the most accurate one short of it, for

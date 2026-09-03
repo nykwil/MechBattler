@@ -4405,3 +4405,66 @@ added to this catalog**, and that is a content gap held shut by a search heurist
 
 **Cost elsewhere.** None: reverted clean, 447 sim and 36 game tests green, enabled
 parts back to 38.
+
+## F60 — `W-PIN`, the first one-cell weapon, and the leftover-cell slot that only armour could fill
+
+Third attempt after two reverts, and it was chosen to avoid every hazard the first
+two hit: not an extremum in a category `assembleBuild` auto-adds (F59), not a
+different shape of the same size (F58), not aimed at an archive cell (F52), a
+completer-repaired condition (F47) or pilot behaviour (F55).
+
+**Hypothesis.** Every build ends with leftover *single* cells — almost every
+`sim:try` assembly closes with a note like `+ 8 x U-ARM — spare cells` — and the
+smallest weapon in the catalog is two cells, so a gun has never been able to
+compete for that slot. Armour wins it by default rather than by choice.
+
+**Authored.** `W-PIN`, "Pin (light repeater)": **one cell**, 60 kg, 15 HP, tier 1,
+1.2 damage on a 0.2 s cycle (6 dps), ideal 15–45, max 100, mechanical. Deliberately
+worse per cell than the Stitcher it sits beside — 6.0 dps per cell against 7.5 —
+so it never displaces a real gun. It is not competing with weapons; it is competing
+with the Plate that currently takes those cells unopposed, and against 60 HP of
+armour it offers 6 dps and 15 HP.
+
+**Reachability.** Alone on all three chassis, order-independent `[1,1,1]`. Six
+registrations; `weaponClass`, `powerBudget` and the enabled-part count all needed
+edits, and — the point of choosing a weapon — **nothing broke**, because
+`assembleBuild` never auto-adds a gun, so no completer default moved.
+
+**Both claims measured. Placeability, on a plate already carrying two guns:**
+
+```
+CH-2 W-CB x2 down    W-PIN (1 cell):  0    W-MG (2 cells):  0    U-ARM:   0
+CH-5 W-AC x2 down    W-PIN:           8    W-MG:            0    U-ARM:  20
+CH-9 W-BMB x2 down   W-PIN:          28    W-MG:           16    U-ARM: 128
+```
+
+**Eight legal placements where the two-cell gun has zero.** F58's rule holds in the
+direction it predicted, which is the direction `R-L35` failed to.
+
+**And the trade pays. 15 seeds, whole roster, spare cells as armour or as Pins:**
+
+```
+build             pins  plates   dealt  taken  win%
+CH-5 W-AC  x2        0      10     387    225    70
+CH-5 W-AC  x2        4       8     420    193    79   (+9)
+CH-9 W-BMB x2        0       7     389    162    87
+CH-9 W-BMB x2        3       5     416    108    93   (+6)
+CH-9 W-BR  x2        0      11     278    788    28
+CH-9 W-BR  x2        3      10     327    708    36   (+8)
+CH-2 W-CB  x2        0       7     471     75    93
+CH-2 W-CB  x2        2       5     482     88    91   (−2)
+```
+
+Damage dealt rises on all four and damage *taken* falls on three, which is the
+mechanism: more output ends the fight sooner, and F40 already established that
+damage taken is what decides these matchups. **The wrong answer exists too** —
+`CH-2 W-CB` loses two points, on the lightest frame, where five plates were worth
+more than two Pins. That is a decision with a real cost on one build in four,
+which is the shape docs/20 §2 asks for and the shape `U-DRIVE` had at −20.
+
+**Verdict.** Keep. It is the first part in three ideas that survived its own
+measurement, and it survived because it was designed against the three constraints
+the reverts taught rather than against a story.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, enabled
+parts 39. Nothing tuned, nothing re-baselined.

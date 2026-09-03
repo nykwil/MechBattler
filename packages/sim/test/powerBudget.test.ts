@@ -21,7 +21,7 @@ describe('what belongs on the power priority list', () => {
     // each must reach the net to work at all -- fire control and the feed motor
     // earn the wire -- and none of them can ever be shed, because none of them
     // requests kilowatts the bus could refuse.
-    expect(differ).toEqual(['P-CAP', 'P-CAP2', 'W-AC', 'W-AV', 'W-BMB', 'W-BR', 'W-CB', 'W-CV', 'W-KL', 'W-MG', 'W-RG', 'W-RKT', 'W-SC', 'W-SR']);
+    expect(differ).toEqual(['P-CAP', 'P-CAP2', 'W-AC', 'W-AV', 'W-BMB', 'W-BR', 'W-CB', 'W-CV', 'W-KL', 'W-MG', 'W-PIN', 'W-RG', 'W-RKT', 'W-SC', 'W-SR']);
     for (const id of differ) expect(requiresPowerConnection(PARTS[id]!), id).toBe(true);
   });
 
