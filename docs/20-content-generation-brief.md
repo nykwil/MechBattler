@@ -72,9 +72,32 @@ Three softer signals, in descending order of value:
 `stamp.contentHash` only against *another report's* stamp, never against a hash
 you computed yourself (`17` **F20**).
 
-As of `artifacts/armour-seeded.json`, 2 Sep 2026, **one of eighteen cells is
-empty**: `mid/heavy/redliner`, and `17` F24 explains why it is deliberately left
-that way. The six-cell backlog this document originally carried was closed by two
+**Updated 2 Sep 2026, after the pass that produced `17` F28-F34.** The four cells
+that stay empty across sweeps are `mid/heavy/cold`, `mid/heavy/redliner`,
+`long/heavy/cold` and `long/heavy/redliner` — every heavy cell that is not close
+range. **Do not author for them without reading `17` F34 first**, because three of
+the four are not content gaps in any useful sense:
+
+```
+mid/heavy/cold        best reachable build   19%   <- may be a genuinely bad neighbourhood
+mid/heavy/redliner    best reachable build   71%
+long/heavy/redliner   best reachable build   95%   <- out of parts that shipped months ago
+```
+
+A 95% build already lives in `long/heavy/redliner` and the breeder never proposes
+it. The cells are empty because of what the search explores, not because of what
+the catalog contains — the third time in one pass that an empty cell turned out
+to be the instrument.
+
+The mechanism behind all four is worth knowing before authoring: **the weight
+bucket is a load *fraction*** (`mass ÷ ratedMass`), so the cheapest way to be
+"heavy" is to overload the *lightest* frame. Almost every reachable heavy build at
+range is a Vulture carrying ballast, and an overloaded scout is slow, which at
+range is fatal. That is why `W-CV` exists — not to reach the cell, which was
+always reachable, but to make being heavy at range *sensible* on a frame where it
+is not suicide.
+
+The six-cell backlog this document originally carried was closed by two
 parts and three search fixes, and the split is the lesson:
 
 - **Two were real content gaps.** `close/heavy/*` wanted a dense part worth
@@ -96,9 +119,12 @@ the report cannot speak about them. At twelve locks every mod is offered, and
 and the dead-mod list is a different seven. `deadParts` and `deadMods` are
 properties of the experiment before they are properties of the gear.
 
-**The same applies to an empty cell.** At twelve locks `emptyCells` is **0**. An
-empty cell in a small sweep is weak evidence of a content gap, so raise the lock
-count before authoring for one.
+**The same applies to an empty cell.** An empty cell in a small sweep is weak
+evidence of a content gap, so raise the lock count before authoring for one. At
+twelve locks `emptyCells` has read **0** on some content hashes and **4** on
+others; two runs at the same hash reproduce each other exactly, and two runs at
+different hashes do not compare (F22). Treat the cell list as a property of the
+draw domain until you have measured the best build that actually fits the cell.
 
 **And be careful what a screen can see.** `screenFitness` is three battles at one
 seed, sd 19.8 points — it separates builds only at about 40 points, so nothing
@@ -240,7 +266,7 @@ anything about a part, check all four:
 If a part fails any of these, you are measuring the instrument. Fix the
 instrument, then re-measure.
 
-**Four more, added 2 Sep 2026, because the gate above only asks about parts.**
+**Five more, added 2 Sep 2026, because the gate above only asks about parts.**
 An empty cell and a dead lever are claims about the *search*, and it failed three
 more ways in one session:
 
@@ -263,6 +289,19 @@ more ways in one session:
 8. **Does a mod have any enabled carrier?** An `appliesTo` that matches nothing
    scores `+0.0`, identically to an effect that does nothing (`17` **F18**).
    `game:audit` warns on this now.
+
+9. **Is the cell empty, or merely unproposed?** Reachability is not enough — ask
+   what the *best* build in that cell actually scores. Gate 6 says sweep existing
+   parts across the axis; this says score what the sweep finds. `long/heavy/redliner`
+   holds a **95%** build made of parts that shipped months ago, and
+   `mid/heavy/redliner` a 71% one, and the breeder proposes neither (`17` **F34**).
+   An empty cell containing a strong build is a search finding and authoring
+   against it wastes a part. An empty cell whose best build measures 19%, like
+   `mid/heavy/cold`, is at least honestly empty.
+
+   The cheap version: `assembleBuild` a few dozen candidates into the cell, run
+   `evaluateBuild` on the survivors at **20+ seeds** (F30), and look at the top
+   score before writing any catalog entry. It costs a minute.
 
 **And you cannot A/B a part on this harness.** `MIDGAME_POOL.parts` is the draw
 domain, so adding one id re-rolls every lock at the same seed and the two runs
