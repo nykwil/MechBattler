@@ -93,6 +93,29 @@ export const PARTS: Record<string, PartDef> = {
     // copies add redundancy, not multiplicative speed (diversity guardrail).
     speedMult: 1.15,
   },
+  // The Stride's argument for a frame that needs it more. docs/17 F40: on the
+  // slowest chassis, damage *taken* tracks the gun's reach and damage dealt
+  // barely moves -- a Bastion with a 45 m gun takes 775 and wins 29%, the same
+  // Bastion with a 240 m gun takes 74 and wins 96%. What the short-range build
+  // is paying for is time under fire on the way in, and the two ways to spend
+  // less of it are to start closer or to close faster.
+  //
+  // So: +35% instead of the Stride's +15%, for 4 cells, 480 kg and 12 kW.
+  // `resolveSpeedMultiplier` takes the max rather than the product, so this
+  // supersedes a Stride instead of stacking with one, and the choice is which
+  // of the two to carry rather than how many.
+  //
+  // The mass is what aims it. 480 kg against a Vulture's 3 t rating is a
+  // load-factor event on a frame that is already fast; against a Bastion's 12 t
+  // it is close to free on the frame that cannot close. Same self-selection the
+  // Culverin gets from recoil, arrived at from the other end -- and 12 kW means
+  // it wants a real reactor, so a light frame pays for it twice.
+  'U-DRIVE': {
+    id: 'U-DRIVE', name: 'Bound (sprint drive)', category: 'utility',
+    shape: rect(2, 2), massKg: 480, hp: 35, tier: 3,
+    draw: { continuousKw: 12 },
+    speedMult: 1.35,
+  },
   'U-TUR': {
     id: 'U-TUR', name: 'Gimbal (turret support)', category: 'utility',
     shape: line(2), massKg: 90, hp: 30, tier: 2,

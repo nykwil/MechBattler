@@ -24,7 +24,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
         { kind: 'max-player-parts-lost', value: 0 },
       ],
     },
-    unlockPartIds: ['U-ACT'],
+    unlockPartIds: ['U-ACT', 'U-DRIVE'],
   },
   {
     id: 'dismantler', name: 'Dismantler',

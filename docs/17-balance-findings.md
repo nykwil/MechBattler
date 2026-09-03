@@ -3112,3 +3112,74 @@ holds a strong build. The converse is equally true and this table is the evidenc
 them measures 21–29%. **The archive is a coverage metric and says nothing about
 quality in either direction** — an empty cell can hold a 95% build (F34) and a
 filled one can hold a 21% build. Read the fitness, never the occupancy.
+
+## F41 — `U-DRIVE`, and speed buys shooting time rather than safety
+
+F40 left a filled cell full of weak builds: `close/heavy/*` is occupied, and what
+occupies it measures 21–29%. docs/20 §2 counts "lets a filled cell be won a
+different way" as interesting, and F40 named the failure precisely — a Bastion
+with a 45 m gun takes 775 damage and deals 276.
+
+**Hypothesis.** Close-range builds fail on the slowest frame because they spend
+the fight being shot on the way in, so the lever is time-to-contact, not more
+armour — armour is mass, and mass makes the approach longer.
+
+**Authored.** `U-DRIVE`, "Bound (sprint drive)": 2×2, 480 kg, 12 kW,
+`speedMult` 1.35 against the Stride's 1.15. `resolveSpeedMultiplier` takes the
+max rather than the product, so it supersedes a Stride instead of stacking, and
+the decision is which to carry. The mass is what aims it: 480 kg against a
+Vulture's 3 t rating is a load-factor event on a frame that is already fast;
+against a Bastion's 12 t it is nearly free on the frame that cannot close. Same
+self-selection the Culverin gets from recoil, from the other end.
+
+**Reachability.** Completes alone on all three chassis, order-independent
+`[1,1,1]` in every case. All six registrations; the enabled-part count failed
+loudly first as usual.
+
+**Measured, 20 seeds, whole roster, fitting asserted:**
+
+```
+build                fwd   dealt  taken  ratio  win%
+CH-9 W-BR x2         4.6     276    775   0.36    29
+CH-9 W-BR x2 +drive  6.2     337    702   0.48    46   (+17)
+CH-9 W-AV x2         4.6     190    745   0.26    21
+CH-9 W-AV x2 +drive  6.2     235    732   0.32    31   (+10)
+CH-9 W-AC x2         4.6     358    369   0.97    66
+CH-9 W-AC x2 +drive  6.2     393    321   1.22    74   ( +8)
+CH-9 W-CV x2         4.6     382     74   5.18    96
+CH-9 W-CV x2 +drive  6.2     397     45   8.81    99   ( +3)
+```
+
+**The gain is inversely proportional to the gun's reach** — +17 on the 45 m gun,
++3 on the 240 m one — which is the hypothesis exactly, and the first thing this
+pass has authored that lands where it was aimed.
+
+**But the mechanism is not the one I proposed.** Damage taken falls only 775 →
+702, about 9%. Damage *dealt* rises 276 → 337, about 22%. So most of the win comes
+from arriving sooner and therefore **shooting for longer**, not from being shot
+less on the way. Speed buys shooting time more than it buys safety, and I would
+have written the opposite without the two columns side by side.
+
+### The wrong answer is real, and it costs 20 points
+
+```
+CH-5 W-BR x2         6.9     320    367   0.87    54
+CH-5 W-BR x2 +drive  9.3     263    376   0.70    34   (-20)
+```
+
+On a Mule the Bound is a **trap**. `sim:try` says why without being asked: fitting
+it takes the energy margin to −15.2 kW, and the completer answers with a second
+reactor whose mass then browns the build out — "19 more [plates] came back off;
+their mass browned the build out". A 6 t frame cannot pay 480 kg and 12 kW at the
+same time, so it buys speed and loses power. That is docs/20 §2's third signal —
+a decision with a wrong answer — and it is a 20-point wrong answer, which is the
+size that makes a decision worth having.
+
+**Verdict.** Keep. It does the job it was aimed at, on the frame it was aimed at,
+and punishes the frame that cannot afford it. Note the honest limit: +17 takes
+`CH-9 W-BR:2` from 29% to 46%, which is better and still losing. Close range on
+the slowest frame is improved, not solved, and F40 says why — reach is a
+defensive stat and no amount of speed makes 45 m into 240.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Nothing
+tuned, nothing re-baselined. Sweep below.
