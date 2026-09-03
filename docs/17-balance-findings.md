@@ -3410,3 +3410,50 @@ Not tuned, not re-baselined, recorded here.
 assembles and is still named correctly, and is no longer built on a no-op.
 
 `verify` green (447 / 36 / 209), `game:audit` clean.
+
+## F45 — Fire control is the strongest lever in the catalog, and two of them can be worse than one
+
+`types.ts` says of `fireControlLateralMult`: *"Declared here rather than named
+inside combat.ts so a second fire-control part is a catalog entry, not an engine
+change."* Before taking that invitation, measure what the lever is worth. 20
+seeds, whole roster, 0 / 1 / 2 Abacus (sources multiply, so 1.0 / 0.4 / 0.16):
+
+```
+build            abacus  shots   hit%   dealt  taken  win%
+CH-5 W-AC x2          0  16902   69.1     386    228    69
+CH-5 W-AC x2          1  14348   84.1     443    177    86
+CH-5 W-AC x2          2  13738   88.4     453    166    89
+CH-2 W-CB x2          0  18942   76.9     472     76    94
+CH-2 W-CB x2          1  14570   95.5     480     68    96
+CH-2 W-CB x2          2  13534   98.8     452     72    90
+CH-9 W-CV x2          0   2308   52.4     382     74    96
+CH-9 W-CV x2          1   1944   70.0     408     27    99
+CH-9 W-CV x2          2   1248   89.8     409     19   100
+```
+
+**One Abacus is +15 hit points and +17 win points on the Mule** — the largest
+single-part effect measured anywhere in this pass, larger than any gun swap and
+an order of magnitude larger than the whole own-motion jitter lever (F39, ±2).
+
+**Why it dwarfs everything else.** F38: the mech is travelling 93% of the fight,
+and both mechs are travelling, so almost every shot in the game is fired at a
+*crossing* target. Leading error is therefore the dominant term in the hit model,
+and `fireControlLateralMult` is the only thing that buys it down at the mech
+scale. Own-motion jitter (F39) applies just as often and is worth ±2, because the
+shooter's own speed is small next to the target's crossing speed at range.
+
+**And two is not always better than one.** `CH-2 W-CB` goes 96% → **90%** with a
+second Abacus, while hit rate still climbs 95.5% → 98.8%. Accuracy went up and
+winning went down: the second computer costs a cell and 3 kW on a frame with
+little of either, and above ~95% hit rate there is nothing left to buy. That is
+F40's warning in a second dress — **hit rate is not the objective** — and it is
+the diminishing-returns boundary a second fire-control part has to be designed
+around rather than into.
+
+**What this licenses.** A second fire-control part should not be a stronger Abacus
+— two Abacus already exist and the stack turns negative. It should differ in what
+it *costs*, because the Abacus's 3 kW is the binding resource on exactly the
+builds that most want it (this pass has repeatedly measured `energy margin
+-15.2 kW, no legal cell left for a reactor`). A part that buys the same lever with
+heat instead of power is a direct substitution between the two resources this pass
+has shown to bind, and that is the design being taken up next.
