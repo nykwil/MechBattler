@@ -3013,3 +3013,56 @@ not the prize, is what they were declining.
 `deadMods`; at two hashes ago it was 13 of 247. `W-CV` 53 → 32, still heavily
 used. `U-HS` 3 → 8. All hash-confounded and none attributable, but the mod
 going to zero is worth a look in a deliberate balance pass.
+
+## F39 — The 93% lever has no headroom, so the part I was about to ask for should not exist
+
+F38 established that the pilot travels 93% of the fight, which puts own-motion
+jitter in nearly every shot. The obvious content that follows is a *part* that
+buys it down: the only existing answers are mods (`gyrostabilized` per-weapon,
+`coil-sprung` mech-wide), and they compete for the one-mod-per-part slot, so
+"spend cells on stability" is a decision the game cannot express. That needs a
+`PartDef` field, like `fireControlLateralMult` before it, and I was about to ask.
+
+**Measured the ceiling first, and it is not worth a mechanic.** Stacking both
+jitter mods approximates "shoot as if standing still". 30 seeds, whole roster,
+attachment asserted:
+
+```
+build            gun mod         frame mod      shots   hit%   win%
+CH-5 W-AC x2     -               -              24386   69.6    69
+CH-5 W-AC x2     -               coil-sprung    24472   71.4    71
+CH-5 W-AC x2     gyrostabilized  coil-sprung    24776   73.3    71
+
+CH-2 W-CB x2     -               -              28438   77.3    95
+CH-2 W-CB x2     -               coil-sprung    27996   78.7    96
+CH-2 W-CB x2     gyrostabilized  coil-sprung    28649   78.4    97
+
+CH-9 W-BR x2     -               -               5479   94.5    29
+CH-9 W-BR x2     -               coil-sprung      5472   94.1    27
+CH-9 W-BR x2     gyrostabilized  coil-sprung      5464   94.1    25
+```
+
+**The whole lever is worth about ±2 win points**, and on the Bastion it goes
+*negative* — 29 → 25 with both mods fitted. Hit rate barely moves either: +3.7
+points at best, −0.4 at worst, from a change that should be the difference
+between shooting on the move and shooting from a standstill.
+
+**Two reasons, and the second is the interesting one.**
+
+- Hit rates are already high — 69% to 94% — so there is little room above them.
+  A lever that applies to 93% of shots is still bounded by how many of those
+  shots were missing.
+- **The pilot prices jitter when it chooses speed.** Cheaper jitter makes moving
+  cheaper, so it moves more and spends the gain. That is the absorption mechanism
+  I hypothesised in F38 and failed to find for `hull-down` and `weaving-gait` —
+  and it failed there for a good reason: those are keyed to *states* the pilot is
+  barely ever in. Here, where the effect is always on and directly inside the
+  exchange arithmetic, absorption is exactly what the Bastion row looks like.
+
+**Verdict: do not author, and do not ask.** The field would be real work, a
+permanent schema addition and five call sites, in exchange for a lever whose
+measured ceiling is smaller than `sim:try`'s noise band (F30). Frequency is not
+importance — I nearly authored a part on the strength of "it applies 93% of the
+time" without ever asking how much it was worth when it applied.
+
+**Cost elsewhere.** None: nothing was authored and no file changed but this one.
