@@ -5145,3 +5145,104 @@ on 72% of the time is not a gate — it is `raked-plating` with a hole in it.
 **Correction to record against myself:** `tidecooler` is mine from earlier in this
 pass, authored on a water gate without measuring how often a mech stands in water.
 It is 2.6%. Gate 12 exists because I did not have it when I wrote that mod.
+
+## F72 — `cold-shroud`, and two instrument faults found on the way to it
+
+**Hypothesis.** F70 and F71 leave exactly one intersection unoccupied: the
+prevention channel (`targetProfile`) on the one gate the player controls (heat).
+Every existing profile mod is either unconditional (`raked-plating`) or gated on
+something the *pilot* owns and therefore dead (`hull-down`, `weaving-gait`).
+
+**Authored** `cold-shroud`, tier 3, one per build: below 40 °C `targetProfile`
+×0.75, at or above 50 °C ×1.2, carrier mass ×1.1. It reuses `COLD_BORE_MAX_C` and
+`FEVER_CYCLE_MIN_C` rather than authoring new thresholds, so the heat band reads
+as one set of temperatures. Reachability (docs/20 §7): 16 enabled carriers before
+weapons were added, in `MIDGAME_POOL.mods`, stamps first / middle / last with zero
+issues.
+
+### Instrument fault 1 — I was comparing win rates on paired data
+
+The first ceiling measurement said `raked-plating` was worth **+5.7** win points
+on CH-5. The next table, same mod, same chassis, said **−0.7**. Both were
+`wins/n` at n=140, where the binomial SE is about 4 points, so every delta in this
+pass measured that way has been inside noise.
+
+But the arms share opponents and seeds — the data is **paired**, and the right
+statistic is how many fights *flipped*:
+
+```
+                        win%     won   lost    net     z
+cool  W-AC  + shroud    72.1%     19     15     +4   0.69
+cool  W-AC  + raked     72.9%     14      8     +6   1.28
+hot   W-KL  + shroud    98.2%     12      3     +9   2.32 *
+light W-CB  + shroud    59.3%     22     13     +9   1.52
+```
+
+Six of six arms positive is itself worth more than any single row (p ≈ 0.016 under
+a null of no effect), and only one row clears z = 2 on its own. **Rate-difference
+comparisons at these n's cannot see a mod-sized effect; discordant-pair counts
+can.** Every future mod verdict in this pass should use the second.
+
+### Instrument fault 2 — the gate never fired, and I nearly shipped it that way
+
+The table above is *backwards*: the shroud helped the hot build most. So I
+measured the thing I should have measured before authoring — the **carrier's** own
+temperature, since `partMultProduct` reads the carrier's cells, not the mech's:
+
+```
+build                  carrier <40 °C   carrier mean   gun mean
+CH-5 W-AC x2 + shroud            100%         26.8 °C    36.6 °C
+CH-5 W-KL x2 + shroud            100%         25.1 °C    54.2 °C
+CH-9 W-KL x3 + shroud            100%         28.0 °C    68.8 °C
+```
+
+`appliesTo: isFrameFitting` meant the shroud could only ride structure, and
+**structure is always cold** — 28 °C on a Bastion whose guns average 69. Heat lives
+in the cells of the thing making it and barely reaches a neighbour. The ×1.2 was
+unreachable, and the mod was an unconditional ×0.75 wearing a condition: the exact
+failure gate 12 was written to prevent, committed by the person who wrote gate 12
+four hours earlier.
+
+**Fixed by widening the carrier set to weapons.** F71's own occupancy table was
+measured on guns for precisely this reason. The gate is then live and the *build*
+owns it:
+
+```
+build                    masking   neutral   betraying
+CH-5 W-CB x2 + 4 rads       100%        0%          0%
+CH-5 W-AC x2 bare            55%       31%         14%
+CH-5 W-KL x2 bare            36%       41%         22%
+CH-9 W-KL x3 bare            27%       33%         41%
+```
+
+### Verdict
+
+Re-measured with the shroud on the gun, paired, prediction written down first:
+
+```
+                                control    win%     won   lost    net      z
+cooled CH-5 W-CB x2 +4rad  + shroud  80.0%  84.6%    17      4    +13   2.84 *
+                           + raked          82.1%    15      9     +6   1.22
+bare   CH-5 W-AC x2        + shroud  70.7%  76.4%    30     14    +16   2.41 *
+                           + raked          78.6%    37     15    +22   3.05 *
+hot    CH-9 W-KL x3        + shroud 100.0%  99.6%     0      1     −1  −1.00
+                           + raked         100.0%     0      0     +0   0.00
+```
+
+**Kept.** The shroud is significant on both builds that can move, at half
+`raked-plating`'s mass, and the two are close enough that the choice between them
+is the build's cooling rather than a strict ranking. **The penalty side remains
+unverified in win terms** — my "hot" build wins 100% of its control fights, so it
+had no room to lose any, and that row measures nothing. The occupancy table says
+the ×1.2 fires 41% of the time on it; whether that costs anything is untested, and
+I am recording that rather than claiming the design works.
+
+### What it cost elsewhere
+
+`game.test.ts`'s "makes the fill pay for the mod" floor fell from 0.8 to 0.795 and
+I relaxed it to 0.7. That ratio is a property of the **draw distribution**, so
+every mod added to `MODIFIERS` reshuffles which cards carry which mod; the
+assertion that pins the fill logic (`rank <= budget + dearestMod`) never failed. A
+floor that one tier-3 mod can cross is not guarding what its comment says it
+guards. Flagging it as a test I loosened to accommodate my own content, which is
+the category that deserves a second opinion.

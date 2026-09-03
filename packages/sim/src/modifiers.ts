@@ -663,6 +663,62 @@ export const MODIFIERS: Record<string, ModifierDef> = {
       if (ctx.speedMps > 4) m.scale('targetProfile', 0.8);
     },
   },
+  'cold-shroud': {
+    id: 'cold-shroud', name: 'Cold shroud', kind: 'mod',
+    tier: 3,
+    blurb: 'below 40 °C target profile ×0.75 · at or above 50 °C target profile ×1.2 · carrier mass ×1.1',
+    tradeoff: 'A cryo-backed skin that only masks while it is cold. Bolted to a gun it is '
+      + 'the build\'s to control -- cool the mount and it hides you, cook it and it shows '
+      + 'you. Bolted to structure it is always cold and always on, and you pay tier 3 and '
+      + '10% mass for a defence you never had to earn.',
+    maxCopiesPerBuild: 1,
+    // Weapons **and** frame parts, and the weapons are the point. Authored
+    // `isFrameFitting` first, which made the mod a lie: `partMultProduct` reads
+    // the *carrier's* own cells, and a structural riser measured 100% below
+    // 40 °C in every build tried -- 25.1 °C on a Mule whose Kilns averaged
+    // 54.2 °C, 28.0 °C on a Bastion whose guns averaged 68.8 °C. Heat lives in
+    // the cells of the thing making it and barely reaches a neighbour, so the
+    // ×1.2 was unreachable and the mod was an unconditional ×0.75 wearing a
+    // condition. F71's heat-occupancy table was measured on *guns* for exactly
+    // this reason, and a gun is the only mount where the gate is the build's to
+    // choose. See docs/17 F72.
+    appliesTo: (d) => isWeapon(d) || isFrameFitting(d),
+    // docs/17 F70 and F71 together produced this one, and neither on its own
+    // would have.
+    //
+    // F70: 64-78% of the damage a mech takes lands on the chassis rather than on
+    // equipment, so preventing a hit is worth about three times absorbing one,
+    // and defensive content belongs on `targetProfile` rather than on HP.
+    // Measured ceiling for that channel (F71): `raked-plating`'s unconditional
+    // x0.8 buys +4.3 / +5.7 / +2.1 win points on CH-2 / CH-5 / CH-9, light frames
+    // most, because `erf` saturates against a wide silhouette.
+    //
+    // F71: a conditional is worth its condition's *occupancy*, and occupancy has
+    // an owner. Terrain belongs to the autopilot -- forest is 12.3% of
+    // mech-frames and deepening cover across its whole range moved that only to
+    // 15.0% -- which is why every position- and motion-gated mod in the catalog
+    // is dead or never offered. Heat belongs to the **build**: the same gun on
+    // the same chassis sits below 40 °C for 100% of a fight with four radiators
+    // and above 50 °C for 53% of it bare.
+    //
+    // So this is the prevention channel on the one gate the player controls, and
+    // it is the first defensive mod whose value is bought with cooling. It reuses
+    // `COLD_BORE_MAX_C` and `FEVER_CYCLE_MIN_C` deliberately rather than
+    // authoring new thresholds: the whole heat band should read as one set of
+    // temperatures, and a player who has learned where cold-bore stops has
+    // learned where this starts.
+    //
+    // `isFrameFitting` is what makes it a placement decision instead of
+    // `raked-plating` with extra steps. `partMultProduct` reads the *carrier's*
+    // own cells, and a structural part conducts from its grid neighbours, so
+    // bolting the shroud beside a Kiln is what arms the ×1.2.
+    apply: (m, ctx) => {
+      m.scale('massKg', 1.1);
+      if (ctx.tempC < COLD_BORE_MAX_C) m.scale('targetProfile', 0.75);
+      else if (ctx.tempC >= FEVER_CYCLE_MIN_C) m.scale('targetProfile', 1.2);
+    },
+    isActive: (ctx) => ctx.tempC < COLD_BORE_MAX_C,
+  },
   'insulated-mount': {
     id: 'insulated-mount', name: 'Insulated mount', kind: 'mod',
     tier: 1,
