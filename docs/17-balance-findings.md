@@ -4468,3 +4468,66 @@ the reverts taught rather than against a story.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, enabled
 parts 39. Nothing tuned, nothing re-baselined.
+
+## F61 — `sigmaM` is a hypotenuse, lead error is 1.9–3.8× the longer leg, and that one ratio predicts the value of every accuracy lever
+
+`computeHitModel` is four lines and they explain most of this pass:
+
+```ts
+tofS         = hitscan ? 0 : rangeM / projectileSpeed
+aimStalenessS = TRACKING_LAG_S + tofS          // 0.5 s + flight time
+dispersionM  = sigmaRad * rangeM               // the cone leg
+leadErrorM   = lateralSpeedMps * aimStalenessS * lateralPenaltyMult   // the lead leg
+sigmaM       = hypot(dispersionM, leadErrorM)
+pHit         = erf(targetHalfWidthM / (sigmaM * √2))
+```
+
+**`sigmaM` is a hypotenuse**, so the larger leg dominates and the smaller one is
+nearly free to change. Measured at the median engagement range of 85 m (F54), with
+the mean target speed read from frames (2.64 m/s) and the shooter at cruise:
+
+```
+gun     cone mrad  +motion  dispersionM   staleness  leadErrorM   ratio
+W-CV            3      6.8         0.57        0.83        2.18   lead 3.8x
+W-CB            2      5.8         0.49        0.69        1.82   lead 3.7x
+W-KL            2      5.8         0.49        0.62        1.64   lead 3.4x
+W-BMB           5      8.8         0.74        0.93        2.44   lead 3.3x
+W-LNC         2.5      6.3         0.53        0.50        1.32   lead 2.5x
+W-MG            8     11.8         1.00        0.71        1.88   lead 1.9x
+```
+
+**Lead error is the longer leg on every gun in the game**, by 1.9× to 3.8×.
+
+### The arithmetic that follows, and it is the whole story
+
+At a ratio of 3.8, `sigmaM = lead × √(1 + (1/3.8)²) = lead × 1.034`. The cone
+contributes **3.4%** of sigma. So:
+
+- **Halving the cone** takes sigma from 1.034·lead to 1.009·lead — a **2.4%**
+  improvement.
+- **Halving the lead** takes sigma to ~0.54·lead — a **48%** improvement.
+
+Twenty times the effect, from the same fractional change to the other leg. Four
+separate findings in this file are that one fact:
+
+| finding | measured | why |
+|---|---|---|
+| F39 own-motion jitter ceiling | **±2 win points** | jitter is inside the *cone* leg, worth 3% of sigma |
+| F44 `ram-bore` dispersion ×1.35 | no bite, +3 to +15 anyway | same leg, same 3% |
+| F45 one Abacus | **+17 win points** | halves the *lead* leg mech-wide |
+| F49 hitscan at range | **+22 hit points** over `W-CV` | `tofS` → 0 cuts staleness 0.83 → 0.50, so lead falls 40% |
+
+**The predictive rule, which is what this is worth:** before authoring or costing
+any accuracy effect, ask which leg it touches. A cone effect — `dispersionMrad`,
+`moveJitter`, `turnJitter`, `lucky`, `gyrostabilized`, `coil-sprung` — is worth a
+few percent of sigma and cannot be made to matter by scaling it. A lead effect —
+`fireControlLateralMult`, `lateralPenalty`, `projectileSpeed`, hitscan — moves
+sigma nearly one-for-one. **Six of the catalog's accuracy levers are on the leg
+that does not matter and two are on the leg that does.**
+
+**And it names the gap.** `lateralPenalty` is the per-weapon half of the lead
+term, it is consumed at `combat.ts:1094`, and — checked against every mod's
+`apply` body — **it is the only channel in `EffectiveMults` that no mod writes.**
+The single highest-value accuracy channel in the game has no mod on it. That is
+F52's ordering item 1, a live lever nobody prices, and it is what the next part
+goes after.
