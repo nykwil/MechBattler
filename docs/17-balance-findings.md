@@ -3499,3 +3499,32 @@ so the second fire-control part pays in footprint rather than heat: bigger and
 heavier than the Abacus, and free of power. That keeps F45's substitution — the
 resource this pass repeatedly measures as scarce is power, and a part that buys
 leading accuracy without it is a genuine second answer rather than a weaker copy.
+
+### F44 addendum — the archive cannot see a catalog-wide power increase
+
+`artifacts/rambore-12lock.json`, hash `89d802b3`, against the previous run:
+
+```
+ram-bore coverage   21  (was 12)   <- now the most-drafted mod in the game
+gallery             253  vs  253
+top fitness        1.00  vs 1.00
+median fitness     0.66  vs 0.66
+emptyCells         4 heavy, unchanged
+```
+
+`ram-bore` went from doing nothing to +25% damage on its carrier and is drafted
+nearly twice as often — and **the archive's fitness distribution did not move at
+all.** Median 0.66 both runs, top saturated at 1.00 both runs.
+
+That is worth stating because it is the opposite of a reassurance. The swing is
+real: +16 win points measured at build level on two carriers (F44). The archive
+cannot show it, because it keeps the best build per cell and those were already at
+or near the ceiling — a mod that makes strong builds stronger has nowhere to go on
+a scale that is already saturated.
+
+**So `sim:breed` is not a power-creep detector.** It answers "what shapes are
+reachable and what gear gets drafted", and it answers those well. It does not
+answer "did the game get more powerful", and a reader comparing two galleries and
+seeing an identical median would conclude nothing changed. The instrument for that
+question is `balance:report`'s per-build diff against the baseline, which is
+exactly what docs/20 §9 says not to re-cut and exactly why.
