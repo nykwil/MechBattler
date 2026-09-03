@@ -4241,3 +4241,51 @@ pass.
 killed by its own confounds, and a pre-existing weapon identified as the catalog's
 weakest by a factor of two. The middle one is the finding worth carrying: **a
 battle-level statistic cannot isolate a shot-level mechanism.**
+
+## F57 — The pass scored by median carrier fitness, and two of my own verdicts were wrong
+
+`artifacts/bombard-12lock.json`, hash `975ee813`, gallery 261. Read with the
+discriminator from F53's addendum rather than coverage alone:
+
+```
+part       coverage  builds  best  median          verdict
+W-BMB            39      27  1.00   0.99   strong
+U-VENT           55      20  1.00   0.99   strong
+W-LNC            28      17  1.00   0.99   strong
+U-SIGHT           5       4  0.99   0.97   strong but rarely drafted
+W-SER            30      22  0.99   0.02   drafted into losing builds
+U-MANTLE          1       1  0.01   0.01   drafted once, into a losing build
+U-DRIVE           0       0     —      —   deadParts
+W-CV              0       0     —      —   neverOffered (draw luck)
+
+for reference: W-KL 49/0.98 · W-MG 107/0.66 · W-SR 2/0.51
+```
+
+**Correction 1 — the Bombard is a good weapon whose premise was false.** F55
+struck out its design story (a dead zone does not make the pilot stand off) and
+recorded it as "worse than the Culverin on both chassis it fits". By the metric I
+now trust it is among the best things this pass produced: 39 draws, 27 builds,
+median **0.99**. Those are separate claims and both hold — **the positioning
+premise is dead and the gun is strong anyway**, on reach and 13.6 dps. I was right
+to strike the premise and wrong to let that colour the verdict on the part.
+
+**Correction 2 — `U-MANTLE` is weak.** F29 kept it on +8 to +11 build-level
+attribution at 30 seeds, and that measurement stands. But across the whole pass it
+has never exceeded 2 gallery builds, and here it is 1 build at median **0.01**. A
+part that improves a hand-built probe and is drafted once into a losing build is
+not a part that works; the honest verdict is that the armour *assembly fix* was the
+value (F29's real finding) and the part was the occasion for it.
+
+**What the scorecard says overall.** Of eight parts shipped, four are drafted into
+winning builds (`W-BMB`, `U-VENT`, `W-LNC`, `U-SIGHT`), one is drafted into losing
+ones (`W-SER`), and three are effectively absent (`U-MANTLE`, `U-DRIVE`, and
+`W-CV` only for draw luck at this hash — it read 53 coverage and median 0.99 two
+sweeps ago). The four that work share a property worth naming: **each buys a live,
+dominant thing — cooling that fits, reach without lead error, reach with damage,
+leading accuracy — and each pays in a currency the completer cannot refund.** The
+three that do not were aimed at cells, at conditions the completer repairs, or at
+pilot behaviour.
+
+**And `emptyCells` is five here**, all heavy, against one two sweeps ago. That
+volatility across hashes is F52's point restated: the cell list is a property of
+the draw domain, not of the catalog, which is why it was retired as a target.
