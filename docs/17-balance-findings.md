@@ -3213,3 +3213,74 @@ breeder answer genuinely different questions here, and both answers are true.
 **Swings at the new hash, confounded and untuned.** `W-AV` 12 → 33, `W-BR` 20 → 6,
 `U-VENT` 12 → 1, `U-ARM` 104 → 64, `W-CV` steady at 53. `emptyCells` back to four
 from two. `deadParts` gains `U-RISEL` and keeps `W-RG`.
+
+## F42 — `Winterbourne`, designed by measurement, and the three mods that measured as literally nothing
+
+Uniques are what docs/20 §4 calls the cheapest identity available — part + mod +
+variant + quirks, no new rules. This pass had already killed one unique before
+naming it (F34's addendum: `gyrostabilized` on the Culverin measures −6), so this
+one was measured component by component before any of it was written down.
+
+**Every candidate mod, on a bare `CH-9 W-CV:1`, 20 seeds:**
+
+```
+mod              shots  hit%   dealt  taken   win%
+none              1503  61.9     375    289     81
+cold-bore         1479  61.4     390    215     92
+ram-bore          1503  61.9     375    289     81
+insulated-mount   1504  61.9     376    289     81
+surge-gate        1503  61.9     375    289     81
+```
+
+**Three of the four are byte-identical to the baseline, down to the shot count.**
+Overkill carry, insulation and surge priority are each conditional on a state a
+cold long gun never enters, so they are not weak here — they are *exactly*
+nothing. That is F18's "+0.0 reads like an effect that does nothing" seen at
+whole-battle determinism, and it is a useful screening trick: **run the candidate
+and diff the shot count. Identical means inert, and no amount of seeds will
+separate it.**
+
+`cold-bore` is +11 because the Culverin runs at **30.9 °C** and sits under the
+40 °C threshold **100% of the time** — a long gun with an 8 kJ shot is the ideal
+carrier for a mod that pays for being cold.
+
+**The first cost was wrong, and by a lot.** `cold-bore + hot-running` with a
+`cycleS ×1.2` variant measured **67% against the stock part's 80%** at 30 seeds.
+Rate of fire is the wrong thing to tax: 2248 shots fell to 1910, the enemy lived
+longer, and damage taken went 281 → 421. Costs that do not touch output work:
+
+```
+stock Culverin       80%
+cold-bore only       88%
+disp ×0.85, hp ×0.8  82%
+disp ×0.85 only      86%
+dmg ×1.1, hp ×0.75   82%   <- taken 196, lowest of any variant
+```
+
+**Shipped:** `cold-bore` + `hot-running`, variant `{damage 1.1, hp 0.75}`. Net
+**+2 on stock** — a gift genuinely paid for rather than a straight upgrade — with
+three tensions in one object: it hits harder, it dies faster, and `hot-running`'s
++1.5 kW heats it out of its own accuracy window a third of the time (measured:
+100% → 67% of ticks below 40 °C).
+
+**Reachability.** Assembles through the real wish path on CH-9 and CH-5 and is
+recognised by `identifyUnique` as *Winterbourne*, which is how the workshop names
+it. Refused on CH-2 — the Culverin's 2×3 does not fit a Vulture region, the same
+geometry gate `W-RG` uses, inherited rather than restated. Uniques sit outside
+`simContentHash()` and outside `MIDGAME_POOL`, so build-level measurement is the
+only instrument that applies and no sweep is owed.
+
+**Final measurement, 30 seeds, through the real path:**
+
+```
+stock Culverin   2248 shots  62.8% hit   377 dealt  281 taken   80%
+Winterbourne     2009 shots  61.6% hit   383 dealt  196 taken   82%
+```
+
+**Verdict.** Keep. Fewer shots, slightly worse hit rate, marginally more damage
+dealt, and a third less damage taken — because harder hits end fights sooner. It
+reads differently from the gun underneath it, which is the whole point of the
+layer, and it is +2 rather than +11 because the cost is real.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Nothing
+tuned, nothing re-baselined, no sweep displaced.

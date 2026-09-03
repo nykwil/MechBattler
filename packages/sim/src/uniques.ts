@@ -54,6 +54,30 @@ export const UNIQUES: Record<string, UniqueDef> = {
     blurb: 'A court gun kept in an unheated vault between hearings. It argues best on the first word.',
     tier: 3,
   },
+  // Designed by measurement rather than by theme, after two attempts that were
+  // not (docs/17 F42). Every candidate mod was measured on the bare part first:
+  // `ram-bore`, `insulated-mount` and `surge-gate` returned results *identical
+  // to the stock gun down to the shot count*, because overkill carry, insulation
+  // and surge priority are each conditional on a state a cold long gun never
+  // enters -- F18's "+0.0 reads like an effect that does nothing", visible at
+  // whole-battle determinism. `cold-bore` was +11, because the Culverin runs at
+  // 30.9 °C and sits below the 40 °C threshold 100% of the time.
+  //
+  // Then the cost, which is where the first design failed: `cycleS x1.2` took it
+  // to 13 points *below* the stock part, since fewer shots let the enemy live
+  // longer and damage taken went 281 -> 421. Costs that do not touch rate of
+  // fire work. This one nets +2 on stock -- a gift genuinely paid for rather
+  // than a straight upgrade -- and carries three tensions in one object: it hits
+  // harder, it dies faster, and `hot-running` heats it out of its own accuracy
+  // window a third of the time (measured: 100% -> 67% of ticks below 40 °C).
+  'winterbourne': {
+    id: 'winterbourne', name: 'Winterbourne', partId: 'W-CV',
+    modifierId: 'cold-bore',
+    quirkIds: ['hot-running'],
+    variant: { damage: 1.1, hp: 0.75 },
+    blurb: 'Bored through a frozen river the year the siege lifted. It shoots true while the barrel is cold, and it will not stay cold.',
+    tier: 4,
+  },
   'fell-ford-widow': {
     id: 'fell-ford-widow', name: 'Widow of Fell Ford', partId: 'W-BR',
     modifierId: 'ram-bore',
