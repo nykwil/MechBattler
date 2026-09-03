@@ -4717,3 +4717,54 @@ rule applies to my own model as much as to anything else, and one sweep at
 n = 5 is not a confirmation.** What is solid is the arithmetic in F61 and the
 controlled per-carrier measurement in F63, where the ordering was predicted in
 advance and held across five guns.
+
+## F65 — `raked-plating`, and the win gradient runs opposite to the hit-rate gradient
+
+**Hypothesis.** F64 measured `targetProfile ×0.8` as worth 11–19% of incoming
+hits, with a free chassis gradient — worth most to the smallest frame, because
+`erf` saturates. `targetProfile` had exactly two mods and both were gated on
+movement states F38 measured at 6.2% and 19.3% of fight time, which is why both
+live in `deadMods`. **No unconditional profile mod existed.**
+
+**Authored.** `raked-plating`, tier 3, any frame fitting: `targetProfile ×0.8`,
+`massKg ×1.2`, unconditional. 16 carriers, drawable from the derived pool.
+
+**Measured, 20 seeds, whole roster — the prediction's *ordering* holds exactly:**
+
+```
+build              enemy hit%      taken   dealt   win%
+CH-2 W-CB  x2      65.5 → 55.9    76 → 66  472→474  94 → 95
+CH-5 W-AC  x2      77.7 → 68.3   228 →212  386→404  69 → 75
+CH-9 W-BMB x2      96.2 → 92.4   149 →142  391→392  89 → 89
+CH-9 W-BR  x2      98.5 → 96.2   775 →751  276→287  29 → 36
+```
+
+Relative reduction in incoming hit rate: **−14.7% on the Vulture, −12.1% on the
+Mule, −4.0% and −2.3% on the Bastion.** The gradient is the one F64 derived —
+smallest frame gains most — and the Bastion figures are *smaller* than predicted
+because `erf` is even deeper in saturation than the 85 m model assumed: those
+builds are being hit 96–98% of the time, where shaving the numerator buys almost
+nothing.
+
+**And the win gradient runs the other way, which the model did not predict.**
+
+```
+CH-2 W-CB   -14.7% hits,  76 damage taken  →  +1 win point
+CH-9 W-BR    -2.3% hits, 775 damage taken  →  +7 win points
+```
+
+**The mod's value tracks how much damage you were taking, not how much the hit
+rate falls.** A 2.3% reduction on 775 incoming damage saves more than a 14.7%
+reduction on 76. So the defensive mod is worth most to the frame that is *losing
+worst* — `CH-9 W-BR` is the 29% build F40 identified as the game's weakest — and
+least to the frame the arithmetic favours. Two true gradients pointing in opposite
+directions, and only the accuracy one was derivable in advance.
+
+**Verdict.** Keep. It prices an unconditional version of a channel whose only two
+mods are condition-starved, the predicted ordering held, and the surprise refines
+the model rather than contradicting it: **F64 predicts the hit-rate effect; the win
+effect needs the damage-taken baseline as well, and F40 already said that is what
+decides matchups.**
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, 39 parts.
+Nothing tuned or re-baselined.

@@ -590,6 +590,34 @@ export const MODIFIERS: Record<string, ModifierDef> = {
     appliesTo: isWeapon,
     apply: (m) => { m.scale('moveJitter', 0.4); m.scale('massKg', 1.15); },
   },
+  'raked-plating': {
+    id: 'raked-plating', name: 'Raked plating', kind: 'mod',
+    tier: 3,
+    blurb: 'presents a narrower silhouette from every angle: target profile ×0.8 · carrier mass ×1.2',
+    tradeoff: 'Always on, and always heavy. The angled skin adds a fifth again to whatever it '
+      + 'is bolted to, and it is worth least to the frame most able to carry that.',
+    maxCopiesPerBuild: 1,
+    appliesTo: isFrameFitting,
+    // docs/17 F64: `pHit = erf(targetHalfWidthM / (sigmaM * root2))`, and
+    // `targetProfile` scales that numerator -- the defensive mirror of fire
+    // control, which F45 measured at +17 win points, the largest single-part
+    // effect in the pass. Measured before authoring: x0.8 takes incoming pHit
+    // down 11-19% at the median 85 m engagement range.
+    //
+    // Unconditional, deliberately. `targetProfile` already has two mods and both
+    // are gated on movement states F38 measured at 6.2% (`hull-down`, standing)
+    // and 19.3% (`weaving-gait`, above 4 m/s) of fight time, which is why both
+    // spend their lives in `deadMods`. This one is on for the other 93%.
+    //
+    // The chassis gradient is free: -19% to a Vulture against -11% to a Bastion
+    // facing the same gun, because `erf` saturates and pHit is already high
+    // against a 2.13 m half-width. So it is a light-frame mod by arithmetic
+    // rather than by authoring -- and the mass cost runs the same way, since 20%
+    // of a light frame's fitting is cheaper in absolute terms but dearer against
+    // its rating. Same shape the Culverin's recoil gave a heavy-frame gun (F34),
+    // pointing the other way.
+    apply: (m) => { m.scale('targetProfile', 0.8); m.scale('massKg', 1.2); },
+  },
   'hull-down': {
     id: 'hull-down', name: 'Hull-down suspension', kind: 'mod',
     tier: 3,
