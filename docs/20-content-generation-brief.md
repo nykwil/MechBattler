@@ -72,6 +72,16 @@ Three softer signals, in descending order of value:
 `stamp.contentHash` only against *another report's* stamp, never against a hash
 you computed yourself (`17` **F20**).
 
+**The empty-cell backlog is closed, and the metric is retired — read `17` F52
+before using this section.** After the 3 Sep pass `emptyCells` is one cell, and
+that cell holds a **99%** build made of parts that already ship. Three of the four
+cells empty during that pass held builds of 71-99% the search simply never
+proposed; meanwhile *filled* cells hold builds that win 21% of their fights.
+**Occupancy measures neither reachability nor quality**, so "fill the empty cells"
+selects for what the search happened to try. Use `17` F52's replacement ordering:
+a live-but-unpriced lever first, then a cost no part pays, then a dead lever
+checked for a consumer — and empty cells last.
+
 **Updated 2 Sep 2026, after the pass that produced `17` F28-F34.** The four cells
 that stay empty across sweeps are `mid/heavy/cold`, `mid/heavy/redliner`,
 `long/heavy/cold` and `long/heavy/redliner` — every heavy cell that is not close

@@ -3885,3 +3885,67 @@ is the obvious reading and I will not pretend it is not. `cold-bore` enters
 **Verdict on `W-LNC`: keep, and it is the best content outcome of this pass.**
 Most-drafted weapon, largest gallery on file, and the only part all session with
 affirmative build-level attribution into a previously empty cell.
+
+## F52 — The last empty cell holds a 99% build, so the archive is closed as a content target
+
+After `W-LNC`, `emptyCells` is one: `long/heavy/cold`. Applying gate 9 — the check
+this pass added to docs/20 §7, *score the best build the cell can hold before
+authoring for it* — before writing anything.
+
+**49 builds land in `long/heavy/cold` using parts that already ship.** The best,
+at 20 seeds against the whole roster:
+
+```
+CH-5 W-CV x2 + 8 plates    99%
+CH-9 W-SR x3               99%
+CH-5 W-KL x2 + 16 plates   94%
+CH-9 W-SR x2               93%
+CH-5 W-CV x1 + 16 plates   81%
+...
+CH-5 W-LNC x2 + 16 plates   0%
+```
+
+**A 99% build sits in the only empty cell in the game.** So it is not a content
+gap by any definition — it is reachable, it is strong, and the breeder does not
+propose it. Same shape as F34, where `long/heavy/redliner` held a 95% build, and
+F24 before that.
+
+**Verdict: do not author for it.** By this pass's own gate, a part spent here is
+wasted.
+
+### The larger consequence: retire "fill the empty cells" as the goal function
+
+docs/20 §2 defines interesting operationally as *"a part is interesting if it fills
+a cell that was empty, or lets a filled cell be won a different way"*, and §3 makes
+the empty-cell list the backlog. **That backlog is now closed**, and closed in a
+way that says the metric has stopped being useful rather than that the work is
+done:
+
+- Of the four cells empty for most of this pass, **three held builds of 71–99%
+  that the search never proposed** (F34, F52).
+- The fourth, `mid/heavy/cold`, held a 19% build and was the only honestly empty
+  one — and it filled anyway, without a part aimed at it.
+- Meanwhile **filled cells hold 21–29% builds** (F40): `close/heavy/*` is occupied
+  by things that lose three fights in four.
+
+**Occupancy measures neither reachability nor quality.** An empty cell can hold a
+99% build and a filled one a 21% build, so "fill the empty cells" selects for
+neither interest nor strength — it selects for what the search happened to
+propose. The two parts this pass that landed best (`W-CV` at 53 coverage, `W-LNC`
+at 48 and both heavy/redliner cells) were aimed at *mechanisms* — recoil paid in
+mass, reach paid in heat — and reached the archive as a side effect. The one aimed
+directly at a cell (`U-DRIVE` at `close/heavy`) never landed there.
+
+**What to use instead**, in rough order of how well it worked this pass:
+
+1. **A lever that is live but unpriced.** Reach and lead error were both dominant
+   and both had exactly one shape available (F40, F45). Both produced a
+   heavily-drafted part.
+2. **A cost no part currently pays.** Costs place a part in the archive as much as
+   benefits do (F49 addendum) — the Lance filled a redliner cell through its heat,
+   not its hitscan.
+3. **A dead lever, checked first.** Half the ones examined turned out to be dead
+   *fields* rather than dead content (F43, F46), which is worth knowing but yields
+   no part.
+
+Empty cells are last, not first.
