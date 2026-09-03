@@ -3589,3 +3589,44 @@ the point of it.*
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
 tuned or re-baselined.
+
+## F48 — The Mule's only chassis identity is arc, and arc is inert, so one frame in three has no working identity effect
+
+F28 measured mount arc as an inert lever: over 195,746 frames the bearing to the
+enemy has a median offset of 0.1° and a maximum of 11.6, against a narrowest
+half-arc of 10° in the whole catalog. It noted in passing that the chassis
+location zones granting `weaponArcBonusDeg: 25` therefore buy nothing, and left
+that as a UI honesty question.
+
+It is bigger than that. Every chassis has exactly one location zone, and the
+effect vocabulary (`ChassisLocationEffectSpec`) has exactly three fields:
+
+```
+CH-2 Vulture  vulture-long-sight-hardpoints   12 cells   weaponRangeMultiplier 1.1   LIVE
+CH-5 Mule     mule-articulated-shoulders      10 cells   weaponArcBonusDeg      25   INERT
+CH-9 Bastion  bastion-heat-spreader-casemate  36 cells   heatMultiplier       0.85   LIVE
+```
+
+**The Mule's entire chassis-level identity does nothing.** The Vulture gets +10%
+range on its hardpoints and `W-SR` is cut to the shape that claims it; the Bastion
+gets −15% heat across its casemate. The Mule gets +25° of arc on a mech that is
+already on target to within a tenth of a degree.
+
+That is docs/20 §2's second signal — *"it makes a chassis want something it did
+not want"* — failing at the chassis end rather than the part end. There is nothing
+a part can want the Mule's shoulders *for*, so the geometry trick that gave the
+Vulture its sniper identity cannot be repeated there. Both other frames have a
+lever to build a part against; the middle chassis has none, which is some of why
+it reads as the frame without a personality.
+
+**And the vocabulary has no room to fix it without a decision.** Three fields
+exist. Range is the Vulture's identity and heat is the Bastion's, so giving either
+to the Mule makes it a copy of a frame that already has one. A fourth kind of zone
+effect is a new chassis rule, which docs/20 §9 puts squarely in the ask-first
+column.
+
+**Recorded, not acted on.** The Mule's shoulders are a distinctive 5-cell concave
+shape (`.## / ###`) that nothing in the catalog is cut for, so the *part* half of
+the W-SR trick is available and cheap. It is worth nothing until the region it
+fits is worth occupying, so authoring one now would be a part aimed at a bonus of
+zero — which is the mistake F28 exists to prevent.
