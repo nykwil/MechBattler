@@ -276,7 +276,7 @@ anything about a part, check all four:
 If a part fails any of these, you are measuring the instrument. Fix the
 instrument, then re-measure.
 
-**Five more, added 2 Sep 2026, because the gate above only asks about parts.**
+**Seven more, added 2-3 Sep 2026, because the gate above only asks about parts.**
 An empty cell and a dead lever are claims about the *search*, and it failed three
 more ways in one session:
 
@@ -312,6 +312,37 @@ more ways in one session:
    The cheap version: `assembleBuild` a few dozen candidates into the cell, run
    `evaluateBuild` on the survivors at **20+ seeds** (F30), and look at the top
    score before writing any catalog entry. It costs a minute.
+
+10. **What is the ceiling, measured before you author?** Every accuracy, defensive
+    or economic effect has a maximum worth, and it is usually computable in ten
+    minutes from the sim's own model. This check has now prevented three parts and
+    would have prevented two more that shipped and were reverted:
+
+    - own-motion jitter: stack every jitter mod, measure the ceiling — **±2 win
+      points**, so the `PartDef` field it would have needed was never requested
+      (`17` **F39**).
+    - reactor output: a `×1.3` mod averts a second reactor in **17%** of the
+      builds that carry one, and closing the median deficit needs `×1.6`, at
+      which point it deletes a reactor. Bimodal, so unpriceable (`17` **F67**).
+    - a 1×4 reactor, authored on the belief that a different shape fits where a
+      2×2 does not: **half** the legal placements, not more (`17` **F58**).
+
+    The rule the successes share: **derive the effect from a mechanism, write the
+    prediction down, then author.** `lead-cam` and `raked-plating` were both
+    predicted from `computeHitModel` before they existed, and both landed —
+    `raked-plating` was drafted onto the Vulture and nothing else, which F64
+    derived from `erf` saturation with no chassis named anywhere.
+
+11. **Is your premise an aggregate, or a mechanism?** The three reverts of the
+    3 Sep pass all came from treating a measured *average* as a fixed property of
+    the world. The sharpest: the median engagement range is 85 m, so a tier-1 gun
+    banded for 85 m should fix tier 1 — except a build fights where **its own
+    guns' band** puts it (`0-15` → 36 m, `10-40` → 74 m, `55-110` → 116 m), so
+    "banded for where fights happen" is circular and the part lost to the gun it
+    was meant to replace (`17` **F68**).
+
+    An aggregate over a roster describes that roster. Ask what *produces* the
+    number before designing against it.
 
 **And you cannot A/B a part on this harness.** `MIDGAME_POOL.parts` is the draw
 domain, so adding one id re-rolls every lock at the same seed and the two runs
