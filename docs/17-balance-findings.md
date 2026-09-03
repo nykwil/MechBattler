@@ -3066,3 +3066,49 @@ importance — I nearly authored a part on the strength of "it applies 93% of th
 time" without ever asking how much it was worth when it applied.
 
 **Cost elsewhere.** None: nothing was authored and no file changed but this one.
+
+## F40 — Hit rate anti-correlates with winning, because what a slow frame pays for reach is measured in damage taken
+
+Chasing a number left over from F39: `CH-9 W-BR:2` hits **94.5%** of its shots and
+wins **29%** of its fights. That should not be possible unless accuracy is not the
+thing.
+
+**Hypothesis.** The Bastion loses despite near-perfect accuracy because it cannot
+reach its band — it is the slowest frame in the game and 92.8% of a fight is
+transit (F38), so a short-range gun means being shot for most of it.
+
+**Measured.** Same chassis, two guns each, 20 seeds, whole roster, ordered by the
+gun's maximum range:
+
+```
+gun     ideal band    max   shots/fight  hit%  dealt  taken  ratio  win%
+W-BR         0-15      45         27.6  94.9    276    775   0.36    29
+W-AV         0-30      60         13.4  81.0    190    745   0.26    21
+W-AC        20-50     150        153.8  64.9    358    369   0.97    66
+W-KL       90-160     300         23.6  67.7    425    153   2.78    91
+W-CV       70-140     240         16.5  52.4    382     74   5.18    96
+```
+
+**Hit rate runs backwards.** The most accurate gun on the frame wins least; the
+least accurate wins most. And the thing that actually moves is **damage taken**:
+775 → 745 → 369 → 153 → 74, monotonic in reach. Damage *dealt* barely varies
+(190–425). The Bastion is not out-damaged because it misses. It is out-damaged
+because a short gun makes it spend the fight being shot on the way in.
+
+**So hit rate is a misleading quality signal**, and it is the one a reader reaches
+for first. Anything that measures a gun by how often it connects will rank
+`W-BR` top of this table and it is last by every measure that matters.
+
+**No content follows, and that is the verdict.** The obvious reading — "the
+Bastion has no viable armament" — is false: `W-KL` already gave it 91% before this
+pass began, and `W-CV` adds five points on top. The frame was served; what was
+missing was anyone having written down *why* its close-range builds fail. They
+fail for a reason that is structural and not fixable with a better brawling gun:
+on a frame this slow, reach is a defensive stat.
+
+**It also qualifies gate 9.** docs/20 §7's ninth check asks whether an empty cell
+holds a strong build. The converse is equally true and this table is the evidence:
+`close/heavy/cold` and `close/heavy/redliner` are *filled* cells, and what fills
+them measures 21–29%. **The archive is a coverage metric and says nothing about
+quality in either direction** — an empty cell can hold a 95% build (F34) and a
+filled one can hold a 21% build. Read the fitness, never the occupancy.
