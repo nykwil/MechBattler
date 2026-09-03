@@ -2912,3 +2912,64 @@ metagame is either dead or degenerate, never a decision.
 
 Recorded rather than acted on: changing the panel changes every fitness number in
 this file, and it is a measurement decision rather than a content one.
+
+## F38 — The pilot is in transit 93% of the time, so every mod keyed to standing or orbiting is keyed to 7% of the fight
+
+**Hypothesis, and it was wrong.** I expected `weaving-gait` and `hull-down` to be
+dead because they shift the payoff of a trade the autopilot already optimises —
+orbit versus hold — so the pilot re-optimises and absorbs them. Measured on
+`CH-5 W-AC:2 U-ARM:1`, 20 seeds:
+
+```
+mod             hold%  orbit%  close%  retreat%   win%
+none              8.2     0.4    63.8      27.6     69
+weaving-gait      8.8     0.2    62.3      28.7     69
+hull-down         7.7     0.4    66.5      25.4     76
+coil-sprung       7.2     0.9    62.8      29.0     71
+```
+
+The intent mix barely moves, so the pilot is *not* re-optimising around them. The
+hypothesis is false. What the table shows instead is the real thing, and it is
+much larger.
+
+**Measured across every template pairing, 290,676 mech-ticks:**
+
+```
+move intent                    throttle
+  close      50.97%              cruise      81.56%
+  retreat    41.82%              flank       12.23%
+  hold        6.21%              stationary   6.21%
+  orbit       1.00%
+```
+
+**The pilot spends 92.8% of the fight travelling** — closing or giving ground —
+and the stand-still-versus-orbit decision, which `combat.ts` computes with three
+separate exchange evaluations (`holdU`, `orbitCruiseU`, `orbitFlankU`), governs
+7.2% of it and picks orbit in **1.00%**.
+
+### What this explains
+
+- **`hull-down`** pays below 1.5 m/s. The mech is on a stationary throttle 6.2% of
+  the time. Its condition is open for a sliver of the fight, and its measured
+  effect is correspondingly unstable: **+7 here and 0 on the `sim:try` build**,
+  at the same 20 seeds — build-dependent noise, not a verdict either way.
+- **`weaving-gait`** pays above 4 m/s and reads **exactly neutral**, 69 against 69.
+- **`coil-sprung`** buys down mech-wide move jitter, which applies while moving —
+  93% of the fight — and it is the one of the three that left `deadMods` in a
+  sweep. That is consistent, and it is the design rule this finding gives:
+
+> **A mod keyed to a movement *state* is keyed to a sliver. A mod keyed to
+> movement *itself* is on almost always.** Standing still and orbiting are 7% of
+> the game between them; travelling is 93%.
+
+### The larger question, for the owner
+
+Stand-and-shoot essentially does not happen. That is why `MOVE_JITTER_MRAD_PER_MPS`
+at 0.75 mrad per m/s is such a dominant accuracy term — nearly every shot in the
+game is fired while moving — and it is worth deciding whether perpetual transit is
+the intended shape of a fight. It is not a balance number and not a content gap;
+it is what the four verbs actually do, and three mods were authored against the
+7% rather than the 93% without anyone having measured the split.
+
+Recorded rather than acted on: changing how much the pilot stands is a pilot
+decision, and F31 showed how far those reach.
