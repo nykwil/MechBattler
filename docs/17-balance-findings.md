@@ -4018,3 +4018,56 @@ weapon and not a good one.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean, nothing
 tuned or re-baselined.
+
+## F54 — Fights happen at 85 m, and three guns have ideal bands the game spends 0.3% of its time in
+
+Measured while sizing a dead zone for an artillery piece: the engagement-range
+distribution across every canonical pairing, three seeds, 145,338 frames.
+
+```
+p05 36 m   p25 48 m   p50 85 m   p75 144 m   p95 192 m   max 234 m
+
+under  20 m:  0.3% of fight time
+under  40 m: 17.1%
+under  60 m: 30.8%
+under  80 m: 47.7%
+under 100 m: 55.5%
+under 140 m: 73.4%
+```
+
+**The median fight is at 85 m and true knife range essentially does not happen** —
+three tenths of one percent of fight time inside 20 m.
+
+Now the authored ideal bands of the close weapons:
+
+```
+W-BR  Maul    ideal  0-15   max 45
+W-SC  Scald   ideal  0-20   max 45
+W-AV  Anvil   ideal  0-30   max 60
+```
+
+**All three are tuned to a band the game occupies 0.3–17% of the time**, and their
+full-damage plateau sits almost entirely inside the part of the range axis that
+never gets used. They still fire — `max` reaches 45–60 m and under-40 is 17% — but
+they fire on the *fading* part of their own curve almost always, at a fraction of
+their printed damage.
+
+**This is the mechanism behind F40.** That finding measured `W-BR` hitting 94.9%
+of its shots and winning 29%, and attributed it to time under fire while closing.
+That is half of it. The other half is that a Bastion carrying a 0–15 m gun is
+walking toward a band it will rarely reach, and being paid the falloff ramp rather
+than the plateau when it gets there. Both readings are the same underlying fact —
+**the close band is authored for a fight that is not happening** — and the second
+is more actionable than the first.
+
+**Not fixed, deliberately.** Re-banding three shipped weapons moves every number
+attached to them, which is a balance pass and explicitly not this one's job. The
+observation is what is owed here.
+
+**What it does license**, and is the reason it was measured: a dead zone is a real
+cost. A gun that does nothing inside 60 m gives up 30.8% of current fight time —
+and, because the pilot picks its standing range off the exchange curve and that
+curve reads zero inside the zone, an artillery piece should *change where the
+fight happens* rather than merely suffer. That is docs/20 §2's first and strongest
+signal, and `falloff.min` is a live, consumed lever that exactly one gun pays —
+`W-MG`, at 10 m, where its ideal band starts anyway, so it pays nothing at all.
