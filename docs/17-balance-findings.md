@@ -5074,3 +5074,74 @@ scales across the 22–36% that reaches equipment.
 
 **Authored nothing.** The measurement killed the part it was run for and produced
 a design rule instead, which is gate 10 working as intended for the fourth time.
+
+## F71 — A gate is worth its occupancy, and terrain occupancy belongs to the pilot, not the player
+
+**Hypothesis.** F70 ended with "future defensive content should move
+`targetProfile`, cover or range." Cover is terrain-only (`FOREST_COVER_MULT`,
+applied to the target's tile at both planning and shot resolution), and `ctx.tile`
+is the deadest gate in the modifier system — **one mod out of about thirty reads
+it**. So terrain looked like an empty cell: attach prevention to a place the
+autopilot already routes toward (`combat.ts:220`, "get to cover it can see") and
+the gate should be live where `hull-down` (6.2% of fight time) and `weaving-gait`
+(19.3%) are not.
+
+**Occupancy, measured over 360,846 mech-frames across the full template matrix:**
+
+```
+open 72.0%    hill 13.1%    forest 12.3%    water 2.6%
+per-fight forest share:  p10 0.0%   median 5.7%   p90 39.1%
+```
+
+Forest's median fight share is **5.7%** — hull-down's band exactly. So the ceiling
+is the same one that already killed two mods.
+
+**The endogeneity test, which was the hypothesis's last defence.** Occupancy is not
+fixed: the autopilot prices a position by its tile, so deeper cover should pull it
+into the trees. It does, and barely — sweeping `FOREST_COVER_MULT` across its
+entire plausible range:
+
+```
+FOREST_COVER_MULT   1.00     0.65 (shipped)   0.35
+forest occupancy   10.7%          12.3%      15.0%
+median per fight    5.7%           5.7%       7.2%
+```
+
+**Removing cover entirely and nearly tripling it span 4.3 points of occupancy.**
+The pilot does respond to cover depth, and the response is far too small to rescue
+a mod. **Authored nothing.**
+
+### Why the temperature mods work and the terrain mods don't
+
+The same measurement, run against a heat gate — same gun, same chassis, only the
+cooling changed:
+
+```
+build                         <40 °C   40–50 °C   >50 °C   mean
+CH-5 W-CB x2 + 4 radiators      100%        0%       0%    26.6
+CH-5 W-CB x2 bare                76%       24%       0%    35.7
+CH-5 W-KL x2 bare                34%       37%      29%    44.0
+CH-9 W-KL x3 bare                19%       28%      53%    52.3
+```
+
+**A build drives a heat gate's occupancy across the entire 0–100% range. A build
+cannot move a terrain gate at all** — that is the pilot's, and the pilot won't.
+
+This predicted the breed reports before I read them, and both agree:
+`tidecooler` (water, 2.6%) is in `deadMods` in both; `marsh-pistons` (terrain) and
+`hull-down` (standing) are `neverOffered` in both; `weaving-gait` is dead in one.
+**Every position- or motion-gated mod in the catalog is dead or unoffered, and one
+number explains all four.** Meanwhile `cold-bore`, `fever-cycle` and
+`annealed-bore` — the three temperature mods — are none of these things.
+
+> **Gate on something the player fits, not on somewhere the pilot stands.**
+> Now gate 12 in docs/20 §7.
+
+This closes the whole position-and-motion branch of the conditional-modifier
+design space, which is a larger result than the one part it was meant to produce.
+The only terrain state with usable occupancy is `open` at 72%, and a gate that is
+on 72% of the time is not a gate — it is `raked-plating` with a hole in it.
+
+**Correction to record against myself:** `tidecooler` is mine from earlier in this
+pass, authored on a water gate without measuring how often a mech stands in water.
+It is 2.6%. Gate 12 exists because I did not have it when I wrote that mod.

@@ -356,6 +356,20 @@ author one, give it a legible failure path — a `validateBuild` fault or a
 `computeHeatAdvice` hint that names the missing companion, the way
 `cap-starved-weapon` and `radiator-orphaned` do.
 
+12. **Who chooses whether your gate is on — the player, or the pilot?** A
+    conditional modifier is worth its condition's *occupancy*, and docs/17 F71
+    measured where occupancy comes from. Terrain occupancy is the autopilot's:
+    open 72%, hill 13.1%, forest 12.3%, water 2.6%, and deepening forest cover
+    across its whole plausible range moved forest only 10.7% → 15.0%. Heat
+    occupancy is the **build's**: the same gun on the same chassis sits below
+    40 °C for 100% of the fight with four radiators and above 50 °C for 53% of
+    it bare. That is the whole difference between the temperature mods, which
+    work, and every terrain- and motion-gated mod in the catalog — `tidecooler`,
+    `marsh-pistons`, `hull-down`, `weaving-gait` — which are dead or never
+    offered. **Gate on something the player fits, not on somewhere the pilot
+    stands.** The one terrain state worth authoring against is `open` at 72%,
+    and a 72%-occupancy gate is barely a gate.
+
 ---
 
 ## 8. Traps, all of them paid for
