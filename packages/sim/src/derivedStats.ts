@@ -200,10 +200,16 @@ export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBala
   let radiatorKw = 0;
   const orphanedRadiatorIds: string[] = [];
   for (const p of build.parts) {
-    if (getPart(p.partId).id !== 'U-RAD') continue;
+    // Declared, not keyed on an id (docs/17 F36). This site was missed when the
+    // other five were converted, and the symptom was quiet and bad: four Vents
+    // placed legally on a build that could not fit a Gill, and the heat margin
+    // did not move a single kW -- so the readout lied to the player and the
+    // completer never counted the cooling it had just added.
+    const strength = getPart(p.partId).radiatorStrength ?? 0;
+    if (strength <= 0) continue;
     const ownKey = model.cellKeysByInstance.get(p.instanceId)?.[0];
     const component = ownKey === undefined ? undefined : model.componentByCell.get(ownKey);
-    if (component !== undefined && heatSourceComponents.has(component)) radiatorKw += RADIATOR_CAP_KW;
+    if (component !== undefined && heatSourceComponents.has(component)) radiatorKw += RADIATOR_CAP_KW * strength;
     else orphanedRadiatorIds.push(p.instanceId);
   }
 

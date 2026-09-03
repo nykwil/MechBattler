@@ -40,6 +40,26 @@ export const PARTS: Record<string, PartDef> = {
   'U-RAD': {
     id: 'U-RAD', name: 'Gill (radiator)', category: 'utility',
     shape: line(3), massKg: 100, hp: 25, tier: 2, perimeterOnly: true,
+    radiatorStrength: 1,
+    spatial: { transfersHeat: true, thermalConductance: 2 },
+  },
+  // The Gill's argument, cut to one cell. docs/17 F36: cooling was gated by a
+  // *footprint*, not by skin. The build that spends 31% of its life above the
+  // fire-hold threshold -- a Vulture carrying a Kiln -- has exactly one free
+  // perimeter cell, and the Gill needs three contiguous ones, so it could not
+  // cool at all. A Mule with two Gills is still -10.6 kW and has two free
+  // perimeter cells it cannot use either, because they are not adjacent.
+  //
+  // Priced to be the worse deal per cell, deliberately: 0.45 strength on one
+  // cell against the Gill's 1.0 on three, so three Vents are 1.35 strength for
+  // three cells where a Gill is 1.0 -- better *if* you have three loose cells,
+  // and the Gill remains the right answer whenever three in a row exist. What
+  // the Vent buys is not efficiency, it is the ability to cool at all on a frame
+  // whose perimeter is already fragmented, which is every frame late in a build.
+  'U-VENT': {
+    id: 'U-VENT', name: 'Vent (louvre)', category: 'utility',
+    shape: [{ dx: 0, dy: 0 }], massKg: 45, hp: 12, tier: 1, perimeterOnly: true,
+    radiatorStrength: 0.45,
     spatial: { transfersHeat: true, thermalConductance: 2 },
   },
   'U-HS': {

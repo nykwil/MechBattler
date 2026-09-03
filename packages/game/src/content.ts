@@ -12,7 +12,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'clean-machine', name: 'Clean Machine',
     description: 'Win without losing an installed part.',
     criterion: { all: [{ kind: 'battle-won' }, { kind: 'max-player-parts-lost', value: 0 }] },
-    unlockPartIds: ['U-TC1', 'W-LAS'],
+    unlockPartIds: ['U-TC1', 'W-LAS', 'U-VENT'],
   },
   {
     id: 'blitz', name: 'Blitz',

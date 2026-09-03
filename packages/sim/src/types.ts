@@ -210,6 +210,23 @@ export interface PartDef {
   isHeatPipe?: boolean;
   /** Thermal mass override in kJ/degC for this part's cells (default 1.0/cell). */
   thermalMassPerCell?: number;
+  /**
+   * How strongly this part radiates heat out of its conduction component,
+   * relative to the Gill, which declares 1. Undefined or 0 is not a radiator.
+   *
+   * Declared here rather than keyed on a part id, for the reason
+   * `fireControlLateralMult` exists a few fields below: "radiator" was
+   * `def.id === 'U-RAD'` in five separate places, so the catalog could hold
+   * exactly one radiator forever and "a smaller radiator" was not expressible.
+   * That is not a detail -- the Gill is a 3-cell perimeter line, and the build
+   * that spends 31% of its life above the fire-hold threshold has exactly one
+   * free perimeter cell, so it cannot cool at all (docs/17 F36).
+   *
+   * Scales both the per-degree rate (`RADIATOR_K`) and the cap
+   * (`RADIATOR_CAP_KW`) together, so a weaker radiator is weaker at everything
+   * rather than merely slower to saturate.
+   */
+  radiatorStrength?: number;
   /** Chassis speed multiplier while this connected utility is functional and powered. */
   speedMult?: number;
   /**

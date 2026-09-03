@@ -741,8 +741,9 @@ export class Simulation {
     const ramAir = (1 + RAM_AIR_MAX_BONUS * SPEED_SETTING_FRACTIONS[command.speedSetting]) * (command.radiatorMult ?? 1);
     for (const p of this.parts) {
       const def = getPart(p.partId);
-      if (def.id !== 'U-RAD' || this.isDestroyed(p.instanceId)) continue;
-      const gain = M(p.instanceId).radiator * ramAir;
+      const strength = def.radiatorStrength ?? 0;
+      if (strength <= 0 || this.isDestroyed(p.instanceId)) continue;
+      const gain = strength * M(p.instanceId).radiator * ramAir;
       if (gain <= 0) continue;
       const ownKey = this.thermal.cellKeysByInstance.get(p.instanceId)?.[0];
       if (ownKey === undefined) continue;

@@ -244,7 +244,7 @@ export function computeHeatAdvice(
   for (const p of build.parts) {
     const def = getPart(p.partId);
     const cells = cellsByInstance.get(p.instanceId) ?? [];
-    if (def.id === 'U-RAD') radiatorCells.push(...cells);
+    if ((def.radiatorStrength ?? 0) > 0) radiatorCells.push(...cells);
     if (def.isHeatPipe) for (const c of cells) pipeCells.add(`${c.x},${c.y}`);
   }
   for (const route of build.routes ?? []) {
@@ -273,7 +273,7 @@ export function computeHeatAdvice(
       });
       continue;
     }
-    if (def.id === 'U-RAD' || def.isHeatPipe || hotHints >= 2) continue;
+    if ((def.radiatorStrength ?? 0) > 0 || def.isHeatPipe || hotHints >= 2) continue;
 
     if (peak >= 130) {
       const touchesPipe = cells.some((c) =>

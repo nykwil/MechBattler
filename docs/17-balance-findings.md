@@ -2732,3 +2732,85 @@ the old stamp and describes exactly the content that now hashes `aa0a8f95`; that
 mapping is recorded here because the stamp can no longer state it. Every other
 artifact on file predates this and compares only among itself, which was already
 true across content changes.
+
+## F36 — Cooling was gated by one part's footprint, and making it available made heat *less* of a decision
+
+Five attempts to make the upper heat band a choice had failed (F31–F33, F35), and
+the diagnosis was that the band is a survivability problem. This is the test of
+that, and it produced the opposite of the intended result — which is the finding.
+
+**Hypothesis.** Hot builds exist only by accident, on frames that physically
+cannot fit the one radiator in the catalog, so cooling is not a *choice*
+anywhere and "redliner" is a geometry failure rather than a design space.
+
+**Measured first.** The Gill is `line(3)` and `perimeterOnly`.
+
+```
+CH-2 W-KL:1   free perimeter cells: 1    radiators fitted: 0
+CH-5 W-KL:2   free perimeter cells: 2    radiators fitted: 2, still -10.6 kW
+```
+
+The build that spends **31% of its life above the fire-hold threshold** has
+exactly one free perimeter cell and needs three contiguous. The Mule has two free
+perimeter cells and cannot use them because they are not adjacent. In both cases
+the binding constraint is a *footprint*, not skin.
+
+**And the catalog could not hold a second radiator.** "Radiator" was
+`def.id === 'U-RAD'` in **eight** places — simulation, thermal, modifiers,
+validation ×2, derivedStats, combat, workbench. That is the pattern `types.ts`
+says `fireControlLateralMult` exists to have replaced. Owner approved a declared
+field; `radiatorStrength` now carries it, the Gill declares 1, and the Gill's
+derived heat margin is byte-identical before and after (`CH-5 W-AC:2`: power
++0.2 kW, heat +7.2 kW, both).
+
+**Two of the eight sites were found late and both were quiet.** A grep for
+`def.id === 'U-RAD'` missed `getPart(p.partId).id !== 'U-RAD'` in `derivedStats`
+and in `combat`. The `derivedStats` one is the instructive failure: four Vents
+placed legally on a build that could not fit a Gill and **the heat margin did not
+move a single kW**, so the readout lied to the player and the completer never
+counted the cooling it had just added. The symptom was a number that stayed
+still, which is the hardest kind to notice.
+
+**Authored.** `U-VENT`, "Vent (louvre)": 1 cell, perimeter-only, 45 kg, 12 HP,
+tier 1, `radiatorStrength` 0.45. Deliberately the worse deal per cell — three
+Vents are 1.35 strength for three cells against the Gill's 1.0 for three — so the
+Gill stays correct wherever three in a row exist. What the Vent buys is not
+efficiency but the ability to cool at all on a fragmented perimeter.
+
+**Reachability.** Completes alone on all three chassis; order-independent
+(3/3/3, 1/1/1, 1/1/1). `RADIATORS()` in the completer now tries strongest-first
+and falls back, so a Vent is reached for when a Gill will not fit — without that,
+the part would have been unreachable by every search, which is F29 exactly.
+
+### It worked, and that removed the only redliner in the game
+
+```
+CH-2 W-KL:1   before   long/heavy/redliner   uncoolable, 31% of ticks above fire-hold, 46%
+CH-2 W-KL:1   after    long/medium/cold      +5.6 kW margin, three Vents fitted, 54%
+```
+
+**The build got better by 8 points when it stopped being hot.** So the redliner
+was never an archetype, it was a handicap — and `assembleBuild` treats a negative
+heat margin as a fault to fix, so handing it a radiator that fits means it now
+fixes builds it previously could not. **Making cooling available made heat less of
+a decision, not more.**
+
+That is visible in a canonical reference too: `CH-2 W-MG:2` was
+`close/light/redliner` and is now `close/medium/cold`, and the descriptor distance
+between the archive test's two reference builds fell 0.60 → 0.25. The test was
+rewritten to assert the property on constructed descriptors rather than on
+whatever the completer happens to produce, because it was measuring assembly
+rather than the distance function, and any future cooling part would break it
+again.
+
+**Verdict.** Keep the part and the field — cooling is a design space now instead
+of one shape, and eight hardcoded id checks are gone. But the heat thread's
+conclusion is now the opposite of where it started: **heat is not an
+under-rewarded choice, it is a state builds are in when they cannot help it, and
+the completer removes it whenever it can.** Making the band a real decision needs
+the completer to *want* to leave a build hot — which is a fitness question, not a
+content one, and not mine to take.
+
+**Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Redliner
+builds should become rarer across the archive; that is a prediction and the sweep
+below tests it. Nothing tuned, nothing re-baselined.

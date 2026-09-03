@@ -141,7 +141,7 @@ export function buildThermalModel(chassis: ChassisSpec, parts: PlacedPart[], rou
         // other merely because their legacy x/y coordinates touch.
         isPerimeter: isExteriorCell(chassis, ref),
         isHeatPipe: def.isHeatPipe === true,
-        isRadiator: def.id === 'U-RAD',
+        isRadiator: (def.radiatorStrength ?? 0) > 0,
         regionId: c.regionId ?? 'body',
         isCoolant: false,
         passiveCoolingBlocked: covered,

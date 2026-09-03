@@ -400,7 +400,7 @@ export const ANNEALED_BORE_MIN_C = 40;
 export const ANNEALED_BORE_PER_C = 0.005;
 
 const isWeapon = (d: PartDef) => d.category === 'weapon';
-const isRadiator = (d: PartDef) => d.id === 'U-RAD';
+const isRadiator = (d: PartDef) => (d.radiatorStrength ?? 0) > 0;
 /**
  * Where a gait/stabilisation package can be bolted: any frame fitting. These
  * four mods all write to *mech-scope* channels (`mechMoveJitter`,

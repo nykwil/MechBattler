@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BuildArchive, cellKey, describeBuild, descriptorDistance } from '../src/archive.js';
+import {
+  BuildArchive, cellKey, describeBuild, descriptorDistance, type BuildDescriptors,
+} from '../src/archive.js';
 import { assembleBuild } from '../src/workbench.js';
 import { computeIdealRangeBand } from '../src/derivedStats.js';
 
@@ -58,10 +60,33 @@ describe('two builds can be told apart by a number', () => {
   });
 
   it('scores a light close brawler far from a heavy long sniper', () => {
-    const close = describeBuild(build('CH-2', 'W-MG', 2));
-    const long = describeBuild(build('CH-9', 'W-RG', 1));
+    // Constructed rather than assembled. This used to read the descriptors off
+    // `CH-2 W-MG:2` and `CH-9 W-RG:1`, which measured 0.60 until `U-VENT`
+    // shipped: a 1-cell radiator fits where the Gill never did, so the
+    // completer now cools that brawler and it moved from close/light/redliner
+    // to close/medium/cold, taking the distance to 0.25 (docs/17 F36). The
+    // property under test is that the *function* separates the extremes of its
+    // own axes; using whatever the completer happens to build was measuring
+    // the completer instead, and any future cooling part would break it again.
+    const close: BuildDescriptors = {
+      rangeM: 20, range: 'close', loadFactor: 0.3, weight: 'light',
+      heatMarginKw: 5, heat: 'cold', kill: 'damage', rank: 8,
+    };
+    const long: BuildDescriptors = {
+      rangeM: 200, range: 'long', loadFactor: 0.95, weight: 'heavy',
+      heatMarginKw: -5, heat: 'redliner', kill: 'damage', rank: 8,
+    };
     expect(descriptorDistance(close, long)).toBeGreaterThan(0.3);
     expect(descriptorDistance(close, long)).toBeLessThanOrEqual(1);
+  });
+
+  it('still separates two builds the completer actually produces', () => {
+    // The weaker, build-derived companion to the case above: whatever the
+    // completer makes of these two wishes, they must not land on top of
+    // each other. No threshold, because a threshold here measures assembly.
+    const close = describeBuild(build('CH-2', 'W-MG', 2));
+    const long = describeBuild(build('CH-9', 'W-RG', 1));
+    expect(descriptorDistance(close, long)).toBeGreaterThan(0);
   });
 
   it('is symmetric', () => {

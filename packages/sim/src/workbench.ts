@@ -118,6 +118,17 @@ const REACTORS = () => byOutput(
   (id) => PARTS[id]!.reactor!.outputKw,
 );
 
+/**
+ * Radiators, strongest first. Deliberately the opposite order to reactors and
+ * capacitors, which go cheapest-first so completion adds the smallest thing
+ * that works: a radiator's problem is not cost but *fit*, so try the one that
+ * cools most and fall back to smaller footprints when the perimeter is
+ * fragmented (docs/17 F36).
+ */
+const RADIATORS = () => Object.keys(PARTS)
+  .filter((id) => (PARTS[id]!.radiatorStrength ?? 0) > 0)
+  .sort((a, b) => (PARTS[b]!.radiatorStrength ?? 0) - (PARTS[a]!.radiatorStrength ?? 0));
+
 const CAPACITORS = () => byOutput(
   Object.keys(PARTS).filter((id) => PARTS[id]!.capacitor),
   (id) => PARTS[id]!.capacitor!.storedKj,
@@ -312,21 +323,34 @@ export function assembleBuild(wish: BuildWish): AssemblyReport {
     for (let guard = 0; guard < 8; guard++) {
       const heat = computeHeatBalance(chassis, build);
       if (heat.marginKw >= 0) break;
-      if (!inPool('U-RAD')) {
-        blocked.push({ partId: 'U-RAD', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the lock has no radiator in it` });
+      // Strongest radiator first, then weaker ones. This used to name `U-RAD`
+      // outright and give up when its 3-cell perimeter line did not fit, which
+      // is precisely the build that needs cooling most: a Vulture with a Kiln
+      // has one free perimeter cell and would be told "no perimeter cell is
+      // left for a radiator" while a 1-cell Vent sat in the pool (docs/17 F36).
+      const radiators = RADIATORS().filter(inPool);
+      if (radiators.length === 0) {
+        blocked.push({ partId: '(radiator)', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the lock has no radiator in it` });
         break;
       }
-      if (!withinBudget(build, 'U-RAD', wish.budget)) {
-        blocked.push({ partId: 'U-RAD', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the budget is spent` });
+      const affordable = radiators.filter((id) => withinBudget(build, id, wish.budget));
+      if (affordable.length === 0) {
+        blocked.push({ partId: '(radiator)', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but the budget is spent` });
         break;
       }
-      const result = placeParts(build, 'U-RAD', 1, { prefix: 'wb' });
-      if (result.placed === 0) {
-        blocked.push({ partId: 'U-RAD', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but no perimeter cell is left for a radiator` });
+      let placedRadiator: string | null = null;
+      for (const id of affordable) {
+        const attempt = placeParts(build, id, 1, { prefix: 'wb' });
+        if (attempt.placed === 0) continue;
+        build = rewire(attempt.build);
+        placedRadiator = id;
         break;
       }
-      build = rewire(result.build);
-      added.push({ partId: 'U-RAD', count: 1, why: `heat balance was ${heat.marginKw.toFixed(1)} kW` });
+      if (!placedRadiator) {
+        blocked.push({ partId: '(radiator)', why: `heat balance ${heat.marginKw.toFixed(1)} kW, but no perimeter cell is left for any radiator that fits` });
+        break;
+      }
+      added.push({ partId: placedRadiator, count: 1, why: `heat balance was ${heat.marginKw.toFixed(1)} kW` });
     }
 
     const wantPlates = wish.armourPlates;

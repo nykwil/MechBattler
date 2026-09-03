@@ -1167,10 +1167,11 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
     let here = 0;
     let wading = 0;
     for (const p of self.build.parts) {
-      if (getPart(p.partId).id !== 'U-RAD' || !self.isPartFunctional(p.instanceId)) continue;
+      const strength = getPart(p.partId).radiatorStrength ?? 0;
+      if (strength <= 0 || !self.isPartFunctional(p.instanceId)) continue;
       const tempC = self.sim.meanCellC(p.instanceId);
-      here += effectiveMults(p, { tempC, speedMps: 0, tile: myTile }).radiator * envMult(myTile);
-      wading += effectiveMults(p, { tempC, speedMps: 0, tile: 'water' }).radiator * envMult('water');
+      here += strength * effectiveMults(p, { tempC, speedMps: 0, tile: myTile }).radiator * envMult(myTile);
+      wading += strength * effectiveMults(p, { tempC, speedMps: 0, tile: 'water' }).radiator * envMult('water');
     }
     return here > 0 ? Math.max(0, wading / here - 1) : 0;
   };
