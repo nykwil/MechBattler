@@ -3183,3 +3183,33 @@ defensive stat and no amount of speed makes 45 m into 240.
 
 **Cost elsewhere.** `verify` green (447 / 36 / 209), `game:audit` clean. Nothing
 tuned, nothing re-baselined. Sweep below.
+
+### F41 addendum — the drive is drafted, and not for what it was built for
+
+`artifacts/drive-12lock.json`, hash `e0cae51b`. Build-level only.
+
+```
+U-DRIVE coverage 7, in 6 gallery builds
+close/* builds: 101, of which carrying U-DRIVE: 2
+the six: CH-5 close/medium/redliner, CH-5 long/medium/cold, CH-5 close/medium/cold,
+         CH-5 mid/medium/cold, CH-9 mid/light/cold, CH-9 mid/medium/cold
+```
+
+**It is taken, and it is not taken for the job it was designed for.** Two of 101
+close-range builds carry it, and none of the six that do are `close/heavy`.
+
+**The reason is that selection is comparative, and this is the lesson.** The drive
+does exactly what F41 measured — +17 on `CH-9 W-BR:2` — but that takes the build
+from 29% to 46%, and 46% does not survive a screen against builds at 90%+. A part
+that rescues a losing archetype does not get drafted unless the rescue clears the
+*competitive* bar, not merely the improvement bar. **Improving a bad build by 17
+points is invisible to an instrument that keeps the best one.**
+
+That is worth stating plainly for the next pass, because it applies to every
+"fill this weak corner" idea: an archetype has to end up competitive, not just
+better, or the search will never show you it improved. Hand-built probes and the
+breeder answer genuinely different questions here, and both answers are true.
+
+**Swings at the new hash, confounded and untuned.** `W-AV` 12 → 33, `W-BR` 20 → 6,
+`U-VENT` 12 → 1, `U-ARM` 104 → 64, `W-CV` steady at 53. `emptyCells` back to four
+from two. `deadParts` gains `U-RISEL` and keeps `W-RG`.
