@@ -3457,3 +3457,45 @@ builds that most want it (this pass has repeatedly measured `energy margin
 -15.2 kW, no legal cell left for a reactor`). A part that buys the same lever with
 heat instead of power is a direct substitution between the two resources this pass
 has shown to bind, and that is the design being taken up next.
+
+## F46 — `HeatProfile.idleHeatKw` is a second field nothing reads, so "a part that runs hot" is not expressible
+
+F45 concluded that a second fire-control part must differ in what it *costs*, and
+the design chosen was one that pays in heat rather than the Abacus's 3 kW — a
+direct substitution between the two resources this pass keeps measuring as
+binding. Checking the channel before authoring against it, which is F43's lesson:
+
+```
+types.ts:123   idleHeatKw?: number;   /** Continuous idle heat in kW while powered */
+(nothing, anywhere)                    reads it
+```
+
+Every consumer of `def.heat` in the sim reads `heatPerShotKj` and only that —
+`derivedStats` twice, `simulation` five times. `idleHeatKw` is declared, is
+documented, is authored on no part, and is read by nothing.
+
+**So a part cannot emit continuous heat at all.** The only continuous-heat channel
+in the game is `extraHeatKw`, which is a *modifier* channel (consumed at
+`simulation.ts:692`) — so `gyro-flywheel` and `annealed-bore` can make a build run
+hot, and no catalog part can. That is a real hole in the levers docs/20 §4 lists,
+and it is why "a fire-control computer that runs hot instead of drawing power"
+cannot be written today.
+
+**Second dead field this session, found the same way.** `overkillCarry` (F43) and
+`idleHeatKw` are both declared, both documented, both unread, and both would have
+been authored against if the channel had not been checked first. The pattern is
+now firm enough to state as a rule:
+
+> **Before authoring against a `PartDef` or `EffectiveMults` field, grep for a
+> consumer outside the file that declares it.** A declaration, a doc comment and a
+> knob spec are not evidence that anything reads it. Two of the fields in these
+> types are inert, and neither is marked.
+
+Neither is fixed here: implementing `idleHeatKw` adds a heat source to the sim,
+which is a rules change and the owner's, exactly as `overkillCarry` is.
+
+**The design adapts instead.** Cells and mass *are* expressible and *are* binding,
+so the second fire-control part pays in footprint rather than heat: bigger and
+heavier than the Abacus, and free of power. That keeps F45's substitution — the
+resource this pass repeatedly measures as scarce is power, and a part that buys
+leading accuracy without it is a genuine second answer rather than a weaker copy.
