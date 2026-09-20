@@ -5530,3 +5530,104 @@ ceiling. A 1-lock smoke sweep does not offer the Plinth at all, which is the
 reading docs/20 §7 gate 1 says not to believe either way.
 
 `game.test.ts`'s `enabledParts` 39 → 40. Nothing else moved.
+
+## F76 — The five channels no mod can reach, and why `orderLatencyS` cannot be sold
+
+**Hypothesis.** Mods and quirks write the same `EffectiveMults` channels, but
+quirks arrive by salvage luck and mods are chosen. So any channel written *only*
+by a quirk is a price no player can ever elect to pay — an empty cell in the mod
+pool specifically. Computed rather than guessed:
+
+```
+channel          mods that write it                    quirks
+outputKw         -- NO MOD --                          overvolted, cold-blooded
+thermalMass      -- NO MOD --                          cold-soaked
+hp               -- NO MOD --                          overvolted
+shedFirst        -- NO MOD --                          miswired
+orderLatencyS    -- NO MOD --                          sticky
+```
+
+*(First run of this sweep reported `orderLatencyS` as written by nothing at all.
+That was my regex matching only `scale|add|set` — the knob combines as `max` and
+is written with `best()`. **Every channel has at least one writer**; the real
+finding is the mod/quirk split above, not an unused knob.)*
+
+### Four of the five die on measured ceilings
+
+- **`outputKw`** — assembling every enabled gun × every chassis × 1–3 copies
+  (149 completable builds): only **3.4%** are power-negative after completion,
+  median deficit **2.4 kW**. The completer closes the gap nearly always, so an
+  output mod has almost no population to serve.
+- **`shedFirst`** — brownout ordering only matters during a brownout, which is
+  that same 3.4%.
+- **`thermalMass`** — it delays reaching a heat threshold, and F73 established
+  fire-hold at 115 °C is the only threshold that exists; it gates **0.32%** of
+  weapon-frames.
+- **`hp`** — F70 priced absorption at about a third of prevention, because 64–78%
+  of damage lands on the chassis rather than on equipment.
+
+**`orderLatencyS` was the only one whose condition actually occurs**: 5.2 toggles
+per weapon per fight on the canonical roster, guns disabled 23% of frames. And the
+churn is a clean **reach cliff**, measured across the catalog on a Mule:
+
+```
+W-SER 6.4   W-AC 6.0   W-AV 5.1   W-LAS 4.4   W-PIN 4.1   W-CV 2.7   ...
+W-BMB 0.1   W-SR 0.0   W-LNC 0.0   W-KL 0.0        (every gun past 240 m)
+```
+
+So the cost would be switched on by the *gun the player fits* — exactly what gate
+12 asks for. **Authored `clutchless-feed`**: tier 3, `cycleS ×0.8`,
+`orderLatencyS 2.0`. Reachability passed — 17 enabled carriers, drawable, stamps
+first and last with zero issues.
+
+### It measured well and the measurement was worthless
+
+```
+W-KL  (0.0 flips)  control 95.4%   + clutchless-feed  98.2%   net  +8   z=2.14 *
+W-AC  (6.0 flips)  control 70.7%   + clutchless-feed  81.4%   net +30   z=4.24 *
+W-SER (6.4 flips)  control 19.6%   + clutchless-feed  38.9%   net +54   z=6.36 *
+```
+
+My written prediction was that the gain would be largest on `W-KL`, which never
+toggles, and smallest on `W-AC`. **It came out exactly backwards** — and the
+ordering is not about churn at all. It tracks **distance from the ceiling**:
+controls of 95.4%, 70.7% and 19.6%. A build already winning 95% has no room to
+gain. The experiment could not see the latency and I nearly reported it as a
+success.
+
+### Isolating the two halves, at shipped values
+
+Probe-only modifiers injected into `MODIFIERS` at runtime, so no source file
+carried them:
+
+```
+W-SER   control 19.6%       W-AC   control 70.7%
+  cadence only  ×0.8   net +67  z=7.18 *      net +24  z=3.27 *
+  latency only  2.0s   net  +3  z=0.51        net  +6  z=1.03
+  both (the mod)       net +54  z=6.36 *      net +30  z=4.24 *
+```
+
+**The latency is not a price.** On the two highest-churn guns in the catalog it is
+indistinguishable from nothing, and `sticky` alone (0.8 s) measured −4 / +3 / −5
+across three guns, every one inside noise. `clutchless-feed` was `cycleS ×0.8`
+wearing a costume.
+
+**Reverted.** Re-pricing the gain to make the mod fair would be balance tuning
+rather than authoring, and the channel would still be inert underneath it.
+
+### Two things this leaves behind
+
+1. **`orderLatencyS` is a dead price, so all five mod-unreachable channels are now
+   closed** — four by ceiling, one by being free. Nothing can be authored into the
+   mod pool's gap until a channel changes.
+2. **`sticky` is an inert quirk-flaw.** It is supposed to be a salvage penalty and
+   it costs nothing measurable. That is existing content that does not do its job,
+   and it is the owner's call whether a flaw that cannot be felt should stay one.
+
+**Third time this pass a stated condition did not occur** — F72's heat gate could
+not fire on its carrier, F75's stack was geometrically impossible, F76's price was
+free. Now gate 13 in docs/20 §7: measure the *cost* arm on its own, against the
+build the cost should hurt most.
+
+**Authored nothing that shipped.** Cost elsewhere: none — the revert is clean and
+no test or count moved.

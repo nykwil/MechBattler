@@ -370,6 +370,19 @@ author one, give it a legible failure path — a `validateBuild` fault or a
     stands.** The one terrain state worth authoring against is `open` at 72%,
     and a 72%-occupancy gate is barely a gate.
 
+13. **Is the price you are charging a price at all?** A mod is a trade, and a
+    trade needs both halves to bite. docs/17 F76 authored one whose drawback was
+    worth nothing: decomposed into its two halves at shipped values,
+    `cycleS ×0.8` was +67 and +24 net paired fights (z=7.18, z=3.27) while
+    `orderLatencyS 2.0` was +3 and +6 (z=0.51, z=1.03) — on the two guns with the
+    *highest* toggle churn in the catalog. **Measure the cost arm on its own,
+    against the gun the cost should hurt most.** A mod whose drawback cannot be
+    measured is a strict upgrade wearing a costume, and re-pricing the gain to
+    compensate is balance tuning, not authoring. This is the third time in one
+    pass a stated condition turned out not to occur — F72's gate could not fire,
+    F75's stack was geometrically impossible, F76's price was free — so treat
+    "does this half actually happen?" as two separate questions, one per half.
+
 ---
 
 ## 8. Traps, all of them paid for
