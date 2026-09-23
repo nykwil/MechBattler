@@ -266,6 +266,24 @@ harmonised with the shell's tokens but were never designed (14 §15).
 5. Turn-tail flight behaviour and the runaway/comeback rule for residual bad
    matchups. Losing kernels already refuse engagements and run until cornered.
 
+### MechWarrior combat (23 Sep 2026)
+
+Three sub-projects distilled from MechWarrior 5. The player is a group commander:
+the autopilot drives, and the player fires groups and Alpha and spends heat.
+
+1. **Weapon groups, Alpha and spending heat.** Spec:
+   `superpowers/specs/2026-09-23-mw-groups-heat-design.md`. It covers:
+   - held guns load and wait, which makes the volley emergent;
+   - `Build.weaponGroups`;
+   - an OVR heat override;
+   - a mech-wide shutdown when the reactor or core overheats.
+2. **Cockpit frame console.** An MW-style restyle of the battle console, with the
+   overhead map kept as the nav screen. It reverses the anti-cockpit rule in
+   `14`. Needs its own spec.
+3. **MechWarrior weapon identities.** Lasers that burn over a duration, and
+   missiles with lock-on and scatter. Needs its own brainstorm. Read `17` F1
+   before starting.
+
 ### Multiplayer
 
 Everything past the deterministic core is parked in `12-multiplayer-backlog.md`.
