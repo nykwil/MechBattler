@@ -5552,7 +5552,7 @@ That was my regex matching only `scale|add|set` — the knob combines as `max` a
 is written with `best()`. **Every channel has at least one writer**; the real
 finding is the mod/quirk split above, not an unused knob.)*
 
-### Four of the five die on measured ceilings
+### Three of the five die on measured ceilings (a fourth was claimed, wrongly)
 
 - **`outputKw`** — assembling every enabled gun × every chassis × 1–3 copies
   (149 completable builds): only **3.4%** are power-negative after completion,
@@ -5560,9 +5560,11 @@ finding is the mod/quirk split above, not an unused knob.)*
   output mod has almost no population to serve.
 - **`shedFirst`** — brownout ordering only matters during a brownout, which is
   that same 3.4%.
-- **`thermalMass`** — it delays reaching a heat threshold, and F73 established
-  fire-hold at 115 °C is the only threshold that exists; it gates **0.32%** of
-  weapon-frames.
+- **`thermalMass`** — *not closed; corrected on review, see below.* I first
+  wrote that it only delays reaching a threshold and that F73 left fire-hold as
+  the only one. That misquotes F73 (three of four thresholds never fire; it does
+  not say only one exists) and ignores the two ways heat is read *below* any
+  threshold.
 - **`hp`** — F70 priced absorption at about a third of prevention, because 64–78%
   of damage lands on the chassis rather than on equipment.
 
@@ -5617,9 +5619,25 @@ rather than authoring, and the channel would still be inert underneath it.
 
 ### Two things this leaves behind
 
-1. **`orderLatencyS` is a dead price, so all five mod-unreachable channels are now
-   closed** — four by ceiling, one by being free. Nothing can be authored into the
-   mod pool's gap until a channel changes.
+1. **`orderLatencyS` is a dead price, so four of the five mod-unreachable channels
+   are closed** — three by ceiling, one by being free. **`thermalMass` is open and
+   unmeasured.** `thermalMassKjPerC` divides every tick's temperature change
+   (`simulation.ts`), so it moves heat on the 99.7% of frames that never reach
+   fire-hold. Two things read that heat:
+   - **The dispersion ramp** (`heatDispersionMult`). This one is small: F69 bounds
+     heat's entire accuracy cost at 1.3–5.5%, so a thermal-mass mod gets at
+     most a fraction of that.
+   - **The mods that switch on at a temperature**: `cold-bore`, `cold-shroud`,
+     `fever-cycle`, `annealed-bore`, `heat-loose` (>100 °C) and the
+     `cold-blooded` quirk (<60 °C). A thermal-mass mod would move how long they
+     stay on, so it would be a *combination* lever. Its value would be what it
+     does to those mods, not what it does alone.
+
+   That makes `thermalMass` the one live candidate this finding left behind, not a
+   dead end. The next test is a probe-injected `thermalMass` mod on a
+   `cold-bore`/`cold-shroud` carrier, measured on each gate's occupancy before
+   any win rate. *(Found by /code-review of b1fa304. That commit's message
+   repeats the wrong claim.)*
 2. **`sticky` is an inert quirk-flaw.** It is supposed to be a salvage penalty and
    it costs nothing measurable. That is existing content that does not do its job,
    and it is the owner's call whether a flaw that cannot be felt should stay one.
