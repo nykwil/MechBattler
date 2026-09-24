@@ -403,6 +403,8 @@ export interface WeaponFrame {
    * "Ready" about a gun that could not fire.
    */
   gate: 'arc' | 'range' | 'minrange' | 'heat' | null;
+  /** Loaded and waiting only on the trigger (MW spec §1). */
+  loaded: boolean;
 }
 
 /** One mech's kinematic + status sample for a playback tick. */
@@ -1996,6 +1998,7 @@ export class Battle {
         status: destroyed ? 'destroyed' : rt.isShutdown ? 'shutdown' : rt.isShed ? 'shed' : 'ok',
         tempC,
         gate,
+        loaded: rt.loaded,
       });
     }
     let hottest = 25;

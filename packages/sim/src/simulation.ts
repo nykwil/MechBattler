@@ -130,6 +130,8 @@ export interface InstanceRuntime {
   chargeKj: number;
   capDrawnKj: number;
   cooldownRemainingS: number;
+  /** The next shot needs only the trigger (MW spec §1). Recomputed at the end of every step. */
+  loaded: boolean;
 }
 
 const HYSTERESIS_MIN_OFF_S = 1.0;
@@ -138,7 +140,7 @@ const HYSTERESIS_HEADROOM_FRAC = 0.10;
 function freshRuntime(): InstanceRuntime {
   return {
     isShed: false, shedSinceT: null, isShutdown: false, cumulativeDamageHp: 0,
-    cookedOff: false, destroyed: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0,
+    cookedOff: false, destroyed: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0, loaded: false,
   };
 }
 
@@ -397,6 +399,8 @@ export class Simulation {
       multsById.set(p.instanceId, effectiveMults(p, { tempC: this.meanCellC(p.instanceId), speedMps, tile }));
     }
     const M = (id: string): Readonly<EffectiveMults> => multsById.get(id) ?? NEUTRAL_MULTS;
+    /** The one "is this gun cleared to fire" test for every firing class. */
+    const triggered = (id: string): boolean => command.weaponsEnabled[id] === true;
 
     const addHeat = (cellKeys: string[], totalKj: number) => {
       const per = totalKj / cellKeys.length;
@@ -418,7 +422,7 @@ export class Simulation {
       const def = getPart(p.partId);
       if (def.category !== 'weapon' || !def.draw?.capFedEnergyPerShotKj) continue;
       const rt = this.runtime.get(p.instanceId)!;
-      const enabled = command.weaponsEnabled[p.instanceId] === true;
+      const enabled = triggered(p.instanceId);
       if (rt.cookedOff || rt.destroyed) continue;
       rt.isShutdown = this.hottestCellC(p.instanceId) >= HEAT_SHUTDOWN_C ? true : rt.isShutdown && this.hottestCellC(p.instanceId) >= HEAT_RESTART_C;
       if (rt.cooldownRemainingS > 0) rt.cooldownRemainingS -= dtSec;
@@ -472,12 +476,19 @@ export class Simulation {
 
       let kw = 0;
       if (def.category === 'weapon') {
-        const enabled = command.weaponsEnabled[p.instanceId] === true;
-        if (enabled) {
-          if (def.draw?.continuousKw) kw = def.draw.continuousKw * M(p.instanceId).drawKw;
-          else if (def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS <= 0) {
-            kw = (def.draw.maxChargeKw ?? 0) * M(p.instanceId).drawKw;
-          }
+        const enabled = triggered(p.instanceId);
+        if (def.draw?.continuousKw) {
+          if (enabled) kw = def.draw.continuousKw * M(p.instanceId).drawKw;
+          // Held: the load keeps coming and waits at full (MW spec §1). The draw
+          // is the shot's, so a held continuous gun asks for nothing.
+          else rt.cycleTimer = Math.min(def.weapon!.cycleS * M(p.instanceId).cycleS, rt.cycleTimer + dtSec);
+        } else if (
+          def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS <= 0
+          && rt.chargeKj < def.draw.chargedEnergyPerShotKj
+        ) {
+          // Charges whether or not it is cleared to fire, until full. The
+          // threshold is the unscaled shot energy -- the same one step 6c fires at.
+          kw = (def.draw.maxChargeKw ?? 0) * M(p.instanceId).drawKw;
         }
       } else if (def.draw?.continuousKw) {
         kw = def.draw.continuousKw * M(p.instanceId).drawKw; // always-on utility (targeting computer, servo booster)
@@ -627,13 +638,7 @@ export class Simulation {
           if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
         }
       } else if (def.draw?.chargedEnergyPerShotKj) {
-        rt.chargeKj += kw * dtSec;
-        if (rt.chargeKj >= def.draw.chargedEnergyPerShotKj) {
-          shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage: def.weapon!.damage * eff.damage });
-          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
-          rt.chargeKj = 0;
-          rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
-        }
+        rt.chargeKj = Math.min(def.draw.chargedEnergyPerShotKj, rt.chargeKj + kw * dtSec);
       }
     }
 
@@ -655,10 +660,12 @@ export class Simulation {
       if (!this.networkIdByInstance.has(p.instanceId)) continue;
       const rt = this.runtime.get(p.instanceId)!;
       if (rt.destroyed || rt.isShutdown || rt.cookedOff) continue;
-      if (command.weaponsEnabled[p.instanceId] !== true) continue;
-
       const eff = M(p.instanceId);
       const cycleS = def.weapon!.cycleS * eff.cycleS;
+      if (!triggered(p.instanceId)) {
+        rt.cycleTimer = Math.min(cycleS, rt.cycleTimer + dtSec); // held: load and wait (MW spec §1)
+        continue;
+      }
       rt.cycleTimer += dtSec;
       while (rt.cycleTimer >= cycleS) {
         rt.cycleTimer -= cycleS;
@@ -671,6 +678,26 @@ export class Simulation {
           );
         }
       }
+    }
+
+    // --- 6c. Fire charged weapons from a full charge ---
+    //
+    // Split from charging (step 6) so a charged gun held full can fire the tick
+    // it is released, whether or not the bus feeds it that tick (MW spec §1):
+    // the shot's energy is already in the gun.
+    for (const p of this.parts) {
+      const def = getPart(p.partId);
+      if (def.category !== 'weapon' || !def.draw?.chargedEnergyPerShotKj) continue;
+      if (!this.networkIdByInstance.has(p.instanceId)) continue;
+      const rt = this.runtime.get(p.instanceId)!;
+      if (rt.destroyed || rt.isShutdown || rt.cookedOff) continue;
+      if (!triggered(p.instanceId) || rt.cooldownRemainingS > 0) continue;
+      if (rt.chargeKj < def.draw.chargedEnergyPerShotKj) continue;
+      const eff = M(p.instanceId);
+      shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage * eff.damage });
+      if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
+      rt.chargeKj = 0;
+      rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
     }
 
     // --- 7. Reactor waste heat ---
@@ -814,6 +841,19 @@ export class Simulation {
         cookoffsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId });
       }
       if (rt.cookedOff) cookedOffInstanceIds.push(p.instanceId);
+    }
+
+    // --- 12. Loaded flags (MW spec §1): what an Alpha would fire right now ---
+    for (const p of this.parts) {
+      const def = getPart(p.partId);
+      if (def.category !== 'weapon') continue;
+      const rt = this.runtime.get(p.instanceId)!;
+      const usable = !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
+      rt.loaded = usable && (
+        def.draw?.capFedEnergyPerShotKj ? rt.cooldownRemainingS <= 0
+          : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
+            : rt.cycleTimer >= def.weapon!.cycleS * M(p.instanceId).cycleS
+      );
     }
 
     const cellTempsC: Record<string, number> = {};
