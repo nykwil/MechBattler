@@ -69,6 +69,10 @@ describe('lockstep determinism (docs/11 M2)', () => {
       expect(a.hash(), `tick ${t}`).toBe(b.hash());
     }
     expect(a.battle.events.filter((e) => e.type === 'alpha' && e.mech === 0)).toHaveLength(1);
+    // One press, one shot: the held gun fires once for it and never again.
+    const pressed = a.battle.events.findIndex((e) => e.type === 'alpha' && e.mech === 0);
+    const shotsAfter = a.battle.events.slice(pressed).filter((e) => e.type === 'shot' && e.mech === 0 && e.instanceId === 'ac');
+    expect(shotsAfter).toHaveLength(1);
   });
 
   it('out-of-order enqueue is normalized to the same result as sorted', () => {

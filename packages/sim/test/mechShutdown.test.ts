@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { Simulation, HEAT_FIRE_HOLD_C, HEAT_MECH_SHUTDOWN_C, HEAT_RESTART_C } from '../src/simulation.js';
 import { Battle, autopilotController, withManualOrders } from '../src/combat.js';
-import { CORE_INSTANCE_ID } from '../src/thermal.js';
+import { AMBIENT_C, CORE_INSTANCE_ID } from '../src/thermal.js';
 import { TEMPLATES } from '../src/templates.js';
 import { getChassis } from '../src/chassis.js';
 import { getPart } from '../src/catalog.js';
+import type { Build } from '../src/types.js';
 
 /** MW spec §4: an overheated reactor or core shuts the whole mech down until it cools. */
 const gunline = TEMPLATES.find((t) => t.id === 'mule-gunline')!.build;
@@ -110,6 +111,42 @@ describe('mech-wide shutdown', () => {
     };
     expect(shots(false)).toBe(0);
     expect(shots(true)).toBeGreaterThan(0);
+  });
+
+  it('while shut down the capacitors hold their charge -- a thermocouple skin included -- and the reactor makes no waste heat', () => {
+    // Spec §4: capacitors neither charge nor discharge. The thermocouple skin
+    // (step 10b) charges from its own cells' heat, not the bus, so it needs its
+    // own guard. Same bench as the thermocouple test in modifiers.test.ts.
+    const build: Build = {
+      chassisId: 'CH-5',
+      parts: [
+        { instanceId: 'reactor', partId: 'R-C40', origin: { x: 3, y: 1 }, rotation: 0, integrity: 1 },
+        { instanceId: 'cap', partId: 'P-CAP', origin: { x: 3, y: 3 }, rotation: 0, integrity: 1, modifiers: ['thermocouple-skin'] },
+        { instanceId: 'con1', partId: 'U-CON', origin: { x: 2, y: 1 }, rotation: 0, integrity: 1 },
+        { instanceId: 'mg', partId: 'W-MG', origin: { x: 1, y: 1 }, rotation: 0, integrity: 1 },
+      ],
+      powerPriority: [CORE_INSTANCE_ID, 'mg'],
+    };
+    const s = new Simulation(getChassis('CH-5'), build);
+    for (let i = 0; i < 40; i++) s.step(0.05, { weaponsEnabled: {}, speedSetting: 'stationary' });
+    s.drainCapacitorChargeKj(30);                            // room to charge into
+    const reactorCells = s.thermal.cellKeysByInstance.get('reactor')!;
+    const pinAll = (c: number) => { for (const cell of s.thermal.cells.values()) cell.tempC = c; };
+    pinAll(HEAT_RESTART_C + 5);                              // hot enough to stay down; the cap's cells hot too
+    setTemp(s, HEAT_MECH_SHUTDOWN_C + 1);
+    expect(s.step(0.05, { weaponsEnabled: {}, speedSetting: 'stationary' }).mechShutdown).toBe(true);
+    const before = s.capacitorLevels();
+    for (let i = 0; i < 20; i++) {
+      pinAll(HEAT_RESTART_C + 5);
+      expect(s.step(0.05, { weaponsEnabled: {}, speedSetting: 'stationary' }).mechShutdown).toBe(true);
+    }
+    expect(s.capacitorLevels()).toEqual(before);
+    // Waste heat is a few kW, lost against cooling at 95 °C, so measure it on a
+    // mech at ambient: nothing conducts or sheds there, and the restart check
+    // runs after the heat is applied, so this whole step is still a shut-down one.
+    pinAll(AMBIENT_C);
+    s.step(0.05, { weaponsEnabled: {}, speedSetting: 'stationary' });
+    for (const k of reactorCells) expect(s.thermal.cells.get(k)!.tempC).toBe(AMBIENT_C);
   });
 
   it('every shot heats the reactor', () => {

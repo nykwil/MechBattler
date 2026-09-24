@@ -451,6 +451,11 @@ export class Simulation {
     );
   }
 
+  /** Energy banked on a network's capacitors right now, kJ. */
+  private storedKjOf(caps: PlacedPart[]): number {
+    return caps.reduce((s, c) => s + (this.capacitorStoredKj.get(c.instanceId) ?? 0), 0);
+  }
+
   /** Cell keys of the core and every live reactor: the one definition of "the reactor" (MW spec §4). */
   private reactorCoreCellKeys(): string[] {
     const keys = [...(this.thermal.cellKeysByInstance.get(CORE_INSTANCE_ID) ?? [])];
@@ -529,7 +534,7 @@ export class Simulation {
       const energyNeeded = def.draw.capFedEnergyPerShotKj - rt.capDrawnKj;
       const dumpLimitKw = def.draw.capFedEnergyPerShotKj / 1.0; // "dump <= energy over 1.0s" per docs/02 §2
       const pooledDischargeKw = caps.reduce((s, c) => s + getPart(c.partId).capacitor!.dischargeKw, 0);
-      const availableStoredKj = caps.reduce((s, c) => s + (this.capacitorStoredKj.get(c.instanceId) ?? 0), 0);
+      const availableStoredKj = this.storedKjOf(caps);
       const drawKw = Math.min(dumpLimitKw, pooledDischargeKw, availableStoredKj / dtSec);
       const drawKj = Math.max(0, Math.min(energyNeeded, drawKw * dtSec));
 
@@ -607,7 +612,7 @@ export class Simulation {
 
       const caps = this.capacitorsInNetwork(net.networkId);
       const pooledDischargeKw = caps.reduce((s, c) => s + getPart(c.partId).capacitor!.dischargeKw, 0);
-      const availableStoredKj = caps.reduce((s, c) => s + (this.capacitorStoredKj.get(c.instanceId) ?? 0), 0);
+      const availableStoredKj = this.storedKjOf(caps);
       const capBudgetKw = this.mechShutdown ? 0 : Math.min(pooledDischargeKw, availableStoredKj / dtSec);
       const totalBudgetKw = supplyKw + capBudgetKw;
 
@@ -916,9 +921,10 @@ export class Simulation {
     // --- 10b. Thermocouple skin (docs/04 §4b): a modded capacitor bleeds its
     // own cells' heat-above-ambient back into charge at THERMOCOUPLE_EFFICIENCY.
     // Conduction (§9) carries reactor/weapon waste heat into the cap's cells,
-    // so sitting it next to a hot reactor turns waste heat into ammo.
+    // so sitting it next to a hot reactor turns waste heat into ammo. Not while
+    // the mech is down: capacitors neither charge nor discharge (MW spec §4).
     for (const id of this.heatHarvestIds) {
-      if (this.isDestroyed(id)) continue;
+      if (this.mechShutdown || this.isDestroyed(id)) continue;
       const capDef = getPart(this.parts.find((p) => p.instanceId === id)!.partId).capacitor!;
       let stored = this.capacitorStoredKj.get(id) ?? 0;
       for (const key of this.thermal.cellKeysByInstance.get(id)!) {
@@ -965,8 +971,15 @@ export class Simulation {
       const rt = this.runtime.get(p.instanceId)!;
       const usable = !this.mechShutdown && !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
       const cycleS = def.weapon!.cycleS * cycleMultOf(p.instanceId);
+      // A cap-fed gun is loaded only when its network banks the rest of a shot:
+      // off cooldown on empty caps, an Alpha would hold it for seconds.
+      const capFedKj = def.draw?.capFedEnergyPerShotKj;
+      const networkId = this.networkIdByInstance.get(p.instanceId);
+      const capFedFrac = capFedKj
+        ? Math.min((rt.capDrawnKj + (networkId ? this.storedKjOf(this.capacitorsInNetwork(networkId)) : 0)) / capFedKj, 1)
+        : 0;
       rt.loaded = usable && (
-        def.draw?.capFedEnergyPerShotKj ? rt.cooldownRemainingS <= 0
+        capFedKj ? rt.cooldownRemainingS <= 0 && capFedFrac >= 1
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
             : rt.cycleTimer >= cycleS
       );
@@ -976,7 +989,7 @@ export class Simulation {
       rt.readyFrac = rt.destroyed || rt.isShutdown ? 0
         : def.draw?.continuousKw || firesMechanically(def) ? Math.min(rt.cycleTimer / cycleS, 1)
           : def.draw?.chargedEnergyPerShotKj ? (rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1))
-            : def.draw?.capFedEnergyPerShotKj ? (rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1))
+            : capFedKj ? (rt.cooldownRemainingS > 0 ? 0 : capFedFrac)
               : 0;
       // An Alpha fires what is ready at the press. A gun that stops being loaded
       // before it can fire (shutdown, shed, cook-off) loses the press, instead of
