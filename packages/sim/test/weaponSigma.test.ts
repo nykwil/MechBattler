@@ -5,6 +5,8 @@ import {
   weaponSigmaMrad,
   weaponSigmaRad,
 } from '../src/index.js';
+import { heatDispersionMult, HEAT_DISPERSION_AT_HOLD, HEAT_DISPERSION_AT_SHUTDOWN } from '../src/combat.js';
+import { HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C } from '../src/simulation.js';
 
 /**
  * The aim-error formula used to be written out in four places: shot resolution,
@@ -51,5 +53,15 @@ describe('weaponSigmaRad (the single aim-error formula)', () => {
   it('keeps the radian form exactly one thousandth of the mrad form', () => {
     const inputs = { dispersionMrad: 7, speedMps: 3.5, chassisMoveJitterMult: 0.35 };
     expect(weaponSigmaRad(inputs)).toBe(weaponSigmaMrad(inputs) * 0.001);
+  });
+});
+
+describe('heat spread past fire-hold (MW spec §3)', () => {
+  it('keeps widening from the hold line to shutdown, then saturates', () => {
+    expect(heatDispersionMult(HEAT_FIRE_HOLD_C)).toBeCloseTo(HEAT_DISPERSION_AT_HOLD, 12);
+    const mid = heatDispersionMult((HEAT_FIRE_HOLD_C + HEAT_SHUTDOWN_C) / 2);
+    expect(mid).toBeCloseTo((HEAT_DISPERSION_AT_HOLD + HEAT_DISPERSION_AT_SHUTDOWN) / 2, 12);
+    expect(heatDispersionMult(HEAT_SHUTDOWN_C)).toBeCloseTo(HEAT_DISPERSION_AT_SHUTDOWN, 12);
+    expect(heatDispersionMult(HEAT_SHUTDOWN_C + 40)).toBeCloseTo(HEAT_DISPERSION_AT_SHUTDOWN, 12);
   });
 });

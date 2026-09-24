@@ -7,6 +7,7 @@ import {
 import { STARTER_TEMPLATES, TEMPLATES } from '../src/templates.js';
 import { CORE_INSTANCE_ID } from '../src/thermal.js';
 import { getChassis } from '../src/chassis.js';
+import { HEAT_FIRE_HOLD_C } from '../src/simulation.js';
 
 function muleGunline(): Build {
   const parts: PlacedPart[] = [
@@ -328,5 +329,47 @@ describe('exchange-optimizing autopilot (docs/03 §7 rewrite)', () => {
   it('an outgunned brawler closes and shoots rather than backing off out of reach', () => {
     const report = runBattle({ builds: [get('bastion-tank'), get('mule-needle')], seed: 12345 });
     expect(report.mechs[0].shotsFired).toBeGreaterThan(0);
+  });
+});
+
+describe('OVR: the heat override (MW spec §3)', () => {
+  /** Pins the gun's cells at `tempC` every tick so the autopilot's heat gate is the only thing in question. */
+  function heldHot(overrideHeat: boolean) {
+    const battle = new Battle({
+      builds: [muleGunline(), muleGunline()],
+      seed: 5,
+      spawnDistanceM: 40,
+      controllers: [withManualOrders(autopilotController, () => ({ overrideHeat })), autopilotController],
+      timeoutS: 6,
+    });
+    const me = battle.combatants[0];
+    const cellKeys = me.sim.thermal.cellKeysByInstance.get('ac')!;
+    const pin = () => { for (const k of cellKeys) me.sim.thermal.cells.get(k)!.tempC = HEAT_FIRE_HOLD_C + 5; };
+    const myShots = () => battle.events.filter((e) => e.type === 'shot' && e.mech === 0).length;
+    // The first command tick has no snapshot yet, so fire control cannot see heat
+    // and a loaded gun gets one free shot. Count only after the first two
+    // command windows (10 ticks), once the autopilot is reading pinned temperatures.
+    pin();
+    for (let t = 0; t < 10; t++) { battle.step(); pin(); }
+    const before = myShots();
+    for (let t = 0; t < 80 && battle.step(); t++) pin();
+    return myShots() - before;
+  }
+
+  it('the autopilot holds a gun past fire-hold, and OVR fires it anyway', () => {
+    expect(heldHot(false)).toBe(0);
+    expect(heldHot(true)).toBeGreaterThan(0);
+  });
+
+  it('OVR frees only the heat gate: a gun out of range stays silent', () => {
+    const battle = new Battle({
+      builds: [muleGunline(), muleGunline()],
+      seed: 5,
+      spawnDistanceM: 400,
+      controllers: [withManualOrders(autopilotController, () => ({ overrideHeat: true, move: 'hold' })), autopilotController],
+      timeoutS: 2,
+    });
+    while (battle.step()) { /* tick */ }
+    expect(battle.events.filter((e) => e.type === 'shot' && e.mech === 0)).toHaveLength(0);
   });
 });

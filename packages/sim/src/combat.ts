@@ -30,7 +30,7 @@ import {
   INSTANCE_KNOBS, resolveBuildEffects, resolveFireControlLateralMult, resolveSpeedMultiplier,
   type BuildEffects,
 } from './buildEffects.js';
-import { Simulation, HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
+import { Simulation, HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 import { Pcg32 } from './rng.js';
@@ -125,6 +125,12 @@ export const TRACKING_LAG_S = 0.5;
 export const MOVE_JITTER_MRAD_PER_MPS = 0.75;
 /** Dispersion multiplier at the fire-hold threshold; 1.0 at ambient. */
 export const HEAT_DISPERSION_AT_HOLD = 1.5;
+/**
+ * Dispersion multiplier at the part-shutdown line. Past fire-hold heat keeps
+ * walking the shots (MW spec §3) -- the RogueTech soft ramp docs/07 §7 wanted,
+ * applied only in the band OVR makes reachable.
+ */
+export const HEAT_DISPERSION_AT_SHUTDOWN = 2.0;
 
 /**
  * A weapon's aim-error standard deviation before the shot-time multipliers
@@ -178,9 +184,13 @@ export interface WeaponSigmaInputs {
  * it actually runs.
  */
 export function heatDispersionMult(tempC: number): number {
-  const span = HEAT_FIRE_HOLD_C - HEAT_AMBIENT_C;
-  const t = span <= 0 ? 0 : (tempC - HEAT_AMBIENT_C) / span;
-  return 1 + (HEAT_DISPERSION_AT_HOLD - 1) * Math.min(1, Math.max(0, t));
+  if (tempC <= HEAT_FIRE_HOLD_C) {
+    const span = HEAT_FIRE_HOLD_C - HEAT_AMBIENT_C;
+    const t = span <= 0 ? 0 : (tempC - HEAT_AMBIENT_C) / span;
+    return 1 + (HEAT_DISPERSION_AT_HOLD - 1) * Math.max(0, t);
+  }
+  const over = Math.min(1, (tempC - HEAT_FIRE_HOLD_C) / (HEAT_SHUTDOWN_C - HEAT_FIRE_HOLD_C));
+  return HEAT_DISPERSION_AT_HOLD + (HEAT_DISPERSION_AT_SHUTDOWN - HEAT_DISPERSION_AT_HOLD) * over;
 }
 
 export function weaponSigmaMrad(inputs: WeaponSigmaInputs): number {
@@ -1112,6 +1122,47 @@ export function terrainDpsMods(shooterTile: TerrainType, targetTile: TerrainType
 }
 
 /**
+ * Which fire-control gate would silence this gun right now: the one check the
+ * autopilot fires by, the HUD names, and OVR lifts (MW spec §3). Geometry and
+ * heat only -- the caller decides what a destroyed gun means.
+ *
+ * Don't spend heat and ammo on a shot the curve prices at exactly zero.
+ *
+ * In practice that is a minimum-range gate for the one gun that authors
+ * `falloff.min` -- W-MG, floored at 10 m. Every other gun leaves `min`
+ * undefined, so falloffAt ramps from 0 and is positive at any range above
+ * literally zero, which resolveBodyCollision makes unreachable: two hulls
+ * never come closer than 2.3-4.3 m. A Judge at 3 m therefore fires for 15%
+ * damage rather than being silenced, and that graded ramp is the design --
+ * a gun inside its band is weak, not useless. (An earlier comment here
+ * claimed the reverse, that the gate silenced every non-brawler at contact;
+ * it never did, for anything but W-MG.)
+ *
+ * Range is unscaled back through the same multiplier computeWeaponEnvelope
+ * uses so a hill's reach bonus doesn't get read as point-blank.
+ */
+export type FireGate = 'arc' | 'range' | 'minrange' | 'heat' | null;
+
+export function fireGate(
+  self: Combatant, enemy: Combatant, instanceId: string, terrain: TerrainGrid, snapshot: SimSnapshot | null,
+): FireGate {
+  const part = self.build.parts.find((p) => p.instanceId === instanceId)!;
+  const def = getPart(part.partId);
+  const toEnemy = sub(enemy.pos, self.pos);
+  const range = len(toEnemy);
+  const bearingOffset = Math.abs(wrapAngle(datan2(toEnemy.y, toEnemy.x) - self.facingRad));
+  const myTile = terrainAt(terrain, self.pos.x, self.pos.y);
+  const rangeMultiplier = self.weaponRangeMultiplier(instanceId) * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
+  const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT * rangeMultiplier;
+  const halfArc = (self.weaponArcDeg(instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
+  if (range > despawnRange) return 'range';
+  if (bearingOffset > halfArc) return 'arc';
+  if (falloffAt(def, range / rangeMultiplier) <= 0) return 'minrange';
+  if (snapshot !== null && self.hottestCellC(instanceId, snapshot) >= HEAT_FIRE_HOLD_C) return 'heat';
+  return null;
+}
+
+/**
  * The four-verb autopilot (docs/03 §7), evaluated at 4 Hz. Movement is chosen
  * in two steps: (1) scan the standing-exchange curve U(r) = my dps − their
  * dps at each range to find the range that optimizes my weapons' reach and
@@ -1460,32 +1511,12 @@ export const autopilotController: Controller = ({ self, enemy, snapshot, terrain
 
   // --- Verb 1: weapons on/off (arc + range + temperature) ---
   const bearingToEnemy = datan2(dir.y, dir.x);
-  const bearingOffset = Math.abs(wrapAngle(bearingToEnemy - self.facingRad));
   const enabled: Record<string, boolean> = {};
   for (const p of self.build.parts) {
     const def = getPart(p.partId);
     if (def.category !== 'weapon') continue;
-    if (!self.isPartFunctional(p.instanceId)) { enabled[p.instanceId] = false; continue; }
-    const halfArc = (self.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
-    const inArc = bearingOffset <= halfArc;
-    const rangeMultiplier = self.weaponRangeMultiplier(p.instanceId) * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
-    const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT * rangeMultiplier;
-    const coolEnough = snapshot === null || self.hottestCellC(p.instanceId, snapshot) < HEAT_FIRE_HOLD_C;
-    // Don't spend heat and ammo on a shot the curve prices at exactly zero.
-    //
-    // In practice that is a minimum-range gate for the one gun that authors
-    // `falloff.min` -- W-MG, floored at 10 m. Every other gun leaves `min`
-    // undefined, so falloffAt ramps from 0 and is positive at any range above
-    // literally zero, which resolveBodyCollision makes unreachable: two hulls
-    // never come closer than 2.3-4.3 m. A Judge at 3 m therefore fires for 15%
-    // damage rather than being silenced, and that graded ramp is the design --
-    // a gun inside its band is weak, not useless. (An earlier comment here
-    // claimed the reverse, that the gate silenced every non-brawler at contact;
-    // it never did, for anything but W-MG.)
-    //
-    // Range is unscaled back through the same multiplier computeWeaponEnvelope
-    // uses so a hill's reach bonus doesn't get read as point-blank.
-    enabled[p.instanceId] = inArc && falloffAt(def, range / rangeMultiplier) > 0 && range <= despawnRange && coolEnough;
+    enabled[p.instanceId] = self.isPartFunctional(p.instanceId)
+      && fireGate(self, enemy, p.instanceId, terrain, snapshot) === null;
   }
 
   // --- Verb 4: face the target when a gun can reach. Out of reach, travel-face
@@ -1535,6 +1566,12 @@ export interface ManualOrders {
    * control). Weapons absent from the map stay on auto.
    */
   weapons?: Record<string, 'hold' | 'force'>;
+  /**
+   * OVR (MW spec §3): fire guns the autopilot is withholding only for
+   * temperature. Other gates stand; part shutdown at 130 °C is physics and
+   * still applies. Player-only -- the autopilot never sets it.
+   */
+  overrideHeat?: boolean;
   /** Forced facing: track target, face the direction of travel, or hold a bearing. */
   face?: 'movement' | { mode: 'target' } | { mode: 'bearing'; bearingRad: number };
 }
@@ -1560,9 +1597,16 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders): 
  */
 export function mergeManualOrders(baseOrders: MechOrder[], m: ManualOrders, ctx: ControllerContext): MechOrder[] {
   return baseOrders.map((o): MechOrder => {
-    if (o.verb === 'weapons' && m.weapons) {
+    if (o.verb === 'weapons' && (m.weapons || m.overrideHeat)) {
       const enabled = { ...o.enabled };
-      for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
+      if (m.overrideHeat) {
+        for (const p of ctx.self.build.parts) {
+          if (getPart(p.partId).category !== 'weapon' || enabled[p.instanceId]) continue;
+          if (!ctx.self.isPartFunctional(p.instanceId)) continue;
+          if (fireGate(ctx.self, ctx.enemy, p.instanceId, ctx.terrain, ctx.snapshot) === 'heat') enabled[p.instanceId] = true;
+        }
+      }
+      if (m.weapons) for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
       return { verb: 'weapons', enabled };
     }
     if (o.verb === 'move' && m.move) {
@@ -1924,11 +1968,6 @@ export class Battle {
 
   /** Samples the cockpit-visible state of one mech (HUD data, not sim state). */
   private sampleMechFrame(c: Combatant, snap: SimSnapshot | null, enemy: Combatant): MechFrame {
-    // Fire-control gate facts, mirroring the autopilot's own weapon check.
-    const toEnemy = sub(enemy.pos, c.pos);
-    const rangeToEnemy = len(toEnemy);
-    const bearingOffset = Math.abs(wrapAngle(datan2(toEnemy.y, toEnemy.x) - c.facingRad));
-    const myTile = terrainAt(this.terrain, c.pos.x, c.pos.y);
     const weapons: WeaponFrame[] = [];
     for (const p of c.build.parts) {
       const def = getPart(p.partId);
@@ -1948,21 +1987,7 @@ export class Battle {
         else if (def.draw?.capFedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1);
       }
       const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
-      let gate: WeaponFrame['gate'] = null;
-      if (!destroyed) {
-        const despawnRange = def.weapon!.falloff.max * WEAPON_REACH_MULT
-          * c.weaponRangeMultiplier(p.instanceId)
-          * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
-        const halfArc = (c.weaponArcDeg(p.instanceId, def.weapon!.mountArcDeg) / 2) * (Math.PI / 180);
-        // Same order and the same unscaling the autopilot uses, so the readout
-        // names the gate the sim actually applied.
-        const rangeMultiplier = c.weaponRangeMultiplier(p.instanceId)
-          * (myTile === 'hill' ? HILL_RANGE_MULT : 1);
-        if (rangeToEnemy > despawnRange) gate = 'range';
-        else if (bearingOffset > halfArc) gate = 'arc';
-        else if (falloffAt(def, rangeToEnemy / rangeMultiplier) <= 0) gate = 'minrange';
-        else if (tempC >= HEAT_FIRE_HOLD_C) gate = 'heat';
-      }
+      const gate: WeaponFrame['gate'] = destroyed ? null : fireGate(c, enemy, p.instanceId, this.terrain, snap);
       weapons.push({
         instanceId: p.instanceId,
         partId: p.partId,
