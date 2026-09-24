@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { Battle, autopilotController, withManualOrders, type ManualOrders } from '../src/combat.js';
 import { TEMPLATES } from '../src/templates.js';
 import { getPart } from '../src/catalog.js';
+import { HEAT_RESTART_C, HEAT_SHUTDOWN_C } from '../src/simulation.js';
 
 /** MW spec §3: Alpha fires every loaded gun once, then leaves each in its previous state. */
 const gunline = TEMPLATES.find((t) => t.id === 'mule-gunline')!.build;
@@ -52,5 +53,29 @@ describe('Alpha', () => {
     const before = battle.events.filter((e) => e.type === 'shot' && e.mech === 0).length;
     for (let t = 0; t < 200; t++) battle.step();
     expect(battle.events.filter((e) => e.type === 'shot' && e.mech === 0).length).toBe(before);
+  });
+  it('a gun that drops out of loaded after the press loses it, rather than firing held once it recovers', () => {
+    let m: ManualOrders = { weapons: hold };
+    const battle = fight(() => m);
+    const sim = battle.combatants[0].sim;
+    const gunCells = [...sim.thermal.cells.values()].filter((c) => gunIds.includes(c.instanceId));
+    expect(gunCells.length).toBeGreaterThan(0);
+    const pin = (tempC: number) => { for (const c of gunCells) c.tempC = tempC; };
+    for (let t = 0; t < 100; t++) battle.step();       // held and loaded; tick 100 issues orders next
+    // Arm, and shut the guns down before the step that would fire them.
+    m = { weapons: hold, alpha: 1 };
+    for (let t = 0; t < 5; t++) { pin(HEAT_SHUTDOWN_C + 5); battle.step(); }
+    expect(battle.events.filter((e) => e.type === 'alpha' && e.mech === 0)).toHaveLength(1);
+    for (const id of gunIds) expect(battle.events.some((e) => e.type === 'shutdown' && e.mech === 0 && e.instanceId === id)).toBe(true);
+    // Cool below restart and give them long enough to reload, still held.
+    pin(HEAT_RESTART_C - 60);
+    for (let t = 0; t < 100; t++) battle.step();
+    expect(sim.volleyPendingIds()).toEqual([]);
+    expect(battle.events.filter((e) => e.type === 'shot' && e.mech === 0)).toHaveLength(0);
+    // They did recover and reload: a fresh press fires each once.
+    m = { weapons: hold, alpha: 2 };
+    for (let t = 0; t < 10; t++) battle.step();
+    const shots = battle.events.filter((e) => e.type === 'shot' && e.mech === 0);
+    for (const id of gunIds) expect(shots.filter((e) => e.type === 'shot' && e.instanceId === id)).toHaveLength(1);
   });
 });

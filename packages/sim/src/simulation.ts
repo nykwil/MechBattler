@@ -880,6 +880,11 @@ export class Simulation {
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
             : rt.cycleTimer >= def.weapon!.cycleS * M(p.instanceId).cycleS
       );
+      // An Alpha fires what is ready at the press. A gun that stops being loaded
+      // before it can fire (shutdown, shed, cook-off) loses the press, instead of
+      // firing held once it recovers. The mech-wide shutdown is covered by the
+      // same rule, since nothing is loaded while the mech is down.
+      if (!rt.loaded) rt.volleyPending = false;
     }
 
     const cellTempsC: Record<string, number> = {};
