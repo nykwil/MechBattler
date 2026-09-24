@@ -584,6 +584,7 @@ export function applyValidatedRefit(run: RunInstance, proposed: Build): RunInsta
       parts: installed,
       routes: structuredClone(proposed.routes ?? []),
       powerPriority,
+      ...(proposed.weaponGroups ? { weaponGroups: proposed.weaponGroups.map((g) => [...g]) } : {}),
     },
     bench,
     events: [...run.events, {

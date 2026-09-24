@@ -260,6 +260,15 @@ describe('run domain', () => {
     })).toThrow('Invalid refit');
   });
 
+  it('carries proposed weaponGroups into the returned mech, the same as powerPriority', () => {
+    const run = createRun({ seed: 43, kitName: 'Scout', build: template.build });
+    const proposed = structuredClone(mechToBuild(run.mech));
+    const gun = proposed.parts[0]!.instanceId;
+    proposed.weaponGroups = [[gun], [], []];
+    const refitted = applyValidatedRefit(run, proposed);
+    expect(refitted.mech.weaponGroups).toEqual(proposed.weaponGroups);
+  });
+
   it('settles purse and scrap once, respects bench cap, and schedules services', () => {
     const base = createRun({ seed: 42, kitName: 'Scout', build: template.build });
     const run: RunInstance = {
