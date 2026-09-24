@@ -107,6 +107,9 @@
   padding: 0 var(--space-3) var(--space-1);
 }
 .battle-app .live-groups .obtn { width: auto; min-width: 0; min-height: 44px; position: relative; overflow: hidden; }
+/* The prototype's .obtn.off idiom: an empty group, or Alpha during shutdown, reads
+   as unavailable rather than as a live chip that ignores the tap. */
+.battle-app .live-groups .obtn:disabled { opacity: .4; cursor: not-allowed; }
 .battle-app .grp { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
 .battle-app .grp-fill { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--signal-amber); transition: width .15s linear; }
 .battle-app .grp-k { font-weight: 700; }
