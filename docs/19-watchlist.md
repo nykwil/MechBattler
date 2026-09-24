@@ -485,3 +485,33 @@ other capacitor users on the network unseen.
 What would make us act: if the group volley reads as broken with a railgun in
 it — i.e. players expect a held railgun to snap out with the rest of its
 group and it visibly doesn't — reopen this (spec §1's own note).
+
+## A forced volley can fire out of arc, and Alpha counts best where it does nothing (24 Sep 2026)
+
+Alpha, a group set to FIRE, and a per-gun force all fire through
+`resolveShot`, and `resolveShot` never checks the mount arc. A forced shot at a
+target outside the gun's arc still goes out. Alpha arms every *loaded* gun, and
+guns are most often loaded when the target is out of range and nothing has
+been firing. So the Alpha count on the console is highest exactly when a
+volley would miss or fall off to nothing.
+
+**Why it was left.** Force semantics predate this work: a forced gun has always
+fired whatever it faced. Changing what force means is a combat-spec decision
+and was out of scope for weapon groups.
+
+**What would make us act.** Players reporting wasted Alphas: pressing it at
+the top of the count and seeing no damage land.
+
+## The workshop test bench cannot show a mech-wide shutdown (24 Sep 2026)
+
+`runTestBench` returns `TestBenchResult`, which has no field for the mech-wide
+shutdown. A build that trips it on the bench would read as shots stopping,
+with nothing to say why. The case is unreached today: across 153 assembled
+builds the hottest peak was 115.4 °C (CH-9 `W-KL`:4), against the 130 °C trip.
+
+**Why it was left.** It cannot happen on any build yet, and adding a field no
+build can populate is a UI promise that nothing would test.
+
+**What would make us act.** A heat balance pass that makes the reactor bite
+(see "The mech-wide shutdown is unreachable" above). The first build that
+trips it on the bench needs the field and a line in the workshop.

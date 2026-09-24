@@ -122,7 +122,11 @@ Each entry names where its plan went.
   spec's "As built" section (Alpha on `X` because Space is pause, kebab-case
   events, and a degrees-to-cool banner rather than a countdown). The shutdown
   is dormant on the canonical roster at the shipped constants — a controller
-  ruling, not a bug — and `19-watchlist.md` carries why. 24 Sep 2026,
+  ruling, not a bug — and `19-watchlist.md` carries why. The four swings the
+  shipped `balance-report.md` shows (`mule-gunline` −31, `bastion-tank` +29,
+  `vulture-sniper` −10, `mule-skirmisher` +7) were **already on `main`**. A
+  same-seed main-vs-branch run puts the branch's share at 0 / +2 / −2 / +1, and
+  its own largest move is `vulture-skirmisher` −5 (78% → 73%). See `17` F77. 24 Sep 2026,
   `superpowers/specs/2026-09-23-mw-groups-heat-design.md`
 
 - **The content-authoring contract** — `game:audit` gained a warnings channel: a

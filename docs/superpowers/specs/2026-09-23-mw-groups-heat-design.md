@@ -321,3 +321,20 @@ fight (docs/17 F77's checkpoint) — so reactor load heat
 make the trigger reachable in principle. At the shipped constants it is still
 unreached on the canonical roster; `docs/19-watchlist.md` carries the ruling
 and what would change it.
+
+Found by the final review and fixed before merge:
+
+- **A cap-fed gun is loaded only when its caps bank the shot.** §1's "dumps
+  within 1 s" needs the energy in hand, and loaded on cooldown alone let Alpha
+  arm a railgun on empty caps. That railgun then fired seconds later while
+  held. `railgun-mule` banks 180 kJ against a 220 kJ shot, so its railgun is
+  never loaded and Alpha never arms it (`03` §2a).
+- **The workshop heat balance bills reactor load heat.** `computeHeatBalance`
+  now adds `SHOT_HEAT_TO_REACTOR_FRAC` of every gun's heat rate as its own
+  source. It had under-read the roster by 0.4–2.7 kW. `mule-skirmisher`
+  (−2.4 kW) and `probe-bastion-suppression` (−1.3 kW) now carry the
+  `overheats` warning.
+
+The swings in the committed balance report are not this work's. A same-seed
+main-vs-branch run found all four already on `main`, and the branch's own
+largest move is `vulture-skirmisher` −5 (docs/17 F77, "Balance attribution").

@@ -5923,3 +5923,29 @@ hottest.
 What would make the reactor bite is hotter weapons, or tighter cooling near the
 reactor. That is balance-track work, not a constant to turn here; see
 `docs/19-watchlist.md`.
+
+### Balance attribution: main vs branch (24 Sep 2026)
+
+The balance report committed with this work lists four swings against the
+26 Aug baseline, and nothing in it says whose they are. A same-seed
+`sim:balance` run on `main` (`9e39516`) and on the branch (`ad172f2`), using the
+harness's default 20 seeds per pair, separates them:
+
+```
+template            | baseline | main | branch | main−base | branch−main
+vulture-skirmisher  |   71%    | 78%  |  73%   |    +7     |    −5
+mule-laser-boat     |   71%    | 67%  |  68%   |    −4     |    +1
+vulture-sniper      |   58%    | 49%  |  47%   |    −9     |    −2
+railgun-mule        |   49%    | 48%  |  48%   |    −1     |     0
+mule-skirmisher     |   47%    | 53%  |  54%   |    +6     |    +1
+mule-gunline        |   39%    |  8%  |   8%   |   −31     |     0
+bastion-tank        |   16%    | 43%  |  45%   |   +27     |    +2
+```
+
+All four reported swings were already on `main`. This work's own largest move
+is `vulture-skirmisher` −5, which falls below the report's threshold against the
+baseline because `main` had lifted it +7 first. Neither `mule-gunline` nor
+`bastion-tank` moved 5+ against `main`, so neither was bisected. `sim:balance`
+flies the autopilot on both sides, and the autopilot never orders overdrive, so
+these numbers do not measure it. The OVR table above does.
+
