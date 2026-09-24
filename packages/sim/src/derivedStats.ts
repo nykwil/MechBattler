@@ -17,7 +17,7 @@ import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { dexp } from './dmath.js';
 import { computeLoadScaledSpeeds, computeMassAndCoG } from './grid.js';
-import { HEAT_FIRE_HOLD_C, Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
+import { HEAT_FIRE_HOLD_C, SHOT_HEAT_TO_REACTOR_FRAC, Simulation, SPEED_SETTING_FRACTIONS, type SimCommand, type SpeedSetting } from './simulation.js';
 import { AMBIENT_C, RADIATOR_CAP_KW, buildThermalModel } from './thermal.js';
 import { EXTERIOR_PASSIVE_K } from './spatial.js';
 import { resolvePlacementEffects } from './placementEffects.js';
@@ -126,8 +126,15 @@ export interface HeatBalance {
   /** Radiators whose conduction component contains no heat source: dead weight. */
   orphanedRadiatorIds: string[];
   marginKw: number;
-  perSource: { partId: string; kw: number }[];
+  /**
+   * Where `heatInKw` comes from. `partId` is a catalog id, except for the one
+   * `REACTOR_LOAD_SOURCE` entry, which carries a player-readable `label`.
+   */
+  perSource: { partId: string; kw: number; label?: string }[];
 }
+
+/** `perSource` key for the share of every shot the reactor pays for (MW spec §4). */
+export const REACTOR_LOAD_SOURCE = 'reactor-load';
 
 /**
  * docs/01 §9 heat balance bar: heat into the build vs. cooling capacity, at
@@ -154,11 +161,12 @@ export interface HeatBalance {
  * leaving the player to wonder why the bar did not move.
  */
 export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBalance {
-  const perSource: { partId: string; kw: number }[] = [];
+  const perSource: HeatBalance['perSource'] = [];
   const margin = computeEnergyMargin(chassis, build);
   const utilization = margin.supplyKw > 0 ? clamp(margin.demandKw / margin.supplyKw, 0, 1) : 0;
 
   let heatInKw = 0;
+  let reactorLoadKw = 0;
   for (const p of build.parts) {
     const def = getPart(p.partId);
     const placementHeatMult = resolvePlacementEffects(chassis, build, p.instanceId)?.effectiveHeatMultiplier ?? 1;
@@ -171,6 +179,14 @@ export function computeHeatBalance(chassis: ChassisSpec, build: Build): HeatBala
       kw *= placementHeatMult;
     }
     if (kw > 0) { heatInKw += kw; perSource.push({ partId: def.id, kw }); }
+    // Every shot also lands SHOT_HEAT_TO_REACTOR_FRAC of its heat on the
+    // reactor and core (sim step 6d). The sim bills that share unscaled by the
+    // gun's placement -- a shell covers the gun, not the reactor -- so this does too.
+    if (def.weapon && def.heat?.heatPerShotKj) reactorLoadKw += (def.heat.heatPerShotKj / def.weapon.cycleS) * SHOT_HEAT_TO_REACTOR_FRAC;
+  }
+  if (reactorLoadKw > 0) {
+    heatInKw += reactorLoadKw;
+    perSource.push({ partId: REACTOR_LOAD_SOURCE, kw: reactorLoadKw, label: 'Reactor load from firing' });
   }
 
   // Reference temperature for every temperature-proportional term below.
