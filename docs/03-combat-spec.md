@@ -90,11 +90,14 @@ controllers run at 4 Hz and lockstep must replay the press identically
 fire-hold does not apply to a pending gun, though physical (per-part or
 mech-wide) shutdown still does. A gun that stops being loaded before it fires
 loses the press. A mech-wide shutdown (`02` §3) clears every pending Alpha.
-A cap-fed gun (the railgun) is loaded only when it is off cooldown **and** its
-network's capacitors bank the rest of a shot. Otherwise an Alpha would hold it
-for seconds while the caps refilled. Its ready bar reads the same
-fraction. `railgun-mule` banks 180 kJ against a 220 kJ shot, so its railgun is
-never loaded and Alpha never arms it, although it still fires under AUTO.
+A cap-fed gun (the railgun) is loaded when it is off cooldown **and** the
+energy in hand reaches either the shot or the bank's full capacity. The energy
+in hand is what it has already drawn plus what its network's capacitors hold.
+Before this rule, an Alpha on half-empty caps held the gun for 8–10 s while
+they filled. The full-bank case exists because `railgun-mule` banks 180 kJ
+against a 220 kJ shot: full is the best it can do, so there it is loaded, and
+an Alpha fires it as soon as AUTO would, about 2 s. Its ready bar reads the
+same fraction.
 
 **OVR** (overdrive) is `ManualOrders.overrideHeat`. While set, it re-enables
 any gun the autopilot withheld for temperature alone, cycles guns faster and

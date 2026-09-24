@@ -142,11 +142,39 @@ describe('Alpha and a cap-fed gun', () => {
     expect(held(s, 200)).toEqual([]);
   });
 
-  it('a bank smaller than one shot never reads loaded (railgun-mule: 180 kJ against 220 kJ)', () => {
+  // railgun-mule banks 180 kJ against a 220 kJ shot, so it can never hold a
+  // whole one. Full caps are the best it can reach: there it counts as loaded
+  // and fires as soon as it can; short of full it waits to fill.
+  it('railgun-mule off cooldown on drained caps is not loaded, arms nothing, and stays held', () => {
     const s = new Simulation(getChassis(mule.chassisId), mule);
-    held(s, 200);
-    expect(stored(s)).toBeLessThan(SHOT_KJ);
+    for (let i = 0; i < 60 && !s.step(0.05, { weaponsEnabled: { rg: true }, speedSetting: 'stationary' }).shotsThisTick.length; i++);
+    held(s, 120);                                          // past the 5 s cooldown
+    expect(s.instanceRuntime.get('rg')!.cooldownRemainingS).toBeLessThanOrEqual(0);
+    s.drainCapacitorChargeKj(stored(s) - 40);
+    held(s, 1);
+    expect(stored(s)).toBeLessThan(180);
     expect(s.instanceRuntime.get('rg')!.loaded).toBe(false);
+    expect(s.instanceRuntime.get('rg')!.readyFrac).toBeLessThan(1);
     expect(s.armVolley()).toEqual([]);
+    expect(held(s, 200)).toEqual([]);                      // the caps refill, but nothing armed it
+  });
+
+  it('railgun-mule on full caps is loaded, and its Alpha shot is no later than auto fire from full caps', () => {
+    const s = new Simulation(getChassis(mule.chassisId), mule);
+    const twin = new Simulation(getChassis(mule.chassisId), mule);
+    held(s, 1);
+    held(twin, 1);
+    expect(stored(s)).toBeLessThan(SHOT_KJ);               // the bank really is short of a shot
+    expect(s.instanceRuntime.get('rg')!.loaded).toBe(true);
+    expect(s.instanceRuntime.get('rg')!.readyFrac).toBe(1);
+    expect(s.armVolley()).toEqual(['rg']);
+    let autoTick = -1;
+    for (let i = 1; i <= 100 && autoTick < 0; i++) {
+      if (twin.step(0.05, { weaponsEnabled: { rg: true }, speedSetting: 'stationary' }).shotsThisTick.length) autoTick = i;
+    }
+    expect(autoTick).toBeGreaterThan(0);
+    const fired = held(s, autoTick + 1);
+    expect(fired).toHaveLength(1);
+    expect(fired[0]).toBeLessThanOrEqual(autoTick + 1);
   });
 });

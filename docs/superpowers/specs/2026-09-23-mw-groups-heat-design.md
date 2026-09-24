@@ -324,11 +324,13 @@ and what would change it.
 
 Found by the final review and fixed before merge:
 
-- **A cap-fed gun is loaded only when its caps bank the shot.** §1's "dumps
-  within 1 s" needs the energy in hand, and loaded on cooldown alone let Alpha
-  arm a railgun on empty caps. That railgun then fired seconds later while
-  held. `railgun-mule` banks 180 kJ against a 220 kJ shot, so its railgun is
-  never loaded and Alpha never arms it (`03` §2a).
+- **A cap-fed gun is loaded only when its energy in hand reaches the shot or
+  the bank's capacity.** Loaded on cooldown alone let Alpha arm a railgun at
+  83 of 220 kJ, and the railgun then fired 8–10 s later while held. §1's "dumps
+  within 1 s" holds where the bank covers a shot. `railgun-mule` banks 180 kJ
+  against 220 kJ, so it is loaded at full caps and its Alpha lands when AUTO's
+  would, about 2 s (`03` §2a). This was a lead ruling: the strict rule would
+  have left that template's Alpha permanently dead.
 - **The workshop heat balance bills reactor load heat.** `computeHeatBalance`
   now adds `SHOT_HEAT_TO_REACTOR_FRAC` of every gun's heat rate as its own
   source. It had under-read the roster by 0.4–2.7 kW. `mule-skirmisher`

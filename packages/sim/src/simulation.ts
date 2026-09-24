@@ -971,13 +971,29 @@ export class Simulation {
       const rt = this.runtime.get(p.instanceId)!;
       const usable = !this.mechShutdown && !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
       const cycleS = def.weapon!.cycleS * cycleMultOf(p.instanceId);
-      // A cap-fed gun is loaded only when its network banks the rest of a shot:
-      // off cooldown on empty caps, an Alpha would hold it for seconds.
+      // A cap-fed gun is loaded when the energy in hand -- what it has already
+      // drawn plus what its network's capacitors hold -- reaches (a) the shot,
+      // or (b) the bank's full capacity. Off cooldown on half-empty caps, an
+      // Alpha held it for 8-10 s while they filled.
+      //
+      // (b) exists because full is the best such a gun can ever do:
+      // railgun-mule banks 180 kJ against a 220 kJ shot, so under (a) alone its
+      // Alpha would be dead for good. Full, there is nothing left to wait for,
+      // and it fires as soon as auto would. Drawn energy counts toward (b)
+      // because the dump moves it out of the caps: judged on the caps alone, a
+      // gun stops being loaded mid-dump and loses the press. Either way what is
+      // left to recharge is never more than it is from full caps.
+      //
+      // The ready bar is the same fraction, so it reaches 1 exactly when this does.
       const capFedKj = def.draw?.capFedEnergyPerShotKj;
-      const networkId = this.networkIdByInstance.get(p.instanceId);
-      const capFedFrac = capFedKj
-        ? Math.min((rt.capDrawnKj + (networkId ? this.storedKjOf(this.capacitorsInNetwork(networkId)) : 0)) / capFedKj, 1)
-        : 0;
+      let capFedFrac = 0;
+      if (capFedKj) {
+        const networkId = this.networkIdByInstance.get(p.instanceId);
+        const caps = networkId ? this.capacitorsInNetwork(networkId) : [];
+        const capacityKj = caps.reduce((s, c) => s + getPart(c.partId).capacitor!.storedKj, 0);
+        const needKj = Math.min(capFedKj, capacityKj);
+        capFedFrac = needKj > 0 ? Math.min((rt.capDrawnKj + this.storedKjOf(caps)) / needKj, 1) : 0;
+      }
       rt.loaded = usable && (
         capFedKj ? rt.cooldownRemainingS <= 0 && capFedFrac >= 1
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
