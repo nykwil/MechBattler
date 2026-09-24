@@ -21,7 +21,7 @@
  *    only spawn distance matters for now).
  */
 import type { Build, ChassisSpec, PartDef } from './types.js';
-import { firesMechanically, getPart } from './catalog.js';
+import { getPart } from './catalog.js';
 import { getChassis } from './chassis.js';
 import { buildOccupancyMap, computeLoadScaledSpeeds, computeMassAndCoG, type LoadScaledSpeeds } from './grid.js';
 import { exposedEquipmentTickets, type AttackDirection } from './spatial.js';
@@ -2020,18 +2020,10 @@ export class Battle {
       if (def.category !== 'weapon') continue;
       const rt = c.sim.instanceRuntime.get(p.instanceId)!;
       const destroyed = !c.isPartFunctional(p.instanceId);
-      // Progress toward the next shot, whatever feeds the gun: cycle time
-      // (continuous draw), charge (laser), or capacitor dump (railgun).
-      // A post-shot cooldown reads as 0 — the bar visibly resets on fire.
-      let readyFrac = 0;
-      if (!destroyed && !rt.isShutdown) {
-        // Mechanically-fired guns run the same cycle timer with no draw at all,
-        // so keying this on `draw` alone would draw every ballistic gun as
-        // permanently un-ready while it was visibly shooting.
-        if (def.draw?.continuousKw || firesMechanically(def)) readyFrac = Math.min(rt.cycleTimer / def.weapon!.cycleS, 1);
-        else if (def.draw?.chargedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1);
-        else if (def.draw?.capFedEnergyPerShotKj) readyFrac = rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1);
-      }
+      // Progress toward the next shot comes from the sim, which knows the cycle
+      // the gun actually runs: dividing by the catalog cycle here left a loaded
+      // gun's bar at 70% under overdrive (and short under any cycle mod).
+      const readyFrac = destroyed ? 0 : rt.readyFrac;
       const tempC = snap ? c.hottestCellC(p.instanceId, snap) : 25;
       const gate: WeaponFrame['gate'] = destroyed ? null : fireGate(c, enemy, p.instanceId, this.terrain, snap);
       weapons.push({

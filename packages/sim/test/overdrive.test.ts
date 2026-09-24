@@ -55,6 +55,22 @@ describe('OVR overdrive', () => {
     expect(ovr.every((o) => o.od === true)).toBe(true);
   });
 
+  it('a held gun reads fully ready in the frame when it is loaded, with or without overdrive', () => {
+    // The HUD's "Ready" is readyFrac >= 1. It divided by the unmultiplied cycle,
+    // so under overdrive a loaded gun's bar stopped at 70% while Alpha would fire it.
+    for (const overrideHeat of [false, true]) {
+      const battle = new Battle({
+        builds: [gunline, template('mule-skirmisher')], seed: 11, timeoutS: 20,
+        controllers: [withManualOrders(autopilotController, () => ({ overrideHeat, weapons: { ac: 'hold' } })), autopilotController],
+      });
+      for (let t = 0; t < 40; t++) battle.step();
+      expect(battle.combatants[0].overdrive).toBe(overrideHeat);
+      const ac = battle.latestFrame()!.mechs[0].weapons.find((w) => w.instanceId === 'ac')!;
+      expect(ac.loaded).toBe(true);
+      expect(ac.readyFrac).toBe(1);
+    }
+  });
+
   it('lets a canonical template cook its own guns to HEAT_SHUTDOWN_C, which OVR alone never could', () => {
     const me = template('mule-skirmisher');
     const guns = me.parts.filter((p) => getPart(p.partId).category === 'weapon').map((p) => p.instanceId);

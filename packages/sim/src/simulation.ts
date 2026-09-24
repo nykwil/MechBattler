@@ -177,6 +177,12 @@ export interface InstanceRuntime {
   loaded: boolean;
   /** Armed by an Alpha: fire once on the next chance, then clear (MW spec §3). */
   volleyPending: boolean;
+  /**
+   * 0..1 progress toward the next shot, against the cycle this gun actually
+   * runs (mods and overdrive included) -- the HUD's ready bar. Recomputed at the
+   * end of every step; 0 while destroyed or shut down.
+   */
+  readyFrac: number;
 }
 
 const HYSTERESIS_MIN_OFF_S = 1.0;
@@ -186,7 +192,7 @@ function freshRuntime(): InstanceRuntime {
   return {
     isShed: false, shedSinceT: null, isShutdown: false, cumulativeDamageHp: 0,
     cookedOff: false, destroyed: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0, loaded: false,
-    volleyPending: false,
+    volleyPending: false, readyFrac: 0,
   };
 }
 
@@ -958,11 +964,20 @@ export class Simulation {
       if (def.category !== 'weapon') continue;
       const rt = this.runtime.get(p.instanceId)!;
       const usable = !this.mechShutdown && !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
+      const cycleS = def.weapon!.cycleS * cycleMultOf(p.instanceId);
       rt.loaded = usable && (
         def.draw?.capFedEnergyPerShotKj ? rt.cooldownRemainingS <= 0
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
-            : rt.cycleTimer >= def.weapon!.cycleS * cycleMultOf(p.instanceId)
+            : rt.cycleTimer >= cycleS
       );
+      // The HUD's ready bar, against the same cycle and thresholds as `loaded`,
+      // so "Ready" and "Alpha would fire it" cannot disagree. A post-shot
+      // cooldown reads as 0 -- the bar visibly resets on fire.
+      rt.readyFrac = rt.destroyed || rt.isShutdown ? 0
+        : def.draw?.continuousKw || firesMechanically(def) ? Math.min(rt.cycleTimer / cycleS, 1)
+          : def.draw?.chargedEnergyPerShotKj ? (rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.chargeKj / def.draw.chargedEnergyPerShotKj, 1))
+            : def.draw?.capFedEnergyPerShotKj ? (rt.cooldownRemainingS > 0 ? 0 : Math.min(rt.capDrawnKj / def.draw.capFedEnergyPerShotKj, 1))
+              : 0;
       // An Alpha fires what is ready at the press. A gun that stops being loaded
       // before it can fire (shutdown, shed, cook-off) loses the press, instead of
       // firing held once it recovers. The mech-wide shutdown is covered by the
