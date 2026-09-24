@@ -1084,6 +1084,63 @@ Set `SHOT_HEAT_TO_REACTOR_FRAC` to that value.
 
 Append the sweep table and the chosen value to F77 in `docs/17-balance-findings.md`, under a sub-heading "Reactor load heat". Then re-run `npm run sim:test`. The golden moves again when the constant changes, so re-pin once more, with the reason stated. The fight itself should not change, because nothing in the golden reaches the reactor threshold. Re-pin under the Global Constraints rule, and state in the comment that the outcome, duration and shots are unchanged. If they *did* change, investigate before re-pinning.
 
+- [ ] **Step 5c: OVR is overdrive (amendment 2, user decision 24 Sep 2026)**
+
+The Step 5b sweep failed at every fraction. Alpha fires what is loaded, and guns still reload at their cycle rate. So the autopilot, OVR and alpha-spam all deposit about the same heat, and none of the three modes ever reaches 130 °C. The user chose **"OVR = overdrive"**: while OVR is on, guns cycle faster and every shot runs hotter. This is MechWarrior's "fire faster than your sinks can clear" decision, as one toggle.
+
+*Order channel.*
+- `MechOrder` weapons variant gains `overdrive?: boolean`.
+- `mergeManualOrders` sets `overdrive: true` whenever `m.overrideHeat` is set.
+- `applyOrder` stores `self.overdrive = order.overdrive === true` on the `Combatant`. The field is new; it resets to false on any weapons order that does not carry the flag.
+- `Battle.step` passes it as `SimCommand.overdrive`.
+- The autopilot never sets it.
+- Add `u(c.overdrive ? 1 : 0)` to `stateHash`.
+
+*Sim.* In `simulation.ts`:
+
+```ts
+/** OVR overdrive (MW spec §3, amended 24 Sep 2026): guns cycle this much faster... */
+export const OVERDRIVE_CYCLE_MULT = 0.7;
+/** ...and every shot makes this much more heat, in its own cells and on the reactor. */
+export const OVERDRIVE_HEAT_MULT = 1.5; // placeholder until the sweep below sets it
+```
+
+Two local helpers go at the top of `step`:
+- `cycleMultOf(id) = M(id).cycleS * (command.overdrive ? OVERDRIVE_CYCLE_MULT : 1)`
+- `shotHeatMult = command.overdrive ? OVERDRIVE_HEAT_MULT : 1`
+
+Use them at every site that reads a cycle or deposits shot heat:
+- every `def.weapon!.cycleS * M(id).cycleS` / `eff.cycleS`, in the firing steps, the held-load clamps and the step-12 loaded pass;
+- every shot `addHeat`;
+- the step-6d reactor load sum.
+
+The effects on each weapon kind:
+- A charged gun's charge time is set by `maxChargeKw` and does not change. Only its post-shot cooldown shortens.
+- A cap-fed gun's cooldown shortens.
+
+Keep the two multipliers overridable for the sweep, exactly as `shotHeatToReactorFrac` is: `SimulationOptions.overdriveHeatMult?` and `BattleOptions.overdriveHeatMult?`.
+
+*Tests*, in `mechShutdown.test.ts`, or a new `overdrive.test.ts` if clearer:
+1. The same held-free gun over 20 s fires about `1/OVERDRIVE_CYCLE_MULT` times as many shots under overdrive. Assert the ratio within ±15%.
+2. Its cell and reactor temperatures run hotter under overdrive.
+3. The pure autopilot never emits a weapons order with `overdrive`. Scan the `order` events of a default battle.
+4. Overdrive lets at least one canonical template's weapon cells reach `HEAT_SHUTDOWN_C` under OVR. This is the per-part cost, which OVR could not reach before.
+
+*Tuning.* Extend `sim:overheat --sweep`:
+- Hold `OVERDRIVE_CYCLE_MULT = 0.7`.
+- Sweep `overdriveHeatMult` over `[1.25, 1.5, 2.0, 3.0]` × `shotHeatToReactorFrac` over `[0.3, 0.5, 1.0]`.
+- The OVR and alpha-spam modes now run with overdrive.
+
+Keep Step 5b's two criteria unchanged:
+1. The autopilot never shuts down.
+2. OVR splits the roster: some but not all templates' reactor or core reaches 130 °C, and the earliest crossing comes later than 10 s. Use the OVR column for this, not alpha-spam. Report both.
+
+Pick the pair with the smallest `overdriveHeatMult`, breaking ties by the smallest fraction. Set both constants and append the grid and the choice to F77 under "Reactor load heat and overdrive".
+
+If no pair meets both criteria, stop and report BLOCKED with the grid. Do not change the cycle multiplier or widen the grid.
+
+Re-pin the golden once more if it moves. It should move only through the hash term plus the fraction, because the golden runs no OVR.
+
 - [ ] **Step 6: Commit**
 
 ```bash
@@ -1610,14 +1667,14 @@ New row, directly after the `live-orders` div:
               type="button" className="obtn ovr"
               aria-pressed={manual.overrideHeat}
               onClick={toggleOverride}
-              title={`Heat override: fire past ${HEAT_FIRE_HOLD_C}°C. The reactor shuts the mech down at ${HEAT_MECH_SHUTDOWN_C}°C.`}
+              title={`Overdrive: guns cycle ${Math.round((1 / OVERDRIVE_CYCLE_MULT - 1) * 100)}% faster and run ${Math.round((OVERDRIVE_HEAT_MULT - 1) * 100)}% hotter, and fire past the ${HEAT_FIRE_HOLD_C}°C hold. The reactor shuts the mech down at ${HEAT_MECH_SHUTDOWN_C}°C.`}
             >
               OVR
             </button>
           </div>
 ```
 
-Import `HEAT_FIRE_HOLD_C` and `HEAT_MECH_SHUTDOWN_C` from `@mechbattler/sim`. They are only in a tooltip, but they must still be read from the sim.
+Import `HEAT_FIRE_HOLD_C`, `HEAT_MECH_SHUTDOWN_C`, `OVERDRIVE_CYCLE_MULT` and `OVERDRIVE_HEAT_MULT` from `@mechbattler/sim`. They are only in a tooltip, but they must still be read from the sim.
 
 `glassOverlay`: render both overlays.
 
