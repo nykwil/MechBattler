@@ -66,3 +66,38 @@
   font-size: var(--text-sm);
   color: var(--ink-secondary);
 }
+
+/*
+ * Group chips for WeaponGroupList. PowerPriorityList's own .priority-btns
+ * buttons are fixed at 20x20 -- fine for two arrow glyphs, too small for a
+ * 44px tap target -- so the four G1/G2/G3/- buttons get their own sizing
+ * here rather than in the shared shell.css (CLAUDE.md: never edit the
+ * verbatim prototype sheets).
+ */
+.group-btns {
+  display: flex;
+  gap: 3px;
+  flex: 0 0 auto;
+}
+.group-btns button {
+  min-width: var(--tap-min);
+  min-height: var(--tap-min);
+  background: var(--bg-panel-raised);
+  border: 1px solid var(--line-hairline);
+  color: var(--ink-secondary);
+  border-radius: 3px;
+  font-family: var(--font-mono);
+  font-size: var(--text-2xs);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.group-btns button[aria-pressed='true'] {
+  background: rgba(232, 162, 61, 0.1);
+  border-color: var(--signal-amber-dim);
+  color: var(--signal-amber);
+}
+@media (hover: hover) {
+  .group-btns button:hover { border-color: var(--line-bright); color: var(--ink-primary); }
+}

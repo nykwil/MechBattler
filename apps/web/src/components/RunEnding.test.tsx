@@ -62,7 +62,7 @@ describe('readout sheet initial tab', () => {
     <ReadoutSheet
       open chassis={getChassis(template.build.chassisId)} build={template.build}
       parts={template.build.parts} powerPriority={template.build.powerPriority}
-      issues={[]} onClose={vi.fn()} onMovePriority={vi.fn()} onBenchResult={vi.fn()}
+      issues={[]} onClose={vi.fn()} onMovePriority={vi.fn()} onSetWeaponGroup={vi.fn()} onBenchResult={vi.fn()}
       {...props}
     />
   );

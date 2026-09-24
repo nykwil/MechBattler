@@ -179,6 +179,7 @@ export function useProfile() {
           routes: structuredClone(record.finalBuild.routes ?? []),
           chassisIntegrity: record.finalBuild.chassisIntegrity ?? 1,
           powerPriority: record.finalBuild.powerPriority,
+          ...(record.finalBuild.weaponGroups ? { weaponGroups: record.finalBuild.weaponGroups.map((g) => [...g]) } : {}),
         } : undefined,
         unlockedPartIds: record.unlockedPartIds,
       };

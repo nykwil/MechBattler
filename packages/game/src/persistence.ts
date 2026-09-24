@@ -67,6 +67,7 @@ function pristineBlueprint(build: Build): Build {
     routes: structuredClone(build.routes ?? []),
     chassisIntegrity: 1,
     powerPriority: [...build.powerPriority],
+    ...(build.weaponGroups ? { weaponGroups: build.weaponGroups.map((g) => [...g]) } : {}),
   };
 }
 

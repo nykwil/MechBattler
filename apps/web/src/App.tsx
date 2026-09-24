@@ -72,7 +72,7 @@ export default function App() {
   );
   const {
     state, chassis, build, chassisOptions,
-    setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, loadBuild, movePriority, setOverlay, setIntegrity, applyModifier,
+    setChassis, selectPart, selectInstance, rotate, detach, aim, nudge, place, remove, loadBuild, movePriority, setWeaponGroup, setOverlay, setIntegrity, applyModifier,
     setRouteTool, placeRoute, setChassisIntegrity,
     checkCandidate, previewCells,
   } = useBuild('CH-5');
@@ -965,6 +965,7 @@ export default function App() {
         powerPriority={state.powerPriority}
         issues={issues}
         onMovePriority={movePriority}
+        onSetWeaponGroup={setWeaponGroup}
         onBenchResult={setBenchResult}
         onAutoWire={runActive ? undefined : autoWireNow}
         extraTabs={mobileTabs}

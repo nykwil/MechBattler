@@ -4,6 +4,7 @@ import { Sheet } from './Sheet.js';
 import { StatsPanel } from './StatsPanel.js';
 import { BuildWarnings } from './BuildWarnings.js';
 import { PowerPriorityList } from './PowerPriorityList.js';
+import { WeaponGroupList } from './WeaponGroupList.js';
 import { TestBenchPanel } from './TestBenchPanel.js';
 import type { TestBenchResult } from '@mechbattler/sim';
 import './ReadoutSheet.css';
@@ -27,7 +28,7 @@ export interface ExtraTab {
  * envelope, the fault list behind the bar's count, and power priority.
  */
 export function ReadoutSheet({
-  open, onClose, chassis, build, parts, powerPriority, issues, onMovePriority, onBenchResult,
+  open, onClose, chassis, build, parts, powerPriority, issues, onMovePriority, onSetWeaponGroup, onBenchResult,
   onAutoWire, extraTabs = [], initialTab,
 }: {
   open: boolean;
@@ -38,6 +39,7 @@ export function ReadoutSheet({
   powerPriority: string[];
   issues: Parameters<typeof BuildWarnings>[0]['issues'];
   onMovePriority: (instanceId: string, direction: -1 | 1) => void;
+  onSetWeaponGroup: (instanceId: string, group: number | null) => void;
   onBenchResult: (result: TestBenchResult | null) => void;
   /** Lays a functional conduit graph; the fix for most unpowered-part faults. */
   onAutoWire?: () => void;
@@ -124,7 +126,10 @@ export function ReadoutSheet({
           It already reorders with up/down buttons rather than drag, which is
           what touch needs. */}
       {tab === 'power' && (
-        <PowerPriorityList chassis={chassis} build={build} priority={powerPriority} parts={parts} onMove={onMovePriority} />
+        <>
+          <PowerPriorityList chassis={chassis} build={build} priority={powerPriority} parts={parts} onMove={onMovePriority} />
+          <WeaponGroupList build={build} onSet={onSetWeaponGroup} />
+        </>
       )}
 
       {tab === 'bench' && (

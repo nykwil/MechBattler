@@ -44,6 +44,7 @@ export function buildToMech(build: Build, source: PartInstance['provenance']['so
     routes: structuredClone(build.routes ?? []),
     chassisIntegrity: build.chassisIntegrity ?? 1,
     powerPriority: [...build.powerPriority],
+    ...(build.weaponGroups ? { weaponGroups: build.weaponGroups.map((g) => [...g]) } : {}),
   };
 }
 
@@ -62,6 +63,7 @@ export function mechToBuild(mech: MechInstance): Build {
     routes: structuredClone(mech.routes ?? []),
     chassisIntegrity: mech.chassisIntegrity,
     powerPriority: [...mech.powerPriority],
+    ...(mech.weaponGroups ? { weaponGroups: mech.weaponGroups.map((g) => [...g]) } : {}),
   };
 }
 
@@ -564,6 +566,7 @@ export function applyValidatedRefit(run: RunInstance, proposed: Build): RunInsta
     routes: structuredClone(proposed.routes ?? []),
     chassisIntegrity: run.mech.chassisIntegrity,
     powerPriority: [...proposed.powerPriority],
+    ...(proposed.weaponGroups ? { weaponGroups: proposed.weaponGroups.map((g) => [...g]) } : {}),
   };
   const issues = validateWholeBuildPlacement(getChassis(proposed.chassisId), authoritativeBuild);
   if (issues.length > 0) {

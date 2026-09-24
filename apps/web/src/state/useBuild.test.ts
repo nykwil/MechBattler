@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PARTS } from '@mechbattler/sim';
+import { PARTS, TEMPLATES, normaliseWeaponGroups } from '@mechbattler/sim';
 import { useBuild } from './useBuild.js';
 
 /**
@@ -454,5 +454,21 @@ describe('useBuild persistent routing tool', () => {
 
     expect(result.current.state.parts).toHaveLength(1);
     expect(result.current.state.routes).toEqual([]);
+  });
+});
+
+describe('useBuild weapon groups (MW spec §2)', () => {
+  it('moves a gun between groups and survives a load', () => {
+    const tpl = TEMPLATES.find((t) => t.id === 'mule-gunline')!.build;
+    const { result } = renderHook(() => useBuild(tpl.chassisId));
+    act(() => result.current.loadBuild(tpl));
+    const [gun] = normaliseWeaponGroups(result.current.build).flat();
+    act(() => result.current.setWeaponGroup(gun!, 2));
+    expect(normaliseWeaponGroups(result.current.build)[2]).toEqual([gun]);
+    act(() => result.current.setWeaponGroup(gun!, null));
+    expect(normaliseWeaponGroups(result.current.build).flat()).not.toContain(gun);
+    const saved = result.current.build;
+    act(() => result.current.loadBuild(saved));
+    expect(result.current.build.weaponGroups).toEqual(saved.weaponGroups);
   });
 });

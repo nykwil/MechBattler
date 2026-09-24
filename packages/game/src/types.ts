@@ -30,6 +30,7 @@ export interface MechInstance {
   routes?: Build['routes'];
   chassisIntegrity: number;
   powerPriority: string[];
+  weaponGroups?: string[][];
 }
 
 export interface SalvageCandidate extends PartInstance {

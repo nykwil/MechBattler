@@ -32,3 +32,4 @@ export * from './adaptation.js';
 export * from './validation.js';
 export * from './diversity.js';
 export * from './workbench.js';
+export * from './weaponGroups.js';

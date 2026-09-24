@@ -384,4 +384,9 @@ export interface Build {
   chassisIntegrity?: number;
   /** Ordered highest-to-lowest; brownout sheds from the end first. See docs/02 §2. */
   powerPriority: string[];
+  /**
+   * Up to three player-assigned weapon groups of instanceIds (MW spec §2).
+   * Control data only: the sim never reads it. Absent = defaultWeaponGroups.
+   */
+  weaponGroups?: string[][];
 }

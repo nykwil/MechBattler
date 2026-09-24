@@ -10,6 +10,7 @@ import {
   getOccupiedCells,
   competesForPowerBudget,
   getPart,
+  normaliseWeaponGroups,
   regionIdAt,
   spatialCellKey,
   type CellRef,
@@ -29,6 +30,7 @@ interface EditorState {
   routes: RouteCell[];
   chassisIntegrity: number;
   powerPriority: string[];
+  weaponGroups?: string[][];
   /** Palette part armed for placement. Mutually exclusive with selectedInstanceId. */
   selectedPartId: string | null;
   /** What the next placement lands with (pristine from the palette; the bench pool passes salvage state). */
@@ -72,6 +74,7 @@ type Action =
   | { type: 'ADD_PARTS'; parts: PlacedPart[] }
   | { type: 'LOAD_BUILD'; build: Build }
   | { type: 'MOVE_PRIORITY'; instanceId: string; direction: -1 | 1 }
+  | { type: 'SET_WEAPON_GROUP'; instanceId: string; group: number | null }
   | { type: 'SET_OVERLAY'; overlay: OverlayMode }
   | { type: 'SET_ROUTE_TOOL'; kind: RouteKind | null }
   | { type: 'PLACE_ROUTE'; x: number; y: number };
@@ -466,6 +469,7 @@ function reducer(state: EditorState, action: Action): EditorState {
         routes: [...(action.build.routes ?? [])],
         chassisIntegrity: action.build.chassisIntegrity ?? 1,
         powerPriority: [...action.build.powerPriority],
+        weaponGroups: action.build.weaponGroups?.map((g) => [...g]),
         nextSeq: Math.max(maxSeq, action.build.parts.length) + 1,
       };
     }
@@ -484,6 +488,14 @@ function reducer(state: EditorState, action: Action): EditorState {
       [next[idx], next[target]] = [next[target]!, next[idx]!];
       return { ...state, powerPriority: next };
     }
+    case 'SET_WEAPON_GROUP': {
+      const current: Build = {
+        chassisId: state.chassisId, parts: state.parts, powerPriority: state.powerPriority, weaponGroups: state.weaponGroups,
+      };
+      const groups = normaliseWeaponGroups(current).map((g) => g.filter((id) => id !== action.instanceId));
+      if (action.group !== null) groups[action.group]!.push(action.instanceId);
+      return { ...state, weaponGroups: groups };
+    }
     default:
       return state;
   }
@@ -500,8 +512,9 @@ export function useBuild(defaultChassisId: string) {
       routes: state.routes,
       chassisIntegrity: state.chassisIntegrity,
       powerPriority: state.powerPriority,
+      ...(state.weaponGroups ? { weaponGroups: state.weaponGroups } : {}),
     }),
-    [state.chassisId, state.parts, state.routes, state.chassisIntegrity, state.powerPriority],
+    [state.chassisId, state.parts, state.routes, state.chassisIntegrity, state.powerPriority, state.weaponGroups],
   );
 
   const checkCandidate = useCallback(
@@ -559,6 +572,7 @@ export function useBuild(defaultChassisId: string) {
     addParts: (parts: PlacedPart[]) => dispatch({ type: 'ADD_PARTS', parts }),
     loadBuild: (b: Build) => dispatch({ type: 'LOAD_BUILD', build: b }),
     movePriority: (instanceId: string, direction: -1 | 1) => dispatch({ type: 'MOVE_PRIORITY', instanceId, direction }),
+    setWeaponGroup: (instanceId: string, group: number | null) => dispatch({ type: 'SET_WEAPON_GROUP', instanceId, group }),
     setOverlay: (overlay: OverlayMode) => dispatch({ type: 'SET_OVERLAY', overlay }),
     setRouteTool: (kind: RouteKind | null) => dispatch({ type: 'SET_ROUTE_TOOL', kind }),
     placeRoute: (x: number, y: number) => dispatch({ type: 'PLACE_ROUTE', x, y }),
