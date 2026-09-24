@@ -16,7 +16,8 @@
     "diversity": "node --import tsx scripts/diversity.ts",
     "try": "node --import tsx scripts/workbench.ts",
     "breed": "node --import tsx scripts/breed.ts",
-    "compare": "node --import tsx scripts/compare.ts"
+    "compare": "node --import tsx scripts/compare.ts",
+    "overheat": "node --import tsx scripts/overheat.ts"
   },
   "devDependencies": {
     "tsx": "^4.23.1",

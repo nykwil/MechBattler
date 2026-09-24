@@ -5649,3 +5649,39 @@ build the cost should hurt most.
 
 **Authored nothing that shipped.** Cost elsewhere: none — the revert is clean and
 no test or count moved.
+
+## F77 — What OVR does to heat, and whether the reactor can cook
+
+2026-09-23. `simContentHash()` `ba5c5f8f`. `npm run sim:overheat` (3 seeds,
+default), each canonical template as side 0 against the other six:
+
+```
+template                  | weapon peak off/on | core peak off/on | core ≥130°C at (on) | win off/on
+vulture-skirmisher        |   98.6 /   98.6 |   35.9 /   35.9 |    never | 0.94 / 0.94
+mule-gunline              |   32.5 /   32.5 |   33.7 /   33.7 |    never | 0.00 / 0.00
+mule-skirmisher           |  115.5 /  128.1 |   51.9 /   51.3 |    never | 0.56 / 0.56
+mule-laser-boat           |   77.5 /   77.5 |   49.5 /   49.5 |    never | 0.72 / 0.72
+railgun-mule              |   32.0 /   32.0 |   57.7 /   57.7 |    never | 0.33 / 0.33
+vulture-sniper            |   63.8 /   63.8 |   35.9 /   35.9 |    never | 0.61 / 0.61
+bastion-tank              |   58.0 /   58.0 |   30.0 /   30.0 |    never | 0.44 / 0.44
+```
+
+**Checkpoint outcome: (b) — none cross.** Holding OVR on for the whole fight
+never puts any template's reactor or core anywhere near `HEAT_SHUTDOWN_C`
+(130 °C); the hottest core reading across all 42 fight-pairings is
+`railgun-mule` at 57.7 °C, less than half the threshold. Weapon cells run far
+hotter — `mule-skirmisher` reaches 128.1 °C on its guns with OVR on, right at
+the door of the threshold the shutdown rule would use — but that heat is
+sitting in the weapon cells, not the reactor or core, and `mule-skirmisher` is
+also the only template where OVR moves the weapon peak at all (115.5 → 128.1);
+every other template's weapon peak is identical on and off, meaning the
+autopilot's own fire discipline was already firing at that ceiling and OVR had
+nothing further to unlock. Win rate never moves either. Under the current
+thermal model, weapon heat does not conduct into the reactor or core (F73:
+`thermalMass` divides temperature change per-cell, and cross-cell transfer is
+not part of that path), so no amount of holding OVR on can threaten a
+mech-wide shutdown gated on reactor/core temperature — the two pools are
+thermally isolated from each other in every build tested. `HEAT_SHUTDOWN_C`
+as a mech-wide shutdown threshold on reactor/core heat is therefore not a real
+risk under §4 as specified; it is either unreachable (as measured here) or
+would need a different mechanism to become reachable.
