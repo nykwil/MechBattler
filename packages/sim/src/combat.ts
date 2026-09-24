@@ -30,7 +30,7 @@ import {
   INSTANCE_KNOBS, resolveBuildEffects, resolveFireControlLateralMult, resolveSpeedMultiplier,
   type BuildEffects,
 } from './buildEffects.js';
-import { Simulation, HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C, type SimCommand, type SimSnapshot, type SpeedSetting } from './simulation.js';
+import { Simulation, HEAT_AMBIENT_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C, type SimCommand, type SimSnapshot, type SimulationOptions, type SpeedSetting } from './simulation.js';
 import { computeIdealRangeBand, falloffAt, type IdealRangeBand } from './derivedStats.js';
 import { CORE_INSTANCE_ID } from './thermal.js';
 import { Pcg32 } from './rng.js';
@@ -372,6 +372,8 @@ export type BattleEvent =
   | { tSec: number; type: 'shutdown'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'cookoff'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'surrender-countdown'; mech: 0 | 1 }
+  /** The whole mech shut down or came back: its reactor or core crossed the line (MW spec §4). */
+  | { tSec: number; type: 'mech-shutdown' | 'mech-restart'; mech: 0 | 1; tempC: number }
   /** An Alpha press armed these loaded guns to fire once (MW spec §3). */
   | { tSec: number; type: 'alpha'; mech: 0 | 1; instanceIds: string[] }
   /** A verb changed meaningfully (intent/setting/enable-set), not every 4 Hz re-issue. */
@@ -430,6 +432,10 @@ export interface MechFrame {
   dest: Vec2 | null;
   /** Terrain tile the mech is standing on (HUD chip + effects readout). */
   tile: TerrainType;
+  /** Whole-mech reactor shutdown (MW spec §4). */
+  mechShutdown: boolean;
+  /** Hottest reactor or core cell, °C. */
+  reactorCoreC: number;
 }
 
 export interface BattleFrame {
@@ -522,10 +528,10 @@ export class Combatant {
   /** Powered Stride instances; the best one applies, copies never multiply. */
   private speedBoosterIds: string[] = [];
 
-  constructor(build: Build, pos: Vec2, facingRad: number) {
+  constructor(build: Build, pos: Vec2, facingRad: number, simOptions: SimulationOptions = {}) {
     this.build = build;
     this.chassis = getChassis(build.chassisId);
-    this.sim = new Simulation(this.chassis, build);
+    this.sim = new Simulation(this.chassis, build, simOptions);
     this.band = computeIdealRangeBand(build);
     this.speeds = computeLoadScaledSpeeds(this.chassis, computeMassAndCoG(this.chassis, build.parts, build.routes));
     this.pos = pos;
@@ -1170,7 +1176,9 @@ export function fireGate(
   if (range > despawnRange) return 'range';
   if (bearingOffset > halfArc) return 'arc';
   if (falloffAt(def, range / rangeMultiplier) <= 0) return 'minrange';
-  if (snapshot !== null && self.hottestCellC(instanceId, snapshot) >= HEAT_FIRE_HOLD_C) return 'heat';
+  if (snapshot !== null && (
+    self.hottestCellC(instanceId, snapshot) >= HEAT_FIRE_HOLD_C || snapshot.reactorCoreC >= HEAT_FIRE_HOLD_C
+  )) return 'heat';
   return null;
 }
 
@@ -1707,13 +1715,16 @@ function integrateMovement(
   dt: number,
   terrainSpeedMult = 1,
   snapshot: SimSnapshot | null = null,
+  frozen = false,
 ): void {
   // Verb 4: facing per the standing face order (autopilot default: track target).
+  // A shut-down mech (MW spec §4, `frozen`) neither turns nor drives; it coasts
+  // to a stop at its normal deceleration.
   const desired = self.faceOrder.mode === 'bearing'
     ? self.faceOrder.bearingRad
     : datan2(enemy.pos.y - self.pos.y, enemy.pos.x - self.pos.x);
   const before = self.facingRad;
-  if (tSec >= self.staggerUntilS) {
+  if (!frozen && tSec >= self.staggerUntilS) {
     const maxTurn = self.speeds.turnRateDegS * (Math.PI / 180) * dt;
     const delta = wrapAngle(desired - self.facingRad);
     self.facingRad = wrapAngle(self.facingRad + Math.max(-maxTurn, Math.min(maxTurn, delta)));
@@ -1723,7 +1734,7 @@ function integrateMovement(
   const accel = self.chassis.accelMps2 * self.speeds.loadFactor;
   const activeSpeeds = self.activeSpeeds(snapshot);
   let targetVel: Vec2 = { x: 0, y: 0 };
-  if (self.destination && !locomotionShed) {
+  if (self.destination && !locomotionShed && !frozen) {
     const toDest = sub(self.destination, self.pos);
     const dist = len(toDest);
     if (dist > 0.5) {
@@ -1782,6 +1793,8 @@ export interface BattleOptions {
    * responsiveness). Default false keeps the legacy 4-Hz controller path.
    */
   lockstep?: boolean;
+  /** Overrides SHOT_HEAT_TO_REACTOR_FRAC for both mechs; only the `sim:overheat` sweep sets it. */
+  shotHeatToReactorFrac?: number;
 }
 
 export class Battle {
@@ -1810,6 +1823,7 @@ export class Battle {
   private surrenderTimers: [number | null, number | null] = [null, null];
   private lastShed: [Set<string>, Set<string>] = [new Set(), new Set()];
   private lastShutdown: [Set<string>, Set<string>] = [new Set(), new Set()];
+  private lastMechShutdown: [boolean, boolean] = [false, false];
   private lastSnapshots: [SimSnapshot | null, SimSnapshot | null] = [null, null];
   private stats = [
     { shotsFired: 0, shotsHit: 0, damageDealt: 0 },
@@ -1837,9 +1851,11 @@ export class Battle {
     const jitter = () => (this.rng.nextFloat() * 2 - 1) * jitterMax;
     const posA: Vec2 = { x: -half, y: jitter() };
     const posB: Vec2 = { x: half, y: jitter() };
+    const simOptions: SimulationOptions = options.shotHeatToReactorFrac === undefined
+      ? {} : { shotHeatToReactorFrac: options.shotHeatToReactorFrac };
     this.combatants = [
-      new Combatant(options.builds[0], posA, datan2(posB.y - posA.y, posB.x - posA.x)),
-      new Combatant(options.builds[1], posB, datan2(posA.y - posB.y, posA.x - posB.x)),
+      new Combatant(options.builds[0], posA, datan2(posB.y - posA.y, posB.x - posA.x), simOptions),
+      new Combatant(options.builds[1], posB, datan2(posA.y - posB.y, posA.x - posB.x), simOptions),
     ];
     // Seeded per side so a mirror matchup does not always send the player
     // down-screen (orbitDir was hard-coded +1).
@@ -1958,7 +1974,10 @@ export class Battle {
       // Marsh pistons (docs/04 §4b): a functional immune part voids the slow.
       const baseMult = TERRAIN_SPEED_MULT[terrainAt(this.terrain, c.pos.x, c.pos.y)];
       const speedMult = (baseMult < 1 && c.ignoresTerrainSlow(this.lastSnapshots[i]) ? 1 : baseMult) * locomotionFrac;
-      integrateMovement(c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult, this.lastSnapshots[i]);
+      integrateMovement(
+        c, this.combatants[(1 - i) as 0 | 1], locomotionShed, this.tSec, dt, speedMult, this.lastSnapshots[i],
+        this.lastSnapshots[i]?.mechShutdown ?? false,
+      );
       this.clampToArena(c);
     }
     // The hull push can shove a mech that was already flat against a wall back
@@ -2028,6 +2047,8 @@ export class Battle {
       faceMode: c.faceOrder.mode,
       dest: c.destination ? { x: c.destination.x, y: c.destination.y } : null,
       tile: terrainAt(this.terrain, c.pos.x, c.pos.y),
+      mechShutdown: snap?.mechShutdown ?? false,
+      reactorCoreC: snap?.reactorCoreC ?? HEAT_AMBIENT_C,
     };
   }
 
@@ -2120,6 +2141,10 @@ export class Battle {
       if (!this.lastShutdown[i].has(id)) this.events.push({ tSec: this.tSec, type: 'shutdown', mech: i, instanceId: id });
     }
     this.lastShutdown[i] = shut;
+    if (snapshot.mechShutdown !== this.lastMechShutdown[i]) {
+      this.events.push({ tSec: this.tSec, type: snapshot.mechShutdown ? 'mech-shutdown' : 'mech-restart', mech: i, tempC: snapshot.reactorCoreC });
+      this.lastMechShutdown[i] = snapshot.mechShutdown;
+    }
   }
 
   private resolveShot(i: 0 | 1, self: Combatant, enemy: Combatant, instanceId: string, partId: string): void {
@@ -2288,6 +2313,7 @@ export class Battle {
       for (const cell of c.sim.thermal.cells.values()) f(cell.tempC);
       for (const kj of c.sim.capacitorLevels()) f(kj);
       u(c.sim.volleyPendingIds().length);
+      u(c.sim.isMechShutdown ? 1 : 0);
     }
     const [hi, lo] = this.rng.stateBits();
     u(hi); u(lo);

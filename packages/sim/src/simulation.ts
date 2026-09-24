@@ -56,6 +56,19 @@ export const HEAT_FIRE_HOLD_C = 115;
 /** The part shuts down here, and restarts only below HEAT_RESTART_C. */
 export const HEAT_SHUTDOWN_C = 130;
 export const HEAT_RESTART_C = 110;
+/**
+ * The reactor or core at or above this shuts the whole mech down (MW spec §4):
+ * no fire, no drive, no reactor, until those cells fall below HEAT_RESTART_C.
+ * Only OVR can get here -- the autopilot never passes fire-hold. See docs/17 F77.
+ */
+export const HEAT_MECH_SHUTDOWN_C = HEAT_SHUTDOWN_C;
+/**
+ * Share of every shot's heat that also lands on the reactor and core (MW spec
+ * §4, amended after docs/17 F77). The reactor pays for the shot, so firing
+ * builds one mech-wide heat level -- MechWarrior's heat bar -- on top of the
+ * per-part cells. Tuned by `sim:overheat --sweep`, see F77.
+ */
+export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder until Step 5b's sweep sets it
 /** Above this, heat does structural damage. */
 export const HEAT_DAMAGE_C = 150;
 /** Arena ambient, the bottom of the HUD's heat span. */
@@ -116,6 +129,15 @@ export interface SimSnapshot {
   capacitorStoredKj: Record<string, number>;
   shotsThisTick: ShotEvent[];
   cookoffsThisTick: CookoffEvent[];
+  /** The whole mech is shut down: the reactor or core overheated (MW spec §4). */
+  mechShutdown: boolean;
+  /** Hottest reactor or core cell, °C -- the mech-wide heat level. */
+  reactorCoreC: number;
+}
+
+export interface SimulationOptions {
+  /** Overrides SHOT_HEAT_TO_REACTOR_FRAC; only the `sim:overheat` sweep sets it. */
+  shotHeatToReactorFrac?: number;
 }
 
 export interface InstanceRuntime {
@@ -171,8 +193,12 @@ export class Simulation {
   /** Capacitor instances that harvest their cells' heat into charge (Thermocouple skin). */
   private heatHarvestIds = new Set<string>();
   private coveredHeatMultByInstance = new Map<string, number>();
+  private readonly shotHeatToReactorFrac: number;
+  /** Whole-mech shutdown (MW spec §4): reactor off, no fire, no drive. */
+  private mechShutdown = false;
 
-  constructor(chassis: ChassisSpec, build: Build) {
+  constructor(chassis: ChassisSpec, build: Build, opts: SimulationOptions = {}) {
+    this.shotHeatToReactorFrac = opts.shotHeatToReactorFrac ?? SHOT_HEAT_TO_REACTOR_FRAC;
     this.chassis = chassis;
     this.build = build;
     this.parts = build.parts;
@@ -328,6 +354,8 @@ export class Simulation {
     return sum / keys.length;
   }
 
+  get isMechShutdown(): boolean { return this.mechShutdown; }
+
   isDestroyed(instanceId: string): boolean {
     return this.runtime.get(instanceId)?.destroyed === true;
   }
@@ -394,6 +422,16 @@ export class Simulation {
     );
   }
 
+  /** Cell keys of the core and every live reactor: the one definition of "the reactor" (MW spec §4). */
+  private reactorCoreCellKeys(): string[] {
+    const keys = [...(this.thermal.cellKeysByInstance.get(CORE_INSTANCE_ID) ?? [])];
+    for (const p of this.parts) {
+      if (getPart(p.partId).category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
+      keys.push(...(this.thermal.cellKeysByInstance.get(p.instanceId) ?? []));
+    }
+    return keys;
+  }
+
   private hottestCellC(instanceId: string): number {
     const keys = this.thermal.cellKeysByInstance.get(instanceId) ?? [];
     let max = AMBIENT_C;
@@ -406,6 +444,8 @@ export class Simulation {
 
   step(dtSec: number, command: SimCommand): SimSnapshot {
     this.tSec += dtSec;
+    // A shut-down mech is commanded to stand still with every gun held (MW spec §4).
+    if (this.mechShutdown) command = { ...command, weaponsEnabled: {}, speedSetting: 'stationary' };
     const shotsThisTick: ShotEvent[] = [];
     const cookoffsThisTick: CookoffEvent[] = [];
     const heatDepositKj = new Map<string, number>(); // per cell key
@@ -423,7 +463,7 @@ export class Simulation {
     const M = (id: string): Readonly<EffectiveMults> => multsById.get(id) ?? NEUTRAL_MULTS;
     /** The one "is this gun cleared to fire" test for every firing class. */
     const triggered = (id: string): boolean =>
-      command.weaponsEnabled[id] === true || this.runtime.get(id)?.volleyPending === true;
+      !this.mechShutdown && (command.weaponsEnabled[id] === true || this.runtime.get(id)?.volleyPending === true);
 
     const addHeat = (cellKeys: string[], totalKj: number) => {
       const per = totalKj / cellKeys.length;
@@ -434,6 +474,7 @@ export class Simulation {
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
+      if (this.mechShutdown) { this.reactorAvailableKw.set(p.instanceId, 0); continue; }
       const target = def.reactor!.outputKw * M(p.instanceId).outputKw;
       const rate = def.reactor!.throttleLagS > 0 ? target / def.reactor!.throttleLagS : Infinity;
       const cur = this.reactorAvailableKw.get(p.instanceId) ?? 0;
@@ -504,10 +545,10 @@ export class Simulation {
           if (enabled) kw = def.draw.continuousKw * M(p.instanceId).drawKw;
           // Held: the load keeps coming and waits at full (MW spec §1). The draw
           // is the shot's, so a held continuous gun asks for nothing.
-          else rt.cycleTimer = Math.min(def.weapon!.cycleS * M(p.instanceId).cycleS, rt.cycleTimer + dtSec);
+          else if (!this.mechShutdown) rt.cycleTimer = Math.min(def.weapon!.cycleS * M(p.instanceId).cycleS, rt.cycleTimer + dtSec);
         } else if (
           def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS <= 0
-          && rt.chargeKj < def.draw.chargedEnergyPerShotKj
+          && rt.chargeKj < def.draw.chargedEnergyPerShotKj && !this.mechShutdown
         ) {
           // Charges whether or not it is cleared to fire, until full. The
           // threshold is the unscaled shot energy -- the same one step 6c fires at.
@@ -535,7 +576,7 @@ export class Simulation {
       const caps = this.capacitorsInNetwork(net.networkId);
       const pooledDischargeKw = caps.reduce((s, c) => s + getPart(c.partId).capacitor!.dischargeKw, 0);
       const availableStoredKj = caps.reduce((s, c) => s + (this.capacitorStoredKj.get(c.instanceId) ?? 0), 0);
-      const capBudgetKw = Math.min(pooledDischargeKw, availableStoredKj / dtSec);
+      const capBudgetKw = this.mechShutdown ? 0 : Math.min(pooledDischargeKw, availableStoredKj / dtSec);
       const totalBudgetKw = supplyKw + capBudgetKw;
 
       const candidateIds = [...requestedKw.keys()].filter((id) => networkOf.get(id) === net.networkId);
@@ -616,21 +657,23 @@ export class Simulation {
       // --- 5. Capacitor discharge (cover shortfall) / charge (use headroom) ---
       const shortfallKw = Math.max(0, runningTotal - supplyKw);
       const headroomKw = Math.max(0, supplyKw - runningTotal);
-      if (shortfallKw > 0 && availableStoredKj > 0) {
-        for (const c of caps) {
-          const stored = this.capacitorStoredKj.get(c.instanceId) ?? 0;
-          const share = shortfallKw * dtSec * (stored / availableStoredKj);
-          this.capacitorStoredKj.set(c.instanceId, Math.max(0, stored - share));
+      if (!this.mechShutdown) {
+        if (shortfallKw > 0 && availableStoredKj > 0) {
+          for (const c of caps) {
+            const stored = this.capacitorStoredKj.get(c.instanceId) ?? 0;
+            const share = shortfallKw * dtSec * (stored / availableStoredKj);
+            this.capacitorStoredKj.set(c.instanceId, Math.max(0, stored - share));
+          }
         }
-      }
-      if (headroomKw > 0) {
-        const chargeKw = Math.min(headroomKw, caps.reduce((s, c) => s + getPart(c.partId).capacitor!.chargeKw, 0));
-        for (const c of caps) {
-          const capDef = getPart(c.partId).capacitor!;
-          const stored = this.capacitorStoredKj.get(c.instanceId) ?? 0;
-          const room = capDef.storedKj - stored;
-          const share = Math.min(room, (chargeKw * dtSec) / caps.length);
-          this.capacitorStoredKj.set(c.instanceId, stored + Math.max(0, share));
+        if (headroomKw > 0) {
+          const chargeKw = Math.min(headroomKw, caps.reduce((s, c) => s + getPart(c.partId).capacitor!.chargeKw, 0));
+          for (const c of caps) {
+            const capDef = getPart(c.partId).capacitor!;
+            const stored = this.capacitorStoredKj.get(c.instanceId) ?? 0;
+            const room = capDef.storedKj - stored;
+            const share = Math.min(room, (chargeKw * dtSec) / caps.length);
+            this.capacitorStoredKj.set(c.instanceId, stored + Math.max(0, share));
+          }
         }
       }
     }
@@ -686,7 +729,7 @@ export class Simulation {
       const eff = M(p.instanceId);
       const cycleS = def.weapon!.cycleS * eff.cycleS;
       if (!triggered(p.instanceId)) {
-        rt.cycleTimer = Math.min(cycleS, rt.cycleTimer + dtSec); // held: load and wait (MW spec §1)
+        if (!this.mechShutdown) rt.cycleTimer = Math.min(cycleS, rt.cycleTimer + dtSec); // held: load and wait (MW spec §1)
         continue;
       }
       rt.cycleTimer += dtSec;
@@ -726,8 +769,16 @@ export class Simulation {
     // An Alpha is spent by the shot it armed, whichever firing class took it.
     for (const shot of shotsThisTick) this.runtime.get(shot.instanceId)!.volleyPending = false;
 
+    // --- 6d. Reactor load heat (MW spec §4, amended): the reactor pays for every shot ---
+    if (shotsThisTick.length > 0 && this.shotHeatToReactorFrac > 0) {
+      let kj = 0;
+      for (const shot of shotsThisTick) kj += getPart(shot.partId).heat?.heatPerShotKj ?? 0;
+      if (kj > 0) addHeat(this.reactorCoreCellKeys(), kj * this.shotHeatToReactorFrac);
+    }
+
     // --- 7. Reactor waste heat ---
     for (const p of this.parts) {
+      if (this.mechShutdown) continue; // a reactor that is off makes no waste heat
       const def = getPart(p.partId);
       if (def.category !== 'reactor' || this.isDestroyed(p.instanceId)) continue;
       const delivered = this.reactorsUsedKw(p.instanceId, deliveredKw);
@@ -857,7 +908,7 @@ export class Simulation {
       if (rt.destroyed) continue;
       const hottest = this.hottestCellC(p.instanceId);
       if (!rt.isShutdown && hottest >= HEAT_SHUTDOWN_C) rt.isShutdown = true;
-      if (rt.isShutdown && hottest < 110) rt.isShutdown = false;
+      if (rt.isShutdown && hottest < HEAT_RESTART_C) rt.isShutdown = false;
       if (rt.isShutdown) shutdownInstanceIds.push(p.instanceId);
 
       if (hottest >= HEAT_DAMAGE_C) rt.cumulativeDamageHp += ((hottest - HEAT_DAMAGE_C) / 10) * dtSec;
@@ -868,13 +919,19 @@ export class Simulation {
       }
       if (rt.cookedOff) cookedOffInstanceIds.push(p.instanceId);
     }
+    // The whole mech (MW spec §4): the reactor or core past the line takes
+    // everything down, and it comes back only once they cool below restart.
+    let reactorCoreC = AMBIENT_C;
+    for (const k of this.reactorCoreCellKeys()) reactorCoreC = Math.max(reactorCoreC, this.thermal.cells.get(k)!.tempC);
+    if (!this.mechShutdown && reactorCoreC >= HEAT_MECH_SHUTDOWN_C) this.mechShutdown = true;
+    else if (this.mechShutdown && reactorCoreC < HEAT_RESTART_C) this.mechShutdown = false;
 
     // --- 12. Loaded flags (MW spec §1): what an Alpha would fire right now ---
     for (const p of this.parts) {
       const def = getPart(p.partId);
       if (def.category !== 'weapon') continue;
       const rt = this.runtime.get(p.instanceId)!;
-      const usable = !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
+      const usable = !this.mechShutdown && !rt.destroyed && !rt.isShutdown && !rt.cookedOff && this.networkIdByInstance.has(p.instanceId);
       rt.loaded = usable && (
         def.draw?.capFedEnergyPerShotKj ? rt.cooldownRemainingS <= 0
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
@@ -895,6 +952,7 @@ export class Simulation {
     return {
       tSec: this.tSec, cellTempsC, shedInstanceIds, locomotionPowerFrac, shutdownInstanceIds, cookedOffInstanceIds,
       totalSupplyKw, totalDemandKw, capacitorStoredKj, shotsThisTick, cookoffsThisTick,
+      mechShutdown: this.mechShutdown, reactorCoreC,
     };
   }
 

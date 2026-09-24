@@ -47,6 +47,10 @@ export function eventText(e: BattleEvent, names: [string, string]): { text: stri
       return { text: `${names[e.mech]} — power shed: ${e.instanceId === CORE_INSTANCE_ID ? 'locomotion' : e.instanceId}`, cls: 'warn' };
     case 'shutdown':
       return { text: `${names[e.mech]} — thermal shutdown: ${e.instanceId}`, cls: 'warn' };
+    case 'mech-shutdown':
+      return { text: `${names[e.mech]} — REACTOR SHUTDOWN (${e.tempC.toFixed(0)} °C)`, cls: e.mech === 0 ? 'bad' : 'good' };
+    case 'mech-restart':
+      return { text: `${names[e.mech]} — REACTOR RESTART (${e.tempC.toFixed(0)} °C)`, cls: 'warn' };
     case 'cookoff':
       return { text: `${names[e.mech]} — AMMO COOK-OFF`, cls: 'bad' };
     case 'surrender-countdown':

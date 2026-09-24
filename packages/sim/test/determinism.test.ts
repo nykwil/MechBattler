@@ -164,10 +164,15 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // state hash (Task 4). Only finalHash moved; winner, reason, duration and shots
 // are unchanged, and with the new hash term removed the old 1408351516 still
 // reproduces -- the fixture never presses Alpha, so the term adds a zero.
+// Re-pinned 23 Sep 2026, still 2.20.0, for mech-wide shutdown (Task 5): every
+// shot now also heats the reactor and core (SHOT_HEAT_TO_REACTOR_FRAC, at its
+// 0.3 placeholder), and the shutdown flag joins the state hash. Only finalHash
+// moved; winner, reason, duration and shots are unchanged. With the fraction at
+// 0 and the new hash term removed, the old 753402588 reproduces exactly.
 const GOLDEN = {
   winner: 1 as const,
   reason: 'mission-kill',
   durationS: 36.65,
   shots: [43, 524],
-  finalHash: 753402588,
+  finalHash: 600610636,
 };
