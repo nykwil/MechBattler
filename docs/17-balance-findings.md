@@ -5686,6 +5686,15 @@ as a mech-wide shutdown threshold on reactor/core heat is therefore not a real
 risk under §4 as specified; it is either unreachable (as measured here) or
 would need a different mechanism to become reachable.
 
+**Correction, 24 Sep 2026.** "Thermally isolated" overstates it. The addendum
+below found every part of the tested build sharing one conduction component,
+so a radiator *does* reach the reactor through ordinary conduction — the
+reactor and core simply never ran hot enough, in this checkpoint's fights, for
+that conduction to move them near 130 °C. The mechanism this checkpoint called
+for turned out to be additive reactor load heat on top of the existing
+conduction path (`SHOT_HEAT_TO_REACTOR_FRAC`), not a new one; see the addendum
+for the measurement and the shipped constants.
+
 ### Reactor load heat and overdrive
 
 2026-09-24. `simContentHash()` `ba5c5f8f`. MW spec §4 as amended after the

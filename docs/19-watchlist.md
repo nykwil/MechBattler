@@ -441,3 +441,47 @@ two constants.
 **What would make us act.** A balance pass on heat. Or players reporting that OVR
 is "always on": if it has no downside worth weighing, it is not a decision, and
 the mech-wide shutdown was meant to be that downside.
+
+## Every engagement now opens with a volley (24 Sep 2026)
+
+A held gun loads and waits rather than sitting idle (`02` §3), so a gun the
+autopilot holds because the enemy starts out of range now arrives at the
+opening exchange already loaded. Every fight therefore opens with a volley
+instead of guns coming online staggered by their own cycle time. It affects
+both sides equally, so it is not a first-mover advantage, but it favours
+slow-cycle guns — a railgun or an autocannon gets its first shot for free at
+the moment the target enters range, the same as a machine gun does.
+
+Why it was left: it is the direct, intended consequence of making held guns
+loaded rather than idle (spec decision, `superpowers/specs/2026-09-23-mw-groups-heat-design.md`
+§1), not a bug to fix separately.
+
+What would make us act: `balance:report` showing slow-cycle builds moving
+because of it specifically, distinguishable from the general OVR/reactor-heat
+swing already recorded above.
+
+## OVR is player-only (24 Sep 2026)
+
+The autopilot never sets `overrideHeat`. Only the player can push a gun past
+115 °C, run it hotter, or open the path to a mech-wide shutdown. This is a
+deliberate asymmetry — the autopilot's own fire discipline already sits at the
+same ceiling every build reaches without OVR (docs/17 F77's checkpoint), so
+letting it self-select overdrive would not change what it can reach, only
+remove the risk that makes overdrive a player decision instead of free damage.
+
+What would make us act: nothing currently plans to give the autopilot this
+lever. Revisit only if a future doctrine wants the AI to take the same
+heat risk a player can.
+
+## The railgun does not pre-dump while held (24 Sep 2026)
+
+Every other weapon class loads and waits when held (`02` §3), but the railgun
+still only dumps its capacitor charge on release, within its usual ≤1 s. Its
+delay is the identity of the part, and the capacitor alpha is already a
+planned spike; pre-dumping while held would also change what the CAP gauge
+means mid-fight, and holding stored capacitor energy in the gun would starve
+other capacitor users on the network unseen.
+
+What would make us act: if the group volley reads as broken with a railgun in
+it — i.e. players expect a held railgun to snap out with the rest of its
+group and it visibly doesn't — reopen this (spec §1's own note).

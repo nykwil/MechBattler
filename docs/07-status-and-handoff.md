@@ -109,6 +109,22 @@ Each entry names where its plan went.
   `balance:report` diffs them against `artifacts/balance-baseline.json` and names
   any build that moved 5+ points. Aug 2026
 
+- **Weapon groups, Alpha and spending heat** (MW sub-project 1) — a held gun now
+  loads and waits, so releasing several together fires them together, making
+  the group volley emergent rather than a scripted rule; `Build.weaponGroups`
+  holds three player-edited groups (AUTO/HOLD/FIRE), defaulted from each gun's
+  ideal range; Alpha is sim state (a monotonic token) that fires every loaded
+  gun once, ungrouped and grouped alike, and survives lockstep replay; OVR
+  (overdrive) cycles guns faster and runs them hotter while lifting the
+  autopilot's heat-hold, player-only; and every shot now also deposits heat on
+  the reactor and core, gating a mech-wide shutdown at 130 °C that restarts
+  below 110 °C. Shipped as designed with three deviations recorded in the
+  spec's "As built" section (Alpha on `X` because Space is pause, kebab-case
+  events, and a degrees-to-cool banner rather than a countdown). The shutdown
+  is dormant on the canonical roster at the shipped constants — a controller
+  ruling, not a bug — and `19-watchlist.md` carries why. 24 Sep 2026,
+  `superpowers/specs/2026-09-23-mw-groups-heat-design.md`
+
 - **The content-authoring contract** — `game:audit` gained a warnings channel: a
   weapon with no authored height or clearance, a part with no differentiation
   verdict, a chassis with no declared identity, or a mod with no rarity or price
@@ -270,19 +286,18 @@ harmonised with the shell's tokens but were never designed (14 §15).
 
 Three sub-projects distilled from MechWarrior 5. The player is a group commander:
 the autopilot drives, and the player fires groups and Alpha and spends heat.
+Sub-project 1 shipped 24 Sep 2026 (§4 above); 2 and 3 are still open.
 
-1. **Weapon groups, Alpha and spending heat.** Spec:
-   `superpowers/specs/2026-09-23-mw-groups-heat-design.md`. It covers:
-   - held guns load and wait, which makes the volley emergent;
-   - `Build.weaponGroups`;
-   - an OVR heat override;
-   - a mech-wide shutdown when the reactor or core overheats.
 2. **Cockpit frame console.** An MW-style restyle of the battle console, with the
    overhead map kept as the nav screen. It reverses the anti-cockpit rule in
    `14`. Needs its own spec.
 3. **MechWarrior weapon identities.** Lasers that burn over a duration, and
    missiles with lock-on and scatter. Needs its own brainstorm. Read `17` F1
    before starting.
+4. **Make the reactor bite (heat balance pass).** Sub-project 1 shipped the
+   mech-wide shutdown, but it is dormant on the canonical roster at the
+   shipped constants — see `19-watchlist.md` for why and what would make us
+   act.
 
 ### Multiplayer
 

@@ -69,6 +69,36 @@ everything else. They are never a free-floating scripting layer (rule R2); the s
 answer to "how complex before it feels like programming?" is: the autopilot already prices
 those conditions (§7), and parts may widen what it's permitted to consider.
 
+## 2a. Weapon groups, Alpha and overdrive (shipped 24 Sep 2026)
+
+The player is a group commander: the autopilot still drives and aims (§7), and
+the player fires groups and Alpha and can override heat discipline. `Build`
+carries up to three weapon groups (`weaponGroups?: string[][]`) as control
+data only — the sim never reads which group a gun is in. Each group has three
+states, cycled per group: **AUTO** (the autopilot decides), **HOLD** (the
+guns load and wait — `02` §3's held-gun rule), and **FIRE** (the guns are
+forced and chain-fire as they come ready; moving HOLD → FIRE releases every
+loaded gun in the group on the same tick — the group volley). A per-gun
+override still wins over its group's state.
+
+**Alpha** fires every gun that is loaded at the moment of the press, once,
+including ungrouped guns and guns in AUTO or HOLD, then leaves each gun in
+whatever state it was in. It is carried as `ManualOrders.alpha`, a
+monotonically increasing token rather than a UI-side toggle, because
+controllers run at 4 Hz and lockstep must replay the press identically
+(`11` §3). On a new token, every gun loaded at that tick is marked pending;
+fire-hold does not apply to a pending gun, though physical (per-part or
+mech-wide) shutdown still does. A gun that stops being loaded before it fires
+loses the press. A mech-wide shutdown (`02` §3) clears every pending Alpha.
+
+**OVR** (overdrive) is `ManualOrders.overrideHeat`. While set, it re-enables
+any gun the autopilot withheld for temperature alone, cycles guns faster and
+runs them hotter (`02` §3), and lifts the reactor fire-hold the same way. The
+autopilot never sets it — see `19-watchlist.md`.
+
+Events are kebab-case: `alpha`, `mech-shutdown`, `mech-restart` (§9's report
+requirements apply to all three).
+
 ## 3. Movement model
 
 Per-chassis directional speed profile (catalog in 01 §2): distinct forward / strafe / reverse

@@ -132,6 +132,41 @@ Heat lives **per cell** on the chassis grid.
 | Reactors | waste heat per table above, continuous |
 | Locomotion | 0.15 kJ/s per tonne at flank speed only, deposited at core cell |
 
+### Held guns load and wait (shipped 24 Sep 2026)
+
+A gun that is held rather than firing still advances its cycle timer (or, for a
+charged gun, its charge) and stops at the top, waiting. It fires on the first
+tick it is enabled. This makes releasing several held guns together an emergent
+group volley — see `03` §2a — with one exception: the railgun does not
+pre-dump its capacitor charge while held, because holding stored capacitor
+energy in the gun would starve other capacitor users unseen. It still fires
+within its usual ≤1 s dump once released.
+
+### Mech-wide shutdown (shipped 24 Sep 2026)
+
+Independent of the per-cell thresholds above, the whole mech shuts down when
+the hottest of its reactor cells or the core cell reaches
+`HEAT_MECH_SHUTDOWN_C` (130 °C, `combat.ts`): no weapon fires or loads,
+locomotion and turning are zero, reactor output drops to 0 (so reactor waste
+heat stops and the mech cools), and capacitors neither charge nor discharge.
+Incoming hits still land. It restarts once the same cells fall below
+`HEAT_RESTART_C` (110 °C); the reactor spins back up through its normal
+`throttleLagS`, so recovery is not instant.
+
+Every shot also deposits `SHOT_HEAT_TO_REACTOR_FRAC` (0.3) of its heat onto
+the reactor and core cells, on top of the per-part heat in §3, and fire
+control holds at `HEAT_FIRE_HOLD_C` on a hot reactor the same way it already
+holds on a hot weapon cell. This is what lets sustained fire — not just the
+per-part thermal model — push the reactor toward shutdown. `docs/17` F77 has
+the measurement behind the 0.3 fraction and `docs/19` records that the
+shutdown is dormant on the canonical roster at the shipped values.
+
+While OVR (overdrive, `03` §2a) is on, every gun cycles at
+`OVERDRIVE_CYCLE_MULT` (0.7×) and each shot's heat — in its own cells and on
+the reactor — is multiplied by `OVERDRIVE_HEAT_MULT` (1.5×). OVR also lifts
+the autopilot's own heat-hold, so a player-forced gun can run past 115 °C. The
+autopilot never sets it.
+
 ### Thresholds (per cell, checked against its occupant)
 
 | T | Effect |

@@ -289,3 +289,35 @@ to be held on target, and missiles with lock-on, scatter across cells, and
 possibly indirect fire. The parts exist today as instant charged shots (Ember,
 Sear, Lance) and a salvo (Pepperbox). This needs its own brainstorm, because it
 touches weapon curves, and docs/17 F1 says to read those before touching them.
+
+## As built (24 Sep 2026)
+
+Sub-project 1 shipped as designed, with three deviations from this spec:
+
+- **Alpha is `X`, not `Space`.** §3 proposed `Space` for Alpha; Space is
+  already bound to pause, so Alpha is `X` on desktop instead. `1`–`3` for
+  groups and `O` for OVR shipped as specced.
+- **Events are kebab-case.** §4 named the events `mech_shutdown` and
+  `mech_restart`; they shipped as `mech-shutdown` and `mech-restart` to match
+  the rest of the event log's naming, and Alpha's event is `alpha`.
+- **The shutdown banner shows degrees left to cool, not a countdown.** §5
+  called for "a restart countdown derived from the frames." What shipped
+  reads the reactor/core temperature straight from the frame and shows
+  degrees to `HEAT_RESTART_C` (`BattleHud.tsx`'s `ShutdownBanner`) rather than
+  converting that into a time estimate — the temperature is what the sim
+  measures directly, and turning it into seconds would mean deriving a rate
+  the sim doesn't expose, which is the thing `CLAUDE.md` says never to do.
+
+One more thing worth recording here because it changed mid-implementation:
+**OVR reads as "overdrive," not a bare heat override.** §3's heat-override
+description (re-enable withheld guns) shipped, but the user's 24 Sep decision
+extended it: while OVR is on, guns also cycle at `OVERDRIVE_CYCLE_MULT` (0.7×)
+and every shot runs `OVERDRIVE_HEAT_MULT` (1.5×) hotter, in its own cells and
+on the reactor. §4's "measure before building" step found the mech-wide
+shutdown unreachable under §4 as originally specified — no template's
+reactor or core came anywhere near 130 °C even with OVR held on for a whole
+fight (docs/17 F77's checkpoint) — so reactor load heat
+(`SHOT_HEAT_TO_REACTOR_FRAC`, 0.3) was added on top of the per-part model to
+make the trigger reachable in principle. At the shipped constants it is still
+unreached on the canonical roster; `docs/19-watchlist.md` carries the ruling
+and what would change it.

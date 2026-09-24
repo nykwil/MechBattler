@@ -165,8 +165,9 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // are unchanged, and with the new hash term removed the old 1408351516 still
 // reproduces -- the fixture never presses Alpha, so the term adds a zero.
 // Re-pinned 23 Sep 2026, still 2.20.0, for mech-wide shutdown (Task 5): every
-// shot now also heats the reactor and core (SHOT_HEAT_TO_REACTOR_FRAC, at its
-// 0.3 placeholder), and the shutdown flag joins the state hash. Only finalHash
+// shot now also heats the reactor and core (SHOT_HEAT_TO_REACTOR_FRAC, 0.3 --
+// the shipped value, chosen 24 Sep 2026, see docs/17 F77), and the shutdown
+// flag joins the state hash. Only finalHash
 // moved; winner, reason, duration and shots are unchanged. With the fraction at
 // 0 and the new hash term removed, the old 753402588 reproduces exactly.
 // Re-pinned 24 Sep 2026, still 2.20.0, for OVR overdrive (Task 5 Step 5c): the
