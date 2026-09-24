@@ -54,6 +54,23 @@ describe('lockstep determinism (docs/11 M2)', () => {
     }
   });
 
+  it('an Alpha re-issued every tick fires once and stays hash-identical across peers (MW spec §3)', () => {
+    // Lockstep re-merges the standing manual orders every tick, so the same
+    // press token reaches the sim twenty times a second; only the first may fire.
+    const ALPHA: TickOrder[] = [
+      { tick: 3, mech: 0, manual: { weapons: { ac: 'hold' } } },
+      { tick: 100, mech: 0, manual: { weapons: { ac: 'hold' }, alpha: 1 } },
+    ];
+    const a = new LockstepBattle(CONFIG);
+    const b = new LockstepBattle(CONFIG);
+    for (const o of ALPHA) { a.enqueue(o); b.enqueue(o); }
+    for (let t = 0; t < 200; t++) {
+      a.step(); b.step();
+      expect(a.hash(), `tick ${t}`).toBe(b.hash());
+    }
+    expect(a.battle.events.filter((e) => e.type === 'alpha' && e.mech === 0)).toHaveLength(1);
+  });
+
   it('out-of-order enqueue is normalized to the same result as sorted', () => {
     const straight = new LockstepBattle(CONFIG);
     for (const o of sortOrders(ORDERS)) straight.enqueue(o);

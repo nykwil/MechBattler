@@ -53,6 +53,10 @@ export function eventText(e: BattleEvent, names: [string, string]): { text: stri
       return { text: `${names[e.mech]} — no functional weapons, surrender countdown`, cls: 'warn' };
     case 'order':
       return { text: `${names[e.mech]} — ${orderText(e.order)}`, cls: 'order' };
+    case 'alpha': {
+      const n = e.instanceIds.length;
+      return { text: `${names[e.mech]} — ALPHA — ${n} ${n === 1 ? 'gun' : 'guns'}`, cls: 'order' };
+    }
     case 'victory':
       return {
         text: e.winner === 'draw' ? `DRAW — ${REASON_TEXT[e.reason]}` : `${names[e.winner]} WINS — ${REASON_TEXT[e.reason]}`,

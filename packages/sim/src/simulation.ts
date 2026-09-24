@@ -132,6 +132,8 @@ export interface InstanceRuntime {
   cooldownRemainingS: number;
   /** The next shot needs only the trigger (MW spec §1). Recomputed at the end of every step. */
   loaded: boolean;
+  /** Armed by an Alpha: fire once on the next chance, then clear (MW spec §3). */
+  volleyPending: boolean;
 }
 
 const HYSTERESIS_MIN_OFF_S = 1.0;
@@ -141,6 +143,7 @@ function freshRuntime(): InstanceRuntime {
   return {
     isShed: false, shedSinceT: null, isShutdown: false, cumulativeDamageHp: 0,
     cookedOff: false, destroyed: false, cycleTimer: 0, chargeKj: 0, capDrawnKj: 0, cooldownRemainingS: 0, loaded: false,
+    volleyPending: false,
   };
 }
 
@@ -260,6 +263,25 @@ export class Simulation {
         && entry.layer === 'armour'
         && getPart(entry.partId).spatial?.blocksPassiveCooling === true);
     }
+  }
+
+  /**
+   * Alpha (MW spec §3): every weapon loaded right now fires on its next chance,
+   * once. Guns not loaded ignore it -- Alpha fires what is ready, as in
+   * MechWarrior. Returns the armed ids.
+   */
+  armVolley(): string[] {
+    const armed: string[] = [];
+    for (const p of this.parts) {
+      const rt = this.runtime.get(p.instanceId)!;
+      if (getPart(p.partId).category === 'weapon' && rt.loaded) { rt.volleyPending = true; armed.push(p.instanceId); }
+    }
+    return armed;
+  }
+
+  /** Weapons armed by an Alpha that have not fired yet, in parts order (for the lockstep hash). */
+  volleyPendingIds(): string[] {
+    return this.parts.filter((p) => this.runtime.get(p.instanceId)!.volleyPending).map((p) => p.instanceId);
   }
 
   /** Capacitor charge levels in build-parts order — for lockstep state hashing. */
@@ -400,7 +422,8 @@ export class Simulation {
     }
     const M = (id: string): Readonly<EffectiveMults> => multsById.get(id) ?? NEUTRAL_MULTS;
     /** The one "is this gun cleared to fire" test for every firing class. */
-    const triggered = (id: string): boolean => command.weaponsEnabled[id] === true;
+    const triggered = (id: string): boolean =>
+      command.weaponsEnabled[id] === true || this.runtime.get(id)?.volleyPending === true;
 
     const addHeat = (cellKeys: string[], totalKj: number) => {
       const per = totalKj / cellKeys.length;
@@ -699,6 +722,9 @@ export class Simulation {
       rt.chargeKj = 0;
       rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
     }
+
+    // An Alpha is spent by the shot it armed, whichever firing class took it.
+    for (const shot of shotsThisTick) this.runtime.get(shot.instanceId)!.volleyPending = false;
 
     // --- 7. Reactor waste heat ---
     for (const p of this.parts) {

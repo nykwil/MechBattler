@@ -334,7 +334,7 @@ export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold' | 'flee' | 'dire
 
 export type MechOrder =
   /** Verb 1 — fire control: which weapons are cleared to fire. */
-  | { verb: 'weapons'; enabled: Record<string, boolean> }
+  | { verb: 'weapons'; enabled: Record<string, boolean>; /** Alpha press token (MW spec §3). */ volley?: number }
   /** Verb 2 — movement: a destination plus the intent label (for logs/UI). */
   | { verb: 'move'; intent: MoveIntent; dest: Vec2 | null }
   /** Verb 3 — throttle: the speed setting (dispersion/heat trade, docs/03 §4). */
@@ -372,6 +372,8 @@ export type BattleEvent =
   | { tSec: number; type: 'shutdown'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'cookoff'; mech: 0 | 1; instanceId: string }
   | { tSec: number; type: 'surrender-countdown'; mech: 0 | 1 }
+  /** An Alpha press armed these loaded guns to fire once (MW spec §3). */
+  | { tSec: number; type: 'alpha'; mech: 0 | 1; instanceIds: string[] }
   /** A verb changed meaningfully (intent/setting/enable-set), not every 4 Hz re-issue. */
   | { tSec: number; type: 'order'; mech: 0 | 1; order: MechOrder }
   | { tSec: number; type: 'victory'; winner: 0 | 1 | 'draw'; reason: VictoryReason };
@@ -510,6 +512,7 @@ export class Combatant {
   coreHp: number;
   hpByInstance = new Map<string, number>();
   private heatDamageSeen = new Map<string, number>();
+  private lastVolleyToken = 0;
   private occupancy: ReturnType<typeof buildOccupancyMap>;
   /** Weapon-toggle latency per instance (docs/04 §4 Sticky). */
   private orderLatencyById = new Map<string, number>();
@@ -609,6 +612,13 @@ export class Combatant {
 
   forward(): Vec2 { return { x: dcos(this.facingRad), y: dsin(this.facingRad) }; }
   right(): Vec2 { return { x: dsin(this.facingRad), y: -dcos(this.facingRad) }; }
+
+  /** Arms an Alpha on a token newer than the last seen; re-issues of the same press are ignored. */
+  commandVolley(token: number): string[] | null {
+    if (token <= this.lastVolleyToken) return null;
+    this.lastVolleyToken = token;
+    return this.sim.armVolley();
+  }
 
   isPartFunctional(instanceId: string): boolean {
     return !this.sim.isDestroyed(instanceId);
@@ -1574,6 +1584,8 @@ export interface ManualOrders {
    * still applies. Player-only -- the autopilot never sets it.
    */
   overrideHeat?: boolean;
+  /** Alpha press counter; only a value greater than the last one seen fires (MW spec §3). */
+  alpha?: number;
   /** Forced facing: track target, face the direction of travel, or hold a bearing. */
   face?: 'movement' | { mode: 'target' } | { mode: 'bearing'; bearingRad: number };
 }
@@ -1599,7 +1611,7 @@ export function withManualOrders(base: Controller, manual: () => ManualOrders): 
  */
 export function mergeManualOrders(baseOrders: MechOrder[], m: ManualOrders, ctx: ControllerContext): MechOrder[] {
   return baseOrders.map((o): MechOrder => {
-    if (o.verb === 'weapons' && (m.weapons || m.overrideHeat)) {
+    if (o.verb === 'weapons' && (m.weapons || m.overrideHeat || m.alpha)) {
       const enabled = { ...o.enabled };
       if (m.overrideHeat) {
         for (const p of ctx.self.build.parts) {
@@ -1609,7 +1621,7 @@ export function mergeManualOrders(baseOrders: MechOrder[], m: ManualOrders, ctx:
         }
       }
       if (m.weapons) for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
-      return { verb: 'weapons', enabled };
+      return { verb: 'weapons', enabled, ...(m.alpha ? { volley: m.alpha } : {}) };
     }
     if (o.verb === 'move' && m.move) {
       return m.move === 'hold'
@@ -2026,6 +2038,11 @@ export class Battle {
    */
   issueOrders(mech: 0 | 1, orders: MechOrder[]): void {
     for (const order of orders) {
+      // A volley arms at once: sticky order latency delays toggles, not a press.
+      if (order.verb === 'weapons' && order.volley !== undefined) {
+        const armed = this.combatants[mech].commandVolley(order.volley);
+        if (armed) this.events.push({ tSec: this.tSec, type: 'alpha', mech, instanceIds: armed });
+      }
       applyOrder(this.combatants[mech], order, this.tSec);
       const sig = order.verb === 'weapons'
         ? Object.keys(order.enabled).filter((id) => order.enabled[id]).sort().join(',')
@@ -2270,6 +2287,7 @@ export class Battle {
       for (const p of c.build.parts) f(c.hpByInstance.get(p.instanceId) ?? 0);
       for (const cell of c.sim.thermal.cells.values()) f(cell.tempC);
       for (const kj of c.sim.capacitorLevels()) f(kj);
+      u(c.sim.volleyPendingIds().length);
     }
     const [hi, lo] = this.rng.stateBits();
     u(hi); u(lo);

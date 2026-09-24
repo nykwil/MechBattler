@@ -158,10 +158,16 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // survives longer, which turns a chassis-failure at 40.8 s into a mission-kill
 // at 36.65 s. Values taken from what this test reported, not from a
 // hand-rolled harness -- the options here are not the defaults.
+// Re-pinned 23 Sep 2026 with SIM_VERSION 2.20.0 (MW groups and heat), which
+// covers two changes: held guns now load and wait so guns released together
+// fire together (Task 3, fd0d244), and Alpha's pending-volley state joins the
+// state hash (Task 4). Only finalHash moved; winner, reason, duration and shots
+// are unchanged, and with the new hash term removed the old 1408351516 still
+// reproduces -- the fixture never presses Alpha, so the term adds a zero.
 const GOLDEN = {
   winner: 1 as const,
   reason: 'mission-kill',
   durationS: 36.65,
   shots: [43, 524],
-  finalHash: 1408351516,
+  finalHash: 753402588,
 };
