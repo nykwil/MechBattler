@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
-import { PARTS, TEMPLATES, normaliseWeaponGroups } from '@mechbattler/sim';
+import { PARTS, TEMPLATES, defaultWeaponGroups, normaliseWeaponGroups } from '@mechbattler/sim';
 import { useBuild } from './useBuild.js';
 
 /**
@@ -470,5 +470,27 @@ describe('useBuild weapon groups (MW spec §2)', () => {
     const saved = result.current.build;
     act(() => result.current.loadBuild(saved));
     expect(result.current.build.weaponGroups).toEqual(saved.weaponGroups);
+  });
+
+  it('a newly placed gun joins the group the defaults would give it; a moved gun keeps its own', () => {
+    const { result } = renderHook(() => useBuild('CH-5'));
+    act(() => result.current.selectPart('W-AC'));
+    act(() => result.current.place());
+    const ac = result.current.state.parts[0]!.instanceId;
+    act(() => result.current.setWeaponGroup(ac, 2));         // groups now exist, and the AC is off its default
+
+    act(() => result.current.selectPart('W-MG'));
+    act(() => result.current.place());
+    const mg = result.current.state.parts.find((p) => p.partId === 'W-MG')!.instanceId;
+    const groups = normaliseWeaponGroups(result.current.build);
+    const expected = defaultWeaponGroups(result.current.build).findIndex((g) => g.includes(mg));
+    expect(expected).toBeGreaterThanOrEqual(0);
+    expect(groups[expected]).toContain(mg);
+    expect(groups[2]).toEqual([ac]);
+
+    // Detach and re-place is a move: the AC stays where the player put it.
+    act(() => result.current.detach(ac));
+    act(() => result.current.place());
+    expect(normaliseWeaponGroups(result.current.build)[2]).toEqual([ac]);
   });
 });

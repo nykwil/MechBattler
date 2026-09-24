@@ -9,6 +9,7 @@ import {
   getChassis,
   getOccupiedCells,
   competesForPowerBudget,
+  defaultWeaponGroups,
   getPart,
   normaliseWeaponGroups,
   regionIdAt,
@@ -219,6 +220,28 @@ function initialState(chassisId: string): EditorState {
     selectedPartId: null, placeExtras: { integrity: 1 }, selectedInstanceId: null,
     ghost: null, detached: null, rotation: 0, overlay: 'parts', routeTool: null, nextSeq: 1,
   };
+}
+
+/**
+ * Once the player has groups, a gun placed for the first time lands in the
+ * group the defaults would give it within the new build, not in none (MW spec
+ * §2). A detached gun coming back is a move: its id is still in its group, so
+ * it keeps it. Before any groups exist the defaults apply on their own.
+ */
+function groupNewGuns(state: EditorState, parts: PlacedPart[], added: PlacedPart[]): string[][] | undefined {
+  if (!state.weaponGroups) return state.weaponGroups;
+  const grouped = new Set(state.weaponGroups.flat());
+  const guns = added.filter((p) => getPart(p.partId).category === 'weapon' && !grouped.has(p.instanceId));
+  if (guns.length === 0) return state.weaponGroups;
+  const defaults = defaultWeaponGroups({ chassisId: state.chassisId, parts, powerPriority: state.powerPriority });
+  const groups = state.weaponGroups.map((g) => [...g]);
+  for (const gun of guns) {
+    const at = defaults.findIndex((g) => g.includes(gun.instanceId));
+    if (at < 0) continue;
+    while (groups.length <= at) groups.push([]);
+    groups[at]!.push(gun.instanceId);
+  }
+  return groups;
 }
 
 function reducer(state: EditorState, action: Action): EditorState {
@@ -436,9 +459,11 @@ function reducer(state: EditorState, action: Action): EditorState {
           powerPriority = [...state.powerPriority, instanceId];
         }
       }
+      const parts = [...state.parts, candidate];
       return {
         ...state,
-        parts: [...state.parts, candidate],
+        parts,
+        weaponGroups: groupNewGuns(state, parts, [candidate]),
         routes: state.routes.filter((route) => !stampedCells.has(spatialCellKey(chassis, route))),
         powerPriority,
         detached: null,
@@ -452,7 +477,9 @@ function reducer(state: EditorState, action: Action): EditorState {
       // same conduits twice from a stale closure — the rerun must be a no-op.
       const existing = new Set(state.parts.map((p) => p.instanceId));
       const fresh = action.parts.filter((p) => !existing.has(p.instanceId));
-      return fresh.length > 0 ? { ...state, parts: [...state.parts, ...fresh] } : state;
+      if (fresh.length === 0) return state;
+      const parts = [...state.parts, ...fresh];
+      return { ...state, parts, weaponGroups: groupNewGuns(state, parts, fresh) };
     }
     case 'LOAD_BUILD': {
       // Run flow (docs/10 M1): replace the whole editor state with a build
