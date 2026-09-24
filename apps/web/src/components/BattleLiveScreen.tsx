@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   autopilotController, buildCapacitorMaxKj, buildOccupancyMap, withManualOrders, Battle,
-  SPEED_SETTING_FRACTIONS,
+  SPEED_SETTING_FRACTIONS, normaliseWeaponGroups,
+  HEAT_FIRE_HOLD_C, HEAT_MECH_SHUTDOWN_C, OVERDRIVE_CYCLE_MULT, OVERDRIVE_HEAT_MULT,
   type Build, type BattleReport, type ManualOrders, type SpeedSetting, type Vec2,
 } from '@mechbattler/sim';
 import type { OpponentDef } from '../lib/opponents.js';
 import { fmtTime } from '../lib/battleText.js';
 import { useBattle } from '../state/useBattle.js';
-import { BattleCaption, BattleScene, BattleTicker, frameAt, type BattleView, type WeaponOverride } from './BattleHud.js';
+import { cycleGroupState, expandGroupOrders, resetToAuto, type GroupState } from '../state/groupOrders.js';
+import {
+  BattleCaption, BattleScene, BattleTicker, ShutdownBanner, frameAt, type BattleView, type WeaponOverride,
+} from './BattleHud.js';
 import { Sheet } from './Sheet.js';
 import './BattleDiagnostics.css';
 import './BattleReportScreen.css';
@@ -52,12 +56,22 @@ interface ManualState {
   face: FaceMode;
   /** Held bearing (rad); set from the last arena click while face = bearing. */
   bearingRad: number;
+  /** Per-group chip orders, G1..G3 (MW spec §3). */
+  groups: GroupState[];
+  /** OVR: overdrive -- guns cycle faster and run hotter, past the autopilot's heat hold. */
+  overrideHeat: boolean;
+  /** Alpha press counter. Only ever increases -- see resetToAuto. */
+  alpha: number;
 }
 
-const FULL_AUTO: ManualState = { move: 'auto', throttle: 'auto', weapons: {}, face: 'auto', bearingRad: 0 };
+const FULL_AUTO: ManualState = {
+  move: 'auto', throttle: 'auto', weapons: {}, face: 'auto', bearingRad: 0,
+  groups: ['auto', 'auto', 'auto'], overrideHeat: false, alpha: 0,
+};
 
 function isFullAuto(m: ManualState): boolean {
-  return m.move === 'auto' && m.throttle === 'auto' && m.face === 'auto' && Object.keys(m.weapons).length === 0;
+  return m.move === 'auto' && m.throttle === 'auto' && m.face === 'auto' && Object.keys(m.weapons).length === 0
+    && m.groups.every((g) => g === 'auto') && !m.overrideHeat;
 }
 
 /**
@@ -96,6 +110,9 @@ export function BattleLiveScreen({
   // drives the button highlights (docs/08 §3).
   const manualRef = useRef(manual);
   manualRef.current = manual;
+  // The build is fixed for the fight, so the controller closure below can read
+  // these once rather than through a ref.
+  const groups = useMemo(() => normaliseWeaponGroups(build), [build]);
 
   const [battle] = useState(() => new Battle({
     builds: [build, opponent.build],
@@ -106,13 +123,16 @@ export function BattleLiveScreen({
         autopilotController,
         (): ManualOrders => {
           const m = manualRef.current;
+          const weapons = expandGroupOrders(groups, m.groups, m.weapons);
           return {
             move: m.move === 'auto' ? undefined : m.move,
             throttle: m.throttle === 'auto' ? undefined : m.throttle,
-            weapons: Object.keys(m.weapons).length > 0 ? m.weapons : undefined,
+            weapons: Object.keys(weapons).length > 0 ? weapons : undefined,
             face: m.face === 'auto' ? undefined
               : m.face === 'target' ? { mode: 'target' }
               : { mode: 'bearing', bearingRad: m.bearingRad },
+            overrideHeat: m.overrideHeat || undefined,
+            alpha: m.alpha || undefined,
           };
         },
       ),
@@ -225,21 +245,31 @@ export function BattleLiveScreen({
     });
   };
 
-  // Keybindings (docs/08 M4): space = pause, 1-9 = gun slots, A = full auto,
-  // H = hold position, F = face cycle.
+  const cycleGroup = (g: number) => {
+    // An empty group's chip is disabled; its key must not set an order you cannot see.
+    if (!groups[g]?.length) return;
+    setManual((m) => ({ ...m, groups: m.groups.map((s, i) => (i === g ? cycleGroupState(s) : s)) }));
+  };
+  const fireAlpha = () => setManual((m) => ({ ...m, alpha: m.alpha + 1 }));
+  const toggleOverride = () => setManual((m) => ({ ...m, overrideHeat: !m.overrideHeat }));
+
+  // Keybindings (docs/08 M4, MW spec §3): space = pause, 1-3 = weapon groups,
+  // X = alpha, O = heat override, A = full auto, H = hold position, F = face cycle.
+  // Per-gun control is a tap on the gun chip.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
       if (e.key === ' ') {
         e.preventDefault();
         if (!battle.finished) setPaused((p) => !p);
-      } else if (e.key >= '1' && e.key <= '9') {
-        const idx = Number(e.key) - 1;
-        const guns = battle.latestFrame()?.mechs[0].weapons ?? [];
-        const gun = guns[idx];
-        if (gun) cycleWeapon(gun.instanceId);
+      } else if (e.key >= '1' && e.key <= '3') {
+        cycleGroup(Number(e.key) - 1);
+      } else if (e.key.toLowerCase() === 'x') {
+        fireAlpha();
+      } else if (e.key.toLowerCase() === 'o') {
+        toggleOverride();
       } else if (e.key.toLowerCase() === 'a') {
-        setManual(FULL_AUTO);
+        setManual((m) => resetToAuto(m, FULL_AUTO));
       } else if (e.key.toLowerCase() === 'f') {
         cycleFace();
       }
@@ -314,12 +344,16 @@ export function BattleLiveScreen({
                from the arena and shifted the console, gun row and orders down the
                screen — one tap on the glass re-laid the whole cockpit. It is on the
                glass now, where appearing costs nothing. */
-            glassOverlay={moveMode === 'waypoint' ? (
-              <div className="waypoint-bar">
-                <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
-              </div>
-            ) : undefined}
+            glassOverlay={<>
+              {live && <ShutdownBanner mechShutdown={live.mechShutdown} reactorCoreC={live.reactorCoreC} />}
+              {moveMode === 'waypoint' && (
+                <div className="waypoint-bar">
+                  <span className="live-orders-label">Waypoint set — tap the glass to move it</span>
+                </div>
+              )}
+            </>}
             diagnostics={diag}
+            heatOverride={manual.overrideHeat}
           />
 
           {/* Manual verb overrides (docs/08 §2). Chips toggle: active manual
@@ -381,12 +415,50 @@ export function BattleLiveScreen({
                  so taking control never jerks the mech. */
               onClick={() => setManual((m) => (isFullAuto(m)
                 ? { ...m, throttle: live?.speedSetting ?? 'cruise', face: live?.faceMode ?? 'target' }
-                : FULL_AUTO))}
+                : resetToAuto(m, FULL_AUTO)))}
               title={isFullAuto(manual)
                 ? 'Take manual control of throttle and facing'
                 : 'Clear all manual orders; the autopilot resumes every verb'}
             >
               Auto
+            </button>
+          </div>
+
+          {/* Weapon groups (MW spec §3). Fixed-width chips: the state word and the
+              loaded fill change, the box never does (docs/14). */}
+          <div className="live-groups orders" role="group" aria-label="Weapon groups">
+            {groups.map((ids, g) => {
+              const frames = (live?.weapons ?? []).filter((w) => ids.includes(w.instanceId));
+              const loaded = frames.filter((w) => w.loaded).length;
+              return (
+                <button
+                  key={g} type="button" className="obtn grp"
+                  disabled={ids.length === 0}
+                  aria-pressed={manual.groups[g] !== 'auto'}
+                  onClick={() => cycleGroup(g)}
+                  title={`Group ${g + 1}: ${ids.length} guns, ${loaded} loaded — tap to cycle auto / hold / fire`}
+                >
+                  <span className="grp-fill" style={{ width: `${ids.length ? (100 * loaded) / ids.length : 0}%` }} />
+                  <span className="grp-k">G{g + 1}</span>
+                  <span className="grp-v">{manual.groups[g]}</span>
+                </button>
+              );
+            })}
+            <button
+              type="button" className="obtn alpha"
+              disabled={!live || live.mechShutdown}
+              onClick={fireAlpha}
+              title="Alpha strike: fire every loaded gun once"
+            >
+              Alpha {live ? live.weapons.filter((w) => w.loaded).length : 0}
+            </button>
+            <button
+              type="button" className="obtn ovr"
+              aria-pressed={manual.overrideHeat}
+              onClick={toggleOverride}
+              title={`Overdrive: guns cycle ${Math.round((1 / OVERDRIVE_CYCLE_MULT - 1) * 100)}% faster and run ${Math.round((OVERDRIVE_HEAT_MULT - 1) * 100)}% hotter, and fire past the ${HEAT_FIRE_HOLD_C}°C hold. The reactor shuts the mech down at ${HEAT_MECH_SHUTDOWN_C}°C.`}
+            >
+              OVR
             </button>
           </div>
 
@@ -404,7 +476,7 @@ export function BattleLiveScreen({
             <BattleTicker view={view} tSec={tSec} names={names} />
             <BattleCaption view={view} />
             <p className="playback-caption">
-              keys: space pause · 1–9 cycle gun fire control · H hold position · F face mode · A full auto · right-click revert move
+              keys: space pause · 1–3 cycle weapon group · X alpha · O heat override · H hold position · F face mode · A full auto · right-click revert move
             </p>
           </div>
         </Sheet>

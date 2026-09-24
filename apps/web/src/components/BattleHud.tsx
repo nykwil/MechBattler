@@ -1,7 +1,7 @@
 import { useMemo, type ReactNode } from 'react';
 import {
   getChassis, getPart, CELL_SIZE_M, TICK_S,
-  HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C,
+  HEAT_AMBIENT_C, HEAT_DAMAGE_C, HEAT_FIRE_HOLD_C, HEAT_SHUTDOWN_C, HEAT_RESTART_C,
   computeHitModel, effectiveMults, falloffAt, meanSilhouetteHalfWidthM,
   FOREST_COVER_MULT,
   weaponSigmaRad, TRACKING_LAG_S, resolveFireControlLateralMult,
@@ -523,6 +523,22 @@ function WeaponSlot({
 }
 
 /**
+ * The whole mech is down (MW spec §4). It restarts when the reactor and core
+ * cool below HEAT_RESTART_C, so the banner says how far that is -- from the
+ * frame, not a countdown the HUD would have to model.
+ */
+export function ShutdownBanner({ mechShutdown, reactorCoreC }: { mechShutdown: boolean; reactorCoreC: number }) {
+  if (!mechShutdown) return null;
+  const toGo = Math.max(0, Math.ceil(reactorCoreC - HEAT_RESTART_C));
+  return (
+    <div className="shutdown-banner" role="status">
+      <span className="shutdown-title">REACTOR SHUTDOWN</span>
+      <span className="shutdown-sub">restarts below {HEAT_RESTART_C}° · {toGo}° to go</span>
+    </div>
+  );
+}
+
+/**
  * Heat as a column, which is the prototype's design and was never ported -- its
  * CSS has been sitting in battle.css unused while the console showed a horizontal
  * bar. What you need from heat is headroom before cutout, and a column shows
@@ -532,7 +548,9 @@ function WeaponSlot({
  * frames. That is measured from the recorded temperatures, not modelled here: the
  * HUD may not re-derive the sim's thermal maths (docs/02 §6).
  */
-function HeatColumn({ view, tSec, tempC }: { view: BattleView; tSec: number; tempC: number }) {
+function HeatColumn({
+  view, tSec, tempC, override,
+}: { view: BattleView; tSec: number; tempC: number; override?: boolean }) {
   const frac = (tempC - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C);
   const mark = (c: number) => `${((c - HEAT_MIN_C) / (HEAT_MAX_C - HEAT_MIN_C)) * 100}%`;
 
@@ -542,16 +560,17 @@ function HeatColumn({ view, tSec, tempC }: { view: BattleView; tSec: number; tem
     const now = frameAt(view, tSec);
     if (!back || !now) return { text: 'Nominal', cls: '' };
     const ratePerS = now.mechs[0].hottestCellC - back.mechs[0].hottestCellC;
+    // Under OVR the hold is lifted, so past it the guns are firing, not holding.
     if (ratePerS <= 0.05) return tempC >= HEAT_FIRE_HOLD_C
-      ? { text: 'Holding fire', cls: 'warn' }
+      ? { text: override ? 'Override' : 'Holding fire', cls: 'warn' }
       : { text: 'Nominal', cls: '' };
     const secs = (HEAT_SHUTDOWN_C - tempC) / ratePerS;
     if (secs > 60) return { text: 'Nominal', cls: '' };
     return { text: `${Math.ceil(secs)}s to cut`, cls: secs <= 10 ? 'bad' : 'warn' };
-  }, [view, tSec, tempC]);
+  }, [view, tSec, tempC, override]);
 
   return (
-    <div className="heatcol">
+    <div className={`heatcol${override ? ' ovr' : ''}`}>
       <span className="heat-k">Heat</span>
       <span
         className="heat-track"
@@ -600,7 +619,7 @@ function Gauge({
 
 export function BattleScene({
   view, tSec, names, onArenaOrder, weaponOverrides, onWeaponClick, arenaOverlay, glassOverlay,
-  yourBuild, foeBuild, diagnostics, onOpenLog,
+  yourBuild, foeBuild, diagnostics, onOpenLog, heatOverride,
 }: {
   view: BattleView;
   tSec: number;
@@ -628,6 +647,8 @@ export function BattleScene({
   glassOverlay?: ReactNode;
   /** Your build, for the console's damage widget. Omitted where it is unknown. */
   yourBuild?: Build;
+  /** Command mode: OVR is on, so the heat column marks it. */
+  heatOverride?: boolean;
 }) {
   const frame = frameAt(view, tSec);
 
@@ -1009,7 +1030,7 @@ export function BattleScene({
           </div>
           {/* Full console height, as the prototype has it: the taller the column,
               the more precisely headroom to cutout can be read. */}
-          <HeatColumn view={view} tSec={tSec} tempC={you.hottestCellC} />
+          <HeatColumn view={view} tSec={tSec} tempC={you.hottestCellC} override={heatOverride} />
         </div>
 
         <div className="gunrow" role="group" aria-label="Weapons">

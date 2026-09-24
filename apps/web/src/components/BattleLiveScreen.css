@@ -96,3 +96,35 @@
   pointer-events: none;
 }
 .battle-app .waypoint-bar .obtn { pointer-events: auto; flex: 0 0 auto; }
+
+/* Weapon groups, Alpha and OVR (MW spec §3). Extends the prototype's .orders /
+   .obtn: a grid instead of a flex row so five chips share the width, and the
+   chip's own 64px width released so each fills its track. The chip's box never
+   changes -- only the state word and the loaded fill do (docs/14). */
+.battle-app .live-groups {
+  display: grid; grid-template-columns: repeat(3, 1fr) 1.2fr 0.8fr; gap: 6px;
+  /* Inset to line up with the orders row's content, and off the bottom edge. */
+  padding: 0 var(--space-3) var(--space-1);
+}
+.battle-app .live-groups .obtn { width: auto; min-width: 0; min-height: 44px; position: relative; overflow: hidden; }
+.battle-app .grp { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.1; }
+.battle-app .grp-fill { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--signal-amber); transition: width .15s linear; }
+.battle-app .grp-k { font-weight: 700; }
+.battle-app .grp-v { font-size: var(--text-2xs); text-transform: uppercase; opacity: .8; }
+/* Alpha is a one-shot action, not a toggle, so it never takes aria-pressed; the
+   accent says it is live without looking latched. */
+.battle-app .obtn.alpha:not(:disabled) { color: var(--signal-amber); }
+.battle-app .obtn.ovr[aria-pressed="true"] { color: var(--signal-red-text); border-color: currentColor; background: rgba(214, 69, 69, .12); }
+.battle-app .heatcol.ovr .heat-track { outline: 1px solid var(--signal-red); }
+
+/* The whole mech is down. On the glass, like the waypoint bar, so appearing
+   costs the cockpit nothing; it ignores pointers so the arena stays tappable. */
+.battle-app .shutdown-banner {
+  position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 2;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 8px 14px; background: rgba(0, 0, 0, .72); border: 1px solid var(--signal-red);
+  color: var(--signal-red-text); pointer-events: none; white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.battle-app .shutdown-title { font-weight: 800; letter-spacing: .08em; }
+.battle-app .shutdown-sub { font-size: var(--text-2xs); }
