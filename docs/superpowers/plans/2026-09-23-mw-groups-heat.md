@@ -811,6 +811,12 @@ git commit -m "Alpha: a one-shot volley token that fires every loaded gun once"
 
 Implements spec §4, using the threshold settled at Task 2's checkpoint.
 
+> **Amended 23 Sep 2026, after the Task 2 checkpoint (user decision).** F77 measured a peak reactor/core temperature of 57.7 °C with OVR on, and weapon heat never reaches the reactor. The user chose **"firing heats the reactor"**. This task therefore also does the following (Steps 3b, 3c and 5b below):
+> - **Reactor load heat.** Every shot deposits `SHOT_HEAT_TO_REACTOR_FRAC × heatPerShotKj` into the reactor and core cells, split evenly across them. This is *in addition* to the heat the shot puts into its own cells: the reactor pays for the shot. The one-heat-bar-per-mech of MechWarrior becomes a quantity in our sim.
+> - **Reactor fire-hold.** `fireGate` returns `'heat'` when the snapshot's `reactorCoreC ≥ HEAT_FIRE_HOLD_C`, as well as for a hot gun. The autopilot's discipline now covers the reactor, and OVR lifts that hold too.
+> - **The fraction is tuned by measurement, not typed.** Extend `sim:overheat` and pick the smallest fraction from a sweep that meets both criteria in Step 5b.
+> - `HEAT_MECH_SHUTDOWN_C` stays at `HEAT_SHUTDOWN_C` (130 °C).
+
 **Files:**
 - Modify: `packages/sim/src/simulation.ts`:
   - a constant;
@@ -981,11 +987,102 @@ Also check the per-part shutdown line in step 11. It still reads `hottest < 110`
 - `stateHash`: `u(c.sim.isMechShutdown ? 1 : 0);`
 - The ticker in apps/web prints `REACTOR SHUTDOWN` and `REACTOR RESTART` for the new events. Run `npm run web:build` to find the switch.
 
+- [ ] **Step 3b: Reactor load heat (amendment)**
+
+In `simulation.ts`, next to `HEAT_MECH_SHUTDOWN_C`:
+
+```ts
+/**
+ * Share of every shot's heat that also lands on the reactor and core (MW spec
+ * §4, amended after docs/17 F77). The reactor pays for the shot, so firing
+ * builds one mech-wide heat level -- MechWarrior's heat bar -- on top of the
+ * per-part cells. Tuned by `sim:overheat --sweep`, see F77.
+ */
+export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder until Step 5b's sweep sets it
+```
+
+Make it overridable for the sweep without editing source. Add a constructor option: `new Simulation(chassis, build, { shotHeatToReactorFrac?: number })`, stored as `private readonly shotHeatToReactorFrac`. `Combatant` takes the same option through `BattleOptions.shotHeatToReactorFrac?: number` and passes it through. Nothing else sets it.
+
+Deposit the heat once per tick, after every firing step (after 6c and the volley-clear loop, before step 7):
+
+```ts
+    // --- 6d. Reactor load heat (MW spec §4, amended): the reactor pays for every shot ---
+    if (shotsThisTick.length > 0 && this.shotHeatToReactorFrac > 0) {
+      let kj = 0;
+      for (const shot of shotsThisTick) kj += getPart(shot.partId).heat?.heatPerShotKj ?? 0;
+      if (kj > 0) addHeat(this.reactorCoreCellKeys(), kj * this.shotHeatToReactorFrac);
+    }
+```
+
+`reactorCoreCellKeys()` is a private helper: the cell keys of `CORE_INSTANCE_ID` plus every reactor part that is not destroyed. The step 11 `reactorCoreC` computation must use the same helper, so there is one definition of "the reactor" and not two.
+
+- [ ] **Step 3c: Reactor fire-hold (amendment)**
+
+In `combat.ts` `fireGate`, change the heat line to:
+
+```ts
+  if (snapshot !== null && (
+    self.hottestCellC(instanceId, snapshot) >= HEAT_FIRE_HOLD_C || snapshot.reactorCoreC >= HEAT_FIRE_HOLD_C
+  )) return 'heat';
+```
+
+Add a test to `mechShutdown.test.ts`:
+
+```ts
+  it('the autopilot holds fire on a hot reactor, and OVR fires through it', () => {
+    const shots = (overrideHeat: boolean) => {
+      const battle = new Battle({
+        builds: [gunline, gunline], seed: 5, spawnDistanceM: 40, timeoutS: 6,
+        controllers: [withManualOrders(autopilotController, () => ({ overrideHeat })), autopilotController],
+      });
+      const me = battle.combatants[0];
+      const pin = () => setTemp(me.sim, HEAT_FIRE_HOLD_C + 5);   // hot reactor, below mech shutdown
+      pin();
+      for (let t = 0; t < 10; t++) { battle.step(); pin(); }
+      const before = battle.events.filter((e) => e.type === 'shot' && e.mech === 0).length;
+      for (let t = 0; t < 80 && battle.step(); t++) pin();
+      return battle.events.filter((e) => e.type === 'shot' && e.mech === 0).length - before;
+    };
+    expect(shots(false)).toBe(0);
+    expect(shots(true)).toBeGreaterThan(0);
+  });
+
+  it('every shot heats the reactor', () => {
+    const cold = new Simulation(getChassis(gunline.chassisId), gunline, { shotHeatToReactorFrac: 0 });
+    const hot = new Simulation(getChassis(gunline.chassisId), gunline, { shotHeatToReactorFrac: 1 });
+    let a = 0, b = 0;
+    for (let i = 0; i < 200; i++) {
+      a = cold.step(0.05, { weaponsEnabled: allGuns, speedSetting: 'stationary' }).reactorCoreC;
+      b = hot.step(0.05, { weaponsEnabled: allGuns, speedSetting: 'stationary' }).reactorCoreC;
+    }
+    expect(b).toBeGreaterThan(a + 1);
+  });
+```
+
+Import `HEAT_FIRE_HOLD_C`, `withManualOrders` and `autopilotController` as needed.
+
 - [ ] **Step 5: Run the tests**
 
 Run: `npm run sim:test && npm run web:build`
 
-Expected: all pass. The golden moves only through the hash term. The fight itself should not change, because nothing in the golden reaches the reactor threshold. Re-pin under the Global Constraints rule, and state in the comment that the outcome, duration and shots are unchanged. If they *did* change, investigate before re-pinning.
+Expected: all pass. The golden now moves **for real**, because every shot heats the reactor. Re-pin under the Global Constraints rule, after confirming the move disappears with `shotHeatToReactorFrac: 0`. (You can check that by temporarily setting the constant to 0; do not commit the zero.)
+
+- [ ] **Step 5b: Tune the fraction with the harness**
+
+Extend `packages/sim/scripts/overheat.ts`:
+- Add a third mode, **"alpha spam"**: OVR on, plus an Alpha press on every command window. The controller closure increments a counter each time it is called and returns `{ overrideHeat: true, alpha: counter }`.
+- Add `--sweep`, which runs the table for each `shotHeatToReactorFrac` in `[0.1, 0.2, 0.3, 0.5, 0.75, 1.0]`, passed through `BattleOptions`.
+- For each fraction, print the core peak for the autopilot, for OVR and for alpha-spam, and the first ≥130 °C time for OVR and alpha-spam.
+
+Pick the **smallest** fraction for which both of these hold:
+1. **The autopilot never shuts itself down:** no template's reactor/core reaches `HEAT_MECH_SHUTDOWN_C` under the autopilot.
+2. **Spending heat can cost you the mech:** under alpha-spam, at least one template reaches it and at least one does not. Also, the earliest crossing is later than 10 s. A shutdown within 10 s would mean OVR is a trap rather than a choice.
+
+Set `SHOT_HEAT_TO_REACTOR_FRAC` to that value.
+
+- **If no fraction in the sweep meets both criteria:** stop and report BLOCKED with the sweep table. That is a user decision again. Do not widen the sweep or invent a rule.
+
+Append the sweep table and the chosen value to F77 in `docs/17-balance-findings.md`, under a sub-heading "Reactor load heat". Then re-run `npm run sim:test`. The golden moves again when the constant changes, so re-pin once more, with the reason stated. The fight itself should not change, because nothing in the golden reaches the reactor threshold. Re-pin under the Global Constraints rule, and state in the comment that the outcome, duration and shots are unchanged. If they *did* change, investigate before re-pinning.
 
 - [ ] **Step 6: Commit**
 
