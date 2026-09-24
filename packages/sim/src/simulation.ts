@@ -66,10 +66,13 @@ export const HEAT_MECH_SHUTDOWN_C = HEAT_SHUTDOWN_C;
  * Share of every shot's heat that also lands on the reactor and core (MW spec
  * §4, amended after docs/17 F77). The reactor pays for the shot, so firing
  * builds one mech-wide heat level -- MechWarrior's heat bar -- on top of the
- * per-part cells. The smallest pair in the `sim:overheat --sweep` grid, with
- * OVERDRIVE_HEAT_MULT, that meets Step 5b's criteria -- see F77.
+ * per-part cells. Chosen 24 Sep 2026 with OVERDRIVE_HEAT_MULT. At these values
+ * no canonical template's reactor or core reaches HEAT_MECH_SHUTDOWN_C, even
+ * with OVR held on: the mech-wide shutdown is built but unreached by the
+ * roster. The one grid pair that reaches it (x3.0, 1.0) was declined as a
+ * knife-edge; see docs/17 F77, "Reactor load heat and overdrive".
  */
-export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder: the grid's pick (1.0) fails coolantBath, see F77
+export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3;
 /**
  * OVR overdrive (MW spec §3, amended 24 Sep 2026): guns cycle this much faster...
  * A charged gun's charge time is set by its maxChargeKw and does not change;
@@ -78,9 +81,11 @@ export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder: the grid's pick (1
 export const OVERDRIVE_CYCLE_MULT = 0.7;
 /**
  * ...and every shot makes this much more heat, in its own cells and on the
- * reactor. Chosen with SHOT_HEAT_TO_REACTOR_FRAC by `sim:overheat --sweep` (F77).
+ * reactor. Chosen 24 Sep 2026 with SHOT_HEAT_TO_REACTOR_FRAC: overdrive then
+ * reaches part shutdown on the hottest guns (a per-build cost), while the
+ * mech-wide shutdown stays unreached by the canonical roster (docs/17 F77).
  */
-export const OVERDRIVE_HEAT_MULT = 1.5; // placeholder: the grid's pick (3.0) waits on the same decision
+export const OVERDRIVE_HEAT_MULT = 1.5;
 /** Above this, heat does structural damage. */
 export const HEAT_DAMAGE_C = 150;
 /** Arena ambient, the bottom of the HUD's heat span. */

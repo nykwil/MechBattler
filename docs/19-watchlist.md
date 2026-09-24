@@ -420,3 +420,24 @@ costs most on the frame with the most skin per cell. That is the Vulture, which
 is also the frame least able to carry the mass. Both halves of the price point
 the same way, which is either good design or a part that only one chassis will
 ever fit — and one sweep cannot tell those apart.
+
+## The mech-wide shutdown is unreachable at the shipped values, and overdrive is a net buff (24 Sep 2026)
+
+MW spec §4 shipped with `SHOT_HEAT_TO_REACTOR_FRAC` 0.3 and
+`OVERDRIVE_HEAT_MULT` 1.5 (docs/17 F77, "Reactor load heat and overdrive"). At
+those values no canonical template's reactor or core reaches 130 °C, even with
+OVR held on the whole fight. The shutdown is built and tested, but nothing on
+the roster ever trips it. Overdrive is a net buff for five of seven templates
+(+0.11 to +0.33 win rate). It costs only `mule-skirmisher` (−0.23), whose MGs
+cook to part shutdown, and it leaves the railgun untouched.
+
+**Why it was left.** Features and balance are separate tracks. The one tuning
+pair that made the shutdown reachable (×3.0, 1.0) did so on one template by
+0.7 °C. It also broke `coolantBath.test.ts` for a cause nobody isolated and
+zeroed a build. That is a knife-edge, not a dial setting. Making the reactor
+bite is a question of weapon heat and cooling near the reactor. It is not the
+two constants.
+
+**What would make us act.** A balance pass on heat. Or players reporting that OVR
+is "always on": if it has no downside worth weighing, it is not a decision, and
+the mech-wide shutdown was meant to be that downside.

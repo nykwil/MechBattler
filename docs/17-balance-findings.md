@@ -5685,3 +5685,232 @@ thermally isolated from each other in every build tested. `HEAT_SHUTDOWN_C`
 as a mech-wide shutdown threshold on reactor/core heat is therefore not a real
 risk under §4 as specified; it is either unreachable (as measured here) or
 would need a different mechanism to become reachable.
+
+### Reactor load heat and overdrive
+
+2026-09-24. `simContentHash()` `ba5c5f8f`. MW spec §4 as amended after the
+checkpoint above. Every shot also deposits `SHOT_HEAT_TO_REACTOR_FRAC ×
+heatPerShotKj` into the reactor and core. Fire control holds on a hot reactor
+(≥ `HEAT_FIRE_HOLD_C`), and OVR fires through that hold. A reactor or core at or
+above `HEAT_MECH_SHUTDOWN_C` (130 °C) shuts the whole mech down until it cools
+below `HEAT_RESTART_C`.
+
+**Step 5b: alpha can't out-fire the cycle rate.** `npm run sim:overheat --
+--sweep` covered the fraction at 0.1, 0.2, 0.3, 0.5, 0.75 and 1.0. At that point
+OVR only lifted holds, and alpha-spam meant OVR plus an Alpha press on every
+command window. At every fraction the autopilot never shut down, and no
+template's reactor or core ever reached 130 °C under alpha-spam either. The
+hottest reading was 86.3 °C (`mule-skirmisher` at 1.0, where the autopilot
+reached 82.0 °C).
+
+The reason is structural, not a tuning gap:
+- Alpha fires what is loaded, and a gun loads at its cycle rate.
+- The autopilot seldom meets a hold (see the checkpoint above), so it already
+  fires at close to the cycle ceiling.
+
+So the three modes put in about the same heat, and the fraction lifts all three
+together. Every core-peak gap between autopilot and alpha-spam in the sweep was
+0–10 °C. No fraction could make the reactor a decision.
+
+**Step 5c: OVR became overdrive** (user decision). While OVR is on, every gun
+cycles ×`OVERDRIVE_CYCLE_MULT` (0.7) and every shot's heat is multiplied by
+`OVERDRIVE_HEAT_MULT`, in its own cells and on the reactor. A charged gun's
+charge time is unchanged, and only its cooldown shortens. The grid held the
+cycle multiplier and swept heat ×[1.25, 1.5, 2.0, 3.0] × fraction [0.3, 0.5,
+1.0], with 3 seeds. Each table below is followed by its reading of the two
+criteria, judged on the OVR column:
+1. the autopilot never shuts down;
+2. some but not all templates cross under OVR, the earliest after 10 s.
+
+```
+### OVERDRIVE_HEAT_MULT = 1.25, SHOT_HEAT_TO_REACTOR_FRAC = 0.3 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   39.4 /   41.5 /   41.0 |    never /    never /    never |  118.7          | 0.78 / 0.89 / 0.94
+mule-gunline              |   36.0 /   44.5 /   50.8 |    never /    never /    never |   47.6          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   60.6 /   70.6 /   71.0 |    never /    never /    never |  130.2          | 0.56 / 0.44 / 0.50
+mule-laser-boat           |   46.1 /   68.6 /   57.9 |    never /    never /    never |  108.6          | 0.50 / 0.83 / 0.78
+railgun-mule              |   62.6 /   63.8 /   63.8 |    never /    never /    never |   34.4          | 0.33 / 0.33 / 0.33
+vulture-sniper            |   39.1 /   41.8 /   42.0 |    never /    never /    never |   92.7          | 0.67 / 0.78 / 0.72
+bastion-tank              |   30.1 /   30.1 /   30.7 |    never /    never /    never |   86.6          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 1.25, SHOT_HEAT_TO_REACTOR_FRAC = 0.5 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   41.7 /   45.5 /   46.5 |    never /    never /    never |  118.7          | 0.78 / 0.89 / 0.94
+mule-gunline              |   37.8 /   50.9 /   61.5 |    never /    never /    never |   50.6          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   66.9 /   77.8 /   79.4 |    never /    never /    never |  130.2          | 0.56 / 0.39 / 0.50
+mule-laser-boat           |   49.7 /   75.6 /   64.6 |    never /    never /    never |  112.4          | 0.50 / 0.83 / 0.78
+railgun-mule              |   65.8 /   67.9 /   67.9 |    never /    never /    never |   34.5          | 0.39 / 0.39 / 0.39
+vulture-sniper            |   41.2 /   45.8 /   46.1 |    never /    never /    never |   92.7          | 0.67 / 0.78 / 0.72
+bastion-tank              |   30.2 /   30.7 /   31.2 |    never /    never /    never |   86.6          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 1.25, SHOT_HEAT_TO_REACTOR_FRAC = 1 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   51.5 /   55.3 /   60.2 |    never /    never /    never |  118.7          | 0.78 / 0.89 / 0.94
+mule-gunline              |   45.3 /   68.3 /   89.8 |    never /    never /    never |   59.2          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   82.0 /   96.8 /   97.8 |    never /    never /    never |  130.3          | 0.56 / 0.44 / 0.44
+mule-laser-boat           |   59.3 /   93.7 /   81.7 |    never /    never /    never |  123.1          | 0.56 / 0.83 / 0.78
+railgun-mule              |   74.0 /   78.1 /   78.1 |    never /    never /    never |   35.0          | 0.33 / 0.33 / 0.33
+vulture-sniper            |   46.5 /   55.7 /   56.3 |    never /    never /    never |   92.7          | 0.67 / 0.78 / 0.72
+bastion-tank              |   31.0 /   32.5 /   32.5 |    never /    never /    never |   86.6          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 1.5, SHOT_HEAT_TO_REACTOR_FRAC = 0.3 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   39.4 /   42.7 /   43.8 |    never /    never /    never |  130.1          | 0.78 / 0.94 / 0.94
+mule-gunline              |   36.0 /   49.5 /   59.5 |    never /    never /    never |   57.5          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   60.6 /   74.6 /   77.9 |    never /    never /    never |  130.3          | 0.56 / 0.33 / 0.39
+mule-laser-boat           |   46.1 /   80.6 /   67.2 |    never /    never /    never |  130.4          | 0.50 / 0.83 / 0.78
+railgun-mule              |   62.6 /   65.0 /   65.0 |    never /    never /    never |   36.5          | 0.33 / 0.33 / 0.33
+vulture-sniper            |   39.1 /   42.9 /   43.2 |    never /    never /    never |  105.1          | 0.67 / 0.78 / 0.72
+bastion-tank              |   30.1 /   30.3 /   30.8 |    never /    never /    never |   99.0          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 1.5, SHOT_HEAT_TO_REACTOR_FRAC = 0.5 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   41.7 /   47.4 /   50.9 |    never /    never /    never |  130.1          | 0.78 / 0.94 / 0.94
+mule-gunline              |   37.8 /   57.0 /   72.4 |    never /    never /    never |   60.8          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   66.9 /   83.1 /   83.1 |    never /    never /    never |  130.3          | 0.56 / 0.44 / 0.44
+mule-laser-boat           |   49.7 /   79.0 /   74.8 |    never /    never /    never |  126.7          | 0.50 / 0.83 / 0.78
+railgun-mule              |   65.8 /   69.9 /   69.9 |    never /    never /    never |   36.6          | 0.39 / 0.39 / 0.39
+vulture-sniper            |   41.2 /   47.6 /   48.1 |    never /    never /    never |  105.1          | 0.67 / 0.78 / 0.72
+bastion-tank              |   30.2 /   31.1 /   31.5 |    never /    never /    never |   99.0          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 1.5, SHOT_HEAT_TO_REACTOR_FRAC = 1 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   51.5 /   59.3 /   68.4 |    never /    never /    never |  130.1          | 0.78 / 0.94 / 0.94
+mule-gunline              |   45.3 /   78.0 /  106.7 |    never /    never /    never |   69.9          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   82.0 /  100.6 /  103.8 |    never /    never /    never |  130.3          | 0.56 / 0.28 / 0.39
+mule-laser-boat           |   59.3 /  107.1 /   93.6 |    never /    never /    never |  131.6          | 0.56 / 0.83 / 0.78
+railgun-mule              |   74.0 /   82.2 /   82.2 |    never /    never /    never |   37.4          | 0.33 / 0.33 / 0.33
+vulture-sniper            |   46.5 /   59.4 /   60.3 |    never /    never /    never |  105.1          | 0.67 / 0.78 / 0.72
+bastion-tank              |   31.0 /   33.2 /   33.2 |    never /    never /    never |   99.0          | 0.44 / 0.61 / 0.67
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 2, SHOT_HEAT_TO_REACTOR_FRAC = 0.3 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   39.4 /   42.9 /   46.1 |    never /    never /    never |  130.4          | 0.78 / 0.94 / 0.89
+mule-gunline              |   36.0 /   59.2 /   76.7 |    never /    never /    never |   78.8          | 0.00 / 0.22 / 0.11
+mule-skirmisher           |   60.6 /   76.4 /   80.1 |    never /    never /    never |  130.5          | 0.56 / 0.17 / 0.06
+mule-laser-boat           |   46.1 /   91.9 /   81.3 |    never /    never /    never |  133.5          | 0.50 / 0.78 / 0.78
+railgun-mule              |   62.6 /   67.5 /   67.5 |    never /    never /    never |   42.1          | 0.33 / 0.28 / 0.28
+vulture-sniper            |   39.1 /   44.5 /   44.8 |    never /    never /    never |  130.1          | 0.67 / 0.72 / 0.78
+bastion-tank              |   30.1 /   30.7 /   31.2 |    never /    never /    never |  123.6          | 0.44 / 0.61 / 0.72
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 2, SHOT_HEAT_TO_REACTOR_FRAC = 0.5 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   41.7 /   49.5 /   54.2 |    never /    never /    never |  130.4          | 0.78 / 0.94 / 0.89
+mule-gunline              |   37.8 /   69.5 /   92.9 |    never /    never /    never |   82.7          | 0.00 / 0.17 / 0.11
+mule-skirmisher           |   66.9 /   87.3 /   90.1 |    never /    never /    never |  130.4          | 0.56 / 0.17 / 0.22
+mule-laser-boat           |   49.7 /   95.8 /   94.3 |    never /    never /    never |  133.3          | 0.50 / 0.78 / 0.78
+railgun-mule              |   65.8 /   74.0 /   74.0 |    never /    never /    never |   42.5          | 0.39 / 0.33 / 0.33
+vulture-sniper            |   41.2 /   50.4 /   50.7 |    never /    never /    never |  130.1          | 0.67 / 0.72 / 0.78
+bastion-tank              |   30.2 /   31.8 /   32.0 |    never /    never /    never |  123.6          | 0.44 / 0.61 / 0.72
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 2, SHOT_HEAT_TO_REACTOR_FRAC = 1 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   51.5 /   66.5 /   74.5 |    never /    never /    never |  130.4          | 0.78 / 0.94 / 0.89
+mule-gunline              |   45.3 /   96.9 /  109.4 |    never /    never /    never |   91.9          | 0.00 / 0.17 / 0.17
+mule-skirmisher           |   82.0 /  108.3 /  113.0 |    never /    never /    never |  130.5          | 0.56 / 0.11 / 0.11
+mule-laser-boat           |   59.3 /  106.4 /  102.7 |    never /    never /    never |  133.9          | 0.56 / 0.83 / 0.78
+railgun-mule              |   74.0 /   90.3 /   90.3 |    never /    never /    never |   43.9          | 0.33 / 0.28 / 0.28
+vulture-sniper            |   46.5 /   65.4 /   65.4 |    never /    never /    never |  130.1          | 0.67 / 0.72 / 0.78
+bastion-tank              |   31.0 /   34.6 /   34.6 |    never /    never /    never |  123.6          | 0.44 / 0.61 / 0.72
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 3, SHOT_HEAT_TO_REACTOR_FRAC = 0.3 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   39.4 /   46.1 /   48.9 |    never /    never /    never |  130.9          | 0.78 / 0.78 / 0.61
+mule-gunline              |   36.0 /   77.7 /   86.4 |    never /    never /    never |  124.3          | 0.00 / 0.11 / 0.17
+mule-skirmisher           |   60.6 /   83.2 /   83.3 |    never /    never /    never |  130.7          | 0.56 / 0.00 / 0.00
+mule-laser-boat           |   46.1 /  101.0 /  100.2 |    never /    never /    never |  140.3          | 0.50 / 0.72 / 0.72
+railgun-mule              |   62.6 /   72.4 /   72.4 |    never /    never /    never |   56.4          | 0.33 / 0.28 / 0.28
+vulture-sniper            |   39.1 /   45.6 /   45.7 |    never /    never /    never |  130.7          | 0.67 / 0.61 / 0.61
+bastion-tank              |   30.1 /   31.5 /   31.8 |    never /    never /    never |  131.8          | 0.44 / 0.44 / 0.56
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 3, SHOT_HEAT_TO_REACTOR_FRAC = 0.5 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   41.7 /   53.5 /   58.0 |    never /    never /    never |  130.9          | 0.78 / 0.78 / 0.61
+mule-gunline              |   37.8 /   93.7 /   98.6 |    never /    never /    never |  129.0          | 0.00 / 0.11 / 0.17
+mule-skirmisher           |   66.9 /   93.3 /   93.4 |    never /    never /    never |  130.7          | 0.56 / 0.00 / 0.00
+mule-laser-boat           |   49.7 /  107.3 /  101.0 |    never /    never /    never |  140.2          | 0.50 / 0.61 / 0.83
+railgun-mule              |   65.8 /   82.2 /   82.2 |    never /    never /    never |   56.9          | 0.39 / 0.33 / 0.33
+vulture-sniper            |   41.2 /   52.2 /   52.3 |    never /    never /    never |  130.7          | 0.67 / 0.61 / 0.61
+bastion-tank              |   30.2 /   33.1 /   33.0 |    never /    never /    never |  131.8          | 0.44 / 0.44 / 0.56
+  autopilot never shuts down: yes | ovr: 0/7 cross, earliest n/a (splits: NO, > 10 s: NO) | alpha: 0/7 cross, earliest n/a => fails
+
+### OVERDRIVE_HEAT_MULT = 3, SHOT_HEAT_TO_REACTOR_FRAC = 1 (cycle x0.7, 3 seeds)
+template                  | core peak auto / ovr / alpha | core ≥130°C at auto / ovr / alpha | weapon peak ovr | win auto / ovr / alpha
+vulture-skirmisher        |   51.5 /   72.1 /   80.9 |    never /    never /    never |  130.9          | 0.78 / 0.78 / 0.61
+mule-gunline              |   45.3 /  130.7 /  130.7 |    never /   70.3 s /   65.5 s |  130.5          | 0.00 / 0.17 / 0.11
+mule-skirmisher           |   82.0 /  115.2 /  115.6 |    never /    never /    never |  130.7          | 0.56 / 0.00 / 0.06
+mule-laser-boat           |   59.3 /  124.7 /  121.3 |    never /    never /    never |  139.0          | 0.56 / 0.56 / 0.56
+railgun-mule              |   74.0 /  107.0 /  107.0 |    never /    never /    never |   59.1          | 0.33 / 0.28 / 0.28
+vulture-sniper            |   46.5 /   68.6 /   68.7 |    never /    never /    never |  130.7          | 0.67 / 0.61 / 0.61
+bastion-tank              |   31.0 /   39.1 /   38.6 |    never /    never /    never |  131.8          | 0.44 / 0.44 / 0.56
+  autopilot never shuts down: yes | ovr: 1/7 cross, earliest 70.35 s (splits: yes, > 10 s: yes) | alpha: 1/7 cross, earliest 65.55 s => MEETS BOTH
+
+passing pairs: heat x3, frac 1 -- smallest: heat x3, frac 1
+```
+
+**The corner pair is the only pass, and it is a knife-edge.** Heat ×3.0 with
+fraction 1.0 meets both criteria, but only just:
+- **One template crosses.** Under OVR, `mule-gunline` crosses first at 70.35 s
+  (65.55 s under alpha-spam), with a peak of 130.7 °C.
+- **The next pair down crosses nothing.** At fraction 0.5, the same multiplier
+  peaks at 107.3 °C.
+- **It breaks an existing test.** `coolantBath.test.ts`, "cools a wading mech
+  measurably more when its radiator carries a Tidecooler", fails by 0.16 °C: the
+  wet-tick mean hottest cell is 64.50 °C with the mod against 64.34 °C without.
+  At fraction 0.5 and below the test passes by about 2.3 °C.
+- **The mod itself still works.** In a controlled bath (standing in water,
+  firing, 30–60 s, fraction 1.0) it cuts the hottest cell from 100.5 to
+  81.1 °C.
+- **Two causes were ruled out.** Every part of that build shares one conduction
+  component, so the radiators do reach the reactor. The reactor fire-hold never
+  engages in those fights, and shots are equal (258 vs 260).
+- **The cause of the failure was not isolated.** The modded mech wades 13% more
+  ticks, so the test's mean is taken over different samples. At fraction 1.0 the
+  reactor holds the hottest cell on 57% of wet ticks.
+- **It costs a build its guns.** Overdrive at ×3.0 cooks guns by itself: every
+  template except `railgun-mule` takes its weapons to about 130 °C under OVR,
+  and `mule-skirmisher`'s OVR win rate falls 0.56 → 0.00.
+
+**Ruling (24 Sep 2026): ship ×1.5 and 0.3; do not adopt ×3.0 and 1.0.** The
+corner pair is a single template crossing by 0.7 °C. It breaks a test for a
+cause nobody has isolated, and it zeroes a build. At ×1.5 and 0.3, overdrive is
+already a real per-build decision:
+- the hottest guns reach part shutdown (weapon peaks of 130.1–130.4 °C on three
+  templates);
+- win rates move in both directions (below).
+
+The mech-wide shutdown stays built, tested and dormant on the canonical roster.
+Making it reachable is balance work, and balance is a separate track in this
+project.
+
+Win rate with overdrive, autopilot → OVR (and alpha-spam), at ×1.5 and 0.3.
+Each template is side 0 against the other six, 3 seeds:
+
+```
+template                  | autopilot | OVR  | alpha | shift (OVR)
+vulture-skirmisher        |   0.78    | 0.94 | 0.94  | +0.16
+mule-gunline              |   0.00    | 0.22 | 0.11  | +0.22
+mule-skirmisher           |   0.56    | 0.33 | 0.39  | -0.23  (its MGs reach 130.3 °C: part shutdown)
+mule-laser-boat           |   0.50    | 0.83 | 0.78  | +0.33
+railgun-mule              |   0.33    | 0.33 | 0.33  |  0.00  (cap-fed; weapon peak 36.5 °C)
+vulture-sniper            |   0.67    | 0.78 | 0.72  | +0.11
+bastion-tank              |   0.44    | 0.61 | 0.67  | +0.17
+```
+
+Five of seven builds gain, one loses and one is unchanged. So overdrive is a net
+buff for most of the roster, and the cost falls on the build whose guns run
+hottest.
+
+What would make the reactor bite is hotter weapons, or tighter cooling near the
+reactor. That is balance-track work, not a constant to turn here; see
+`docs/19-watchlist.md`.
