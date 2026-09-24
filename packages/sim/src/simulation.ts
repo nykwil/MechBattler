@@ -66,9 +66,21 @@ export const HEAT_MECH_SHUTDOWN_C = HEAT_SHUTDOWN_C;
  * Share of every shot's heat that also lands on the reactor and core (MW spec
  * §4, amended after docs/17 F77). The reactor pays for the shot, so firing
  * builds one mech-wide heat level -- MechWarrior's heat bar -- on top of the
- * per-part cells. Tuned by `sim:overheat --sweep`, see F77.
+ * per-part cells. The smallest pair in the `sim:overheat --sweep` grid, with
+ * OVERDRIVE_HEAT_MULT, that meets Step 5b's criteria -- see F77.
  */
-export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder until Step 5b's sweep sets it
+export const SHOT_HEAT_TO_REACTOR_FRAC = 0.3; // placeholder: the grid's pick (1.0) fails coolantBath, see F77
+/**
+ * OVR overdrive (MW spec §3, amended 24 Sep 2026): guns cycle this much faster...
+ * A charged gun's charge time is set by its maxChargeKw and does not change;
+ * only its post-shot cooldown shortens, as a cap-fed gun's does.
+ */
+export const OVERDRIVE_CYCLE_MULT = 0.7;
+/**
+ * ...and every shot makes this much more heat, in its own cells and on the
+ * reactor. Chosen with SHOT_HEAT_TO_REACTOR_FRAC by `sim:overheat --sweep` (F77).
+ */
+export const OVERDRIVE_HEAT_MULT = 1.5; // placeholder: the grid's pick (3.0) waits on the same decision
 /** Above this, heat does structural damage. */
 export const HEAT_DAMAGE_C = 150;
 /** Arena ambient, the bottom of the HUD's heat span. */
@@ -97,6 +109,8 @@ export interface SimCommand {
   /** Physical context for dynamic modifiers (docs/04 §4b). Defaults: 0, 'open'. */
   speedMps?: number;
   tile?: TerrainType;
+  /** OVR overdrive (MW spec §3): guns cycle faster and every shot runs hotter. */
+  overdrive?: boolean;
 }
 
 export interface ShotEvent {
@@ -138,6 +152,8 @@ export interface SimSnapshot {
 export interface SimulationOptions {
   /** Overrides SHOT_HEAT_TO_REACTOR_FRAC; only the `sim:overheat` sweep sets it. */
   shotHeatToReactorFrac?: number;
+  /** Overrides OVERDRIVE_HEAT_MULT; only the `sim:overheat` sweep sets it. */
+  overdriveHeatMult?: number;
 }
 
 export interface InstanceRuntime {
@@ -194,11 +210,13 @@ export class Simulation {
   private heatHarvestIds = new Set<string>();
   private coveredHeatMultByInstance = new Map<string, number>();
   private readonly shotHeatToReactorFrac: number;
+  private readonly overdriveHeatMult: number;
   /** Whole-mech shutdown (MW spec §4): reactor off, no fire, no drive. */
   private mechShutdown = false;
 
   constructor(chassis: ChassisSpec, build: Build, opts: SimulationOptions = {}) {
     this.shotHeatToReactorFrac = opts.shotHeatToReactorFrac ?? SHOT_HEAT_TO_REACTOR_FRAC;
+    this.overdriveHeatMult = opts.overdriveHeatMult ?? OVERDRIVE_HEAT_MULT;
     this.chassis = chassis;
     this.build = build;
     this.parts = build.parts;
@@ -461,6 +479,9 @@ export class Simulation {
       multsById.set(p.instanceId, effectiveMults(p, { tempC: this.meanCellC(p.instanceId), speedMps, tile }));
     }
     const M = (id: string): Readonly<EffectiveMults> => multsById.get(id) ?? NEUTRAL_MULTS;
+    // OVR overdrive (MW spec §3): every cycle read and every shot's heat goes through these.
+    const cycleMultOf = (id: string): number => M(id).cycleS * (command.overdrive ? OVERDRIVE_CYCLE_MULT : 1);
+    const shotHeatMult = command.overdrive ? this.overdriveHeatMult : 1;
     /** The one "is this gun cleared to fire" test for every firing class. */
     const triggered = (id: string): boolean =>
       !this.mechShutdown && (command.weaponsEnabled[id] === true || this.runtime.get(id)?.volleyPending === true);
@@ -512,9 +533,9 @@ export class Simulation {
       }
       if (rt.capDrawnKj >= def.draw.capFedEnergyPerShotKj) {
         shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage * M(p.instanceId).damage });
-        if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
+        if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * shotHeatMult * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
         rt.capDrawnKj = 0;
-        rt.cooldownRemainingS = def.weapon!.cycleS * M(p.instanceId).cycleS;
+        rt.cooldownRemainingS = def.weapon!.cycleS * cycleMultOf(p.instanceId);
       }
     }
 
@@ -545,7 +566,7 @@ export class Simulation {
           if (enabled) kw = def.draw.continuousKw * M(p.instanceId).drawKw;
           // Held: the load keeps coming and waits at full (MW spec §1). The draw
           // is the shot's, so a held continuous gun asks for nothing.
-          else if (!this.mechShutdown) rt.cycleTimer = Math.min(def.weapon!.cycleS * M(p.instanceId).cycleS, rt.cycleTimer + dtSec);
+          else if (!this.mechShutdown) rt.cycleTimer = Math.min(def.weapon!.cycleS * cycleMultOf(p.instanceId), rt.cycleTimer + dtSec);
         } else if (
           def.draw?.chargedEnergyPerShotKj && rt.cooldownRemainingS <= 0
           && rt.chargeKj < def.draw.chargedEnergyPerShotKj && !this.mechShutdown
@@ -695,13 +716,13 @@ export class Simulation {
 
       const eff = M(id);
       if (def.draw?.continuousKw) {
-        const cycleS = def.weapon!.cycleS * eff.cycleS;
+        const cycleS = def.weapon!.cycleS * cycleMultOf(id);
         rt.cycleTimer += dtSec;
         while (rt.cycleTimer >= cycleS) {
           rt.cycleTimer -= cycleS;
           const totalDamage = def.weapon!.damage * eff.damage * (def.weapon!.salvoCount ?? 1);
           shotsThisTick.push({ tSec: this.tSec, instanceId: id, partId: part.partId, totalDamage });
-          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(id) ?? 1));
+          if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(id)!, def.heat.heatPerShotKj * shotHeatMult * (this.coveredHeatMultByInstance.get(id) ?? 1));
         }
       } else if (def.draw?.chargedEnergyPerShotKj) {
         rt.chargeKj = Math.min(def.draw.chargedEnergyPerShotKj, rt.chargeKj + kw * dtSec);
@@ -727,7 +748,7 @@ export class Simulation {
       const rt = this.runtime.get(p.instanceId)!;
       if (rt.destroyed || rt.isShutdown || rt.cookedOff) continue;
       const eff = M(p.instanceId);
-      const cycleS = def.weapon!.cycleS * eff.cycleS;
+      const cycleS = def.weapon!.cycleS * cycleMultOf(p.instanceId);
       if (!triggered(p.instanceId)) {
         if (!this.mechShutdown) rt.cycleTimer = Math.min(cycleS, rt.cycleTimer + dtSec); // held: load and wait (MW spec §1)
         continue;
@@ -740,7 +761,7 @@ export class Simulation {
         if (def.heat?.heatPerShotKj) {
           addHeat(
             this.thermal.cellKeysByInstance.get(p.instanceId)!,
-            def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1),
+            def.heat.heatPerShotKj * shotHeatMult * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1),
           );
         }
       }
@@ -761,9 +782,9 @@ export class Simulation {
       if (rt.chargeKj < def.draw.chargedEnergyPerShotKj) continue;
       const eff = M(p.instanceId);
       shotsThisTick.push({ tSec: this.tSec, instanceId: p.instanceId, partId: p.partId, totalDamage: def.weapon!.damage * eff.damage });
-      if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
+      if (def.heat?.heatPerShotKj) addHeat(this.thermal.cellKeysByInstance.get(p.instanceId)!, def.heat.heatPerShotKj * shotHeatMult * (this.coveredHeatMultByInstance.get(p.instanceId) ?? 1));
       rt.chargeKj = 0;
-      rt.cooldownRemainingS = def.weapon!.cycleS * eff.cycleS - (def.draw.minChargeS ?? 0);
+      rt.cooldownRemainingS = def.weapon!.cycleS * cycleMultOf(p.instanceId) - (def.draw.minChargeS ?? 0);
     }
 
     // An Alpha is spent by the shot it armed, whichever firing class took it.
@@ -773,7 +794,7 @@ export class Simulation {
     if (shotsThisTick.length > 0 && this.shotHeatToReactorFrac > 0) {
       let kj = 0;
       for (const shot of shotsThisTick) kj += getPart(shot.partId).heat?.heatPerShotKj ?? 0;
-      if (kj > 0) addHeat(this.reactorCoreCellKeys(), kj * this.shotHeatToReactorFrac);
+      if (kj > 0) addHeat(this.reactorCoreCellKeys(), kj * shotHeatMult * this.shotHeatToReactorFrac);
     }
 
     // --- 7. Reactor waste heat ---
@@ -935,7 +956,7 @@ export class Simulation {
       rt.loaded = usable && (
         def.draw?.capFedEnergyPerShotKj ? rt.cooldownRemainingS <= 0
           : def.draw?.chargedEnergyPerShotKj ? rt.cooldownRemainingS <= 0 && rt.chargeKj >= def.draw.chargedEnergyPerShotKj
-            : rt.cycleTimer >= def.weapon!.cycleS * M(p.instanceId).cycleS
+            : rt.cycleTimer >= def.weapon!.cycleS * cycleMultOf(p.instanceId)
       );
       // An Alpha fires what is ready at the press. A gun that stops being loaded
       // before it can fire (shutdown, shed, cook-off) loses the press, instead of

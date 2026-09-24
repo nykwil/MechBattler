@@ -334,7 +334,10 @@ export type MoveIntent = 'close' | 'retreat' | 'orbit' | 'hold' | 'flee' | 'dire
 
 export type MechOrder =
   /** Verb 1 — fire control: which weapons are cleared to fire. */
-  | { verb: 'weapons'; enabled: Record<string, boolean>; /** Alpha press token (MW spec §3). */ volley?: number }
+  | {
+    verb: 'weapons'; enabled: Record<string, boolean>; /** Alpha press token (MW spec §3). */ volley?: number;
+    /** OVR overdrive (MW spec §3): guns cycle faster and run hotter. Only OVR sets it. */ overdrive?: boolean;
+  }
   /** Verb 2 — movement: a destination plus the intent label (for logs/UI). */
   | { verb: 'move'; intent: MoveIntent; dest: Vec2 | null }
   /** Verb 3 — throttle: the speed setting (dispersion/heat trade, docs/03 §4). */
@@ -503,6 +506,8 @@ export class Combatant {
   moveIntent: MoveIntent = 'hold';
   faceOrder: Extract<MechOrder, { verb: 'face' }> = { verb: 'face', mode: 'target' };
   weaponsEnabled: Record<string, boolean> = {};
+  /** OVR overdrive (MW spec §3), set by the last weapons order. */
+  overdrive = false;
   staggerUntilS = -1;
   staggerDispersionUntilS = -1;
   /**
@@ -1629,7 +1634,9 @@ export function mergeManualOrders(baseOrders: MechOrder[], m: ManualOrders, ctx:
         }
       }
       if (m.weapons) for (const [id, ovr] of Object.entries(m.weapons)) enabled[id] = ovr === 'force';
-      return { verb: 'weapons', enabled, ...(m.alpha ? { volley: m.alpha } : {}) };
+      return {
+        verb: 'weapons', enabled, ...(m.alpha ? { volley: m.alpha } : {}), ...(m.overrideHeat ? { overdrive: true } : {}),
+      };
     }
     if (o.verb === 'move' && m.move) {
       return m.move === 'hold'
@@ -1680,6 +1687,7 @@ export function applyOrder(self: Combatant, order: MechOrder, tSec = 0): void {
   switch (order.verb) {
     case 'weapons':
       self.commandWeapons(order.enabled, tSec);
+      self.overdrive = order.overdrive === true;
       break;
     case 'move':
       self.moveIntent = order.intent;
@@ -1795,6 +1803,8 @@ export interface BattleOptions {
   lockstep?: boolean;
   /** Overrides SHOT_HEAT_TO_REACTOR_FRAC for both mechs; only the `sim:overheat` sweep sets it. */
   shotHeatToReactorFrac?: number;
+  /** Overrides OVERDRIVE_HEAT_MULT for both mechs; only the `sim:overheat` sweep sets it. */
+  overdriveHeatMult?: number;
 }
 
 export class Battle {
@@ -1851,8 +1861,10 @@ export class Battle {
     const jitter = () => (this.rng.nextFloat() * 2 - 1) * jitterMax;
     const posA: Vec2 = { x: -half, y: jitter() };
     const posB: Vec2 = { x: half, y: jitter() };
-    const simOptions: SimulationOptions = options.shotHeatToReactorFrac === undefined
-      ? {} : { shotHeatToReactorFrac: options.shotHeatToReactorFrac };
+    const simOptions: SimulationOptions = {
+      ...(options.shotHeatToReactorFrac === undefined ? {} : { shotHeatToReactorFrac: options.shotHeatToReactorFrac }),
+      ...(options.overdriveHeatMult === undefined ? {} : { overdriveHeatMult: options.overdriveHeatMult }),
+    };
     this.combatants = [
       new Combatant(options.builds[0], posA, datan2(posB.y - posA.y, posB.x - posA.x), simOptions),
       new Combatant(options.builds[1], posB, datan2(posA.y - posB.y, posA.x - posB.x), simOptions),
@@ -1933,6 +1945,7 @@ export class Battle {
         // Physical context for dynamic modifiers (docs/04 §4b).
         speedMps: len(self.vel),
         tile,
+        overdrive: self.overdrive,
       };
       const snapshot = self.sim.step(dt, command);
       this.lastSnapshots[i] = snapshot;
@@ -2132,8 +2145,11 @@ export class Battle {
 
   private logTransitions(i: 0 | 1, snapshot: SimSnapshot): void {
     const shed = new Set(snapshot.shedInstanceIds);
+    // A shut-down mech sheds everything its dead reactor fed; the ticker says
+    // REACTOR SHUTDOWN once instead of a burst of sheds. Still recorded as
+    // seen, so the restart's hysteresis hold does not log them either.
     for (const id of shed) {
-      if (!this.lastShed[i].has(id)) this.events.push({ tSec: this.tSec, type: 'shed', mech: i, instanceId: id });
+      if (!this.lastShed[i].has(id) && !snapshot.mechShutdown) this.events.push({ tSec: this.tSec, type: 'shed', mech: i, instanceId: id });
     }
     this.lastShed[i] = shed;
     const shut = new Set(snapshot.shutdownInstanceIds);
@@ -2314,6 +2330,7 @@ export class Battle {
       for (const kj of c.sim.capacitorLevels()) f(kj);
       u(c.sim.volleyPendingIds().length);
       u(c.sim.isMechShutdown ? 1 : 0);
+      u(c.overdrive ? 1 : 0);
     }
     const [hi, lo] = this.rng.stateBits();
     u(hi); u(lo);

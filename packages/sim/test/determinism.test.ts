@@ -169,10 +169,13 @@ describe('lockstep state hashing & goldens (docs/11 M1)', () => {
 // 0.3 placeholder), and the shutdown flag joins the state hash. Only finalHash
 // moved; winner, reason, duration and shots are unchanged. With the fraction at
 // 0 and the new hash term removed, the old 753402588 reproduces exactly.
+// Re-pinned 24 Sep 2026, still 2.20.0, for OVR overdrive (Task 5 Step 5c): the
+// Combatant's overdrive flag joins the state hash. The fixture runs no OVR, so
+// only finalHash moved; with that term removed, 600610636 reproduces exactly.
 const GOLDEN = {
   winner: 1 as const,
   reason: 'mission-kill',
   durationS: 36.65,
   shots: [43, 524],
-  finalHash: 600610636,
+  finalHash: 3891178396,
 };

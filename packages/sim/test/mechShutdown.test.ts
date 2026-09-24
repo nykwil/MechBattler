@@ -70,6 +70,28 @@ describe('mech-wide shutdown', () => {
     const types = battle.events.filter((e) => e.type === 'mech-shutdown' || e.type === 'mech-restart').map((e) => e.type);
     expect(types).toEqual(['mech-shutdown', 'mech-restart']);
     expect(battle.latestFrame()!.mechs[0].mechShutdown).toBe(false);
+    // The ticker says REACTOR SHUTDOWN once, not a burst of sheds for every
+    // always-on utility the dead reactor can no longer feed.
+    const down = battle.events.findIndex((e) => e.type === 'mech-shutdown');
+    const up = battle.events.findIndex((e) => e.type === 'mech-restart');
+    expect(battle.events.slice(down, up).filter((e) => e.type === 'shed' && e.mech === 0)).toEqual([]);
+  });
+
+  it('a shutdown does not log a shed for the utilities it unpowers', () => {
+    // The gunline has no always-on utility, so the assertion above cannot fail
+    // on it. The bastion's targeting computer (U-TC1) is the only one on the roster.
+    const bastion = TEMPLATES.find((t) => t.id === 'bastion-tank')!.build;
+    const battle = new Battle({ builds: [bastion, bastion], seed: 3, timeoutS: 20 });
+    for (let t = 0; t < 40; t++) battle.step();
+    const me = battle.combatants[0];
+    for (let t = 0; t < 41; t++) { setTemp(me.sim, HEAT_MECH_SHUTDOWN_C + 1); battle.step(); }
+    setTemp(me.sim, 30);
+    battle.step();
+    const down = battle.events.findIndex((e) => e.type === 'mech-shutdown' && e.mech === 0);
+    const up = battle.events.findIndex((e) => e.type === 'mech-restart' && e.mech === 0);
+    expect(down).toBeGreaterThanOrEqual(0);
+    expect(up).toBeGreaterThan(down);
+    expect(battle.events.slice(down, up).filter((e) => e.type === 'shed' && e.mech === 0)).toEqual([]);
   });
 
   it('the autopilot holds fire on a hot reactor, and OVR fires through it', () => {
