@@ -90,11 +90,11 @@ export function chipsFor(def: PartDef): Chip[] {
     case 'U-CON': chips.push({ text: 'bridges power', kind: 'note' }); break;
     case 'U-PIPE': chips.push({ text: 'bridges heat ×4', kind: 'heat' }); break;
     case 'U-RAD': chips.push({ text: 'cools 6 kW', kind: 'cool' }); break;
-    case 'U-HS': chips.push({ text: 'soaks heat ×6', kind: 'cool' }); break;
+    case 'U-HS': case 'U-HS3': chips.push({ text: 'soaks heat ×6', kind: 'cool' }); break;
     case 'U-AMMO': chips.push({ text: 'cook-off @ 180°C', kind: 'dmg' }); break;
     case 'U-TC1': chips.push({ text: 'anti-strafe aim', kind: 'note' }); break;
     case 'U-ACT': chips.push({ text: '+15% speed', kind: 'note' }); break;
-    case 'U-ARM': chips.push({ text: 'just gets hit', kind: 'note' }); break;
+    case 'U-ARM': case 'U-ARM3': chips.push({ text: 'just gets hit', kind: 'note' }); break;
     case 'U-TUR':
       chips.push({ text: '+25° supported weapon arc', kind: 'note' });
       chips.push({ text: 'support layer · carries 60 kW', kind: 'energy' });

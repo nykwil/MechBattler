@@ -118,7 +118,10 @@ const DOCTRINES: readonly Doctrine[] = [
     label: 'LINE',
     templateIds: ['mule-gunline', 'mule-runt', 'bastion-picket', 'bastion-tank'],
     // Mid-range and hard to move: it wants a firing line and armour to hold it.
-    fillPartIds: ['W-AC', 'W-MG', 'U-ARM', 'U-ARM', 'U-RAD'],
+    // One of its plates is a Bracket so that an L-shaped part turns up in wreck
+    // salvage, not only on a scrapyard shelf: finding the piece that fits the
+    // hole is a salvage decision before it is a shopping one.
+    fillPartIds: ['W-AC', 'W-MG', 'U-ARM', 'U-ARM3', 'U-RAD'],
   },
   {
     id: 'lancer',

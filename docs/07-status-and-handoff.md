@@ -231,6 +231,15 @@ radiators that delivered ~0 and nothing to the skin that delivered everything.
 `17` F14 is the measurement and F15 the change. Anything written about heat
 before that date — including the equilibria in `02` §5 — is suspect by default.
 
+**The L family** shipped 17 Oct 2026: `U-ARM3` Bracket, `U-HS3` Knuckle and
+`R-E25L` Crook — the Plate, Brick and Whisper cut to L-trominoes and an
+L-tetromino at their originals' per-cell rates, so two of a kind slide together
+into a rectangle. They are the first parts that make "does this salvage fit the
+hole I have" a real question. Bracket and Knuckle unlock on `first-blood`, the
+Crook on `brownout-survivor`; the LINE doctrine carries a Bracket so they appear
+in wreck salvage. `01` §7 *The L family* is the record. Not yet measured by
+`sim:breed`.
+
 ## 5. What is open
 
 ### Balance and progression

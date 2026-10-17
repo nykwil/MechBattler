@@ -48,7 +48,7 @@ describe('power-connection predicates (one rule, not three)', () => {
     const extra = Object.values(PARTS).filter(
       (def) => participatesInPowerNetwork(def) && !requiresPowerConnection(def),
     );
-    expect(extra.map((def) => def.id).sort()).toEqual(['R-C40', 'R-C90', 'R-E25', 'R-E60']);
+    expect(extra.map((def) => def.id).sort()).toEqual(['R-C40', 'R-C90', 'R-E25', 'R-E25L', 'R-E60']);
   });
 
   it('inert structure is neither -- it should render dim, not live/dead', () => {

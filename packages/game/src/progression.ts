@@ -119,7 +119,7 @@ export function fingerprintBuild(build: Build): BuildFingerprint {
       massT: round(speed.massT), loadFactor: round(speed.loadFactor),
       forwardMps: round(speed.fwd), turnDegS: round(speed.turnRateDegS),
     },
-    armorParts: build.parts.filter((part) => part.partId === 'U-ARM' || part.partId === 'U-SHELL').length,
+    armorParts: build.parts.filter((part) => part.partId === 'U-ARM' || part.partId === 'U-ARM3' || part.partId === 'U-SHELL').length,
     protectedPayloads,
     meanIntegrity: build.parts.length === 0 ? 1 : round(
       build.parts.reduce((sum, part) => sum + (part.integrity ?? 1), 0) / build.parts.length),
@@ -298,9 +298,9 @@ function partScore(policy: ProgressionPolicyId, partId: string, owned = 0): numb
   const part = getPart(partId);
   const range = part.weapon?.falloff.max ?? 0;
   const dps = part.weapon ? part.weapon.damage * (part.weapon.salvoCount ?? 1) / part.weapon.cycleS : 0;
-  const armor = partId === 'U-ARM' || partId === 'U-SHELL' ? 30 : 0;
+  const armor = partId === 'U-ARM' || partId === 'U-ARM3' || partId === 'U-SHELL' ? 30 : 0;
   const supply = part.reactor ? part.reactor.outputKw : 0;
-  const cooling = partId === 'U-RAD' ? 45 : partId === 'U-HS' || partId === 'U-PIPE' ? 25 : 0;
+  const cooling = partId === 'U-RAD' ? 45 : partId === 'U-HS' || partId === 'U-HS3' || partId === 'U-PIPE' ? 25 : 0;
   const base = (() => {
     switch (policy) {
       case 'range': return range + dps * 3 + (partId === 'U-TC1' || partId === 'U-TUR' ? 35 : 0);

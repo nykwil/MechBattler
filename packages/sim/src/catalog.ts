@@ -72,6 +72,42 @@ export const PARTS: Record<string, PartDef> = {
     shape: [{ dx: 0, dy: 0 }], massKg: 150, hp: 60, tier: 1,
     spatial: { height: 0 },
   },
+  // --- The L family: finding a part that fits the hole (docs/01 §1, docs/06 §6a) ---
+  //
+  // Every payload footprint in the catalog was a rectangle or a line, so the
+  // space left over late in a build was only ever filled one cell at a time,
+  // and the "does this salvage fit the hole I have" question never came up.
+  // These three are the same parts the catalog already had, cut to an L and
+  // priced at their originals' per-cell rates so that shape is the only
+  // variable -- the Mantle/Carapace precedent.
+  //
+  // They are chosen to slide together. Two L-trominoes, one turned 180, close
+  // into a 2x3 block; two L-tetrominoes do the same into a 2x4. With no
+  // mirroring, the 4-cell L has a handedness: it fills an L-shaped hole and
+  // never its mirror J, which is what makes a salvaged one either exactly right
+  // for a frame or useless on it. The 3-cell L is its own mirror under
+  // rotation, so it fits every L-shaped corner.
+  //
+  // Tier is per part, not per cell: three loose Plates cost three tiers of rank
+  // and a Bracket costs two. The discount is what the shape restriction buys.
+  'U-ARM3': {
+    id: 'U-ARM3', name: 'Bracket (armor)', category: 'structural',
+    shape: rows(
+      '#.',
+      '##',
+    ),
+    massKg: 450, hp: 180, tier: 2,
+    spatial: { height: 0 },
+  },
+  'U-HS3': {
+    id: 'U-HS3', name: 'Knuckle (heat sink)', category: 'utility',
+    shape: rows(
+      '#.',
+      '##',
+    ),
+    massKg: 180, hp: 60, tier: 2, thermalMassPerCell: 6.0,
+    spatial: { transfersHeat: true, thermalConductance: 2 },
+  },
   'U-AMMO': {
     id: 'U-AMMO', name: 'Bin (ammo store)', category: 'utility',
     shape: line(2), massKg: 200, hp: 30, tier: 1,
@@ -256,6 +292,21 @@ export const PARTS: Record<string, PartDef> = {
   'R-E25': {
     id: 'R-E25', name: 'Whisper (electric S)', category: 'reactor',
     shape: rect(2, 2), massKg: 300, hp: 45, tier: 1, thermalMassPerCell: 2.0,
+    reactor: { archetype: 'electric', outputKw: 25, wasteHeatKw: 1, throttleLagS: 0 },
+    spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, height: 2 },
+  },
+  // The Whisper, cut to an L-tetromino and otherwise identical (see the L family
+  // above U-ARM3). docs/06 §6a's own example of shape as a stat: the reactor that
+  // fits a notch a 2x2 cannot. It gives up the Mantle, which only covers 2x2, so
+  // the one way to seal a small reactor is the one this shape cannot take.
+  'R-E25L': {
+    id: 'R-E25L', name: 'Crook (electric S)', category: 'reactor',
+    shape: rows(
+      '#.',
+      '#.',
+      '##',
+    ),
+    massKg: 300, hp: 45, tier: 1, thermalMassPerCell: 2.0,
     reactor: { archetype: 'electric', outputKw: 25, wasteHeatKw: 1, throttleLagS: 0 },
     spatial: { transfersPower: true, electricalCapacityKw: 60, transfersHeat: true, height: 2 },
   },

@@ -137,7 +137,9 @@ neighbours, and where it sits on the tier curve. A gate cannot check identity.
 | U-PIPE | Thermal manifold | 1×1 | 20 kg | 10 | 1 | Heat-transfer equipment; can bridge a regional port |
 | U-RAD | Gill (radiator) | 1×3 | 100 kg | 25 | 2 | Perimeter cells only |
 | U-HS | Brick (heat sink) | 1×1 | 60 kg | 20 | 1 | — |
+| U-HS3 | Knuckle (heat sink) | L, 3 cells | 180 kg | 60 | 2 | — (the L family, below) |
 | U-ARM | Plate (armor) | 1×1 | 150 kg | 60 | 1 | — |
+| U-ARM3 | Bracket (armor) | L, 3 cells | 450 kg | 180 | 2 | — (the L family, below) |
 | U-AMMO | Bin (ammo store) | 1×2 | 200 kg | 30 | 1 | **Disabled placeholder** — nothing consumes ammo; cook-off risk (02 §6) and `sacrificial-casing` are live. Deferred on purpose, see `19-watchlist.md` |
 | U-TC1 | Abacus (targeting computer) | 1×1 | 50 kg | 15 | 2 | — |
 | U-ACT | Stride (servo booster) | 1×2 | 160 kg | 25 | 2 | +15% all chassis speeds while powered |
@@ -149,8 +151,28 @@ neighbours, and where it sits on the tier curve. A gate cannot check identity.
 | R-C40 | Lump (combustion S) | 2×2 | 350 kg | 50 | 1 |
 | R-C90 | Furnace (combustion M) | 3×3 | 900 kg | 90 | 3 |
 | R-E25 | Whisper (electric S) | 2×2 | 300 kg | 45 | 1 |
+| R-E25L | Crook (electric S) | L, 4 cells | 300 kg | 45 | 1 |
 | R-E60 | Arc (electric M) | 3×3 | 750 kg | 80 | 3 |
 | P-CAP | Jolt (capacitor) | 1×2 | 90 kg | 20 | 2 |
+
+### The L family (Oct 2026)
+
+The first parts authored for §1's "irregular shapes are a design goal": the Plate, the
+Brick and the Whisper, each cut to an L and priced at the original's per-cell rates, so
+shape is the only variable. They exist for the loop of finding a part that fits the hole
+a build has left, which every rectangle in the catalog made a non-question.
+
+- **They slide together.** Two of a kind, one turned 180°, close into a rectangle —
+  2×3 for the 3-cell L, 2×4 for the 4-cell one.
+- **The 4-cell L has a handedness.** With no mirroring it fills L-shaped holes and never
+  J-shaped ones, so a salvaged Crook is exactly right for one frame and useless on
+  another. The 3-cell L reaches its own mirror by rotation and fits any corner.
+- **Tier is per part.** A Bracket is two tiers of rank where three Plates are three; the
+  discount is what the shape restriction buys.
+- **The Crook cannot be sealed.** The Mantle covers 2×2 only.
+
+The LINE doctrine carries a Bracket in its fill pool so one turns up in wreck salvage as
+well as on scrapyard shelves. `packages/sim/test/lShapes.test.ts` pins the geometry.
 
 ### Weapons (ballistics in 03, power/heat in 02)
 

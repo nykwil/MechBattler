@@ -6,7 +6,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'first-blood', name: 'First Blood',
     description: 'Win one battle.',
     criterion: { all: [{ kind: 'battle-won' }] },
-    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE', 'U-RISE2', 'U-RISE3', 'U-RISEL', 'U-PLINTH'],
+    unlockPartIds: ['R-C40', 'W-AC', 'U-HS', 'U-TUR', 'U-SHELL', 'U-MANTLE', 'U-RISE2', 'U-RISE3', 'U-RISEL', 'U-PLINTH', 'U-ARM3', 'U-HS3'],
   },
   {
     id: 'clean-machine', name: 'Clean Machine',
@@ -42,7 +42,7 @@ export const CHALLENGES: ChallengeDefinition[] = [
     id: 'brownout-survivor', name: 'Brownout Survivor',
     description: 'Win after at least three player power-shed transitions.',
     criterion: { all: [{ kind: 'battle-won' }, { kind: 'min-player-sheds', value: 3 }] },
-    unlockPartIds: ['R-E60', 'P-CAP'],
+    unlockPartIds: ['R-E60', 'P-CAP', 'R-E25L'],
   },
   {
     id: 'heavy-hitter', name: 'Heavy Hitter',
