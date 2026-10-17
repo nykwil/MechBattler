@@ -20,6 +20,12 @@ The call: play one full run, then either share it with a few people or park it f
 the reason written down. No more balance work until then.
 
 ## Right now
+- Engineering wrap-up (17 Oct 2026): weapon groups, Alpha, overdrive and reactor
+  shutdown are implemented. Fresh verification passed 752 game/simulation/web
+  tests, all three builds, the content audit, the seven-screen phone audit, and
+  the campaign-node smoke test. The smoke test uses a disarmed opponent; it
+  verifies progression and settlement, not difficulty or human acceptance.
+  Balance remains report-only; the existing findings and watchlist still apply.
 - Doing: nothing on the board
 - Top of Next: **play one full 12-node run on a phone, then decide share or park**
 - Ideas: decide the next concrete step (now answered by the card above)

@@ -1,5 +1,11 @@
 # Weapon Groups, Alpha and Spending Heat — Implementation Plan
 
+**Completed:** 24 Sep 2026; archived during the 17 Oct 2026 main integration.
+The unchecked steps below preserve the original implementation instructions,
+not outstanding work. The shipped behavior and subsequent rulings are recorded
+in `docs/07-status-and-handoff.md`, the design spec's "As built" section, and
+`docs/17-balance-findings.md` F77.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Give the player MechWarrior's two central decisions during a live fight:

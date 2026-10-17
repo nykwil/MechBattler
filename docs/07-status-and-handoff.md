@@ -127,7 +127,8 @@ Each entry names where its plan went.
   `vulture-sniper` −10, `mule-skirmisher` +7) were **already on `main`**. A
   same-seed main-vs-branch run puts the branch's share at 0 / +2 / −2 / +1, and
   its own largest move is `vulture-skirmisher` −5 (78% → 73%). See `17` F77. 24 Sep 2026,
-  `superpowers/specs/2026-09-23-mw-groups-heat-design.md`
+  `superpowers/specs/2026-09-23-mw-groups-heat-design.md`;
+  completed plan: `archive/2026-09-23-mw-groups-heat.md`.
 
 - **The content-authoring contract** — `game:audit` gained a warnings channel: a
   weapon with no authored height or clearance, a part with no differentiation

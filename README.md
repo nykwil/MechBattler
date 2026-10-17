@@ -83,7 +83,8 @@ npm run web:dev            # the app
 npm run verify             # tests, builds, audits and the report-only balance rails
 ```
 
-572 tests pass today: 336 simulation, 205 web, 24 game domain, 7 prototype.
+`npm run verify` runs the game, simulation and web tests, content audit, builds,
+and report-only balance checks. The separate physics lab has `npm run prototype:test`.
 
 Individual pieces:
 

@@ -5948,4 +5948,3 @@ baseline because `main` had lifted it +7 first. Neither `mule-gunline` nor
 `bastion-tank` moved 5+ against `main`, so neither was bisected. `sim:balance`
 flies the autopilot on both sides, and the autopilot never orders overdrive, so
 these numbers do not measure it. The OVR table above does.
-
